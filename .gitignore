@@ -148,6 +148,6 @@ events.out.tfevents.*
 model.ckpt*
 
 # Andrew	
-input/
-output/
+input
+output
 archive/
