@@ -89,6 +89,14 @@ def main():
         else:
             st.session_state['annotation_microns_per_integer_unit_is_disabled2'] = False
 
+    def update_dependencies_of_analysis_significance_calculation_method():
+        if st.session_state['settings__analysis__significance_calculation_method'] == 'Permutation (k-nearest neighbors)':
+            st.session_state['analysis_neighbor_radius_is_disabled'] = True
+            st.session_state['analysis_n_neighs_is_disabled'] = False
+        else:
+            st.session_state['analysis_neighbor_radius_is_disabled'] = False
+            st.session_state['analysis_n_neighs_is_disabled'] = True
+
     def set_session_state_key(settings, str1, str2):
         if str2 in settings[str1]:
             st.session_state['settings__{}__{}'.format(str1, str2)] = settings[str1][str2]
@@ -128,8 +136,10 @@ def main():
         update_dependencies_of_analysis_partition_slides_into_rois()
         st.session_state['settings__analysis__roi_width'] = 400
         st.session_state['settings__analysis__roi_overlap'] = 80
-        st.session_state['settings__analysis__neighbor_radius'] = 40
         st.session_state['settings__analysis__significance_calculation_method'] = utils.get_first_element_or_none(options_for_significance_calculation_methods)
+        update_dependencies_of_analysis_significance_calculation_method()
+        st.session_state['settings__analysis__neighbor_radius'] = 40
+        st.session_state['settings__analysis__n_neighs'] = 6
         st.session_state['settings__analysis__min_num_valid_centers'] = 10
         st.session_state['settings__analysis__weight_by_num_valid_centers'] = False
         st.session_state['settings__analysis__log_pval_minimum'] = -50
@@ -174,8 +184,10 @@ def main():
         update_dependencies_of_analysis_partition_slides_into_rois()
         set_session_state_key(settings, 'analysis', 'roi_width')
         set_session_state_key(settings, 'analysis', 'roi_overlap')
-        set_session_state_key(settings, 'analysis', 'neighbor_radius')
         set_session_state_key(settings, 'analysis', 'significance_calculation_method')
+        update_dependencies_of_analysis_significance_calculation_method()
+        set_session_state_key(settings, 'analysis', 'neighbor_radius')
+        set_session_state_key(settings, 'analysis', 'n_neighs')
         set_session_state_key(settings, 'analysis', 'min_num_valid_centers')
         set_session_state_key(settings, 'analysis', 'weight_by_num_valid_centers')
         set_session_state_key(settings, 'analysis', 'log_pval_minimum')
@@ -214,8 +226,9 @@ def main():
         st.checkbox('Partition slides into regions of interest (ROIs)', key='settings__analysis__partition_slides_into_rois', on_change=update_dependencies_of_analysis_partition_slides_into_rois)
         st.number_input('ROI width (microns):', min_value=0.0, key='settings__analysis__roi_width', disabled=st.session_state['analysis_roi_width_is_disabled'])
         st.number_input('ROI overlap (microns):', min_value=0.0, key='settings__analysis__roi_overlap', disabled=st.session_state['analysis_roi_overlap_is_disabled'], help='In order to analyze the neighbors around every cell exactly once (as you should), this should be set to twice the neighbor radius (adjusted below).')
-        st.number_input('Neighbor radius (microns):', min_value=0.0, key='settings__analysis__neighbor_radius', help='Radius around each center cell within which to count neighboring cells.')
-        st.selectbox('Significance calculation method:', options_for_significance_calculation_methods, key='settings__analysis__significance_calculation_method')
+        st.selectbox('Significance calculation method:', options_for_significance_calculation_methods, key='settings__analysis__significance_calculation_method', on_change=update_dependencies_of_analysis_significance_calculation_method)
+        st.number_input('Neighbor radius (microns):', min_value=0.0, key='settings__analysis__neighbor_radius', help='Radius around each center cell within which to count neighboring cells.', disabled=st.session_state['analysis_neighbor_radius_is_disabled'])
+        st.number_input('Number of nearest neighbors:', min_value=0, key='settings__analysis__n_neighs', disabled=st.session_state['analysis_n_neighs_is_disabled'])
         st.number_input('Minimum number of valid centers:', min_value=1, key='settings__analysis__min_num_valid_centers', help='Valid centers are defined as cells inside an analysis radius from the ROI edges. If a particular phenotype in a ROI has fewer than the minimum number of valid cells, it is excluded from downstream analysis as a center species (not as a neighbor species). I.e., the user may want to define a minimum sample size.')
         st.checkbox('For just the "Display average heatmaps" page, weight by the number of valid centers', key='settings__analysis__weight_by_num_valid_centers', help='This refers to the averaging performed on the "Display average heatmaps" page, in which the rows in the density P value heatmaps for each ROI are weighted by the number of valid centers in each row. (This *is not* center-neighbor symmetric because in a given analysis, the number valid neighbors is the total number of neighbors in the ROI whereas the number of valid centers is the number of centers within an analysis radius buffer from the ROI edge.) This has no effect on the averaging done per annotation region type, i.e., the averaging performed on the "Display average heatmaps per annotation" page, in which the ROIs are uniformly weighted depending on the weighting method selected on that page, for each annotation region type. (This *is* center-neighbor symmetric because the same weight is assigned to all the center-neighbor pairs for each ROI.) So the averaging done on these two pages is fundamentally different, even aside from annotations being involved.')
 
