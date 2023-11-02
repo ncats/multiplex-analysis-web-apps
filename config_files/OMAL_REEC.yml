@@ -1,0 +1,24 @@
+dir:
+  projectPaths: ['/NIH/OMAL/reec-UMAP/data/preprocessed_data/']
+  usDatasetPaths: ['/NIH/OMAL/reec-UMAP/data/preprocessed_data/pt_pt_pt_TnT 48h Untreated zScore areaNorm 48 h AA1 Reg_microns_unstructured']
+  OutputCSVPaths_S: ['/NIH/OMAL/reec-UMAP/data/analyzed_data/']
+  OutputCSVPaths_U: ['/NIH/OMAL/reec-UMAP/data/analyzed_data/reec-UMAP_OutputFiles']
+
+def_df:
+  CentroidX: [0]
+  CentroidY: [0]
+  Index: [1]
+  tNt: ['48h Untreated']
+  GOODNUC: [1]
+  marker_a: [1]
+
+filt_feat:
+  SEL_feat: ['tNt']
+  CHK_feat: ['GOODNUC']
+
+analysis:
+  dataset_type: 'OMAL_will'
+  marker_pre: 'marker_'
+  outcomes_BOOL: ['HYPOXIC', 'NORMOXIC']
+  outcomes_nBOOL: ['NucArea', 'RelOrientation']
+  outcomes_nBOOL_thresh: [0, 0]
