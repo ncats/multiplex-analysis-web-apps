@@ -20,8 +20,12 @@ def main():
         if (not key.endswith('__do_not_persist')) and (not key.startswith('FormSubmitter:')):
             st.session_state[key] = val
 
-    
     st.header('Neighborhood Profiles\nNCATS-NCI-DMAP')
+
+    ### SIDE BAR ORGANIZATION ###
+    with st.sidebar:
+        url = st_javascript("await fetch('').then(r => window.parent.location.href)")
+        st.write(f'''[Open app in new Tab]({url})\n (MS Edge/ Google Chrome)''')
 
     clust_minmax = [1, 40]
     cellCountsCol, UMAPCol, ClustCol = st.columns(3)
@@ -56,7 +60,7 @@ def main():
 
                 # List of possible UMAP Lineages as defined by the completed UMAP
                 st.session_state.umapPheno = [st.session_state.defLineageOpt]
-                st.session_state.umapPheno.extend(st.session_state.spatial_umap.species)
+                st.session_state.umapPheno.extend(st.session_state.spec_summ['phenotype'])
                 st.session_state.umapMarks = [st.session_state.defLineageOpt]
                 st.session_state.umapMarks.extend(st.session_state.spatial_umap.markers)
                 st.session_state.umapMarks.extend(['Other'])

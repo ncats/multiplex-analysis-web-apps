@@ -524,6 +524,8 @@ def setFigureObjs_UMAPDifferences(session_state):
     dfUMAPI = filterLineage4UMAP(session_state, dfUMAPI, session_state.defLineageOpt, session_state.umapInspect_Ver)
     dfUMAPD = filterLineage4UMAP(session_state, dfUMAPD, session_state.defLineageOpt, session_state.diffUMAPSel_Ver)
 
+    vlim = .97
+
     # Inspection UMAP properties
     if session_state.umapInspect_Feat != session_state.defumapOutcomes:
         w_Ins = dfUMAPI[session_state.umapInspect_Feat]
@@ -537,38 +539,49 @@ def setFigureObjs_UMAPDifferences(session_state):
         if session_state.diffUMAPSel_Feat in session_state.outcomes_nBOOL:
             compThresh = 0
             w = np.array(w > compThresh).astype('int')
+
+            featComp1 = f'>= {compThresh}'
+            featComp2 = f'< {compThresh}'
+
+            dfUMAPD_A = dfUMAPD.loc[dfUMAPD[session_state.diffUMAPSel_Feat] >= compThresh, :]
+            dfUMAPD_B = dfUMAPD.loc[dfUMAPD[session_state.diffUMAPSel_Feat] < compThresh, :]
+            dfUMAPD_AB = dfUMAPD_B.copy()
+        else:
+            featComp1 = '= 1'
+            featComp2 = '= 0'
+
+            dfUMAPD_A = dfUMAPD.loc[dfUMAPD[session_state.diffUMAPSel_Feat] == 1, :]
+            dfUMAPD_B = dfUMAPD.loc[dfUMAPD[session_state.diffUMAPSel_Feat] == 0, :]
+            dfUMAPD_AB = dfUMAPD_B.copy()
+
         w, dfUMAPD = bpl.preprocess_weighted_umap(w, dfUMAPD)
 
         w_DiffA = w
         w_DiffB = max(w) - w
         w_Diff  = w_DiffA - w_DiffB
+
+        feat_label0 = f'{session_state.diffUMAPSel_Feat} {featComp1} '
+        feat_label1 = f'{session_state.diffUMAPSel_Feat} {featComp2} '
+        feat_label2 = None
+
     else:
         w_DiffA = None
         w_DiffB = None
         w_Diff  = None
 
-    # lineages_plot = sorted(session_state.spatial_umap.cells['Lineage'].unique())
-    # H = session_state.spatial_umap.generate_H(lineages_plot)
+        feat_label0 = None
+        feat_label1 = None
+        feat_label2 = None
 
-    # # specimens with density data across all lineages
-    # idx_d = ~np.all(np.all(np.all(np.isnan(H[..., 1]), axis=0), axis=0), axis=0)
+        dfUMAPD_A = dfUMAPD.copy()
+        dfUMAPD_B = dfUMAPD.copy()
+        dfUMAPD_AB = dfUMAPD.copy()
 
-    # idx_A = (session_state.spatial_umap.patients['Death_5Y'] == 1) & idx_d # Dead at 5 years
-    # idx_B = (session_state.spatial_umap.patients['Death_5Y'] == 0) & idx_d # Alive at 5
-
-    # # Lineages
-    # if session_state.diffUMAP1Sel_Ver != session_state.defLineageOpt:
-    #     idx = lineages_plot.index(session_state.diffUMAP1Sel_Ver)
-    # else:
-    #     idx = -1
-
-    # d_idx_A = np.nanmean(H[:, :, idx, idx_A, 1], axis=-1).T
-    # d_idx_B = np.nanmean(H[:, :, idx, idx_B, 1], axis=-1).T
-    # d_diff  = d_idx_A - d_idx_B
+    feat_labels = [feat_label0, feat_label1, feat_label2]
+    dfUMAPDs = [dfUMAPD_A, dfUMAPD_B, dfUMAPD_AB]
 
     # UMAP colored by Density
     if session_state.UMAPFigType == 'Density':
-        vlim = .97
         w = None
 
         # All UMAP Figure
@@ -576,11 +589,6 @@ def setFigureObjs_UMAPDifferences(session_state):
 
         # UMAP for Lineage/Outcome Inspection
         session_state.UMAPFigInsp = bpl.UMAPdraw_density(dfUMAPI, bins = [xx, yy], w=w_Ins, n_pad=n_pad, vlim=vlim)
-
-        # UMAP Difference Figures
-        session_state.UMAPFigDiff1 = bpl.UMAPdraw_density(dfUMAPD, bins = [xx, yy], w=w_DiffA, n_pad=n_pad, vlim=vlim)
-        session_state.UMAPFigDiff2 = bpl.UMAPdraw_density(dfUMAPD, bins = [xx, yy], w=w_DiffB, n_pad=n_pad, vlim=vlim)
-        session_state.UMAPFigDiff3 = bpl.UMAPdraw_density(dfUMAPD, bins = [xx, yy], w=w_Diff, n_pad=n_pad, vlim=vlim, diff = True)
 
     # UMAP colored by Clusters
     elif session_state.UMAPFigType == 'Clusters':
@@ -591,28 +599,32 @@ def setFigureObjs_UMAPDifferences(session_state):
         session_state.UMAPFig = bpl.scatter_plot(dfUMAP, session_state.UMAPFig, session_state.UMAPax, title,
                                                  xVar = 'X', yVar = 'Y', hueVar = 'Cluster',
                                                  hueOrder = clustOrder,
-                                                 xLim = [minXY[0], maxXY[0]], yLim = [minXY[1], maxXY[1]], boxoff=True)
+                                                 xLim = [minXY[0], maxXY[0]], yLim = [minXY[1], maxXY[1]], boxoff=True, clusters_label = True)
         
         # UMAP for Lineage/Outcome Inspection
         session_state.UMAPFigInsp, session_state.UMAPInspax = bpl.draw_scatter_fig(figsize=session_state.figsize)
         session_state.UMAPFigInsp = bpl.scatter_plot(dfUMAPI, session_state.UMAPFigInsp, session_state.UMAPInspax, title,
                                                  xVar = 'X', yVar = 'Y', hueVar = 'Cluster',
                                                  hueOrder = clustOrder, 
-                                                 xLim = [minXY[0], maxXY[0]], yLim = [minXY[1], maxXY[1]], boxoff=True)
+                                                 xLim = [minXY[0], maxXY[0]], yLim = [minXY[1], maxXY[1]], boxoff=True, clusters_label = True)
 
-        # UMAP Difference Figures
-        session_state.UMAPFigDiff1, session_state.UMAPax1 = bpl.draw_scatter_fig(figsize=session_state.figsize)
-        session_state.UMAPFigDiff1 = bpl.scatter_plot(dfUMAPD, session_state.UMAPFigDiff1, session_state.UMAPax1, title,
-                                                 xVar = 'X', yVar = 'Y', hueVar = 'Cluster',
-                                                 hueOrder = clustOrder, boxoff=True)
-        session_state.UMAPFigDiff2, session_state.UMAPax2 = bpl.draw_scatter_fig(figsize=session_state.figsize)
-        session_state.UMAPFigDiff2 = bpl.scatter_plot(dfUMAPD, session_state.UMAPFigDiff2, session_state.UMAPax2, title,
-                                                 xVar = 'X', yVar = 'Y', hueVar = 'Cluster',
-                                                 hueOrder = clustOrder, boxoff=True)
-        session_state.UMAPFigDiff3, session_state.UMAPax3 = bpl.draw_scatter_fig(figsize=session_state.figsize)
-        session_state.UMAPFigDiff3 = bpl.scatter_plot(dfUMAPD, session_state.UMAPFigDiff3, session_state.UMAPax3, title,
-                                                 xVar = 'X', yVar = 'Y', hueVar = 'Cluster',
-                                                 hueOrder = clustOrder, boxoff=True)
+    # UMAP Difference Figures
+    session_state.UMAPFigDiff0_Dens = bpl.UMAPdraw_density(dfUMAPD, bins = [xx, yy], w=w_DiffA, n_pad=n_pad, vlim=vlim, feat = feat_label0)
+    session_state.UMAPFigDiff1_Dens = bpl.UMAPdraw_density(dfUMAPD, bins = [xx, yy], w=w_DiffB, n_pad=n_pad, vlim=vlim, feat = feat_label1)
+    session_state.UMAPFigDiff2_Dens = bpl.UMAPdraw_density(dfUMAPD, bins = [xx, yy], w=w_Diff, n_pad=n_pad, vlim=vlim, diff = True)
+
+
+    # UMAP Difference Figures
+    for i in range(3):
+        fig, ax = bpl.draw_scatter_fig(figsize=session_state.figsize)
+
+        fig = bpl.scatter_plot(dfUMAPDs[i], fig, ax, title,
+                                xVar = 'X', yVar = 'Y', hueVar = 'Cluster',
+                                hueOrder = clustOrder, boxoff=True, 
+                                feat = feat_labels[i], clusters_label = True)
+        
+        session_state[eval('"UMAPFigDiff" + str(i) + "_Clus"')] = fig
+        session_state[eval('"UMAPax" + str(i)')] = ax
 
     # Phenotype/Cluster Heatmap
     if session_state.NormHeatRadio == 'Norm within Clusters':

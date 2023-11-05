@@ -338,7 +338,7 @@ def draw_scatter_fig(figsize=(12, 12)):
 
     return fig, ax
     
-def scatter_plot(df, fig, ax, figTitle, xVar, yVar, hueVar, hueOrder, xLim = None, yLim = None, boxoff = False, figname='scatter_plot.png', dpi=200, saveFlag=0):
+def scatter_plot(df, fig, ax, figTitle, xVar, yVar, hueVar, hueOrder, xLim = None, yLim = None, boxoff = False, feat = None, clusters_label = None, figname='scatter_plot.png', dpi=200, saveFlag=0):
     """Create a 2D scatter plot and color the points by a specific variable in a dataframe
 
     Args:
@@ -399,18 +399,31 @@ def scatter_plot(df, fig, ax, figTitle, xVar, yVar, hueVar, hueOrder, xLim = Non
 
     if xLim is not None:
         ax.set_xlim(xLim[0], xLim[1])
+    else:
+        xLim = ax.get_xlim()
     
     if yLim is not None:
         ax.set_ylim(yLim[0], yLim[1])
+    else:
+        yLim = ax.get_ylim()
 
     # Put the legend outside of the plot
     ax.legend(bbox_to_anchor = (-0.05, -0.1), 
               loc = 'upper left',
+              fontsize = 20,
+              markerscale = 6,
               borderaxespad = 0,
               ncols = 4,
               facecolor = Sl2BgC,
               edgecolor = Sl2BgC,
               labelcolor = SlTC)
+
+    if clusters_label:
+        ax.text(0.80*xLim[1], yLim[0], 'Clusters', c = SlTC, fontsize = 25)
+
+    if feat is not None:
+        ax.text(xLim[0], 0.93*yLim[1], feat, c = SlTC, fontsize = 30)
+
 
     # Save the figure to disk
     if saveFlag:
@@ -664,7 +677,7 @@ def preprocess_weighted_umap(w, dfUMAP):
 
     return w, dfUMAP
 
-def UMAPdraw_density(df, bins, w, n_pad, vlim, diff = False, figsize=(12, 12)):
+def UMAPdraw_density(df, bins, w, n_pad, vlim, feat = None, diff = False, figsize=(12, 12)):
     import PlottingTools as umPT
 
     # Streamlit Theming
@@ -695,6 +708,14 @@ def UMAPdraw_density(df, bins, w, n_pad, vlim, diff = False, figsize=(12, 12)):
 
     umPT.plot_2d_density(df['X'], df['Y'], bins=bins, w=w, n_pad=n_pad, 
                          ax=ax, cmap=cmap, vlim = vlim, circle_type = circle_type)
+    
+    xLim = ax.get_xlim()
+    yLim = ax.get_ylim()
+    
+    ax.text(0.82*xLim[1], 0.03*yLim[1], 'Density', c = SlTC, fontsize = 25)
+
+    if feat is not None:
+        ax.text(xLim[0], 0.93*yLim[1], feat, c = SlTC, fontsize = 30)
 
     return UMAPFig
 

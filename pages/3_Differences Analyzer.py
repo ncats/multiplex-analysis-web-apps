@@ -22,6 +22,11 @@ def main():
 
     st.header('Differences Analyzer\nNCATS-NCI-DMAP')
 
+    ### SIDE BAR ORGANIZATION ###
+    with st.sidebar:
+        url = st_javascript("await fetch('').then(r => window.parent.location.href)")
+        st.write(f'''[Open app in new Tab]({url})\n (MS Edge/ Google Chrome)''')
+
     # Toggles for different figures
     figToggle1, figToggle2, figToggle3 = st.columns([1, 1, 2])
     with figToggle1:
@@ -68,25 +73,28 @@ def main():
     # Difference Measures
     st.header('Difference Measures')
 
-    diffUMAP1, diffUMAP2, diffUMAP3 = st.columns(3)
+    diff_umap_col = st.columns(3)
 
-    with diffUMAP1:
-        diffUMAPFeat = st.selectbox('Feature', options = st.session_state.umapOutcomes, key = 'diffUMAPSel_Feat')
+    with diff_umap_col[0]:
+        st.selectbox('Feature', options = st.session_state.umapOutcomes, key = 'diffUMAPSel_Feat')
         st.header('UMAP A')
         if st.session_state.umapCompleted:
-            st.pyplot(st.session_state.UMAPFigDiff1)
-    with diffUMAP2:
-        diffUMAPVer  = st.selectbox(st.session_state.lineageDisplayToggle, options = st.session_state.umaplineages, key = 'diffUMAPSel_Ver')
+            st.pyplot(st.session_state.UMAPFigDiff0_Dens)
+            st.pyplot(st.session_state.UMAPFigDiff0_Clus)
+    with diff_umap_col[1]:
+        st.selectbox(st.session_state.lineageDisplayToggle, options = st.session_state.umaplineages, key = 'diffUMAPSel_Ver')
         st.header('UMAP B')
         if st.session_state.umapCompleted:
-            st.pyplot(st.session_state.UMAPFigDiff2)
-    with diffUMAP3:
+            st.pyplot(st.session_state.UMAPFigDiff1_Dens)
+            st.pyplot(st.session_state.UMAPFigDiff1_Clus)
+    with diff_umap_col[2]:
         st.write('#')
         st.write('###')
         st.write('###')
         st.header('UMAP A - UMAP B')
         if st.session_state.umapCompleted:
-            st.pyplot(st.session_state.UMAPFigDiff3)
+            st.pyplot(st.session_state.UMAPFigDiff2_Dens)
+            st.pyplot(st.session_state.UMAPFigDiff2_Clus)
 
     # Clustering Columns
     HeatIncCol1, HeatIncCol2 = st.columns(2)
