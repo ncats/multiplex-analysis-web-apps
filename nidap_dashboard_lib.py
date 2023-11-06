@@ -151,6 +151,7 @@ def init_session_state(session_state, settings_yaml_file):
     # Default Incidence settings
     session_state.inciPhenoSel   = session_state.defLineageOpt
     session_state.inciOutcomeSel = session_state.definciOutcomes
+    session_state.Inci_Value_display = 'Count Differences'
 
     # Set data_loaded = False. 
     # This needs to happen at the end to counteract the 'loadDataButton' action
@@ -621,6 +622,7 @@ def setFigureObjs_UMAPDifferences(session_state):
         fig = bpl.scatter_plot(dfUMAPDs[i], fig, ax, title,
                                 xVar = 'X', yVar = 'Y', hueVar = 'Cluster',
                                 hueOrder = clustOrder, boxoff=True, 
+                                xLim = [minXY[0], maxXY[0]], yLim = [minXY[1], maxXY[1]],
                                 feat = feat_labels[i], small_ver = True, clusters_label = True)
         
         session_state[eval('"UMAPFigDiff" + str(i) + "_Clus"')] = fig
