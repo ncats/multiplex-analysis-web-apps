@@ -76,12 +76,12 @@ def main():
                 st.session_state.umapCompleted = True
     with ClustCol:
         with st.form('Clustering Settings'):
-            nClus = st.slider('Number of K-means clusters', min_value=clust_minmax[0], max_value=clust_minmax[1])
+            st.slider('Number of K-means clusters', min_value=clust_minmax[0], max_value=clust_minmax[1], key = 'slider_clus_val')
             submitCluster = st.form_submit_button('Perform Clustering')
             if submitCluster:
                 ClustTSt = time.time()
-                st.session_state.spatial_umap = bpl.perform_clusteringUMAP(st.session_state.spatial_umap, nClus)
-                st.session_state.selected_nClus = nClus
+                st.session_state.spatial_umap = bpl.perform_clusteringUMAP(st.session_state.spatial_umap, st.session_state.slider_clus_val)
+                st.session_state.selected_nClus = st.session_state.slider_clus_val
                 st.write('Done Calculating Clusters')
 
                 # Record time elapsed
@@ -92,10 +92,15 @@ def main():
     with st.expander('Cluster Meta-Analysis'):
         wcssCol1, wcssCol2 = st.columns(2)
         with wcssCol1:
-            st.write('Hello')
+            st.markdown('''The within-cluster sum of squares (WCSS) is a measure of the 
+                        variability of the observations within each cluster. In general, 
+                        a cluster that has a small sum of squares is more compact than a 
+                        cluster that has a large sum of squares. Clusters that have higher 
+                        values exhibit greater variability of the observations within the 
+                        cluster.''')
         with wcssCol2:
             if st.session_state.umapCompleted:
-                elbowFig = bpl.draw_wcss_elbow_plot(st.session_state.clust_range, st.session_state.wcss, nClus)
+                elbowFig = bpl.draw_wcss_elbow_plot(st.session_state.clust_range, st.session_state.wcss, st.session_state.selected_nClus)
                 st.pyplot(elbowFig)
 
     ### Visualizations ###

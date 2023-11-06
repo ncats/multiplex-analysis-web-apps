@@ -111,11 +111,19 @@ def main():
     # Incidence Plot        
     with HeatIncCol2:
         st.header('Incidence Lineplot')
+
         inciSel1, inciSel2 = st.columns(2)
         with inciSel1:
-            inciOutSel   = st.selectbox('Experimental Outcomes', options = st.session_state.inciOutcomes, key = 'inciOutcomeSel')
+            st.selectbox('Experimental Outcomes', options = st.session_state.inciOutcomes, key = 'inciOutcomeSel')
         with inciSel2:
-            inciPhenoSel = st.selectbox(st.session_state.lineageDisplayToggle, options = st.session_state.umaplineages, key = 'inciPhenoSel')
+            st.selectbox(st.session_state.lineageDisplayToggle, options = st.session_state.umaplineages, key = 'inciPhenoSel')
+
+        if st.session_state.inciOutcomeSel == st.session_state.definciOutcomes:
+            inci_radio_disabled = True
+        else:
+            inci_radio_disabled = False
+        st.radio('Display As:', options = ('Count Differences', 'Ratios', 'Percentages'), 
+                 key = 'Inci_Value_display', horizontal=True, disabled = inci_radio_disabled)
 
         if st.session_state.umapCompleted:
             st.pyplot(st.session_state.inciFig)

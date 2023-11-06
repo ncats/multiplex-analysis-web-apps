@@ -52,11 +52,16 @@ def plot_2d_density(X, Y=None, bins=200, n_pad=40, w=None, ax=None, gaussian_sig
     if return_matrix:
         return d
     else:
-        if np.isscalar(vlim):
-            vlim = np.array([0, np.quantile(d[d > 0].flatten(), vlim)])
+        if d[d > 0].shape == (0,):
+            vmin = 0
+            vmax = 1
+            vlim = [vmin, vmax]
         else:
-            if np.all((vlim < 1) & (vlim > 0)):
-                vlim = np.quantile(d[d > 0].flatten(), vlim)
+            if np.isscalar(vlim):
+                vlim = np.array([0, np.quantile(d[d > 0].flatten(), vlim)])
+            else:
+                if np.all((vlim < 1) & (vlim > 0)):
+                    vlim = np.quantile(d[d > 0].flatten(), vlim)
 
         if ax is None:
             _, ax = plt.subplots()
@@ -72,10 +77,11 @@ def plot_2d_density(X, Y=None, bins=200, n_pad=40, w=None, ax=None, gaussian_sig
             ax.pcolormesh(np.pad(d, [n_pad, n_pad]) + c, vmin=1, vmax=1 + vlim[1], cmap=cmap, shading='gouraud', alpha=1)
             # ax.pcolormesh(np.log10(np.pad(d, [n_pad, n_pad]) + c + 1), vmin=np.log10(2), vmax=np.log10(2 + vlim[1]), cmap=cmap, shading='gouraud', alpha=1)
         elif circle_type == 'arch':
+            vmin = np.quantile(d[d < 0].flatten(), 0.03)
+            vmax = np.quantile(d[d > 0].flatten(), 0.97)
             c = (n_bins / 2)
             ax.add_artist(plt.Circle((c + n_pad, c + n_pad), 0.95 * (c + n_pad), color='black', fill=False))
-            ax.pcolormesh(np.pad(d, [n_pad, n_pad]), vmin=np.quantile(d[d < 0].flatten(), 0.03), 
-                                                     vmax=np.quantile(d[d > 0].flatten(), 0.97), cmap=cmap, shading='gouraud', alpha=1)
+            ax.pcolormesh(np.pad(d, [n_pad, n_pad]), vmin=vmin, vmax=vmax, cmap=cmap, shading='gouraud', alpha=1)
         else:
             ax.pcolormesh(np.pad(d, [n_pad, n_pad]), vmin=0, vmax=vlim[1], cmap=cmap, shading='gouraud', alpha=1)
 

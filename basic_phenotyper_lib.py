@@ -338,7 +338,7 @@ def draw_scatter_fig(figsize=(12, 12)):
 
     return fig, ax
     
-def scatter_plot(df, fig, ax, figTitle, xVar, yVar, hueVar, hueOrder, xLim = None, yLim = None, boxoff = False, feat = None, clusters_label = None, figname='scatter_plot.png', dpi=200, saveFlag=0):
+def scatter_plot(df, fig, ax, figTitle, xVar, yVar, hueVar, hueOrder, xLim = None, yLim = None, boxoff = False, small_ver = False, feat = None, clusters_label = None, figname='scatter_plot.png', dpi=200, saveFlag=0):
     """Create a 2D scatter plot and color the points by a specific variable in a dataframe
 
     Args:
@@ -407,11 +407,18 @@ def scatter_plot(df, fig, ax, figTitle, xVar, yVar, hueVar, hueOrder, xLim = Non
     else:
         yLim = ax.get_ylim()
 
+    if small_ver == True:
+        lgd_fontsize = 20
+        lgd_markscale = 6
+    else:
+        lgd_fontsize = 10
+        lgd_markscale = 6
+
     # Put the legend outside of the plot
     ax.legend(bbox_to_anchor = (-0.05, -0.1), 
               loc = 'upper left',
-              fontsize = 20,
-              markerscale = 6,
+              fontsize = lgd_fontsize,
+              markerscale = lgd_markscale,
               borderaxespad = 0,
               ncols = 4,
               facecolor = Sl2BgC,
@@ -719,12 +726,8 @@ def UMAPdraw_density(df, bins, w, n_pad, vlim, feat = None, diff = False, figsiz
 
     return UMAPFig
 
-def drawIncidenceFigure(commonIdx, df, figTitle, phenotype = 'All Phenotypes', outcome = 'Cell Counts', compThresh = None, figsize=(12,12)):
+def drawIncidenceFigure(commonIdx, df, figTitle, phenotype = 'All Phenotypes', outcome = 'Cell Counts', compThresh = None, displayas = 'Counts Difference', figsize=(12,12)):
     import PlottingTools as umPT
-
-    upLimit = max(-1*df.min(), df.max())
-    if upLimit < 2:
-        upLimit = 2
 
     SlBgC  = '#0E1117'  # Streamlit Background Color
     SlTC   = '#FAFAFA'  # Streamlit Text Color
@@ -738,10 +741,6 @@ def drawIncidenceFigure(commonIdx, df, figTitle, phenotype = 'All Phenotypes', o
     inciFig = plt.figure(figsize=figsize, facecolor = SlBgC)
     ax = inciFig.add_subplot(1, 1, 1, facecolor = SlBgC)
 
-    ax.set_title(pltTitle, fontsize = 20, loc = 'left', color = SlTC)
-    ax.set_xlabel('Cluster #', fontsize = 14, color = SlTC)
-    ax.set_ylabel(outcome, fontsize = 14, color = SlTC)
-
     if compThresh is not None:
         upTag = f' >= {compThresh}'
         dnTag = f' < {compThresh}'
@@ -750,17 +749,39 @@ def drawIncidenceFigure(commonIdx, df, figTitle, phenotype = 'All Phenotypes', o
         dnTag = f' = 0'
 
     if outcome != 'Cell Counts':
-        ax.set_ylim([-1.05*upLimit, 1.05*upLimit])
-        plt.axhline(y = 0, color = SlTC, linestyle = 'dashed', alpha = 0.7)
-        ax.text(0.5, upLimit*.95, f'{outcome}{upTag}', c = SlTC, fontsize = 30, alpha = 0.3)
-        ax.text(0.5, -upLimit*.95, f'{outcome}{dnTag}', c = SlTC, fontsize = 30, alpha = 0.3)
+        dfmin = df.loc[df != -np.inf].min()
+        dfmax = df.loc[df != np.inf].max()
+        upLimit = max(-1*dfmin, df.max())
+        if displayas == 'Count Differences':
+            if upLimit < 2:
+                upLimit = 2
+            ax.set_ylim([-1.05*upLimit, 1.05*upLimit])
+            plt.axhline(y = 0, color = SlTC, linestyle = 'dashed', alpha = 0.7)
+            ax.text(0.5, upLimit*.95, f'{outcome}{upTag}', c = SlTC, fontsize = 30, alpha = 0.3)
+            ax.text(0.5, -upLimit*.95, f'{outcome}{dnTag}', c = SlTC, fontsize = 30, alpha = 0.3)
+            outcome_suff = ' (Counts)'
+        elif displayas == 'Ratios':
+            ax.set_ylim([-1.05*upLimit, 1.05*upLimit])
+            plt.axhline(y = 0, color = SlTC, linestyle = 'dashed', alpha = 0.7)
+            ax.text(0.5, upLimit*.95, f'{outcome}{upTag}', c = SlTC, fontsize = 30, alpha = 0.3)
+            ax.text(0.5, -upLimit*.95, f'{outcome}{dnTag}', c = SlTC, fontsize = 30, alpha = 0.3)
+            outcome_suff = ' Ratio (log10)'
+        elif displayas == 'Percentages':
+            ax.set_ylim([-1.05, 105])
+            ax.text(0.5, upLimit*.95, f'{outcome}{upTag}', c = SlTC, fontsize = 30, alpha = 0.3)
+            outcome_suff = ' (%)'
+
     else:
         ax.set_ylim([0.95*df.min(), 1.05*df.max()])
         ax.text(0.5, 1.05*df.max()*.95, f'{outcome}', c = SlTC, fontsize = 30, alpha = 0.3)
+        outcome_suff = ' (Counts)'
 
     umPT.plot_incidence_line(ax, df, phenotype)
     
     # Reset xticks after 
     ax.set_xticks(commonIdx)
+    ax.set_title(pltTitle, fontsize = 20, loc = 'left', color = SlTC)
+    ax.set_xlabel('Cluster #', fontsize = 14, color = SlTC)
+    ax.set_ylabel(f'{outcome}{outcome_suff}', fontsize = 14, color = SlTC)
 
     return inciFig
