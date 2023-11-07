@@ -614,7 +614,6 @@ def setFigureObjs_UMAPDifferences(session_state):
     session_state.UMAPFigDiff1_Dens = bpl.UMAPdraw_density(dfUMAPD, bins = [xx, yy], w=w_DiffB, n_pad=n_pad, vlim=vlim, feat = feat_label1)
     session_state.UMAPFigDiff2_Dens = bpl.UMAPdraw_density(dfUMAPD, bins = [xx, yy], w=w_Diff, n_pad=n_pad, vlim=vlim, diff = True)
 
-
     # UMAP Difference Figures
     for i in range(3):
         fig, ax = bpl.draw_scatter_fig(figsize=session_state.figsize)
@@ -628,7 +627,7 @@ def setFigureObjs_UMAPDifferences(session_state):
         session_state[eval('"UMAPFigDiff" + str(i) + "_Clus"')] = fig
         session_state[eval('"UMAPax" + str(i)')] = ax
 
-    # Phenotype/Cluster Heatmap
+    ### Cluster/Phenotype Heatmap ###
     if session_state.NormHeatRadio == 'Norm within Clusters':
         normAxis = 0
     elif session_state.NormHeatRadio == 'Norm within Phenotypes':
@@ -766,7 +765,6 @@ def read_markdown_file(markdown_file):
     Simple markdown reading function
     '''
     return Path(markdown_file).read_text()
-
 
 def save_png_dataset(fiol, datafile, pngFileName, pltFig):
     """

@@ -63,9 +63,9 @@ def main():
         umapInsCol1, umapInsCol2 = st.columns(2)
 
         with umapInsCol1:
-            inciOutSel   = st.selectbox('Experimental Outcomes', options = st.session_state.umapOutcomes, key = 'umapInspect_Feat')
+            st.selectbox('Experimental Outcomes', options = st.session_state.umapOutcomes, key = 'umapInspect_Feat')
         with umapInsCol2:
-            inciPhenoSel = st.selectbox(st.session_state.lineageDisplayToggle, options = st.session_state.umaplineages, key = 'umapInspect_Ver')
+            st.selectbox(st.session_state.lineageDisplayToggle, options = st.session_state.umaplineages, key = 'umapInspect_Ver')
 
         if st.session_state.umapCompleted:
             st.pyplot(st.session_state.UMAPFigInsp)
@@ -94,40 +94,6 @@ def main():
         st.header('UMAP A - UMAP B')
         if st.session_state.umapCompleted:
             st.pyplot(st.session_state.UMAPFigDiff2_Dens)
-            st.pyplot(st.session_state.UMAPFigDiff2_Clus)
-
-    # Clustering Columns
-    HeatIncCol1, HeatIncCol2 = st.columns(2)
-    # Heatmap
-    with HeatIncCol1:
-        st.header('Phenotype/Cluster Heatmap')
-        curHeatRadio = st.radio("Normalize along features?",
-                    ['No Norm', 'Norm within Clusters', 'Norm within Phenotypes'],
-                    key = 'NormHeatRadio',
-                    horizontal = True)
-        if st.session_state.umapCompleted:
-            st.pyplot(st.session_state.heatmapfig)
-
-    # Incidence Plot        
-    with HeatIncCol2:
-        st.header('Incidence Lineplot')
-
-        inciSel1, inciSel2 = st.columns(2)
-        with inciSel1:
-            st.selectbox('Experimental Outcomes', options = st.session_state.inciOutcomes, key = 'inciOutcomeSel')
-        with inciSel2:
-            st.selectbox(st.session_state.lineageDisplayToggle, options = st.session_state.umaplineages, key = 'inciPhenoSel')
-
-        if st.session_state.inciOutcomeSel == st.session_state.definciOutcomes:
-            inci_radio_disabled = True
-        else:
-            inci_radio_disabled = False
-        st.radio('Display As:', options = ('Count Differences', 'Ratios', 'Percentages'), 
-                 key = 'Inci_Value_display', horizontal=True, disabled = inci_radio_disabled)
-
-        if st.session_state.umapCompleted:
-            st.pyplot(st.session_state.inciFig)
-
 
 if __name__ == '__main__':
     main()
