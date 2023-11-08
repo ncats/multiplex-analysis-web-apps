@@ -79,37 +79,6 @@ def main():
             st.session_state.bc.set_value_df('data_import_loc', 'Local Upload')
             st.session_state.bc.set_value_df('time_load_data', load_elapsed)
 
-    ### NIDAP STRUCTURED LOAD TAB ###
-    # with NIDAP_Load_S:
-    #     selectProj_s = st.selectbox(
-    #         'Select your NIDAP Project folder',
-    #         (st.session_state.projectPaths))
-    #     # Use select box to choose from list of NIDAP 'files'
-    #     st.session_state.datafileS = st.text_input('Type the name of your Structured Dataset',
-    #                                             value=st.session_state.datafileS)
-    #     ### LOAD NIDAP BUTTON ###
-    #     if st.button('Load NIDAP Data', help='Load the selected data file', key = 'LoadSDataButton'):
-    #         tLoadSt = time.time() # Setup some timing
-    #         # Load the data into memory and perform df checks for req features
-    #         df_NIDAP    = ndl.load_dataset(st.session_state.fiol, selectProj_s, files_dict=None, file_path=st.session_state.datafileS, loadCompass=True)
-    #         up_file_rdy = ndl.check_upload_df(df_NIDAP, st.session_state.reqFeatures, st.session_state.marker_pre)
-
-    #         if (not up_file_rdy): # ERROR!!!
-    #             err_msg_inputs = st.session_state.errmsg_wrongCol
-    #         else:                 # SUCCESS!!!
-    #             err_msg_inputs = st.session_state.errmsg_def2row
-    #             st.session_state = ndl.loadDataButton(st.session_state, df_NIDAP, selectProj_s, st.session_state.datafileS)
-    #         loadElapsed = time.time() - tLoadSt
-
-    #         # Save answers to benchmarking dataframe
-    #         st.session_state.bc.set_value_df('file', st.session_state.datafileS)
-    #         st.session_state.bc.set_value_df('nRows', st.session_state.df.shape[0])
-    #         st.session_state.bc.set_value_df('data_import_loc', 'Compass_Structured')
-    #         st.session_state.bc.set_value_df('time_load_data', loadElapsed)
-
-    #         st.markdown(err_msg_inputs)
-    #     ############################
-
     ### NIDAP UNSTRUCTURED LOAD TAB ###
     with NIDAP_Load_U:
         ### SELECT NIDAP DATASET ###
@@ -253,38 +222,6 @@ def main():
         
         # Prepare for Exporting
         st.session_state.df_update = st.session_state.df.copy().drop(['mark_bits', 'species_name_long', 'species_name_short'], axis=1)
-
-        # NIDAP_Export_S, NIDAP_Export_U = st.tabs(['NIDAP Export [Stuctured]',
-        #                                         'NIDAP Export [Unstuctured]'])
-        # with NIDAP_Export_S:
-        #     with st.form('Structured Export'):
-        #         # Exported Files Path Selection
-        #         selectProjOutCSV_S = st.selectbox(
-        #                                 'Select your Project',
-        #                                 (st.session_state.OutputCSVPaths_S),
-        #                                 key = 'ProjOutSel_S')
-        #         # Text Boxes for naming your files
-        #         st.session_state.pheno_assign_filename_S = st.text_input('Phenotype Summary File Name', st.session_state.pheno_assign_filename_S, key = 'phenoAssignText_S')
-        #         st.session_state.df_update_filename_S = st.text_input('Updated Dataset File Name', st.session_state.datafile + '_updated', key = 'updateDataText_S')
-        #         ### Create containers for Button and checkbox
-        #         filtOutS1, filtOutS2, filtOutS3 = st.columns([3,2,1])
-
-        #         with filtOutS2:
-        #             exportFiltS = st.checkbox('Export Filtered Dataset', key = 'exportFiltS')
-        #         with filtOutS1:
-        #             # Every form must have a submit button.
-        #             submitS = st.form_submit_button('Export phenotyping files')
-        #             if submitS:
-        #                 # Export Assigned Phenotypes output
-        #                 ndl.export_results_dataset(st.session_state.fiol, st.session_state.spec_summ, selectProjOutCSV_S, st.session_state.pheno_assign_filename_S, saveCompass=True, type='S')
-        #                 # Export Updated dataset output
-        #                 ndl.export_results_dataset(st.session_state.fiol, st.session_state.df, selectProjOutCSV_S, st.session_state.df_update_filename_S, saveCompass=True, type='S')
-        #                 # Check to export filtered-phenotyped-datasets
-        #                 if exportFiltS:
-        #                     fileFileName = st.session_state.df_update_filename_S + '_filtered'
-        #                     ndl.export_results_dataset(st.session_state.fiol, st.session_state.df_filt, selectProjOutCSV_S, fileFileName, saveCompass=True, type='S')
-        #                 # Add a message that this file writing is complete
-        #                 st.write('Files have been exported!')
 
         # with NIDAP_Export_U:
         with st.form('Unstructured Export'):
