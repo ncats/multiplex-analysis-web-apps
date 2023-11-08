@@ -45,7 +45,7 @@ def main():
                 st.session_state.bc.set_value_df('time_to_run_counts', countElapsed)
     with UMAPCol:
         with st.form('UMAP Settings'):
-            UMAPStyle = st.radio('Choose SpatialUMAP measure', ['Densities', 'Proportions'], horizontal=True)
+            UMAPStyle = 'Densities' #st.radio('Choose SpatialUMAP measure', ['Densities', 'Proportions'], horizontal=True)
             submitUMAP = st.form_submit_button('Perform UMAP')
             
             # UMAP Submit Button
