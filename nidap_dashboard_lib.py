@@ -420,6 +420,10 @@ def check_upload_df(df, reqFeatures, marker_pre):
     up_file_rdy = False
     if (hasReqCol) & (not hasMarkers.empty):
         up_file_rdy = True
+    elif ~(hasReqCol):
+        print('Does not have required columns')
+    elif hasMarkers.empty:
+        print('Marker style is not setup')
     return up_file_rdy
 
 def export_results_dataset(fiol, df, path, filename, saveCompass=False, type = 'S'):
@@ -649,17 +653,18 @@ def setFigureObjs_UMAPDifferences(session_state):
         # Remake nonboolean variable into a boolean.
         if session_state.inciOutcomeSel in session_state.outcomes_nBOOL:
             compThresh = 0
-            cellsUMAP[session_state.inciOutcomeSel] = cellsUMAP.apply(lambda row: 1 if row[session_state.inciOutcomeSel] >= compThresh else 0, axis = 1)
+            cellsUMAP['chosen_feature'] = cellsUMAP.apply(lambda row: 1 if row[session_state.inciOutcomeSel] >= compThresh else 0, axis = 1)
         else:
             compThresh = None
+            cellsUMAP['chosen_feature'] = cellsUMAP[session_state.inciOutcomeSel]
 
-        # Computer the Difference
+        # Compute the Difference
         if session_state.Inci_Value_display == 'Count Differences':
-            inciDF = cellsUMAP.groupby('clust_label')[session_state.inciOutcomeSel].agg(lambda x: sum(x) - (len(x) -sum(x)))
-        elif session_state.Inci_Value_display == 'Ratios':
-            inciDF = cellsUMAP.groupby('clust_label')[session_state.inciOutcomeSel].agg(lambda x: np.log10((sum(x==1))/(sum(x==0) + 1)))
+            inciDF = cellsUMAP.groupby('clust_label')['chosen_feature'].agg(lambda x: sum(x) - (len(x) -sum(x)))
         elif session_state.Inci_Value_display == 'Percentages':
-            inciDF = cellsUMAP.groupby('clust_label')[session_state.inciOutcomeSel].agg(lambda x: 100*sum(x)/len(x))
+            inciDF = cellsUMAP.groupby('clust_label')['chosen_feature'].agg(lambda x: 100*sum(x)/len(x))
+        elif session_state.Inci_Value_display == 'Ratios':
+            inciDF = cellsUMAP.groupby('clust_label')['chosen_feature'].agg(lambda x: np.log10((sum(x==1))/(sum(x==0) + 1)))
     
     # Cell Counts
     else:
