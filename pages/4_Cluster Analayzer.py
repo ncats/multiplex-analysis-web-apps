@@ -36,7 +36,7 @@ def main():
     ### HEATMAP ###
     with clusterfigs[0]:
         st.header('Phenotype/Cluster Heatmap')
-        st.radio("Normalize along features?",
+        st.radio("Normalize Heatmap",
                  options = ['No Norm', 'Norm within Clusters', 'Norm within Phenotypes'],
                  key = 'NormHeatRadio',
                  horizontal = True)
@@ -49,7 +49,7 @@ def main():
 
         inciSel1, inciSel2 = st.columns(2)
         with inciSel1:
-            st.selectbox('Experimental Outcomes', options = st.session_state.inciOutcomes, key = 'inciOutcomeSel')
+            st.selectbox('Feature', options = st.session_state.inciOutcomes, key = 'inciOutcomeSel')
         with inciSel2:
             st.selectbox(st.session_state.lineageDisplayToggle, options = st.session_state.umaplineages, key = 'inciPhenoSel')
 

@@ -63,7 +63,7 @@ def main():
         umapInsCol1, umapInsCol2 = st.columns(2)
 
         with umapInsCol1:
-            st.selectbox('Experimental Outcomes', options = st.session_state.umapOutcomes, key = 'umapInspect_Feat')
+            st.selectbox('Feature', options = st.session_state.umapOutcomes, key = 'umapInspect_Feat')
         with umapInsCol2:
             st.selectbox(st.session_state.lineageDisplayToggle, options = st.session_state.umaplineages, key = 'umapInspect_Ver')
 
