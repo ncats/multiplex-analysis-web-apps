@@ -510,6 +510,7 @@ def setFigureObjs_UMAPDifferences(session_state):
     dfUMAP = pd.DataFrame(data = session_state.spatial_umap.umap_test, columns = ['X', 'Y'])
     dfUMAP['Cluster'] = session_state.spatial_umap.cells['clust_label'].values[session_state.spatial_umap.cells['umap_test']]
     dfUMAP['Lineage'] = session_state.spatial_umap.cells['Lineage'].values[session_state.spatial_umap.cells['umap_test']]
+    dfUMAP['species_name_short'] = session_state.spatial_umap.cells['species_name_short'].values[session_state.spatial_umap.cells['umap_test']]
     for outcome in session_state.outcomes:
         dfUMAP[outcome] = session_state.spatial_umap.cells[outcome].values[session_state.spatial_umap.cells['umap_test']]
     clustOrder = sorted(dfUMAP['Cluster'].unique())
@@ -706,9 +707,9 @@ def filterLineage4UMAP(session_state, df, defVal, dropVal):
     '''
     if dropVal != defVal:
         if session_state.lineageDisplayToggle == 'Phenotypes':
-            df = df.loc[df['Lineage'] == dropVal, :]
+            df = df.loc[df['phenotypes'] == dropVal, :]
         elif session_state.lineageDisplayToggle == 'Markers':
-            df = df.loc[df['Lineage'].str.contains(f'{dropVal}'), :]
+            df = df.loc[df['species_name_short'].str.contains(f'{dropVal}'), :]
 
     return df
 

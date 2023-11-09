@@ -465,7 +465,7 @@ def setup_Spatial_UMAP(df, marker_col_prefix, phenoOrder, cpu_pool_size = 1):
     # Apply the Marker Information that we are used to:
     spatial_umap.cells, marker_names = add_mark_bits_col(spatial_umap.cells, marker_col_prefix)
     # Set Lineage
-    spatial_umap.cells['Lineage'] = spatial_umap.cells['species_name_short']
+    spatial_umap.cells['Lineage'] = spatial_umap.cells['phenotype']
 
     # Set regions
     spatial_umap.cells['TMA_core_id'] = spatial_umap.cells['tNt']

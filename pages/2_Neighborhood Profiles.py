@@ -60,7 +60,7 @@ def main():
 
                 # List of possible UMAP Lineages as defined by the completed UMAP
                 st.session_state.umapPheno = [st.session_state.defLineageOpt]
-                st.session_state.umapPheno.extend(st.session_state.spec_summ['phenotype'])
+                st.session_state.umapPheno.extend(st.session_state.assign_pheno['phenotype'])
                 st.session_state.umapMarks = [st.session_state.defLineageOpt]
                 st.session_state.umapMarks.extend(st.session_state.spatial_umap.markers)
                 st.session_state.umapMarks.extend(['Other'])
