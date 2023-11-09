@@ -680,8 +680,8 @@ def setFigureObjs_UMAPDifferences(session_state):
         inciDF['Percentages']  = 100*inciDF['featureCount1']/sumf1
         inciDF['Percentages0'] = 100*inciDF['featureCount0']/sumf0
 
-        inciDF['Percentages1_adj'] = 100*(inciDF['featureCount1'] + 1)/(sumf1 + 1)
-        inciDF['Percentages0_adj'] = 100*(inciDF['featureCount0'] + 1)/(sumf0 + 1)
+        inciDF['Percentages1_adj'] = 100*(inciDF['featureCount1'] + 1)/(sumf1 + 1*session_state.selected_nClus)
+        inciDF['Percentages0_adj'] = 100*(inciDF['featureCount0'] + 1)/(sumf0 + 1*session_state.selected_nClus)
 
         inciDF['Ratios'] = np.log10(inciDF['Percentages1_adj']/inciDF['Percentages0_adj'])
     # Cell Counts
@@ -707,7 +707,7 @@ def filterLineage4UMAP(session_state, df, defVal, dropVal):
     '''
     if dropVal != defVal:
         if session_state.lineageDisplayToggle == 'Phenotypes':
-            df = df.loc[df['phenotypes'] == dropVal, :]
+            df = df.loc[df['Lineage'] == dropVal, :]
         elif session_state.lineageDisplayToggle == 'Markers':
             df = df.loc[df['species_name_short'].str.contains(f'{dropVal}'), :]
 
