@@ -726,7 +726,7 @@ def UMAPdraw_density(df, bins, w, n_pad, vlim, feat = None, diff = False, figsiz
 
     return UMAPFig
 
-def drawIncidenceFigure(commonIdx, df, figTitle, phenotype = 'All Phenotypes', outcome = 'Cell Counts', compThresh = None, displayas = 'Counts Difference', figsize=(12,12)):
+def drawIncidenceFigure(df, figTitle, phenotype = 'All Phenotypes', feature = 'Cell Counts', displayas = 'Counts Difference', compThresh = None, figsize=(12,12)):
     import PlottingTools as umPT
 
     SlBgC  = '#0E1117'  # Streamlit Background Color
@@ -748,40 +748,52 @@ def drawIncidenceFigure(commonIdx, df, figTitle, phenotype = 'All Phenotypes', o
         upTag = f' = 1'
         dnTag = f' = 0'
 
-    if outcome != 'Cell Counts':
-        dfmin = df.loc[df != -np.inf].min()
-        dfmax = df.loc[df != np.inf].max()
-        upLimit = max(-1*dfmin, df.max())
+    if feature != 'Cell Counts':
+
+        df = df[displayas]
+
+        dfmin = df.loc[(df != np.nan)].min()
+        dfmax = df.loc[(df != np.nan)].max()
+        upLimit = max(-1*dfmin, dfmax)
         if displayas == 'Count Differences':
             if upLimit < 2:
                 upLimit = 2
             ax.set_ylim([-1.05*upLimit, 1.05*upLimit])
             plt.axhline(y = 0, color = SlTC, linestyle = 'dashed', alpha = 0.7)
-            ax.text(0.5, upLimit*.95, f'{outcome}{upTag}', c = SlTC, fontsize = 30, alpha = 0.3)
-            ax.text(0.5, -upLimit*.95, f'{outcome}{dnTag}', c = SlTC, fontsize = 30, alpha = 0.3)
+            ax.text(0.5, upLimit*.95, f'{feature}{upTag}', c = SlTC, fontsize = 30, alpha = 0.3)
+            ax.text(0.5, -upLimit*.95, f'{feature}{dnTag}', c = SlTC, fontsize = 30, alpha = 0.3)
             outcome_suff = ' (Counts)'
         elif displayas == 'Ratios':
             ax.set_ylim([-1.05*upLimit, 1.05*upLimit])
             plt.axhline(y = 0, color = SlTC, linestyle = 'dashed', alpha = 0.7)
-            ax.text(0.5, upLimit*.95, f'{outcome}{upTag}', c = SlTC, fontsize = 30, alpha = 0.3)
-            ax.text(0.5, -upLimit*.95, f'{outcome}{dnTag}', c = SlTC, fontsize = 30, alpha = 0.3)
+            ax.text(0.5, upLimit*.95, f'{feature}{upTag}', c = SlTC, fontsize = 30, alpha = 0.3)
+            ax.text(0.5, -upLimit*.95, f'{feature}{dnTag}', c = SlTC, fontsize = 30, alpha = 0.3)
             outcome_suff = ' Ratio (log10)'
         elif displayas == 'Percentages':
-            ax.set_ylim([-1.05, 105])
-            ax.text(0.5, upLimit*.95, f'{outcome}{upTag}', c = SlTC, fontsize = 30, alpha = 0.3)
+            ax.set_ylim([-1.05, 1.05*upLimit])
+            plt.axhline(y = 0, color = SlTC, linestyle = 'dashed', alpha = 0.7)
+            ax.text(0.5, upLimit*.95, f'{feature}{upTag}', c = SlTC, fontsize = 30, alpha = 0.3)
             outcome_suff = ' (%)'
 
     else:
-        ax.set_ylim([0.95*df.min(), 1.05*df.max()])
-        ax.text(0.5, 1.05*df.max()*.95, f'{outcome}', c = SlTC, fontsize = 30, alpha = 0.3)
+        df = df['counts']
+
+        dfmin = df.min()
+        dfmax = df.max()
+        upLimit = max(-1*dfmin, dfmax)
+        limrange = dfmax-dfmin
+        liminc = limrange/8
+        ax.set_ylim([dfmin-(liminc*0.1), dfmax + (liminc*0.1)])
+        ax.text(0.5, upLimit*.95, f'{feature}', c = SlTC, fontsize = 30, alpha = 0.3)
+        plt.axhline(y = 0, color = SlTC, linestyle = 'dashed', alpha = 0.7)
         outcome_suff = ' (Counts)'
 
     umPT.plot_incidence_line(ax, df, phenotype)
     
     # Reset xticks after 
-    ax.set_xticks(commonIdx)
+    ax.set_xticks(df.index)
     ax.set_title(pltTitle, fontsize = 20, loc = 'left', color = SlTC)
     ax.set_xlabel('Cluster #', fontsize = 14, color = SlTC)
-    ax.set_ylabel(f'{outcome}{outcome_suff}', fontsize = 14, color = SlTC)
+    ax.set_ylabel(f'{feature}{outcome_suff}', fontsize = 14, color = SlTC)
 
     return inciFig

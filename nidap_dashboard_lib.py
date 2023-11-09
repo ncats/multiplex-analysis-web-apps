@@ -648,6 +648,14 @@ def setFigureObjs_UMAPDifferences(session_state):
     if session_state.inciPhenoSel != session_state.defLineageOpt:
         cellsUMAP = cellsUMAP.loc[cellsUMAP['Lineage'] == session_state.inciPhenoSel, :]
     
+    # Set up incidence dataframe
+    compThresh = None
+    inciDF = pd.DataFrame()
+    inciDF.index = np.arange(0, session_state.selected_nClus, 1.0)
+    inciDF['counts'] = 0
+    inciDF['featureCount1'] = 0
+    inciDF['featureCount0'] = 0
+
     # Not Cell Counts
     if session_state.inciOutcomeSel != session_state.definciOutcomes:
         # Remake nonboolean variable into a boolean.
@@ -655,31 +663,40 @@ def setFigureObjs_UMAPDifferences(session_state):
             compThresh = 0
             cellsUMAP['chosen_feature'] = cellsUMAP.apply(lambda row: 1 if row[session_state.inciOutcomeSel] >= compThresh else 0, axis = 1)
         else:
-            compThresh = None
             cellsUMAP['chosen_feature'] = cellsUMAP[session_state.inciOutcomeSel]
 
         # Compute the Difference
-        if session_state.Inci_Value_display == 'Count Differences':
-            inciDF = cellsUMAP.groupby('clust_label')['chosen_feature'].agg(lambda x: sum(x) - (len(x) -sum(x)))
-        elif session_state.Inci_Value_display == 'Percentages':
-            inciDF = cellsUMAP.groupby('clust_label')['chosen_feature'].agg(lambda x: 100*sum(x)/len(x))
-        elif session_state.Inci_Value_display == 'Ratios':
-            inciDF = cellsUMAP.groupby('clust_label')['chosen_feature'].agg(lambda x: np.log10((sum(x==1))/(sum(x==0) + 1)))
-    
+        for clust_label, group in cellsUMAP.groupby('clust_label'):
+            inciDF.loc[clust_label, 'counts'] = group['chosen_feature'].count()
+            inciDF.loc[clust_label, 'featureCount1'] = sum(group['chosen_feature'] == 1)
+            inciDF.loc[clust_label, 'featureCount0'] = sum(group['chosen_feature'] == 0)
+            
+        inciDF['Count Differences'] = inciDF['featureCount1'] - inciDF['featureCount0']
+
+        sumf1 = sum(inciDF['featureCount1'])
+        sumf0 = sum(inciDF['featureCount0'])
+
+        inciDF['Percentages']  = 100*inciDF['featureCount1']/sumf1
+        inciDF['Percentages0'] = 100*inciDF['featureCount0']/sumf0
+
+        inciDF['Percentages1_adj'] = 100*(inciDF['featureCount1'] + 1)/(sumf1 + 1)
+        inciDF['Percentages0_adj'] = 100*(inciDF['featureCount0'] + 1)/(sumf0 + 1)
+
+        inciDF['Ratios'] = np.log10(inciDF['Percentages1_adj']/inciDF['Percentages0_adj'])
     # Cell Counts
     else:
-        compThresh = None
-        inciDF = cellsUMAP.groupby('clust_label')['ID'].count()
+        for clust_label, group in cellsUMAP.groupby('clust_label'):
+            inciDF.loc[clust_label, 'counts'] = group['ID'].count()
 
-    # Make a Common x range
-    commonIdx = np.arange(0, session_state.selected_nClus, 1.0)
+    # Title
     inciTitle = [f'Incidence by Cluster']
 
-
     # Draw Incidence Figure
-    session_state.inciFig = bpl.drawIncidenceFigure(commonIdx, inciDF, inciTitle, phenotype=session_state.inciPhenoSel,
-                                                    outcome = session_state.inciOutcomeSel, compThresh=compThresh, 
-                                                    displayas=session_state.Inci_Value_display)
+    session_state.inciFig = bpl.drawIncidenceFigure(inciDF, inciTitle, 
+                                                    phenotype  = session_state.inciPhenoSel,
+                                                    feature    = session_state.inciOutcomeSel, 
+                                                    displayas  = session_state.Inci_Value_display, 
+                                                    compThresh = compThresh)
 
     return session_state
 
