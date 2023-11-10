@@ -32,7 +32,11 @@ def main():
     st.title('ROI P values overlaid on slides')
 
     # Add placeholder logo to page
-    add_logo('app_images/logo2c.png', height=150)
+    add_logo('app_images/mawa_logo-width315.png', height=150)
+
+    # Add link to docs
+    with st.sidebar:
+        st.write('**:book: [Documentation](https://ncats.github.io/multiplex-analysis-web-apps)**')
 
     if os.path.exists(os.path.join('.', 'output', 'images', 'density_pvals_over_slide_spatial_plot')):
 

@@ -26,7 +26,11 @@ def main():
     st.title('Run workflow')
 
     # Add placeholder logo to page
-    add_logo('app_images/logo2c.png', height=150)
+    add_logo('app_images/mawa_logo-width315.png', height=150)
+
+    # Add link to docs
+    with st.sidebar:
+        st.write('**:book: [Documentation](https://ncats.github.io/multiplex-analysis-web-apps)**')
 
     if ('settings__input_datafile__filename' in st.session_state) and (st.session_state['settings__input_datafile__filename'] is not None):
 
