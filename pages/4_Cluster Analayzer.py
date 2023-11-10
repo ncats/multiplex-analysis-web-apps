@@ -6,6 +6,9 @@ import time
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
 import basic_phenotyper_lib as bpl  # Useful functions for phenotyping collections of cells
 
+def reset_phenotype_selection():
+    st.session_state.inciPhenoSel = st.session_state.defLineageOpt
+
 def main():
     '''
     Main function for running the page
@@ -26,6 +29,17 @@ def main():
     with st.sidebar:
         url = st_javascript("await fetch('').then(r => window.parent.location.href)")
         st.write(f'''[Open app in new Tab]({url})\n (MS Edge/ Google Chrome)''')
+
+    st.radio("Filter by Phenotypes or Markers?",
+            ['Phenotypes', 'Markers'],
+            key = 'lineageDisplayToggle_clus',
+            horizontal = True, 
+            on_change = reset_phenotype_selection)
+    
+    if st.session_state.lineageDisplayToggle_clus == 'Phenotypes':
+        st.session_state.cluslineages = st.session_state.umapPheno
+    elif st.session_state.lineageDisplayToggle_clus == 'Markers':
+        st.session_state.cluslineages = st.session_state.umapMarks
 
     if st.session_state.umapCompleted:
         st.session_state = ndl.setFigureObjs_UMAPDifferences(st.session_state)
@@ -48,10 +62,12 @@ def main():
         st.header('Incidence Lineplot')
 
         inciSel1, inciSel2 = st.columns(2)
+        # Feature Select Box
         with inciSel1:
             st.selectbox('Feature', options = st.session_state.inciOutcomes, key = 'inciOutcomeSel')
+        # Phenotype Select Box
         with inciSel2:
-            st.selectbox(st.session_state.lineageDisplayToggle, options = st.session_state.umaplineages, key = 'inciPhenoSel')
+            st.selectbox(st.session_state.lineageDisplayToggle_clus, options = st.session_state.cluslineages, key = 'inciPhenoSel')
 
         if st.session_state.inciOutcomeSel == st.session_state.definciOutcomes:
             inci_radio_disabled = True

@@ -6,6 +6,10 @@ import time
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
 import basic_phenotyper_lib as bpl  # Useful functions for phenotyping collections of cells
 
+def reset_phenotype_selection():
+    st.session_state.umapInspect_Ver = st.session_state.defLineageOpt
+    st.session_state.diffUMAPSel_Ver = st.session_state.defLineageOpt
+
 def main():
     '''
     Main function for running the page
@@ -29,17 +33,18 @@ def main():
 
     # Toggles for different figures
     figToggle1, figToggle2, figToggle3 = st.columns([1, 1, 2])
-    with figToggle1:
+    with figToggle2:
         st.radio("Show UMAP Density or Clusters?",
                         ['Density', 'Clusters'],
                         key = 'UMAPFigType',
                         horizontal = True)
 
-    with figToggle2:
+    with figToggle1:
         st.radio("Filter by Phenotypes or Markers?",
                         ['Phenotypes', 'Markers'],
                         key = 'lineageDisplayToggle',
-                        horizontal = True)
+                        horizontal = True,
+                        on_change = reset_phenotype_selection)
 
     if st.session_state.lineageDisplayToggle == 'Phenotypes':
         st.session_state.umaplineages = st.session_state.umapPheno

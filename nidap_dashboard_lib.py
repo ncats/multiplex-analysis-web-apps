@@ -125,6 +125,7 @@ def init_session_state(session_state, settings_yaml_file):
 
     # UMAP Lineage Display
     session_state.lineageDisplayToggle = 'Phenotypes'
+    session_state.lineageDisplayToggle_clus = 'Phenotypes'
 
     # Unfiltered dropdown default options
     session_state.defLineageOpt   = 'All Phenotypes'
@@ -501,7 +502,6 @@ def setFigureObjs_UMAP(session_state):
     return session_state
 
 def setFigureObjs_UMAPDifferences(session_state):
-    import matplotlib.pyplot as plt
 
     title = [f'PROJECT Path: {session_state.selectProj}',
              f'DATASET: {session_state.datafile}',
@@ -527,8 +527,8 @@ def setFigureObjs_UMAPDifferences(session_state):
     dfUMAPD = dfUMAP.copy()
 
     # Lineage filtering
-    dfUMAPI = filterLineage4UMAP(session_state, dfUMAPI, session_state.defLineageOpt, session_state.umapInspect_Ver)
-    dfUMAPD = filterLineage4UMAP(session_state, dfUMAPD, session_state.defLineageOpt, session_state.diffUMAPSel_Ver)
+    dfUMAPI = filterLineage4UMAP(dfUMAPI, session_state.lineageDisplayToggle, session_state.defLineageOpt, session_state.umapInspect_Ver)
+    dfUMAPD = filterLineage4UMAP(dfUMAPD, session_state.lineageDisplayToggle, session_state.defLineageOpt, session_state.diffUMAPSel_Ver)
 
     vlim = .97
 
@@ -648,8 +648,7 @@ def setFigureObjs_UMAPDifferences(session_state):
 
     ### Incidence Line Graph ###
     # Filter by the lineage
-    if session_state.inciPhenoSel != session_state.defLineageOpt:
-        cellsUMAP = cellsUMAP.loc[cellsUMAP['Lineage'] == session_state.inciPhenoSel, :]
+    cellsUMAP = filterLineage4UMAP(cellsUMAP, session_state.lineageDisplayToggle_clus, session_state.defLineageOpt, session_state.inciPhenoSel)
     
     # Set up incidence dataframe
     compThresh = None
@@ -703,15 +702,15 @@ def setFigureObjs_UMAPDifferences(session_state):
 
     return session_state
 
-def filterLineage4UMAP(session_state, df, defVal, dropVal):
+def filterLineage4UMAP(df, display_toggle, defVal, dropVal):
     '''
     Function for filtering UMAP function based on Phenotypes or Markers
     '''
     if dropVal != defVal:
-        if session_state.lineageDisplayToggle == 'Phenotypes':
+        if display_toggle == 'Phenotypes':
             df = df.loc[df['Lineage'] == dropVal, :]
-        elif session_state.lineageDisplayToggle == 'Markers':
-            df = df.loc[df['species_name_short'].str.contains(f'{dropVal}'), :]
+        elif display_toggle == 'Markers':
+            df = df.loc[df['species_name_short'].str.contains(dropVal), :]
 
     return df
 
