@@ -72,25 +72,31 @@ def plot_2d_density(X, Y=None, bins=200, n_pad=40, w=None, ax=None, gaussian_sig
             n_bins = len(bins[0]) - 1
 
         if circle_type == 'bg':
+            extend = 'max'
             c = np.meshgrid(np.arange(2 * n_pad + n_bins), np.arange(2 * n_pad + n_bins))
             c = np.sqrt(((c[0] - ((2 * n_pad + n_bins) / 2)) ** 2) + ((c[1] - ((2 * n_pad + n_bins) / 2)) ** 2)) < (0.95 * ((2 * n_pad + n_bins) / 2))
             ax.pcolormesh(np.pad(d, [n_pad, n_pad]) + c, vmin=1, vmax=1 + vlim[1], cmap=cmap, shading='gouraud', alpha=1)
             # ax.pcolormesh(np.log10(np.pad(d, [n_pad, n_pad]) + c + 1), vmin=np.log10(2), vmax=np.log10(2 + vlim[1]), cmap=cmap, shading='gouraud', alpha=1)
         elif circle_type == 'arch':
+            extend = 'both'
             vmin = np.quantile(d[d < 0].flatten(), 0.03)
             vmax = np.quantile(d[d > 0].flatten(), 0.97)
             c = (n_bins / 2)
             ax.add_artist(plt.Circle((c + n_pad, c + n_pad), 0.95 * (c + n_pad), color='black', fill=False))
             ax.pcolormesh(np.pad(d, [n_pad, n_pad]), vmin=vmin, vmax=vmax, cmap=cmap, shading='gouraud', alpha=1)
         else:
+            extend = 'max'
             ax.pcolormesh(np.pad(d, [n_pad, n_pad]), vmin=0, vmax=vlim[1], cmap=cmap, shading='gouraud', alpha=1)
+
+        cax = ax.inset_axes([0.95, 0.1, 0.01, 0.85])
+        plt_cmap(ax=cax, cmap=cmap, extend=extend, width=0.01)
 
         if box_off is True:
             [ax.spines[sp].set_visible(False) for sp in ax.spines]
             ax.set(xticks=[], yticks=[])
 
 
-def plt_cmap(ax, cmap, extend, width, ylabel):
+def plt_cmap(ax, cmap, extend, width, ylabel = None):
     '''plt_cmap(ax, cmap, extend, width, ylabel) draws a colorbar for the current colormap at the correct
     axes location, and with the correct label.
 
@@ -106,11 +112,12 @@ def plt_cmap(ax, cmap, extend, width, ylabel):
     Returns:
 
     '''
-    cb = mpl.colorbar.ColorbarBase(ax=ax, cmap=cmap, extend=extend)
+    cb = mpl.colorbar.Colorbar(ax=ax, cmap=cmap, extend=extend)
     cb.set_ticks([])
     pos = ax.get_position().bounds
     ax.set_position([pos[0], pos[1], width, pos[3]])
-    ax.set(ylabel=ylabel)
+    if ylabel is not None:
+        ax.set(ylabel=ylabel)
 
 
 def plot_spatial_elem(ax, elems, title, color): 

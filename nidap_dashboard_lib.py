@@ -518,7 +518,7 @@ def setFigureObjs_UMAPDifferences(session_state):
     n_bins = 200
     xx = np.linspace(np.min(dfUMAP['X']), np.max(dfUMAP['X']), n_bins + 1)
     yy = np.linspace(np.min(dfUMAP['Y']), np.max(dfUMAP['Y']), n_bins + 1)
-    n_pad = 30
+    n_pad = 40
 
     minXY = dfUMAP[['X', 'Y']].min()-1
     maxXY = dfUMAP[['X', 'Y']].max()+1
