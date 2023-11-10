@@ -591,27 +591,38 @@ def draw_wcss_elbow_plot(clust_range, wcss, selClus):
     ax.tick_params(axis='y', colors=SlTC, which='both')
     return fig
 
-def createHeatMap(spatial_umap, title, normAxis = None):
+def createHeatMap(df, phenoList, title, normAxis = None):
     
-    # Filter out cells that are defined as 'umap-test'
-    umap_trainCells = spatial_umap.cells.loc[spatial_umap.cells.loc[:, 'umap_test'] == True, :]
-
     # Create heatmap df
     heatMapDf = pd.DataFrame()
-    for clust_label, group in umap_trainCells.groupby('clust_label'):
+
+    for clust_label, group in df.groupby('clust_label'):
         clust_value_counts = group['Lineage'].value_counts()
         clust_value_counts.name = f'Cluster {clust_label}'
 
         heatMapDf = pd.concat([heatMapDf, pd.DataFrame([clust_value_counts])])
 
+    # Fix the NA
+    heatMapDf[heatMapDf.isna()] = 0
+    heatMapDf = heatMapDf.astype('int')
+
+    # Rearrange Columsn in order of prevalences
+    heatMapDf = heatMapDf.loc[:, phenoList]
+
     if normAxis == 0:
         heatMapTitle = 'Phenotype/Cluster Heatmap: Normalized within Clusters'
         heatMapDf = round(heatMapDf.div(heatMapDf.sum(axis=1), axis=0), 3)
+        vmin = 0
+        vmax = 1
     elif normAxis == 1:
         heatMapTitle = 'Phenotype/Cluster Heatmap: Normalized within Phenotypes'
         heatMapDf = round(heatMapDf.div(heatMapDf.sum(axis=0), axis=1), 3)
+        vmin = 0
+        vmax = 1
     else:
         heatMapTitle = 'Phenotype/Cluster Heatmap: '
+        vmin = heatMapDf.min().min()
+        vmax = heatMapDf.max().max()
     title.append(heatMapTitle)
 
     figTitle = wrapTitleText(title)
@@ -630,10 +641,13 @@ def createHeatMap(spatial_umap, title, normAxis = None):
 
     fig = plt.figure(figsize = (12,12), facecolor = SlBgC)
     ax = fig.add_subplot(1,1,1, facecolor = SlBgC) 
-    im = ax.imshow(heatMapDf)
+    im = ax.imshow(heatMapDf, cmap = 'inferno', vmin = vmin, vmax = vmax)
+
+    bbox = ax.get_yticklabels()[-1].get_window_extent()
+    x, _ = ax.transAxes.inverted().transform([bbox.x0, bbox.y0])
 
     # Show all ticks and label them with the respective list entries
-    ax.set_title(pltTitle, fontsize = 20, loc = 'left', color = SlTC)
+    ax.set_title(pltTitle, fontsize = 20, loc = 'left', color = SlTC, x=3*x, wrap=True)
     ax.set_xticks(np.arange(len(phenotypes)), labels = phenotypes, fontsize = 14, color = SlTC)
     ax.set_yticks(np.arange(len(clusters)), labels = clusters, fontsize = 14, color = SlTC)
 
@@ -644,8 +658,12 @@ def createHeatMap(spatial_umap, title, normAxis = None):
     # Loop over data dimensions and create text annotations.
     for i, cluster in enumerate(range(len(clusters))):
         for j, phenotype in enumerate(range(len(phenotypes))):
-            text = ax.text(j, i, heatMapDf.iloc[cluster, phenotype],
-                        ha="center", va="center", color="w")
+            value = heatMapDf.iloc[cluster, phenotype]
+            if value >= 0.85*vmax:
+                text_color = 'b'
+            else:
+                text_color = 'w'
+            ax.text(j, i, value, ha="center", va="center", color=text_color)
 
     fig.tight_layout()
 

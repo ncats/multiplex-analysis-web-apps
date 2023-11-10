@@ -632,6 +632,10 @@ def setFigureObjs_UMAPDifferences(session_state):
         session_state[eval('"UMAPFigDiff" + str(i) + "_Clus"')] = fig
         session_state[eval('"UMAPax" + str(i)')] = ax
 
+    ######## Heatmap/Incidence #########
+    cellsUMAP = session_state.spatial_umap.cells.loc[session_state.spatial_umap.cells['umap_test'] == True, :]
+    clusterIndex = np.arange(0, session_state.selected_nClus, 1.0)
+
     ### Cluster/Phenotype Heatmap ###
     if session_state.NormHeatRadio == 'Norm within Clusters':
         normAxis = 0
@@ -640,11 +644,9 @@ def setFigureObjs_UMAPDifferences(session_state):
     else:
         normAxis = None
 
-    session_state.heatmapfig = bpl.createHeatMap(session_state.spatial_umap, title, normAxis)
+    session_state.heatmapfig = bpl.createHeatMap(cellsUMAP, session_state.assign_pheno['phenotype'], title, normAxis)
 
     ### Incidence Line Graph ###
-    # Create a cell df based on the cells that performed in the UMAP_test
-    cellsUMAP = session_state.spatial_umap.cells.loc[session_state.spatial_umap.cells['umap_test'] == True, :]
     # Filter by the lineage
     if session_state.inciPhenoSel != session_state.defLineageOpt:
         cellsUMAP = cellsUMAP.loc[cellsUMAP['Lineage'] == session_state.inciPhenoSel, :]
@@ -652,7 +654,7 @@ def setFigureObjs_UMAPDifferences(session_state):
     # Set up incidence dataframe
     compThresh = None
     inciDF = pd.DataFrame()
-    inciDF.index = np.arange(0, session_state.selected_nClus, 1.0)
+    inciDF.index = clusterIndex
     inciDF['counts'] = 0
     inciDF['featureCount1'] = 0
     inciDF['featureCount0'] = 0
