@@ -22,87 +22,56 @@ def main():
         if (not key.endswith('__do_not_persist')) and (not key.startswith('FormSubmitter:')):
             st.session_state[key] = val
 
-    st.header('Data Import and Export\nNCATS-NCI-DMAP')
+    data_header = st.columns([1, 2])
+    with data_header[0]:
+        st.header('Data Import and Export\nNCATS-NCI-DMAP')
+    with data_header[1]:
+        st.markdown('# ')
+        st.markdown('### ')
+        st.markdown('#### Project Name: /NIH/OMAL/reec-UMAP/data/preprocessed_data/')
 
     ### SIDE BAR ORGANIZATION ###
     with st.sidebar:
         url = st_javascript("await fetch('').then(r => window.parent.location.href)")
         st.write(f'''[Open app in new Tab]({url})\n (MS Edge/ Google Chrome)''')
 
-    NIDAP_Load_U, Local_Upload = st.tabs(['NIDAP Load [Unstuctured]',
-                                          'Upload Local Files'])
+    ### SELECT NIDAP DATASET ###
+    # Use select box to choose a project
+    select_proj_u = st.session_state.usDatasetPaths[0]
+    st.markdown('## NIDAP Dataset Import:')
+    st.markdown(f'#### {select_proj_u}')
 
-    ### LOCAL UPLOAD TAB
-    with Local_Upload:
-        up_file_rdy = False
-        uploaded_file = st.file_uploader('Select a .csv file from your computer',
-                                         type = 'csv', accept_multiple_files=False,
-                                         key = 'file_uploader__do_not_persist')
-        if uploaded_file is not None:
-            tLoadSt = time.time() # Setup some timing
-            # Load the data into memory and perform df checks for req features
-            df_upload   = ndl.load_dataset(st.session_state.fiol, uploaded_file,
-                                           files_dict=None, file_path=None, loadCompass=False)
-            up_file_rdy = ndl.check_upload_df(df_upload,
-                                              st.session_state.reqFeatures,
-                                              st.session_state.marker_pre)
+    # Identify the available NIDAP 'files'
+    files_dict = st.session_state.files_dict[select_proj_u]
 
-            if not up_file_rdy: # ERROR!!!
-                err_msg_inputs = st.session_state.errmsg_wrongCol
-            else:               # SUCCESS!!!
-                err_msg_inputs = st.session_state.errmsg_def2row
-            load_elapsed = time.time() - tLoadSt
-            st.markdown(err_msg_inputs)
+    # Use select box to choose from list of NIDAP 'files'
+    st.session_state.datafileU = st.selectbox(
+            'Select your DataFrame',
+            (list(files_dict.keys())))
+    ############################
 
-        if st.button('Apply Upload Data to Phenotyper', disabled = (not up_file_rdy), 
-                     key = 'File_upload_button__do_not_persist'):
-            st.session_state = ndl.loadDataButton(st.session_state, df_upload, 'Local Upload', uploaded_file.name[:-4])
+    ### LOAD NIDAP BUTTON ###
+    if st.button('Load NIDAP Data', help='Load the selected data file', key = 'LoadUDataButton__do_not_persist'):
+        tLoadSt = time.time() # Setup some timing
+        # Load the data into memory and perform df checks for req features
+        df_NIDAP    = ndl.load_dataset(st.session_state.fiol, select_proj_u, files_dict, st.session_state.datafileU, loadCompass=True)
+        up_file_rdy = ndl.check_upload_df(df_NIDAP, st.session_state.reqFeatures, st.session_state.marker_pre)
 
-            # Save answers to benchmarking dataframe
-            st.session_state.bc.set_value_df('file', uploaded_file.name)
-            st.session_state.bc.set_value_df('nRows', st.session_state.df.shape[0])
-            st.session_state.bc.set_value_df('data_import_loc', 'Local Upload')
-            st.session_state.bc.set_value_df('time_load_data', load_elapsed)
+        if not up_file_rdy: # ERROR!!!
+            err_msg_inputs = st.session_state.errmsg_wrongCol
+        else:               # SUCCESS!!!
+            err_msg_inputs = st.session_state.errmsg_def2row
+            st.session_state = ndl.loadDataButton(st.session_state, df_NIDAP, select_proj_u, st.session_state.datafileU[:-4])
+        load_elapsed = time.time() - tLoadSt
 
-    ### NIDAP UNSTRUCTURED LOAD TAB ###
-    with NIDAP_Load_U:
-        ### SELECT NIDAP DATASET ###
-        # Use select box to choose a project
-        select_proj_u = st.session_state.usDatasetPaths[0]
-        st.markdown('## NIDAP Dataset Import:')
-        st.markdown(f'#### {select_proj_u}')
+        # Save answers to benchmarking dataframe
+        st.session_state.bc.set_value_df('file', st.session_state.datafileU)
+        st.session_state.bc.set_value_df('nRows', st.session_state.df.shape[0])
+        st.session_state.bc.set_value_df('data_import_loc', 'Compass_Unstructured')
+        st.session_state.bc.set_value_df('time_load_data', load_elapsed)
 
-        # Identify the available NIDAP 'files'
-        files_dict = st.session_state.files_dict[select_proj_u]
-
-        # Use select box to choose from list of NIDAP 'files'
-        st.session_state.datafileU = st.selectbox(
-                'Select your DataFrame',
-                (list(files_dict.keys())))
-        ############################
-
-        ### LOAD NIDAP BUTTON ###
-        if st.button('Load NIDAP Data', help='Load the selected data file', key = 'LoadUDataButton__do_not_persist'):
-            tLoadSt = time.time() # Setup some timing
-            # Load the data into memory and perform df checks for req features
-            df_NIDAP    = ndl.load_dataset(st.session_state.fiol, select_proj_u, files_dict, st.session_state.datafileU, loadCompass=True)
-            up_file_rdy = ndl.check_upload_df(df_NIDAP, st.session_state.reqFeatures, st.session_state.marker_pre)
-
-            if not up_file_rdy: # ERROR!!!
-                err_msg_inputs = st.session_state.errmsg_wrongCol
-            else:               # SUCCESS!!!
-                err_msg_inputs = st.session_state.errmsg_def2row
-                st.session_state = ndl.loadDataButton(st.session_state, df_NIDAP, select_proj_u, st.session_state.datafileU[:-4])
-            load_elapsed = time.time() - tLoadSt
-
-            # Save answers to benchmarking dataframe
-            st.session_state.bc.set_value_df('file', st.session_state.datafileU)
-            st.session_state.bc.set_value_df('nRows', st.session_state.df.shape[0])
-            st.session_state.bc.set_value_df('data_import_loc', 'Compass_Unstructured')
-            st.session_state.bc.set_value_df('time_load_data', load_elapsed)
-
-            st.markdown(err_msg_inputs)
-        ############################
+        st.markdown(err_msg_inputs)
+    ############################
 
     # Exported Files Path Selection
     selectProjOutCSV_U = st.session_state.OutputCSVPaths_U[0]
