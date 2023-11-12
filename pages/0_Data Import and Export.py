@@ -4,6 +4,7 @@ This is the python script which produces the PHENOTYPING PAGE
 import time
 import streamlit as st
 from streamlit_javascript import st_javascript
+from streamlit_extras.add_vertical_space import add_vertical_space 
 
 # Import relevant libraries
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
@@ -22,13 +23,12 @@ def main():
         if (not key.endswith('__do_not_persist')) and (not key.startswith('FormSubmitter:')):
             st.session_state[key] = val
 
-    data_header = st.columns([1, 2])
+    data_header = st.columns([2, 3])
     with data_header[0]:
         st.header('Data Import and Export\nNCATS-NCI-DMAP')
     with data_header[1]:
-        st.markdown('# ')
-        st.markdown('### ')
-        st.markdown('#### Project Name: /NIH/OMAL/reec-UMAP/data/preprocessed_data/')
+        add_vertical_space(6)
+        st.markdown('### Project Name: OMAL/reec-UMAP')
 
     ### SIDE BAR ORGANIZATION ###
     with st.sidebar:
@@ -38,8 +38,7 @@ def main():
     ### SELECT NIDAP DATASET ###
     # Use select box to choose a project
     select_proj_u = st.session_state.usDatasetPaths[0]
-    st.markdown('## NIDAP Dataset Import:')
-    st.markdown(f'#### {select_proj_u}')
+    st.markdown('## NIDAP Input Dataset:')
 
     # Identify the available NIDAP 'files'
     files_dict = st.session_state.files_dict[select_proj_u]
@@ -50,6 +49,7 @@ def main():
             (list(files_dict.keys())))
     ############################
 
+    errorStatus = None
     ### LOAD NIDAP BUTTON ###
     if st.button('Load NIDAP Data', help='Load the selected data file', key = 'LoadUDataButton__do_not_persist'):
         tLoadSt = time.time() # Setup some timing
@@ -58,8 +58,10 @@ def main():
         up_file_rdy = ndl.check_upload_df(df_NIDAP, st.session_state.reqFeatures, st.session_state.marker_pre)
 
         if not up_file_rdy: # ERROR!!!
+            errorStatus = True
             err_msg_inputs = st.session_state.errmsg_wrongCol
         else:               # SUCCESS!!!
+            errorStatus = False
             err_msg_inputs = st.session_state.errmsg_def2row
             st.session_state = ndl.loadDataButton(st.session_state, df_NIDAP, select_proj_u, st.session_state.datafileU[:-4])
         load_elapsed = time.time() - tLoadSt
@@ -69,43 +71,42 @@ def main():
         st.session_state.bc.set_value_df('nRows', st.session_state.df.shape[0])
         st.session_state.bc.set_value_df('data_import_loc', 'Compass_Unstructured')
         st.session_state.bc.set_value_df('time_load_data', load_elapsed)
-
-        st.markdown(err_msg_inputs)
     ############################
+
+    if errorStatus is None:
+        add_vertical_space(6)
+    elif errorStatus is True:
+        st.error(err_msg_inputs)
+    elif errorStatus is False:
+        st.success('Datafile succesfully imported')
 
     # Exported Files Path Selection
     selectProjOutCSV_U = st.session_state.OutputCSVPaths_U[0]
     
-    st.markdown('## NIDAP Dataset Export:')
-    st.markdown(f'#### {selectProjOutCSV_U}')
-    
-    # Text-input box for phenotype_summary file name
-    st.text_input('Phenotype Summary File Name',
-                    key = 'pheno_assign_filename_U')
-    
-    # Text-input box for updated dataset file name
-    st.text_input('Updated Dataset File Name',
-                    key = 'df_update_filename_U')
-
+    st.markdown('## NIDAP Output Dataset:')
     ### Create containers for Button and checkbox
-    filtOutU1, filtOutU2, filtOutU3 = st.columns([3,2,1])
+    export_cols = st.columns([1,1,2,1])
+    
+    with export_cols[0]:
+        st.markdown('### File Export List')
+    with export_cols[1]:
+        exportButton = st.button('Export phenotyping files')
+    with export_cols[2]:
+        if exportButton:
+            numFiles = st.session_state.files_to_export.shape[0]
+            my_bar = st.progress(0)
+            for index, row in st.session_state.files_to_export.iterrows():
+                my_bar.progress((0 + index/numFiles), f'Uploading {row["File Name"]}')
+                ndl.export_results_dataset(st.session_state.fiol, 
+                                           st.session_state.spec_summ, # Change this
+                                           selectProjOutCSV_U, 
+                                           row['File Name'], 
+                                           saveCompass=True, 
+                                           type='U')
 
-    with filtOutU2:
-        exportFiltU = st.checkbox('Export Filtered Dataset', key = 'exportFiltU')
-    with filtOutU1:
-        # Every form must have a submit button.
-        submitU = st.button('Export phenotyping files')
-        if submitU:
-            # Export Assigned Phenotypes output
-            ndl.export_results_dataset(st.session_state.fiol, st.session_state.spec_summ, selectProjOutCSV_U, st.session_state.pheno_assign_filename_U, saveCompass=True, type='U')
-            # Export Updated dataset output
-            ndl.export_results_dataset(st.session_state.fiol, st.session_state.df, selectProjOutCSV_U, st.session_state.df_update_filename_U, saveCompass=True, type='U')
-            # Check to export filtered-phenotyped-datasets
-            if exportFiltU:
-                fileFileName = st.session_state.df_update_filename_U + '_filtered'
-                ndl.export_results_dataset(st.session_state.fiol, st.session_state.df_filt, selectProjOutCSV_U, fileFileName, saveCompass=True, type='U')
-            # Add a message that this file writing is complete
-            st.write('Files have been exported!')
+            my_bar.progress(100, 'Files have been exported!')
+
+    st.dataframe(data=st.session_state.files_to_export, hide_index=False)
 
 if __name__ == '__main__':
     main()

@@ -77,6 +77,9 @@ def init_session_state(session_state, settings_yaml_file):
     # List of DataSets to save PNGS to
     session_state.OutputPNGPaths = session_state.OutputCSVPaths_U
 
+    session_state.files_to_export = pd.DataFrame(columns = ['Item Name', 'File Name', 'Date Time Added'])
+    session_state.files_to_export['Date Time Added'] = pd.to_datetime(session_state.files_to_export['Date Time Added'])
+
     # Selected Dataset Meta Information
     session_state.selectProj = ''
     session_state.datafileS  = ''

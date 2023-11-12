@@ -2,8 +2,11 @@
 This is the python script which produces the PHENOTYPING PAGE
 '''
 import time
+import pandas as pd
+from datetime import datetime
 import streamlit as st
 from streamlit_javascript import st_javascript
+from streamlit_extras.add_vertical_space import add_vertical_space 
 
 # Import relevant libraries
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
@@ -45,20 +48,19 @@ def main():
     st.header('Phenotyper\nNCATS-NCI-DMAP')
 
     ### Data Phenotyping Container ###
-    with st.expander('Phenotying Options'):
-        with st.form('Analysis Levers'):
+    with st.form('Analysis Levers'):
 
-            phenotyping_labels = ('Species', 'Marker', 'Custom')
-            st.radio("Choose a Phenotyping Method",
-                     phenotyping_labels,
-                     horizontal= True,
-                     key = 'phenoMeth')
+        phenotyping_labels = ('Species', 'Marker', 'Custom')
+        st.radio("Choose a Phenotyping Method",
+                    phenotyping_labels,
+                    horizontal= True,
+                    key = 'phenoMeth')
 
-            # Every form must have a submit button.
-            submitted = st.form_submit_button('Apply Phenotyping Method')
-            if submitted:
-                st.session_state = ndl.updatePhenotyping(st.session_state)
-                st.session_state.pointstSliderVal_Sel = st.session_state.calcSliderVal
+        # Every form must have a submit button.
+        submitted = st.form_submit_button('Apply Phenotyping Method')
+        if submitted:
+            st.session_state = ndl.updatePhenotyping(st.session_state)
+            st.session_state.pointstSliderVal_Sel = st.session_state.calcSliderVal
 
     ### Data Filters Container ###
     with st.expander('Data Filters'):
@@ -143,6 +145,30 @@ def main():
         # Prepare for Exporting
         st.session_state.df_update = st.session_state.df.copy().drop(['mark_bits', 'species_name_long', 'species_name_short'], axis=1)
 
+        phen_summ_cols = st.columns([2, 1])
+        with phen_summ_cols[0]:
+            st.text_input('Phenotype Summary File Name', key = 'pheno_assign_filename_U')
+        with phen_summ_cols[1]:
+            add_vertical_space(2)
+            if st.button('Append Export List', key = 'appendexportbutton_phenotypesummary__do_not_persist'):
+                tempdf = pd.DataFrame(data = {'Item Name' : ['Phenotype Summary'],
+                                              'File Name' : [st.session_state.pheno_assign_filename_U],
+                                              'Date Time Added': [datetime.now()]})
+                st.session_state.files_to_export = pd.concat([st.session_state.files_to_export, tempdf]).reset_index(drop=True)
+                st.toast(f'Added {st.session_state.pheno_assign_filename_U} to export list ')
+
+        updated_df_cols = st.columns([2, 1])
+        with updated_df_cols[0]:
+            st.text_input('Updated Dataset File Name', key = 'df_update_filename_U')
+        with updated_df_cols[1]:
+            add_vertical_space(2)
+            if st.button('Append Export List', key = 'appendexportbutton_updateddf__do_not_persist'):
+                tempdf = pd.DataFrame(data = {'Item Name' : ['Updated Input Dataset'],
+                                              'File Name' : [st.session_state.df_update_filename_U],
+                                              'Date Time Added': [datetime.now()]})
+                st.session_state.files_to_export = pd.concat([st.session_state.files_to_export, tempdf]).reset_index(drop=True)
+                st.toast(f'Added {st.session_state.df_update_filename_U} to export list ')
+
     # First column on the page
     with vizCol1:
         # Print a column header
@@ -168,6 +194,18 @@ def main():
         st.session_state.bc.startTimer()
         st.pyplot(st.session_state.phenoFig)
         st.session_state.bc.printElapsedTime(f'Seaborn plotting of {st.session_state.drawnPoints} points')
+
+        pheno_scat_upload = st.columns([2, 1])
+        with pheno_scat_upload[0]:
+            st.text_input('.png file suffix (Optional)', key = 'imgFileSuffixText')
+        with pheno_scat_upload[1]:
+            add_vertical_space(2)
+            if st.button('Append Export List', key = 'appendexportbutton_phenotypescatter__do_not_persist'):
+                tempdf = pd.DataFrame(data = {'Item Name' : ['Phenotype Scatter Plot'],
+                                              'File Name' : [st.session_state.imgFileSuffixText],
+                                              'Date Time Added': [datetime.now()]})
+                st.session_state.files_to_export = pd.concat([st.session_state.files_to_export, tempdf]).reset_index(drop=True)
+                st.toast(f'Added {st.session_state.imgFileSuffixText} to export list ')
 
 if __name__ == '__main__':
     main()
