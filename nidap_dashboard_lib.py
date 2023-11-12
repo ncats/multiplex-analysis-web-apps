@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 import altair as alt
 from pathlib import Path
+from datetime import datetime
 alt.data_transformers.disable_max_rows()
 
 # Import relevant libraries
@@ -786,6 +787,13 @@ def wrapTitleText(title):
         wrap_title.append(x)
 
     return wrap_title
+
+def add_item_export_list(session_state, item_name, file_name):
+    tempdf = pd.DataFrame(data = {'Item Name' : [item_name],
+                                'File Name' : [file_name],
+                                'Date Time Added': [datetime.now()]})
+    session_state.files_to_export = pd.concat([session_state.files_to_export, tempdf]).reset_index(drop=True)
+
 
 def read_markdown_file(markdown_file):
     '''

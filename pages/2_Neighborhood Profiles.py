@@ -1,10 +1,59 @@
+'''
+This is the python script which produces the NEIGHBORHOOD PROFILES PAGE
+'''
+import time
+import pandas as pd
+from datetime import datetime
 import streamlit as st
 from streamlit_javascript import st_javascript
-import time
+from streamlit_extras.add_vertical_space import add_vertical_space 
 
 # Import relevant libraries
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
 import basic_phenotyper_lib as bpl  # Useful functions for phenotyping collections of cells
+
+def init_spatial_umap():
+    countTSt = time.time()
+    with st.spinner('Calculating Cell Counts and Areas'):
+        st.session_state.spatial_umap = bpl.setup_Spatial_UMAP(st.session_state.df,
+                                                            st.session_state.marker_pre,
+                                                            st.session_state.phenoOrder,
+                                                            st.session_state.cpu_pool_size)
+    st.write('Done Calculating Cell Counts and Areas')
+
+    # Record time elapsed
+    countElapsed = time.time() - countTSt
+    st.session_state.bc.set_value_df('time_to_run_counts', countElapsed)
+
+def apply_umap(UMAPStyle):
+    clust_minmax = [1, 40]
+    UMAPTSt = time.time()
+    with st.spinner('Calculating UMAP'):
+        st.session_state.spatial_umap = bpl.perform_spatialUMAP(st.session_state.spatial_umap, UMAPStyle)
+    st.write('Done Calculating Spatial UMAP')
+    
+    # Record time elapsed
+    UMAPElapsed = time.time() - UMAPTSt
+    st.session_state.bc.set_value_df('time_to_run_UMAP', UMAPElapsed)
+
+    # List of possible UMAP Lineages as defined by the completed UMAP
+    st.session_state.umapPheno = [st.session_state.defLineageOpt]
+    st.session_state.umapPheno.extend(st.session_state.assign_pheno['phenotype'])
+    st.session_state.umapMarks = [st.session_state.defLineageOpt]
+    st.session_state.umapMarks.extend(st.session_state.spatial_umap.markers)
+    st.session_state.umapMarks.extend(['Other'])
+
+    # List of possible outcome variables as defined by the config yaml files
+    st.session_state.umapOutcomes = [st.session_state.defumapOutcomes]
+    st.session_state.umapOutcomes.extend(st.session_state.outcomes)
+    st.session_state.inciOutcomes = [st.session_state.definciOutcomes]
+    st.session_state.inciOutcomes.extend(st.session_state.outcomes)
+
+    # Perform possible cluster variations with the completed UMAP
+    with st.spinner('Calculating Possible Clusters'):
+        st.session_state.clust_range, st.session_state.wcss = bpl.measure_possible_clust(st.session_state.spatial_umap, clust_minmax)
+    st.session_state.wcss_calc_completed = True
+    st.session_state.umapCompleted = True
 
 def main():
     '''
@@ -28,53 +77,18 @@ def main():
         st.write(f'''[Open app in new Tab]({url})\n (MS Edge/ Google Chrome)''')
 
     clust_minmax = [1, 40]
-    cellCountsCol, UMAPCol, ClustCol = st.columns(3)
-    with cellCountsCol:
-        with st.form('Cell Counts/Areas'):
-            submitCountsCell = st.form_submit_button('Perform Cell Counts/Areas')
-            if submitCountsCell:
-                countTSt = time.time()
-                st.session_state.spatial_umap = bpl.setup_Spatial_UMAP(st.session_state.df,
-                                                                        st.session_state.marker_pre,
-                                                                        st.session_state.phenoOrder,
-                                                                        st.session_state.cpu_pool_size)
-                st.write('Done Calculating Cell Counts/Areas')
+    neiProCols = st.columns(3)
+    with neiProCols[0]:
+        cellCountsButt = st.button('Perform Cell Counts/Areas')
+        umapButt       = st.button('Perform UMAP')
 
-                # Record time elapsed
-                countElapsed = time.time() - countTSt
-                st.session_state.bc.set_value_df('time_to_run_counts', countElapsed)
-    with UMAPCol:
-        with st.form('UMAP Settings'):
-            UMAPStyle = 'Densities' #st.radio('Choose SpatialUMAP measure', ['Densities', 'Proportions'], horizontal=True)
-            submitUMAP = st.form_submit_button('Perform UMAP')
-            
-            # UMAP Submit Button
-            if submitUMAP:
-                UMAPTSt = time.time()
-                st.session_state.spatial_umap = bpl.perform_spatialUMAP(st.session_state.spatial_umap, UMAPStyle)
-                st.write('Done Calculating Spatial UMAP')
-                
-                # Record time elapsed
-                UMAPElapsed = time.time() - UMAPTSt
-                st.session_state.bc.set_value_df('time_to_run_UMAP', UMAPElapsed)
+    with neiProCols[1]:
+        if cellCountsButt:
+            init_spatial_umap()
+        if umapButt:
+            apply_umap(UMAPStyle = 'Densities')
 
-                # List of possible UMAP Lineages as defined by the completed UMAP
-                st.session_state.umapPheno = [st.session_state.defLineageOpt]
-                st.session_state.umapPheno.extend(st.session_state.assign_pheno['phenotype'])
-                st.session_state.umapMarks = [st.session_state.defLineageOpt]
-                st.session_state.umapMarks.extend(st.session_state.spatial_umap.markers)
-                st.session_state.umapMarks.extend(['Other'])
-
-                # List of possible outcome variables as defined by the config yaml files
-                st.session_state.umapOutcomes = [st.session_state.defumapOutcomes]
-                st.session_state.umapOutcomes.extend(st.session_state.outcomes)
-                st.session_state.inciOutcomes = [st.session_state.definciOutcomes]
-                st.session_state.inciOutcomes.extend(st.session_state.outcomes)
-
-                # Perform possible cluster variations with the completed UMAP
-                st.session_state.clust_range, st.session_state.wcss = bpl.measure_possible_clust(st.session_state.spatial_umap, clust_minmax)
-                st.session_state.umapCompleted = True
-    with ClustCol:
+    with neiProCols[2]:
         with st.form('Clustering Settings'):
             st.slider('Number of K-means clusters', min_value=clust_minmax[0], max_value=clust_minmax[1], key = 'slider_clus_val')
             submitCluster = st.form_submit_button('Perform Clustering')
@@ -90,15 +104,15 @@ def main():
 
     ### Clustering Meta Analysis and Description ###
     with st.expander('Cluster Meta-Analysis'):
-        wcssCol1, wcssCol2 = st.columns(2)
-        with wcssCol1:
+        wcss_cols = st.columns(2)
+        with wcss_cols[0]:
             st.markdown('''The within-cluster sum of squares (WCSS) is a measure of the 
                         variability of the observations within each cluster. In general, 
                         a cluster that has a small sum of squares is more compact than a 
                         cluster that has a large sum of squares. Clusters that have higher 
                         values exhibit greater variability of the observations within the 
                         cluster.''')
-        with wcssCol2:
+        with wcss_cols[1]:
             if st.session_state.umapCompleted:
                 elbowFig = bpl.draw_wcss_elbow_plot(st.session_state.clust_range, st.session_state.wcss, st.session_state.selected_nClus)
                 st.pyplot(elbowFig)
@@ -126,6 +140,17 @@ def main():
             else:
                 st.pyplot(st.session_state.phenoFig)
 
+            clust_fig_col = st.columns([2, 1])
+            with clust_fig_col[0]:
+                st.text_input('.png file suffix (Optional)', key = 'cluster_scatter_suffix')
+            with clust_fig_col[1]:
+                add_vertical_space(2)
+                if st.button('Append Export List', key = 'appendexportbutton_clusterscatter__do_not_persist'):
+                    ndl.add_item_export_list(st.session_state, 
+                                             item_name = 'UMAP clusters scatter plot', 
+                                             file_name = st.session_state.cluster_scatter_suffix)
+                    st.toast(f'Added {st.session_state.cluster_scatter_suffix} to export list')
+
     # Neighborhood Profiles Figure Column
     with uNeighPCol:
         st.header('Neighborhood Profiles')
@@ -136,18 +161,16 @@ def main():
                 NeiProFig = bpl.neighProfileDraw(st.session_state.spatial_umap, selNeighFig)
                 st.pyplot(fig=NeiProFig)
 
-                with st.form('Exporting Neighborhood Profiles'):
-                    selectProjOutPNG_U = st.selectbox(
-                                'Select your Unstructured Dataset',
-                                (st.session_state.OutputPNGPaths),
-                                key = 'selectProjOutPNG_U')
-
-                    st.session_state.NeighborProPng = st.text_input('Image File name', st.session_state.NeighborProPng, key = 'NeighborProPng_FileName')
-
-                    submitSaveNeig = st.form_submit_button('Save Neighborhood Profiles')
-                    if submitSaveNeig:
-                        ndl.save_png_dataset(st.session_state.fiol, selectProjOutPNG_U, st.session_state.NeighborProPng, NeiProFig)
-                        st.write('Export Successful')
+                neigh_prof_col = st.columns([2, 1])
+                with neigh_prof_col[0]:
+                    st.text_input('.png file suffix (Optional)', key = 'neigh_prof_line_suffix')
+                with neigh_prof_col[1]:
+                    add_vertical_space(2)
+                    if st.button('Append Export List', key = 'appendexportbutton_neighproline__do_not_persist'):
+                        ndl.add_item_export_list(st.session_state, 
+                                                 item_name = 'Neighborhood profiles line plot', 
+                                                 file_name = st.session_state.neigh_prof_line_suffix)
+                        st.toast(f'Added {st.session_state.neigh_prof_line_suffix} to export list')
 
 
 if __name__ == '__main__':
