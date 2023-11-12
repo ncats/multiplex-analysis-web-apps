@@ -1,8 +1,8 @@
 dir:
   projectPaths: ['/NIH/OMAL/reec-UMAP/data/preprocessed_data/']
-  usDatasetPaths: ['/NIH/OMAL/reec-UMAP/data/preprocessed_data/pt_pt_pt_TnT 48h Untreated zScore areaNorm 48 h AA1 Reg_microns_unstructured']
+  usDatasetPaths: ['/NIH/OMAL/reec-UMAP/Input']
   OutputCSVPaths_S: ['/NIH/OMAL/reec-UMAP/data/analyzed_data/']
-  OutputCSVPaths_U: ['/NIH/OMAL/reec-UMAP/data/analyzed_data/reec-UMAP_OutputFiles']
+  OutputCSVPaths_U: ['/NIH/OMAL/reec-UMAP/Output']
 
 def_df:
   CentroidX: [0]
