@@ -11,7 +11,7 @@ import multiprocessing as mp
 from functools import partial
 from scipy import optimize
 from scipy import ndimage as ndi
-
+np.seterr(divide='ignore', invalid='ignore')
 
 class SpatialUMAP:
     '''SpatialUMAP is a class that handles the cell count 

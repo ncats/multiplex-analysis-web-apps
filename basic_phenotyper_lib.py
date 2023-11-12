@@ -530,7 +530,7 @@ def perform_spatialUMAP(spatial_umap, UMAPStyle):
     # fit umap on training cells
     bc.startTimer()
     print('Fitting Model')
-    spatial_umap.umap_fit = umap.UMAP(random_state=42).fit(spatial_umap.density[spatial_umap.cells['umap_train'].values].reshape((spatial_umap.cells['umap_train'].sum(), -1)))
+    spatial_umap.umap_fit = umap.UMAP().fit(spatial_umap.density[spatial_umap.cells['umap_train'].values].reshape((spatial_umap.cells['umap_train'].sum(), -1)))
     bc.printElapsedTime(f'      Fitting {np.sum(spatial_umap.cells["umap_train"] == 1)} points to a model')
     
     # apply umap embedding on test cells
