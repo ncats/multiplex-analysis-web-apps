@@ -790,8 +790,8 @@ def wrapTitleText(title):
 
 def add_item_export_list(session_state, item_name, file_name):
     tempdf = pd.DataFrame(data = {'Item Name' : [item_name],
-                                'File Name' : [file_name],
-                                'Date Time Added': [datetime.now()]})
+                                  'File Name' : [file_name],
+                                  'Date Time Added': [datetime.now()]})
     session_state.files_to_export = pd.concat([session_state.files_to_export, tempdf]).reset_index(drop=True)
 
 

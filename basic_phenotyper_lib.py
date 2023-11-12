@@ -669,7 +669,7 @@ def createHeatMap(df, phenoList, title, normAxis = None):
 
     return fig
 
-def neighProfileDraw(spatial_umap, selClus, figsize=(14, 10)):
+def neighProfileDraw(spatial_umap, selClus, figsize=(14, 16)):
     import PlottingTools as umPT
 
     SlBgC  = '#0E1117'  # Streamlit Background Color

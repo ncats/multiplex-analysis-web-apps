@@ -236,13 +236,13 @@ def plot_mean_neighborhood_profile(ax, selClus, dist_bin, cell_density, phenoSet
 
             ax.set_xticks(dist_bin)
             # ax.set_xticklabels(['0-25', '26-50', '51-100', '101-150', '151-200'])
-            ax.set_xlim([20, 210])
+            ax.set_xlim([0, 225])
             ax.set_ylim([0, maxDens])
             ax.set_title(f'Cluster {selClus}: Densities', fontsize = 16, color = SlTC)
             ax.set_xlabel('Spatial Bound (\u03BCm)', fontsize = 14, color = SlTC)
             ax.set_ylabel('Cell Density', fontsize = 14, color = SlTC)
 
-            ax.set_frame_on(False)
+            # ax.set_frame_on(False)
             ax.spines['left'].set_color(SlTC)
             ax.spines['bottom'].set_color(SlTC)
             ax.tick_params(axis='x', colors=SlTC, which='both')
@@ -254,6 +254,7 @@ def plot_mean_neighborhood_profile(ax, selClus, dist_bin, cell_density, phenoSet
             ax.legend(axesDict.values(), axesDict.keys(),
                     bbox_to_anchor=(-0.05, -0.1), 
                     loc='upper left', 
+                    fontsize = 12,
                     borderaxespad=0, 
                     ncols = 4,
                     facecolor = Sl2BgC,
