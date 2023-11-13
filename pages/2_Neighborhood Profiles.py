@@ -67,6 +67,8 @@ def set_clusters():
     ClustElapsed = time.time() - clust_t_st
     st.session_state.bc.set_value_df('time_to_run_cluster', ClustElapsed)
 
+    st.session_state.clustering_completed = True
+
 def main():
     '''
     Main function for running the page
