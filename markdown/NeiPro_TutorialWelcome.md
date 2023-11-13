@@ -4,26 +4,45 @@
 ## Welcome
 Welcome to the Neighborhood Profiles presented by NCATS-NCI-DMAP. This is your one stop resource for data exploration, algorithm tuning, and figure generation. The below is a guide to using this app with suggested workflow, step-by-step instructions, and FAQs
 
-## Neighborhoood Profiles workflow
+## Neighborhoood Profiles Workflow
 Based on the conversations with our working groups, the following is the intended workflow for using this application.  
-1. Import/Export Data
-2. Phenotype Assignment
+1. Data Import and Export
+2. Phenotyping
 3. UMAP and Clustering Analysis
 4. Review and Explore Differences in UMAP patterns
 5. Review and Explore Differences in Cluster compositions.
 
 Towards these end, the app has been organized into a series of pages that perform each of these actions. The instructions below will be outlined for each of these given pages.
 
-### Phenotyping Instructions
-The first page to start your analysis pipeline is the phenotyping page. This is where you will load your data, view your different feature conditions, and select your phenotyping. 
+### 1. Data Import and Export Instructions
+As with most projects, the first step in starting your analysis workflow is with importing the data you intend to use. This is argueabely the most important step and one where the most issues may arise. If you any questions at all about importing and exporting data to not hesitate in seeking help from a DMAP team member (Dante and Andrew).
 
-### 2. Neighborhood Profiles (UMAP) Instructions
-Once data is loaded and phenotyped appropriately, further analyses can commence.   
-1. Perform Cell Counts/Areas: Clicking on this button starts the process of calculating the density of the cells in a given neighborhood profile.
-2. Perform UMAP: Clicking on this button starts the process of performing a 2-dimensional spatial UMAP on the dataset.
-3. Perform Clustering: Clicking this button 
+#### NIDAP Infrastructure
+NIDAP manages files using a product called Compass. Compass is akin to other file management systems like Windows File Explorer and Apple Finder. Data (.csv, .txt, .png, etc files) are stored in a DATASET, which can be thought of as a file folder. It is the goal of this app that as data is made available to be processed, it is stored in a NIDAP DATASET. Similarly, as results, figures, and updated datatables are generated, these data objects will be placed in a NIDAP DATASET for later sharing, downloading, and storing. 
 
-### 3. UMAP Differences ANalyzer
+#### Data Import
+Inside your NIDAP Project folder is a DATASET named `Input`. This is where you should upload files that you wish to analyze in the app. You can view those files inside the app from the dropdown 
+
+#### Data Export
+There is another DATASET named `Output` which will hold the files that you have chosen to save. YOu can select anyone of these files to download for later use or delete if it cluttering the space.
+
+### 2. Phenotyping Instructions
+The second page to start your analysis pipeline is the phenotyping page. This is where you will load your data, view your different feature conditions, and select your phenotyping. There are two primary steps in performing phenotyping.
+
+**Step 0**: Import Data. The phenotyper needs data to use perform phenotyping
+**Step 1**: Select a Phenotyping Method: The app currently offers three different phenotyping methods. They are:
+    `Species`: The phenotype is set as a direct copy of the species name (species name short to be more precise). The species name is the combination of markers that the cell type is positive for.
+    `Markers`: The phenotype is set as one of the given Marker that the cell is positive for. If the cell is positive for more than one Marker, the cell entry in the dataset is duplicated and represented by each positive marker value being studied.
+    `Custom`: The phenotype is set as a value of your own choise. Once the Custom phenotyping is selected, the Phenotype Summary Table on the right side of the page becomes editable. 
+
+### 3. Neighborhood Profiles (UMAP) Instructions
+Once data is loaded and phenotyped appropriately, Neighborhood Profiles analysis can begin. There are 4 main steps required:
+**Step 0**: Make sure your data is imported and phenotyped
+**Step 1**: Perform Cell Counts/Areas: Clicking on this button starts the process of calculating the density of the cells in a given neighborhood profile.
+**Step 2**: Perform UMAP: Clicking on this button starts the process of performing a 2-dimensional spatial UMAP on the dataset.
+**Step 3**: Perform Clustering: Clicking this button performs k-means clustering on the 2-D UMAP coordinates produced from the previous step. The value of k can be set by using the slider located next to the button
+
+### 4. UMAP Differences Analyzer
 After completing the UMAP decomposition and clustering analysis, the user may now take a look at the down-stream figures generated as a result of these analyses. While there are not many levers and knobs to change the data implicitly here, the user can generate different figures.
 1. Before starting to view these Clustering Differences, you must complete at least the UMAP processing seen on the previous page. To experience the full offering of the Clustering Differences page, you must also complete the Clustering step on the previous page. There are warnings on the page to help you remember what needs to be completed in order to see each figure.
 2. The Figures that are available for viewing:  
@@ -31,7 +50,7 @@ After completing the UMAP decomposition and clustering analysis, the user may no
     2. 2D UMAP filtered by lineage and features 
     3. Different UMAP scaled by features 
 
-### 4. Clusters Analyzer
+### 5. Clusters Analyzer
 After completing the UMAP decomposition and clustering analysis, the user may now take a look at the down-stream figures generated as a result of these analyses. The Cluster Analyzer page contains two figures generated from the upstream data analysis:
 1. `Cluster/Phenotype Heatmap`  
 2. `Incidence Lineplot`  
