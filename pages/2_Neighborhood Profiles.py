@@ -25,6 +25,8 @@ def init_spatial_umap():
     countElapsed = time.time() - countTSt
     st.session_state.bc.set_value_df('time_to_run_counts', countElapsed)
 
+    st.session_state.cell_counts_completed = True
+
 def apply_umap(UMAPStyle):
     clust_minmax = [1, 40]
     UMAPTSt = time.time()
@@ -55,6 +57,16 @@ def apply_umap(UMAPStyle):
     st.session_state.wcss_calc_completed = True
     st.session_state.umapCompleted = True
 
+def set_clusters():
+    clust_t_st = time.time()
+    st.session_state.spatial_umap = bpl.perform_clusteringUMAP(st.session_state.spatial_umap, st.session_state.slider_clus_val)
+    st.session_state.selected_nClus = st.session_state.slider_clus_val
+    st.write('Done Calculating Clusters')
+
+    # Record time elapsed
+    ClustElapsed = time.time() - clust_t_st
+    st.session_state.bc.set_value_df('time_to_run_cluster', ClustElapsed)
+
 def main():
     '''
     Main function for running the page
@@ -69,6 +81,9 @@ def main():
         if (not key.endswith('__do_not_persist')) and (not key.startswith('FormSubmitter:')):
             st.session_state[key] = val
 
+    if 'init_neighborhood_profiles' not in st.session_state:
+        st.session_state = ndl.init_session_state_Neighborhood_Profiles(st.session_state)
+
     st.header('Neighborhood Profiles\nNCATS-NCI-DMAP')
 
     ### SIDE BAR ORGANIZATION ###
@@ -77,45 +92,51 @@ def main():
         st.write(f'''[Open app in new Tab]({url})\n (MS Edge/ Google Chrome)''')
 
     clust_minmax = [1, 40]
-    neiProCols = st.columns(3)
+    neiProCols = st.columns([1, 1, 2])
     with neiProCols[0]:
-        cellCountsButt = st.button('Perform Cell Counts/Areas')
-        umapButt       = st.button('Perform UMAP')
+        cellCountsButt = st.button('Perform Cell Counts/Areas Analysis')
+        umapButt       = st.button('Perform UMAP Analysis')
+        st.slider('Number of K-means clusters', min_value=clust_minmax[0], max_value=clust_minmax[1], key = 'slider_clus_val')
+        clustButt      = st.button('Perform Clustering Analysis')
 
     with neiProCols[1]:
         if cellCountsButt:
-            init_spatial_umap()
+            if st.session_state.phenotyping_completed:
+                init_spatial_umap()
         if umapButt:
-            apply_umap(UMAPStyle = 'Densities')
+            if st.session_state.cell_counts_completed:
+                apply_umap(UMAPStyle = 'Densities')
+        if clustButt:
+            if st.session_state.umapCompleted: 
+                set_clusters()
 
     with neiProCols[2]:
-        with st.form('Clustering Settings'):
-            st.slider('Number of K-means clusters', min_value=clust_minmax[0], max_value=clust_minmax[1], key = 'slider_clus_val')
-            submitCluster = st.form_submit_button('Perform Clustering')
-            if submitCluster:
-                ClustTSt = time.time()
-                st.session_state.spatial_umap = bpl.perform_clusteringUMAP(st.session_state.spatial_umap, st.session_state.slider_clus_val)
-                st.session_state.selected_nClus = st.session_state.slider_clus_val
-                st.write('Done Calculating Clusters')
+        if st.session_state.umapCompleted:
+            ### Clustering Meta Analysis and Description ###
+            with st.expander('Cluster Meta-Analysis'):
+                wcss_cols = st.columns(2)
+                with wcss_cols[0]:
+                    st.markdown('''The within-cluster sum of squares (WCSS) is a measure of the 
+                                variability of the observations within each cluster. In general, 
+                                a cluster that has a small sum of squares is more compact than a 
+                                cluster that has a large sum of squares. Clusters that have higher 
+                                values exhibit greater variability of the observations within the 
+                                cluster.''')
+                with wcss_cols[1]:
+                    if st.session_state.umapCompleted:
+                        elbowFig = bpl.draw_wcss_elbow_plot(st.session_state.clust_range, st.session_state.wcss, st.session_state.selected_nClus)
+                        st.pyplot(elbowFig)
 
-                # Record time elapsed
-                ClustElapsed = time.time() - ClustTSt
-                st.session_state.bc.set_value_df('time_to_run_cluster', ClustElapsed)
-
-    ### Clustering Meta Analysis and Description ###
-    with st.expander('Cluster Meta-Analysis'):
-        wcss_cols = st.columns(2)
-        with wcss_cols[0]:
-            st.markdown('''The within-cluster sum of squares (WCSS) is a measure of the 
-                        variability of the observations within each cluster. In general, 
-                        a cluster that has a small sum of squares is more compact than a 
-                        cluster that has a large sum of squares. Clusters that have higher 
-                        values exhibit greater variability of the observations within the 
-                        cluster.''')
-        with wcss_cols[1]:
-            if st.session_state.umapCompleted:
-                elbowFig = bpl.draw_wcss_elbow_plot(st.session_state.clust_range, st.session_state.wcss, st.session_state.selected_nClus)
-                st.pyplot(elbowFig)
+    if not st.session_state.phenotyping_completed:
+        st.warning('Step 0: Please complete phentoyping analysis on previous page', icon="⚠️")
+    elif not st.session_state.cell_counts_completed:
+        st.warning('Step 1: Please complete Cell Counts and Areas analysis', icon="⚠️")
+    elif not st.session_state.umapCompleted:
+        st.warning('Step 2: Please run UMAP analysis', icon="⚠️")
+    elif not st.session_state.clustering_completed:
+        st.warning('Step 3: Please run clustering analysis', icon="⚠️")
+    else:
+        add_vertical_space(2)
 
     ### Visualizations ###
     uScatCol, uNeighPCol = st.columns(2)

@@ -45,6 +45,9 @@ def main():
         if (not key.endswith('__do_not_persist')) and (not key.startswith('FormSubmitter:')):
             st.session_state[key] = val
 
+    if 'init_phenotyping' not in st.session_state:
+        st.session_state = ndl.init_session_state_Phenotyping(st.session_state)
+
     st.header('Phenotyper\nNCATS-NCI-DMAP')
 
     ### Data Phenotyping Container ###
@@ -62,18 +65,22 @@ def main():
             st.session_state = ndl.updatePhenotyping(st.session_state)
             st.session_state.pointstSliderVal_Sel = st.session_state.calcSliderVal
 
+    #
+    if st.session_state.selected_phenoMeth != 'Not Selected':
+        st.session_state.phenotyping_completed = True
+
     ### Data Filters Container ###
     with st.expander('Data Filters'):
         with st.form('Filter Levers'):
-            filt_col_1, filt_col_2, filt_col_3 = st.columns(3)
-            with filt_col_1:
+            filt_col = st.columns([1, 2])
+            with filt_col[0]:
                 # Select Box Features
                 for feat in st.session_state.SEL_feat:
                     st.selectbox(feat,
                                 (st.session_state.df_raw[feat].unique()),
                                 key = 'sel' + feat)
 
-            with filt_col_2:
+            with filt_col[1]:
                 # Check Box Features
                 for feat in st.session_state.CHK_feat:
                     st.checkbox(feat,
@@ -95,7 +102,7 @@ def main():
 
     ## In-App Instructions
     if st.session_state.data_loaded is False:
-        st.warning('Data not loaded (above)', icon="⚠️")
+        st.warning('Data not loaded (See Previous Page)', icon="⚠️")
     elif st.session_state.selected_phenoMeth == st.session_state.noPhenoOpt:
         st.warning('No phenotyping method applied (above)', icon="⚠️")
     else:

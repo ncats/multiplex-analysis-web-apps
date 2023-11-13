@@ -164,6 +164,26 @@ def init_session_state(session_state, settings_yaml_file):
 
     return session_state
 
+def init_session_state_Phenotyping(session_state):
+    session_state.init_phenotyping = True
+
+    session_state.noPhenoOpt = 'Not Selected'
+    session_state.phenoMeth = 'Species'                          # Default when first loaded
+    session_state.selected_phenoMeth = session_state.noPhenoOpt  # Default when first loaded
+
+    session_state.phenotyping_completed = False
+
+    return session_state
+
+def init_session_state_Neighborhood_Profiles(session_state):
+    session_state.init_neighborhood_profiles = True
+
+    session_state.cell_counts_completed = False
+    session_state.umapCompleted = False
+    session_state.clustering_completed = False
+
+    return session_state
+
 def load_listofFiles(fiol, projectPath):
     """
     Identify datasets available within Unstructured Dataset. 
@@ -625,8 +645,7 @@ def setFigureObjs_UMAPDifferences(session_state):
 
     # UMAP Difference Figures
     for i in range(3):
-        fig, ax = bpl.draw_scatter_fig(figsize=session_state.figsize)
-
+        fig, ax = bpl.draw_scatter_fig()
         fig = bpl.scatter_plot(dfUMAPDs[i], fig, ax, title,
                                 xVar = 'X', yVar = 'Y', hueVar = 'Cluster',
                                 hueOrder = clustOrder, boxoff=True, 
