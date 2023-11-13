@@ -1,8 +1,10 @@
 '''
 This is the python script which produces the PHENOTYPING PAGE
 '''
+import os
 import time
 import streamlit as st
+import pandas as pd
 from streamlit_javascript import st_javascript
 from streamlit_extras.add_vertical_space import add_vertical_space 
 
@@ -80,6 +82,17 @@ def main():
     elif errorStatus is False:
         st.success('Datafile succesfully imported')
 
+    dir_path = 'output/'
+    res = []
+    # Iterate directory
+    for path in os.listdir(dir_path):
+        # check if current path is a file
+        if os.path.isfile(os.path.join(dir_path, path)):
+            res.append(path)
+
+    st.session_state.files_to_export = pd.DataFrame()
+    st.session_state.files_to_export['File Name'] = res
+
     # Exported Files Path Selection
     selectProjOutCSV_U = st.session_state.OutputCSVPaths_U[0]
     
@@ -97,14 +110,11 @@ def main():
             my_bar = st.progress(0)
             for index, row in st.session_state.files_to_export.iterrows():
                 my_bar.progress((0 + index/numFiles), f'Uploading {row["File Name"]}')
-                ndl.export_results_dataset(st.session_state.fiol, 
-                                           st.session_state.spec_summ, # Change this
-                                           selectProjOutCSV_U, 
-                                           row['File Name'], 
-                                           saveCompass=True, 
-                                           type='U')
+                st.session_state.fiol.export_file_dataset(selectProjOutCSV_U,
+                                                          row["File Name"])
 
             my_bar.progress(100, 'Files have been exported!')
+
 
     st.dataframe(data=st.session_state.files_to_export, hide_index=False)
 

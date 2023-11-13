@@ -179,3 +179,18 @@ class foundry_IO_lib:
         # Once Upload is complete, delete the local file
         os.remove(fileNameFull)
         print(f'Uploaded {fileNameFull}')
+
+    def export_file_dataset(self, dataset, filename):
+        if self.onNIDAP:
+            foundryObj = self.dataset.get(dataset)
+            foundryObj.upload_file(f'output/{filename}')
+
+        else:
+            in_file = open(f'output/{filename}', 'rb') # opening for [r]eading as [b]inary
+            file_data = in_file.read()
+            in_file.close()
+
+            self.dataset(dataset) \
+                .file(filename) \
+                .write(content = file_data)
+

@@ -813,12 +813,22 @@ def add_item_export_list(session_state, item_name, file_name):
                                   'Date Time Added': [datetime.now()]})
     session_state.files_to_export = pd.concat([session_state.files_to_export, tempdf]).reset_index(drop=True)
 
-
 def read_markdown_file(markdown_file):
     '''
     Simple markdown reading function
     '''
     return Path(markdown_file).read_text()
+
+def save_csv(df, df_name):
+    df.to_csv(f'output/{df_name}_{time.strftime("%Y%m%d-%H%M%S")}.csv')
+
+def save_png(imgObj, fig_type, suffix = None):
+
+    if suffix is not None:
+        suffix = '_' + suffix
+    fileNameFull = f'output/{fig_type}_{time.strftime("%Y%m%d-%H%M%S")}{suffix}.png'
+    # Save as a png in the local directory using the Matplotlib 'savefig' method
+    imgObj.savefig(fileNameFull)
 
 def save_png_dataset(fiol, datafile, pngFileName, pltFig):
     """

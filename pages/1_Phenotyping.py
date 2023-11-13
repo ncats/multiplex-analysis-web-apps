@@ -158,10 +158,7 @@ def main():
         with phen_summ_cols[1]:
             add_vertical_space(2)
             if st.button('Append Export List', key = 'appendexportbutton_phenotypesummary__do_not_persist'):
-                tempdf = pd.DataFrame(data = {'Item Name' : ['Phenotype Summary'],
-                                              'File Name' : [st.session_state.pheno_assign_filename_U],
-                                              'Date Time Added': [datetime.now()]})
-                st.session_state.files_to_export = pd.concat([st.session_state.files_to_export, tempdf]).reset_index(drop=True)
+                ndl.save_csv(st.session_state.spec_summ, st.session_state.pheno_assign_filename_U)
                 st.toast(f'Added {st.session_state.pheno_assign_filename_U} to export list ')
 
         updated_df_cols = st.columns([2, 1])
@@ -170,10 +167,7 @@ def main():
         with updated_df_cols[1]:
             add_vertical_space(2)
             if st.button('Append Export List', key = 'appendexportbutton_updateddf__do_not_persist'):
-                tempdf = pd.DataFrame(data = {'Item Name' : ['Updated Input Dataset'],
-                                              'File Name' : [st.session_state.df_update_filename_U],
-                                              'Date Time Added': [datetime.now()]})
-                st.session_state.files_to_export = pd.concat([st.session_state.files_to_export, tempdf]).reset_index(drop=True)
+                ndl.save_csv(st.session_state.df_update, st.session_state.df_update_filename_U)
                 st.toast(f'Added {st.session_state.df_update_filename_U} to export list ')
 
     # First column on the page
@@ -208,10 +202,7 @@ def main():
         with pheno_scat_upload[1]:
             add_vertical_space(2)
             if st.button('Append Export List', key = 'appendexportbutton_phenotypescatter__do_not_persist'):
-                tempdf = pd.DataFrame(data = {'Item Name' : ['Phenotype Scatter Plot'],
-                                              'File Name' : [st.session_state.imgFileSuffixText],
-                                              'Date Time Added': [datetime.now()]})
-                st.session_state.files_to_export = pd.concat([st.session_state.files_to_export, tempdf]).reset_index(drop=True)
+                ndl.save_png(st.session_state.phenoFig, 'Phenotype Scatterplot', st.session_state.imgFileSuffixText)
                 st.toast(f'Added {st.session_state.imgFileSuffixText} to export list ')
 
 if __name__ == '__main__':

@@ -167,9 +167,7 @@ def main():
             with clust_fig_col[1]:
                 add_vertical_space(2)
                 if st.button('Append Export List', key = 'appendexportbutton_clusterscatter__do_not_persist'):
-                    ndl.add_item_export_list(st.session_state, 
-                                             item_name = 'UMAP clusters scatter plot', 
-                                             file_name = st.session_state.cluster_scatter_suffix)
+                    ndl.save_png(st.session_state.seabornFig_clust, 'Cluster Scatterplot', st.session_state.cluster_scatter_suffix)
                     st.toast(f'Added {st.session_state.cluster_scatter_suffix} to export list')
 
     # Neighborhood Profiles Figure Column
@@ -188,9 +186,8 @@ def main():
                 with neigh_prof_col[1]:
                     add_vertical_space(2)
                     if st.button('Append Export List', key = 'appendexportbutton_neighproline__do_not_persist'):
-                        ndl.add_item_export_list(st.session_state, 
-                                                 item_name = 'Neighborhood profiles line plot', 
-                                                 file_name = st.session_state.neigh_prof_line_suffix)
+                        
+                        ndl.save_png(NeiProFig, 'Neighborhood Profiles', st.session_state.neigh_prof_line_suffix)
                         st.toast(f'Added {st.session_state.neigh_prof_line_suffix} to export list')
 
 
