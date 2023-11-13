@@ -16,7 +16,7 @@ def main():
     '''
     # Use the whole page width
     st.set_page_config(
-        page_title="Differences Analyzer",
+        page_title="UMAP Differences Analyzer",
         layout="wide"
     )
 
@@ -24,7 +24,7 @@ def main():
         if (not key.endswith('__do_not_persist')) and (not key.startswith('FormSubmitter:')):
             st.session_state[key] = val
 
-    st.header('Differences Analyzer\nNCATS-NCI-DMAP')
+    st.header('UMAP Differences Analyzer\nNCATS-NCI-DMAP')
 
     ### SIDE BAR ORGANIZATION ###
     with st.sidebar:
