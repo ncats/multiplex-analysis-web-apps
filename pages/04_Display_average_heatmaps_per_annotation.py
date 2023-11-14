@@ -19,7 +19,11 @@ def main():
     st.title('Annotation plots')
 
     # Add placeholder logo to page
-    add_logo('app_images/logo2c.png', height=150)
+    add_logo('app_images/mawa_logo-width315.png', height=150)
+
+    # Add link to docs
+    with st.sidebar:
+        st.write('**:book: [Documentation](https://ncats.github.io/multiplex-analysis-web-apps)**')
 
     if os.path.exists(os.path.join('.', 'output', 'images', 'raw_weights_check')) and os.path.exists(os.path.join('.', 'output', 'images', 'all_annotation_data.png')) and os.path.exists(os.path.join('.', 'output', 'images', 'weight_heatmaps_on_annot')) and os.path.exists(os.path.join('.', 'output', 'images', 'pixel_plot')) and os.path.exists(os.path.join('.', 'output', 'images', 'analysis_overlaid_on_annotation')) and os.path.exists(os.path.join('.', 'output', 'images', 'dens_pvals_per_annotation')):
 

@@ -113,7 +113,11 @@ def main():
     st.title('Tool parameter selection')
 
     # Add placeholder logo to page
-    add_logo('app_images/logo2c.png', height=150)
+    add_logo('app_images/mawa_logo-width315.png', height=150)
+
+    # Add link to docs
+    with st.sidebar:
+        st.write('**:book: [Documentation](https://ncats.github.io/multiplex-analysis-web-apps)**')
 
     # Assign default keys
     streamlit_utils.assign_default_values_in_session_state('preset_parameter_file', utils.get_first_element_or_none(options_for_parameter_files))

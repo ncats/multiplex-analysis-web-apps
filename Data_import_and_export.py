@@ -26,7 +26,7 @@ def main():
     st.title('Data import/export')
 
     # Add placeholder logo to page
-    add_logo('app_images/logo2c.png', height=150)
+    add_logo('app_images/mawa_logo-width315.png', height=150)
 
     # Initialize the platform object
     if 'platform' not in st.session_state:
@@ -35,10 +35,11 @@ def main():
     # Store a copy (not a link) of the platform object for clarity below
     platform = st.session_state['platform']
 
-    # Get link for app to be opened in new tab
+    # Get link for app to be opened in new tab and add link to docs
     url = st_javascript("await fetch('').then(r => window.parent.location.href)")  # this single line is causing a repeatable "KeyError: 'platform'" that seems to not have any ill effects. This is fixed by putting this line after the "if 'platform' not in st.session_state:" block and "platform = st.session_state['platform']" line
     with st.sidebar:
-        st.write('[Open app in new tab]({}) (may only work in Chrome or Edge, not Firefox)'.format(url))
+        st.write('**:book: [Documentation](https://ncats.github.io/multiplex-analysis-web-apps)**')
+        st.write('*[Open app in new tab]({}) (may only work in Chrome or Edge, not Firefox)*'.format(url))
 
     # Define widget default values
     streamlit_utils.assign_default_values_in_session_state('basename_suffix_for_new_results_archive', 'sample_project_name_panel_12')
