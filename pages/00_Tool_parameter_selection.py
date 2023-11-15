@@ -18,7 +18,7 @@ def main():
     options_for_input_datafiles =                [x for x in os.listdir(input_directory) if x.endswith(('.csv', '.tsv'))]
     options_for_phenotype_identification_files = ([x for x in os.listdir(os.path.join(input_directory, 'phenotypes')) if x.endswith('.tsv')] if os.path.exists(os.path.join(input_directory, 'phenotypes')) else [])
     # options_for_annotation_files = st.session_state['options_for_annotation_files']  <-- dynamically updated options
-    options_for_input_datafile_formats = ['HALO', 'Native', 'GMBSecondGeneration']
+    options_for_input_datafile_formats = ['HALO', 'Native', 'GMBSecondGeneration', 'REEC']
     options_for_phenotyping_methods = ['Species', 'Marker', 'Custom']
     options_for_significance_calculation_methods = ['Poisson (radius)', 'Permutation (radius)', 'Permutation (k-nearest neighbors)']
     # options_for_images = st.session_state['options_for_images']  <-- dynamically updated options

@@ -12,49 +12,62 @@ def extract_datafile_metadata(datafile_path):
     # If the file is in the newest, "HALO" format...
     if 'Image Location' in columns_list:
         file_format = 'HALO'
-        relevant_column_str = 'Image Location'
+        image_column_str = 'Image Location'
         first_dapi_positive_col = [x for x in columns_list if 'DAPI Positive' in x][0]
         index_start = columns_list.index('YMax') + 1
         index_end = columns_list.index(first_dapi_positive_col)
         marker_prefix = ''
         marker_cols = columns_list[index_start:index_end]
         coord_cols = ['XMin', 'XMax', 'YMin', 'YMax']
-        string_processing_func = lambda x: x.split('.tif')[0].split('_')[-1]
+        image_string_processing_func = lambda x: x.split('.tif')[0].split('_')[-1]
+        marker_suffix = None
 
     # If the file is in the original GMB format...
     elif 'tag' in columns_list:
         file_format = 'Native'
-        # relevant_column_str = 'tag'
-        relevant_column_str = 'Slide ID'
+        image_column_str = 'Slide ID'
         marker_prefix = 'Phenotype '
         marker_cols = [x for x in columns_list if x.startswith(marker_prefix)]
         coord_cols = ['Cell X Position', 'Cell Y Position']
-        string_processing_func = lambda x: '{:>3s}'.format(x.split('-')[0])
+        image_string_processing_func = lambda x: '{:>3s}'.format(x.split('-')[0])
+        marker_suffix = None
 
     # If the file is in the newer GMB format...
     elif 'tag.x' in columns_list:
         file_format = 'GMBSecondGeneration'
-        # relevant_column_str = 'tag.x'
-        relevant_column_str = 'Slide ID'
+        image_column_str = 'Slide ID'
         marker_prefix = 'Phenotype '
         marker_cols = [x for x in columns_list if x.startswith(marker_prefix)]
         coord_cols = ['Cell X Position', 'Cell Y Position']
-        # string_processing_func = lambda x: '{:>3s}'.format(x.split('-')[0])
-        string_processing_func = lambda x: x.removesuffix('-MACRO-POS')
+        image_string_processing_func = lambda x: x.removesuffix('-MACRO-POS')
+        marker_suffix = None
+
+    # If the file is in Will's original REEC format...
+    elif 'HYPOXICIN' in columns_list:
+        file_format = 'REEC'
+        image_column_str = 'ImageFile'
+        image_string_processing_func = lambda x: x.split('/')[-1].removesuffix('.tif').replace(' ', '_')
+        marker_prefix = ''
+        marker_suffix = '_HI'
+        cols_hi = [col for col in columns_list if col.endswith(marker_suffix)]
+        marker_cols = cols_hi[:cols_hi.index([col for col in cols_hi if col.startswith('NUC_')][0])]
+        coord_cols = ['CentroidX', 'CentroidY']
 
     # If the file is of unknown format...
     else:
         print('WARNING: Unregistered datafile format')
-        file_format, relevant_column_str, marker_prefix, marker_cols, coord_cols, string_processing_func = None, None, None, None, None, None
+        file_format, image_column_str, marker_prefix, marker_cols, coord_cols, image_string_processing_func = None, None, None, None, None, None
 
-    # Obtain the actual markers from the marker columns and the marker prefix
+    # Obtain the actual markers from the marker columns and the marker prefix, and maybe a marker suffix
     if marker_cols is not None:
         markers = [x.removeprefix(marker_prefix) for x in marker_cols]
+        if marker_suffix is not None:
+            markers = [x.removesuffix(marker_suffix) for x in marker_cols]
     else:
         markers = None
 
     # Return the the datafile metadata
-    return relevant_column_str, string_processing_func, coord_cols, marker_prefix, file_format, markers
+    return image_column_str, image_string_processing_func, coord_cols, marker_prefix, file_format, markers
 
 class Native:
     """Class representing format of original Consolidated_data.txt file that Houssein sent us around 2017-2018
@@ -88,7 +101,8 @@ class Native:
             Spatial analysis dataset object.
         """
         self.input_datafile = input_datafile
-        self.sep = sep
+        # self.sep = sep
+        self.sep = (',' if input_datafile.split('.')[-1] == 'csv' else '\t')
         self.images_to_analyze = images_to_analyze
         self.data = self.read_datafile()
         self.coord_units_in_microns = coord_units_in_microns
@@ -469,48 +483,143 @@ class OMAL(Native):
         coord_units_in_microns = self.coord_units_in_microns
         roi_width = self.roi_width
         overlap = self.overlap
+        input_datafile = self.input_datafile
 
-        # Get the "Slide ID" column of the dataframe
-        slide_id = df['Slide ID']
+        # Define the function to convert the coordinate descriptors to pixels, if not already in pixels
+        func_convert_to_pixels = lambda coords: coords
 
-        # Determine the unique slides in the dataset
-        unique_slides = slide_id.unique()
+        # Either patch up the dataset into ROIs and assign the ROI ("tag") column accordingly, or don't and assign the ROI column accordingly
+        df = potentially_apply_patching(df, input_datafile, roi_width, overlap, coord_units_in_microns, func_convert_to_pixels)
 
-        # For each slide...
-        for unique_slide in unique_slides:
+        # Overwrite the original dataframe with the one having the appended ROI column (I'd imagine this line is unnecessary)
+        self.data = df
 
-            # Get the locations in the overall dataframe of the current slide
-            curr_loc = slide_id == unique_slide
+    def adhere_to_cell_position_format(self):
+        """Ensure the "Cell X Position" and "Cell Y Position" columns of the data conform to the required format
+        """
 
-            # Get the current dataframe slice
-            curr_df = df[curr_loc].copy()
+        # Variable definitions from attributes
+        df = self.data
+        coord_units_in_microns = self.coord_units_in_microns
 
-            # Create the "tag" (i.e., ROI, i.e., patch) column
-            # Note the coordinates used below are in pixels
-            if roi_width is None:  # i.e., if we don't want to do any patching
-                print('No patching will be done')
-                df.loc[curr_loc, 'tag'] = curr_df['Slide ID'] + '_roi_' + '[{},{}]'.format(int((curr_df['XMin'].min() + curr_df['XMax'].max()) / 2 + 0.5), int((curr_df['YMin'].min() + curr_df['YMax'].max()) / 2 + 0.5))  # populate the "tag" column with the slide ID appended with the minimum x- and y-coordinates
-            else:
-                print('Patching will be performed...')
-                df.loc[curr_loc, 'tag'] = break_up_slide_into_patches(curr_df, roi_width=(roi_width / coord_units_in_microns), overlap=(overlap / coord_units_in_microns))
+        # Establish the x- and y-coordinate columns from their gates
+        srs_x_orig = (df['XMin'] + df['XMax']) / 2
+        srs_y_orig = (df['YMin'] + df['YMax']) / 2
 
-        # Print out the current dataframe size
-        print('Current dataframe length: {}'.format(len(df)))
+        # Convert coordinates to microns by multiplying by coord_units_in_microns, creating the new columns for the x- and y-coordinates
+        df['Cell X Position'] = srs_x_orig * coord_units_in_microns
+        df['Cell Y Position'] = srs_y_orig * coord_units_in_microns
 
-        # If patching was performed, then the 'tag' column will be lists of strings, not strings
-        if roi_width is not None:
+        # Attribute assignments from variables
+        self.data = df
+        self.coord_units_in_microns = 1  # implying 1 micron per coordinate unit (since now the coordinates are in microns)
 
-            # Print out the expected length of the new dataframe
-            print('Expected length of duplicated dataframe: {}'.format(df['tag'].apply(lambda x: len(x)).sum()))
+    def adhere_to_phenotype_format(self):
+        """Ensure the "Phenotype XXXX" columns of the data conform to the required format
+        """
 
-            # Repeat objects that are in multiple ROIs
-            df = duplicate_rows(df, col_to_repeat='tag')
+        # Variable definitions from attributes
+        df = self.data
+        input_datafile = self.input_datafile
 
-            # Print the length of the new dataframe
-            print('Length of duplicated dataframe: {}'.format(len(df)))
+        # Define the phenotypes of interest in the input dataset
+        _, _, _, _, _, phenotype_columns = extract_datafile_metadata(input_datafile)
 
-        # Sort the data by slide and then by ROI
-        df = df.sort_values(by=['Slide ID', 'tag']).reset_index(drop=True)  # adding .reset_index(drop=True) to just *make sure* the SIP code in general doesn't assume the data index is already in sorted order
+        # Rename the phenotype columns so that they are prepended with "Phenotype "
+        df = df.rename(dict(zip(phenotype_columns, ['Phenotype {}'.format(x) for x in phenotype_columns])), axis='columns')
+
+        # For each phenotype column, convert zeros and ones to -'s and +'s
+        for col in df.filter(regex='^Phenotype\ '):
+            df[col] = df[col].map({0: '-', 1: '+'})
+
+        # Attribute assignments from variables
+        self.data = df
+
+    def extra_processing(self):
+        """Delete any ROIs that contain only a single spatial coordinate, regardless of whether the objects are compound species or if there are simply different species located as the same coordinate
+
+        In hindsight I should have also eliminated 1D ROIs instead of only 0D ROIs as I do here. I do this later though in time_cell_interaction_lib.py.
+        """
+
+        # Variable definitions from attributes
+        df = self.data
+
+        # Obtain just the phenotype columns and get the number of phenotypes
+        df_phenotypes = df.filter(regex='^Phenotype\ ')
+        num_phenotypes = df_phenotypes.shape[1]
+
+        # Delete empty objects
+        df_pared = df[df_phenotypes.apply(lambda x: ''.join(x), axis='columns') != '-' * num_phenotypes]
+
+        # Get a Series containing the number of unique coordinates in every ROI, in which we first group by ROI and coordinates, and then group by just ROI, counting the number of unique coordinates within
+        num_unique_coords_per_roi = df_pared.groupby(by=['tag', 'Cell X Position', 'Cell Y Position']).size().index.to_frame(index=False).groupby(by='tag').count().iloc[:, 0]
+
+        # Get the set of ROIs containing a single unique coordinate
+        rois_with_single_unique_coord = set(num_unique_coords_per_roi[num_unique_coords_per_roi == 1].index.to_list())
+
+        # Drop these ROIs from the dataset
+        print('Dropping {} ROIs with valid objects that have only a single unique spatial coordinate'.format(len(rois_with_single_unique_coord)))
+        df = df.loc[df['tag'].apply(lambda x: x not in rois_with_single_unique_coord), :]
+
+        # Add .reset_index(drop=True) to just *make sure* the SIP code in general doesn't assume the data index is already in sorted order
+        df = df.reset_index(drop=True)
+
+        # Attribute assignments from variables
+        self.data = df
+
+
+class REEC(Native):
+    """Class representing format of the data the OMAL group is using around Winter/Spring 2022
+
+    Sample instantiation:
+
+        import dataset_formats
+        dataset_class = getattr(dataset_formats, 'REEC')
+        dataset_obj = dataset_class(input_datafile='../../data/all_five_images_NOS2_and_COX2_and_CD8_Fused_ALW_05212021_entire_image.csv', coord_units_in_microns=0.325, images_to_analyze=['48 h AA1 Reg'])
+        dataset_obj.process_dataset()
+
+    Note that the units of coord_units_in_microns are um/pixel and the units of the coordinates in input_datafile are pixels.
+    """
+
+    def adhere_to_slide_id_format(self):
+        """Ensure the "Slide ID" column of the data conforms to the required format
+        """
+
+        image_column_str, image_string_processing_func, coord_cols, marker_prefix, file_format, markers = extract_datafile_metadata(self.input_datafile)
+
+        # Variable definitions from attributes
+        image_location = self.data[image_column_str]
+
+        # Determine the image "numbers"
+        # srs_imagenum = image_location.apply(lambda x: x.split('_')[-1].rstrip('.tif'))
+        # srs_imagenum = image_location.apply(lambda x: x.split('_')[-1].split('.')[0])  # make it not have to be a .tif extension but rather any extension
+        srs_imagenum = image_location.apply(image_string_processing_func)
+
+        # Get the unique image numbers
+        unique_images = srs_imagenum.unique()
+
+        # Calculate a dictionary mapper that maps the unique images to integers
+        mapper = dict(zip(unique_images, [x + 1 for x in range(len(unique_images))]))
+
+        # Attribute assignments
+        self.data['Slide ID'] = srs_imagenum.apply(lambda x: '{}A-imagenum_{}'.format(mapper[x], x))
+
+    def adhere_to_tag_format(self):
+        """Ensure the "tag" column of the data conforms to the required format
+        """
+
+        # Variable definitions from attributes
+        df = self.data
+        coord_units_in_microns = self.coord_units_in_microns
+        roi_width = self.roi_width
+        overlap = self.overlap
+        input_datafile = self.input_datafile
+
+        # Define the function to convert the coordinate descriptors to pixels, if not already in pixels
+        func_convert_to_pixels = lambda coords: (coords / df['PixelSize'][0]).astype(int)
+
+        # Either patch up the dataset into ROIs and assign the ROI ("tag") column accordingly, or don't and assign the ROI column accordingly
+        df = potentially_apply_patching(df, input_datafile, roi_width, overlap, coord_units_in_microns, func_convert_to_pixels)
 
         # Overwrite the original dataframe with the one having the appended ROI column (I'd imagine this line is unnecessary)
         self.data = df
@@ -634,7 +743,12 @@ def get_min_coord_spacing_in_dataframe(df, print_output=True):
         # This should exit cleanly now when arr = [0], which should probably never happen though it might... yes I think it does because I don't think I've dropped the "trivial" ROIs yet
         tol = 1e-8
         large_num = 1e8
-        arr = [[x for x in arr if x < tol][0]] + [x for x in arr if x > tol]  # account for their possibly being multiple essentially-zero spacings; just keep the first of these close-to-zeros
+        zero_spacings = [x for x in arr if x < tol]
+        nonzero_spacings = [x for x in arr if x > tol]
+        if len(zero_spacings) > 0:
+            arr = [zero_spacings[0]] + nonzero_spacings  # account for their possibly being multiple essentially-zero spacings; just keep the first of these close-to-zeros
+        else:  # there are no near-zero spacings
+            arr = nonzero_spacings
         nonzeros_in_smallest_spacings = [x for x in arr[:2] if x > tol]
         if len(nonzeros_in_smallest_spacings) >= 1:
             return nonzeros_in_smallest_spacings[0]
@@ -709,7 +823,27 @@ def calculate_roi_coords(min_coord, max_coord, roi_width, overlap=0):
     return roi_starts, roi_ends
 
 
-def break_up_slide_into_patches(df, roi_width=1230.77, overlap=246.15):
+def get_coord_descriptors(df, coord_cols):
+    """Since the current dataset can have cell gate coordinates or the cell centroid coordinates, get the full set of coordinate descriptors based on the coordinate-related columns present in the input file.
+    """
+    if len(coord_cols) == 4:
+        XMin = df[coord_cols[0]]
+        XMax = df[coord_cols[1]]
+        YMin = df[coord_cols[2]]
+        YMax = df[coord_cols[3]]
+        xmid = (XMin + XMax) / 2
+        ymid = (YMin + YMax) / 2
+    else:
+        xmid = df[coord_cols[0]]
+        ymid = df[coord_cols[1]]
+        XMin = xmid
+        XMax = xmid
+        YMin = ymid
+        YMax = ymid
+    return XMin, XMax, YMin, YMax, xmid, ymid
+
+
+def break_up_slide_into_patches(df, roi_width=1230.77, overlap=246.15, coord_cols=['XMin', 'XMax', 'YMin', 'YMax']):
     """Break up a slide's dataframe into patches/ROIs, returning a Pandas series with the appropriate ROI labels for each object
 
     Sample call:
@@ -727,16 +861,19 @@ def break_up_slide_into_patches(df, roi_width=1230.77, overlap=246.15):
     # Import relevant libraries
     import numpy as np
 
+    # Since the current dataset can have cell gate coordinates or the cell centroid coordinates, get the full set of coordinate descriptors based on the coordinate-related columns present in the input file
+    XMin, XMax, YMin, YMax, xmid, ymid = get_coord_descriptors(df, coord_cols)
+
     # Get items for the ROI name
-    max_num_digits = len(str(max([df['XMax'].max(), df['YMax'].max()])))  # get the maximum number of digits to format into the ROI names; assume the input coordinates are non-negative integers
+    max_num_digits = len(str(max([XMax.max(), YMax.max()])))  # get the maximum number of digits to format into the ROI names; assume the input coordinates are non-negative integers
     format_string = '[{:0' + str(max_num_digits) + 'd},{:0' + str(max_num_digits) + 'd}]'
     # slide_id = df.head(1)['Slide ID']  # get the current Slide ID; it should be same for every row in the input dataframe
     slide_id = df['Slide ID'].iloc[0]
     print('On slide {}...'.format(slide_id))
 
     # Get the patch coordinates for the entire slide
-    x_roi_starts, x_roi_ends = calculate_roi_coords(min_coord=df['XMin'].min(), max_coord=df['XMax'].max(), roi_width=roi_width, overlap=overlap)
-    y_roi_starts, y_roi_ends = calculate_roi_coords(min_coord=df['YMin'].min(), max_coord=df['YMax'].max(), roi_width=roi_width, overlap=overlap)
+    x_roi_starts, x_roi_ends = calculate_roi_coords(min_coord=XMin.min(), max_coord=XMax.max(), roi_width=roi_width, overlap=overlap)
+    y_roi_starts, y_roi_ends = calculate_roi_coords(min_coord=YMin.min(), max_coord=YMax.max(), roi_width=roi_width, overlap=overlap)
 
     # # Print out the minimum coordinates of every patch
     # print('Breaking up the slide into patches:')
@@ -748,8 +885,8 @@ def break_up_slide_into_patches(df, roi_width=1230.77, overlap=246.15):
     # df.loc[:, 'roi_count'] = 0
     df['tag'] = [[]] * len(df)
     df['roi_count'] = 0
-    xmid = df['XMin'] + (df['XMax'] - df['XMin']) / 2
-    ymid = df['YMin'] + (df['YMax'] - df['YMin']) / 2
+    # xmid = df['XMin'] + (df['XMax'] - df['XMin']) / 2
+    # ymid = df['YMin'] + (df['YMax'] - df['YMin']) / 2
 
     # Loop over every ROI and assign an object to a ROI accordingly
     total_object_count = 0
@@ -874,3 +1011,57 @@ def calculate_min_coord_spacing_per_slide(df):
 
     # Return the calculated minimum coordinate spacing
     return detected_minimum_spacing
+
+
+def potentially_apply_patching(df, input_datafile, roi_width, overlap, coord_units_in_microns, func_convert_to_pixels):
+    '''Either patch up the dataset into ROIs and assign the ROI ("tag") column accordingly, or don't and assign the ROI column accordingly.
+    '''
+
+    # Obtain the coordinate-relate columns for the current datafile format type
+    coord_cols = extract_datafile_metadata(input_datafile)[2]
+
+    # Get the "Slide ID" column of the dataframe
+    slide_id = df['Slide ID']
+
+    # Determine the unique slides in the dataset
+    unique_slides = slide_id.unique()
+
+    # For each slide...
+    for unique_slide in unique_slides:
+
+        # Get the locations in the overall dataframe of the current slide
+        curr_loc = slide_id == unique_slide
+
+        # Get the current dataframe slice
+        curr_df = df[curr_loc].copy()
+
+        # Create the "tag" (i.e., ROI, i.e., patch) column
+        # Note the coordinates used below are in pixels
+        if roi_width is None:  # i.e., if we don't want to do any patching
+            print('No patching will be done')
+            XMin, XMax, YMin, YMax, _, _ = get_coord_descriptors(curr_df, coord_cols)
+            df.loc[curr_loc, 'tag'] = curr_df['Slide ID'] + '_roi_' + '[{},{}]'.format(int((XMin.min() + XMax.max()) / 2 + 0.5), int((YMin.min() + YMax.max()) / 2 + 0.5))  # populate the "tag" column with the slide ID appended with the coordinate centroids
+        else:
+            print('Patching will be performed...')
+            curr_df[coord_cols] = func_convert_to_pixels(curr_df[coord_cols])
+            df.loc[curr_loc, 'tag'] = break_up_slide_into_patches(curr_df, roi_width=(roi_width / coord_units_in_microns), overlap=(overlap / coord_units_in_microns), coord_cols=coord_cols)
+
+    # Print out the current dataframe size
+    print('Current dataframe length: {}'.format(len(df)))
+
+    # If patching was performed, then the 'tag' column will be lists of strings, not strings
+    if roi_width is not None:
+
+        # Print out the expected length of the new dataframe
+        print('Expected length of duplicated dataframe: {}'.format(df['tag'].apply(lambda x: len(x)).sum()))
+
+        # Repeat objects that are in multiple ROIs
+        df = duplicate_rows(df, col_to_repeat='tag')
+
+        # Print the length of the new dataframe
+        print('Length of duplicated dataframe: {}'.format(len(df)))
+
+    # Sort the data by slide and then by ROI
+    df = df.sort_values(by=['Slide ID', 'tag']).reset_index(drop=True)  # adding .reset_index(drop=True) to just *make sure* the SIP code in general doesn't assume the data index is already in sorted order
+
+    return df
