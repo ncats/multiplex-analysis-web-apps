@@ -83,7 +83,7 @@ class Native:
     I should dig up the email/conversation/notes in which Houssein told us the units of the original input datafile were half-microns.
     """
 
-    def __init__(self, input_datafile, coord_units_in_microns, images_to_analyze, sep='\t', min_coord_spacing=None, species_equivalents={}, mapping_dict={}, roi_width=None, overlap=0, phenotype_identification_tsv_file=None):
+    def __init__(self, input_datafile, coord_units_in_microns, images_to_analyze=None, sep='\t', min_coord_spacing=None, species_equivalents={}, mapping_dict={}, roi_width=None, overlap=0, phenotype_identification_tsv_file=None, extra_cols_to_keep=None):
         """Object initialization, which just consists of reading in the data from the datafile
 
         Args:
@@ -101,7 +101,6 @@ class Native:
             Spatial analysis dataset object.
         """
         self.input_datafile = input_datafile
-        # self.sep = sep
         self.sep = (',' if input_datafile.split('.')[-1] == 'csv' else '\t')
         self.images_to_analyze = images_to_analyze
         self.data = self.read_datafile()
@@ -112,6 +111,7 @@ class Native:
         self.roi_width = roi_width
         self.overlap = overlap
         self.phenotype_identification_tsv_file = phenotype_identification_tsv_file
+        self.extra_cols_to_keep = (extra_cols_to_keep if extra_cols_to_keep is not None else [])
 
     def read_datafile(self):
         """Read in the text-formatted datafile
@@ -133,6 +133,8 @@ class Native:
         if os.path.exists(input_datafile):
             df = pd.read_csv(input_datafile, sep=sep)
             relevant_column_str, string_processing_func, _, _, _, _ = extract_datafile_metadata(input_datafile)
+            if images_to_analyze is None:  # if this is unset, choose all images in the dataset (i.e., effectively do not filter)
+                images_to_analyze = list(pd.Series(df[relevant_column_str].unique()).apply(lambda x: string_processing_func(x).strip()))
             df = df[df[relevant_column_str].apply(lambda x: string_processing_func(x).strip() in images_to_analyze)]
             print('Text file "{}" with separator "{}" has been successfully read and filtered to images {}'.format(input_datafile, sep, images_to_analyze))
         else:
@@ -212,7 +214,7 @@ class Native:
         self.data = df.loc[:, cols_to_keep]
 
     def calculate_minimum_coordinate_spacing(self):
-        """Calculate the minimum spacing (aside from zero) in the data coordinates after conversion to microns
+        """Calculate the minimum spacing (aside from zero) in the data coordinates after conversion to microns. Not sure this is ever used anymore.
         """
 
         # Variable definitions from attributes
@@ -486,10 +488,11 @@ class OMAL(Native):
         input_datafile = self.input_datafile
 
         # Define the function to convert the coordinate descriptors to pixels, if not already in pixels
-        func_convert_to_pixels = lambda coords: coords
+        func_coords_to_pixels = lambda x: x
+        func_microns_to_pixels = lambda x: int(x / coord_units_in_microns)
 
         # Either patch up the dataset into ROIs and assign the ROI ("tag") column accordingly, or don't and assign the ROI column accordingly
-        df = potentially_apply_patching(df, input_datafile, roi_width, overlap, coord_units_in_microns, func_convert_to_pixels)
+        df = potentially_apply_patching(df, input_datafile, roi_width, overlap, func_coords_to_pixels, func_microns_to_pixels)
 
         # Overwrite the original dataframe with the one having the appended ROI column (I'd imagine this line is unnecessary)
         self.data = df
@@ -536,56 +539,36 @@ class OMAL(Native):
         self.data = df
 
     def extra_processing(self):
-        """Delete any ROIs that contain only a single spatial coordinate, regardless of whether the objects are compound species or if there are simply different species located as the same coordinate
-
-        In hindsight I should have also eliminated 1D ROIs instead of only 0D ROIs as I do here. I do this later though in time_cell_interaction_lib.py.
-        """
 
         # Variable definitions from attributes
         df = self.data
 
-        # Obtain just the phenotype columns and get the number of phenotypes
-        df_phenotypes = df.filter(regex='^Phenotype\ ')
-        num_phenotypes = df_phenotypes.shape[1]
-
-        # Delete empty objects
-        df_pared = df[df_phenotypes.apply(lambda x: ''.join(x), axis='columns') != '-' * num_phenotypes]
-
-        # Get a Series containing the number of unique coordinates in every ROI, in which we first group by ROI and coordinates, and then group by just ROI, counting the number of unique coordinates within
-        num_unique_coords_per_roi = df_pared.groupby(by=['tag', 'Cell X Position', 'Cell Y Position']).size().index.to_frame(index=False).groupby(by='tag').count().iloc[:, 0]
-
-        # Get the set of ROIs containing a single unique coordinate
-        rois_with_single_unique_coord = set(num_unique_coords_per_roi[num_unique_coords_per_roi == 1].index.to_list())
-
-        # Drop these ROIs from the dataset
-        print('Dropping {} ROIs with valid objects that have only a single unique spatial coordinate'.format(len(rois_with_single_unique_coord)))
-        df = df.loc[df['tag'].apply(lambda x: x not in rois_with_single_unique_coord), :]
-
-        # Add .reset_index(drop=True) to just *make sure* the SIP code in general doesn't assume the data index is already in sorted order
-        df = df.reset_index(drop=True)
+        # Here just delete ROIs containing a single coordinate since we may have performed patching and that resulted in such situations
+        df = delete_rois_with_single_coord(df)
 
         # Attribute assignments from variables
         self.data = df
 
 
 class REEC(Native):
-    """Class representing format of the data the OMAL group is using around Winter/Spring 2022
+    """Will's special REEC format.
 
     Sample instantiation:
 
         import dataset_formats
         dataset_class = getattr(dataset_formats, 'REEC')
-        dataset_obj = dataset_class(input_datafile='../../data/all_five_images_NOS2_and_COX2_and_CD8_Fused_ALW_05212021_entire_image.csv', coord_units_in_microns=0.325, images_to_analyze=['48 h AA1 Reg'])
+        dataset_obj = dataset_class(input_datafile=os.path.join(input_dir, reec1_input_file), coord_units_in_microns=1, extra_cols_to_keep=['tNt', 'GOODNUC', 'HYPOXIC', 'NORMOXIC', 'NucArea', 'RelOrientation'])
         dataset_obj.process_dataset()
 
-    Note that the units of coord_units_in_microns are um/pixel and the units of the coordinates in input_datafile are pixels.
+
+    Note that the units of the coordinates in input_datafile are microns.
     """
 
     def adhere_to_slide_id_format(self):
         """Ensure the "Slide ID" column of the data conforms to the required format
         """
 
-        image_column_str, image_string_processing_func, coord_cols, marker_prefix, file_format, markers = extract_datafile_metadata(self.input_datafile)
+        image_column_str, image_string_processing_func, _, _, _, _ = extract_datafile_metadata(self.input_datafile)
 
         # Variable definitions from attributes
         image_location = self.data[image_column_str]
@@ -610,39 +593,39 @@ class REEC(Native):
 
         # Variable definitions from attributes
         df = self.data
-        coord_units_in_microns = self.coord_units_in_microns
         roi_width = self.roi_width
         overlap = self.overlap
         input_datafile = self.input_datafile
 
         # Define the function to convert the coordinate descriptors to pixels, if not already in pixels
-        func_convert_to_pixels = lambda coords: (coords / df['PixelSize'][0]).astype(int)
+        func_coords_to_pixels = lambda x: (x / df['PixelSize'][0]).astype(int)  # units of df['PixelSize'] are microns/pixel
+        func_microns_to_pixels = lambda x: int(x / df['PixelSize'][0])
 
         # Either patch up the dataset into ROIs and assign the ROI ("tag") column accordingly, or don't and assign the ROI column accordingly
-        df = potentially_apply_patching(df, input_datafile, roi_width, overlap, coord_units_in_microns, func_convert_to_pixels)
+        df = potentially_apply_patching(df, input_datafile, roi_width, overlap, func_coords_to_pixels, func_microns_to_pixels)
 
         # Overwrite the original dataframe with the one having the appended ROI column (I'd imagine this line is unnecessary)
         self.data = df
 
     def adhere_to_cell_position_format(self):
-        """Ensure the "Cell X Position" and "Cell Y Position" columns of the data conform to the required format
+        """Ensure the "Cell X Position" and "Cell Y Position" columns of the data conform to the required format.
+
+        In the REEC case, the coordinates are already in microns as long as the filename ends with "_microns.csv".
         """
 
         # Variable definitions from attributes
         df = self.data
-        coord_units_in_microns = self.coord_units_in_microns
-
-        # Establish the x- and y-coordinate columns from their gates
-        srs_x_orig = (df['XMin'] + df['XMax']) / 2
-        srs_y_orig = (df['YMin'] + df['YMax']) / 2
 
         # Convert coordinates to microns by multiplying by coord_units_in_microns, creating the new columns for the x- and y-coordinates
-        df['Cell X Position'] = srs_x_orig * coord_units_in_microns
-        df['Cell Y Position'] = srs_y_orig * coord_units_in_microns
+        df['Cell X Position'] = df['CentroidX']
+        df['Cell Y Position'] = df['CentroidY']
+
+        # In case the spacings/precisions of the cells in these datasets are not good (e.g., very small or arbitrary spacings), make them as good as possible
+        microns_per_pixel = df['PixelSize'][0]
+        df[['Cell X Position', 'Cell Y Position']] = (df[['Cell X Position', 'Cell Y Position']] / microns_per_pixel).astype(int) * microns_per_pixel
 
         # Attribute assignments from variables
         self.data = df
-        self.coord_units_in_microns = 1  # implying 1 micron per coordinate unit (since now the coordinates are in microns)
 
     def adhere_to_phenotype_format(self):
         """Ensure the "Phenotype XXXX" columns of the data conform to the required format
@@ -653,10 +636,11 @@ class REEC(Native):
         input_datafile = self.input_datafile
 
         # Define the phenotypes of interest in the input dataset
-        _, _, _, _, _, phenotype_columns = extract_datafile_metadata(input_datafile)
+        _, _, _, _, _, markers = extract_datafile_metadata(input_datafile)
+        phenotype_columns = [marker + '_HI' for marker in markers]
 
         # Rename the phenotype columns so that they are prepended with "Phenotype "
-        df = df.rename(dict(zip(phenotype_columns, ['Phenotype {}'.format(x) for x in phenotype_columns])), axis='columns')
+        df = df.rename(dict(zip(phenotype_columns, ['Phenotype {}'.format(marker) for marker in markers])), axis='columns')
 
         # For each phenotype column, convert zeros and ones to -'s and +'s
         for col in df.filter(regex='^Phenotype\ '):
@@ -665,34 +649,27 @@ class REEC(Native):
         # Attribute assignments from variables
         self.data = df
 
-    def extra_processing(self):
-        """Delete any ROIs that contain only a single spatial coordinate, regardless of whether the objects are compound species or if there are simply different species located as the same coordinate
-
-        In hindsight I should have also eliminated 1D ROIs instead of only 0D ROIs as I do here. I do this later though in time_cell_interaction_lib.py.
+    def trim_dataframe(self):
+        """Replace the Pandas dataframe with a trimmed version containing just the necessary columns
         """
 
         # Variable definitions from attributes
         df = self.data
+        extra_cols_to_keep = self.extra_cols_to_keep
 
-        # Obtain just the phenotype columns and get the number of phenotypes
-        df_phenotypes = df.filter(regex='^Phenotype\ ')
-        num_phenotypes = df_phenotypes.shape[1]
+        # Extract just the columns to keep in the trimmed dataframe
+        cols_to_keep = ['Slide ID', 'tag', 'Cell X Position', 'Cell Y Position'] + df.loc[0, :].filter(regex='^Phenotype ').index.tolist() + extra_cols_to_keep
 
-        # Delete empty objects
-        df_pared = df[df_phenotypes.apply(lambda x: ''.join(x), axis='columns') != '-' * num_phenotypes]
+        # Attribute assignments from variables
+        self.data = df.loc[:, cols_to_keep]
 
-        # Get a Series containing the number of unique coordinates in every ROI, in which we first group by ROI and coordinates, and then group by just ROI, counting the number of unique coordinates within
-        num_unique_coords_per_roi = df_pared.groupby(by=['tag', 'Cell X Position', 'Cell Y Position']).size().index.to_frame(index=False).groupby(by='tag').count().iloc[:, 0]
+    def extra_processing(self):
 
-        # Get the set of ROIs containing a single unique coordinate
-        rois_with_single_unique_coord = set(num_unique_coords_per_roi[num_unique_coords_per_roi == 1].index.to_list())
+        # Variable definitions from attributes
+        df = self.data
 
-        # Drop these ROIs from the dataset
-        print('Dropping {} ROIs with valid objects that have only a single unique spatial coordinate'.format(len(rois_with_single_unique_coord)))
-        df = df.loc[df['tag'].apply(lambda x: x not in rois_with_single_unique_coord), :]
-
-        # Add .reset_index(drop=True) to just *make sure* the SIP code in general doesn't assume the data index is already in sorted order
-        df = df.reset_index(drop=True)
+        # Here just delete ROIs containing a single coordinate since we may have performed patching and that resulted in such situations
+        df = delete_rois_with_single_coord(df)
 
         # Attribute assignments from variables
         self.data = df
@@ -1013,7 +990,7 @@ def calculate_min_coord_spacing_per_slide(df):
     return detected_minimum_spacing
 
 
-def potentially_apply_patching(df, input_datafile, roi_width, overlap, coord_units_in_microns, func_convert_to_pixels):
+def potentially_apply_patching(df, input_datafile, roi_width, overlap, func_coords_to_pixels, func_microns_to_pixels):
     '''Either patch up the dataset into ROIs and assign the ROI ("tag") column accordingly, or don't and assign the ROI column accordingly.
     '''
 
@@ -1043,8 +1020,8 @@ def potentially_apply_patching(df, input_datafile, roi_width, overlap, coord_uni
             df.loc[curr_loc, 'tag'] = curr_df['Slide ID'] + '_roi_' + '[{},{}]'.format(int((XMin.min() + XMax.max()) / 2 + 0.5), int((YMin.min() + YMax.max()) / 2 + 0.5))  # populate the "tag" column with the slide ID appended with the coordinate centroids
         else:
             print('Patching will be performed...')
-            curr_df[coord_cols] = func_convert_to_pixels(curr_df[coord_cols])
-            df.loc[curr_loc, 'tag'] = break_up_slide_into_patches(curr_df, roi_width=(roi_width / coord_units_in_microns), overlap=(overlap / coord_units_in_microns), coord_cols=coord_cols)
+            curr_df[coord_cols] = func_coords_to_pixels(curr_df[coord_cols])
+            df.loc[curr_loc, 'tag'] = break_up_slide_into_patches(curr_df, roi_width=func_microns_to_pixels(roi_width), overlap=func_microns_to_pixels(overlap), coord_cols=coord_cols)
 
     # Print out the current dataframe size
     print('Current dataframe length: {}'.format(len(df)))
@@ -1063,5 +1040,33 @@ def potentially_apply_patching(df, input_datafile, roi_width, overlap, coord_uni
 
     # Sort the data by slide and then by ROI
     df = df.sort_values(by=['Slide ID', 'tag']).reset_index(drop=True)  # adding .reset_index(drop=True) to just *make sure* the SIP code in general doesn't assume the data index is already in sorted order
+
+    return df
+
+def delete_rois_with_single_coord(df):
+    """Delete any ROIs that contain only a single spatial coordinate, regardless of whether the objects are compound species or if there are simply different species located as the same coordinate
+
+    In hindsight I should have also eliminated 1D ROIs instead of only 0D ROIs as I do here. I do this later though in time_cell_interaction_lib.py.
+    """
+
+    # Obtain just the phenotype columns and get the number of phenotypes
+    df_phenotypes = df.filter(regex='^Phenotype\ ')
+    num_phenotypes = df_phenotypes.shape[1]
+
+    # Delete empty objects
+    df_pared = df[df_phenotypes.apply(lambda x: ''.join(x), axis='columns') != '-' * num_phenotypes]
+
+    # Get a Series containing the number of unique coordinates in every ROI, in which we first group by ROI and coordinates, and then group by just ROI, counting the number of unique coordinates within
+    num_unique_coords_per_roi = df_pared.groupby(by=['tag', 'Cell X Position', 'Cell Y Position']).size().index.to_frame(index=False).groupby(by='tag').count().iloc[:, 0]
+
+    # Get the set of ROIs containing a single unique coordinate
+    rois_with_single_unique_coord = set(num_unique_coords_per_roi[num_unique_coords_per_roi == 1].index.to_list())
+
+    # Drop these ROIs from the dataset
+    print('Dropping {} ROIs with valid objects that have only a single unique spatial coordinate'.format(len(rois_with_single_unique_coord)))
+    df = df.loc[df['tag'].apply(lambda x: x not in rois_with_single_unique_coord), :]
+
+    # Add .reset_index(drop=True) to just *make sure* the SIP code in general doesn't assume the data index is already in sorted order
+    df = df.reset_index(drop=True)
 
     return df
