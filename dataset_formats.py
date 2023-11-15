@@ -560,7 +560,6 @@ class REEC(Native):
         dataset_obj = dataset_class(input_datafile=os.path.join(input_dir, reec1_input_file), coord_units_in_microns=1, extra_cols_to_keep=['tNt', 'GOODNUC', 'HYPOXIC', 'NORMOXIC', 'NucArea', 'RelOrientation'])
         dataset_obj.process_dataset()
 
-
     Note that the units of the coordinates in input_datafile are microns.
     """
 
