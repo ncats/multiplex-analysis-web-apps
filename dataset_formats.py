@@ -657,6 +657,10 @@ class REEC(Native):
         extra_cols_to_keep = self.extra_cols_to_keep
 
         # Extract just the columns to keep in the trimmed dataframe
+        requested_cols_not_present = [col_to_keep for col_to_keep in extra_cols_to_keep if col_to_keep not in df.columns]
+        extra_cols_to_keep = [col_to_keep for col_to_keep in extra_cols_to_keep if col_to_keep in df.columns]
+        if len(requested_cols_not_present) > 0:
+            print('WARNING: Requested column(s) {} are not present in the dataset'.format(requested_cols_not_present))
         cols_to_keep = ['Slide ID', 'tag', 'Cell X Position', 'Cell Y Position'] + df.loc[0, :].filter(regex='^Phenotype ').index.tolist() + extra_cols_to_keep
 
         # Attribute assignments from variables
