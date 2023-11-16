@@ -36,6 +36,11 @@ def main():
     # Add logo to page
     add_logo('app_images/mawa_logo-width315.png', height=150)
 
+    if 'init' not in st.session_state:
+        settings_yaml_file = 'config_files/OMAL_REEC.yml'
+        # Initialize session_state values for streamlit processing
+        st.session_state = ndl.init_session_state(st.session_state, settings_yaml_file)
+
     st.header('Clusters Analyzer\nNCATS-NCI-DMAP')
 
     st.radio("Filter by Phenotypes or Markers?",
@@ -51,6 +56,8 @@ def main():
 
     if st.session_state.umapCompleted:
         st.session_state = ndl.setFigureObjs_UMAPDifferences(st.session_state)
+    else:
+        st.warning('No spatial UMAP analysis detected. Please complete Neighborhood Profiles')
 
     # Clustering Columns
     clusterfigs = st.columns(2)

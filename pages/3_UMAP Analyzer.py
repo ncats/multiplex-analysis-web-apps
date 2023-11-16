@@ -37,6 +37,11 @@ def main():
     # Add logo to page
     add_logo('app_images/mawa_logo-width315.png', height=150)
 
+    if 'init' not in st.session_state:
+        settings_yaml_file = 'config_files/OMAL_REEC.yml'
+        # Initialize session_state values for streamlit processing
+        st.session_state = ndl.init_session_state(st.session_state, settings_yaml_file)
+
     st.header('UMAP Differences Analyzer\nNCATS-NCI-DMAP')
 
     # Toggles for different figures
@@ -61,6 +66,8 @@ def main():
 
     if st.session_state.umapCompleted:
         st.session_state = ndl.setFigureObjs_UMAPDifferences(st.session_state)
+    else:
+        st.warning('No spatial UMAP analysis detected. Please complete Neighborhood Profiles')
 
     # Large UMAP Columns
     umapViz1, umapViz2 = st.columns(2)

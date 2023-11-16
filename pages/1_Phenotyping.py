@@ -1,9 +1,6 @@
 '''
 This is the python script which produces the PHENOTYPING PAGE
 '''
-import time
-import pandas as pd
-from datetime import datetime
 import streamlit as st
 from st_pages import show_pages_from_config, add_indentation
 from streamlit_extras.add_vertical_space import add_vertical_space 
@@ -58,8 +55,10 @@ def main():
     # Add logo to page
     add_logo('app_images/mawa_logo-width315.png', height=150)
 
-    if 'init_phenotyping' not in st.session_state:
-        st.session_state = ndl.init_session_state_Phenotyping(st.session_state)
+    if 'init' not in st.session_state:
+        settings_yaml_file = 'config_files/OMAL_REEC.yml'
+        # Initialize session_state values for streamlit processing
+        st.session_state = ndl.init_session_state(st.session_state, settings_yaml_file)
 
     st.header('Phenotyper\nNCATS-NCI-DMAP')
 
@@ -110,7 +109,7 @@ def main():
 
     ## In-App Instructions
     if st.session_state.data_loaded is False:
-        st.warning('Data not loaded (See Previous Page)', icon="⚠️")
+        st.warning('Data not loaded (See Data Import and Export)', icon="⚠️")
     elif st.session_state.selected_phenoMeth == st.session_state.noPhenoOpt:
         st.warning('No phenotyping method applied (above)', icon="⚠️")
     else:

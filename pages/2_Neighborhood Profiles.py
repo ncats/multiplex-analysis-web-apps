@@ -96,8 +96,10 @@ def main():
     # Add logo to page
     add_logo('app_images/mawa_logo-width315.png', height=150)
 
-    if 'init_neighborhood_profiles' not in st.session_state:
-        st.session_state = ndl.init_session_state_Neighborhood_Profiles(st.session_state)
+    if 'init' not in st.session_state:
+        settings_yaml_file = 'config_files/OMAL_REEC.yml'
+        # Initialize session_state values for streamlit processing
+        st.session_state = ndl.init_session_state(st.session_state, settings_yaml_file)
 
     st.header('Neighborhood Profiles\nNCATS-NCI-DMAP')
 
@@ -138,7 +140,7 @@ def main():
                         st.pyplot(elbowFig)
 
     if not st.session_state.phenotyping_completed:
-        st.warning('Step 0: Please complete phentoyping analysis on previous page', icon="⚠️")
+        st.warning('Step 0: Please complete phentoyping analysis (See Phenotyping Page)', icon="⚠️")
     elif not st.session_state.cell_counts_completed:
         st.warning('Step 1: Please complete Cell Counts and Areas analysis', icon="⚠️")
     elif not st.session_state.umapCompleted:
