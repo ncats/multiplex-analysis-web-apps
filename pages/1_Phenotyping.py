@@ -5,8 +5,9 @@ import time
 import pandas as pd
 from datetime import datetime
 import streamlit as st
-from streamlit_javascript import st_javascript
+from st_pages import show_pages_from_config, add_indentation
 from streamlit_extras.add_vertical_space import add_vertical_space 
+from streamlit_extras.app_logo import add_logo
 
 # Import relevant libraries
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
@@ -37,13 +38,25 @@ def main():
     Main function for running the page
     '''
 
-    # Use the whole page width
+    # Set a wide layout
     st.set_page_config(page_title="Phenotyping",
                        layout="wide")
 
+    # Remove key values from session_state that should not persist
     for key, val in st.session_state.items():
         if (not key.endswith('__do_not_persist')) and (not key.startswith('FormSubmitter:')):
             st.session_state[key] = val
+
+    # Apply pages order and indentation
+    add_indentation()
+    show_pages_from_config()
+
+    # Sidebar organization
+    with st.sidebar:
+        st.write('**:book: [Documentation](https://ncats.github.io/multiplex-analysis-web-apps)**')
+
+    # Add logo to page
+    add_logo('app_images/mawa_logo-width315.png', height=150)
 
     if 'init_phenotyping' not in st.session_state:
         st.session_state = ndl.init_session_state_Phenotyping(st.session_state)
@@ -94,11 +107,6 @@ def main():
                 # Update and reset Figure Objects
                 st.session_state = ndl.setFigureObjs(st.session_state)
                 st.session_state.pointstSliderVal_Sel = st.session_state.calcSliderVal
-
-    ### SIDE BAR ORGANIZATION ###
-    with st.sidebar:
-        url = st_javascript("await fetch('').then(r => window.parent.location.href)")
-        st.write(f'''[Open app in new Tab]({url})\n (MS Edge/ Google Chrome)''')
 
     ## In-App Instructions
     if st.session_state.data_loaded is False:

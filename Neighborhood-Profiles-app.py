@@ -3,6 +3,7 @@ Python script for performing simple phenotyping
 '''
 import streamlit as st
 from streamlit_javascript import st_javascript
+from st_pages import show_pages_from_config, add_indentation
 
 # Import relevant libraries
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
@@ -19,6 +20,9 @@ def main():
     for key, val in st.session_state.items():
         if (not key.endswith('__do_not_persist')) and (not key.startswith('FormSubmitter:')):
             st.session_state[key] = val
+
+    add_indentation()
+    show_pages_from_config()
 
     # Initalize environment variables and session-state variables
     if 'init' not in st.session_state:
