@@ -21,6 +21,7 @@ def extract_datafile_metadata(datafile_path):
         coord_cols = ['XMin', 'XMax', 'YMin', 'YMax']
         image_string_processing_func = lambda x: x.split('.tif')[0].split('_')[-1]
         marker_suffix = None
+        markers = None
 
     # If the file is in the original GMB format...
     elif 'tag' in columns_list:
@@ -31,6 +32,7 @@ def extract_datafile_metadata(datafile_path):
         coord_cols = ['Cell X Position', 'Cell Y Position']
         image_string_processing_func = lambda x: '{:>3s}'.format(x.split('-')[0])
         marker_suffix = None
+        markers = None
 
     # If the file is in the newer GMB format...
     elif 'tag.x' in columns_list:
@@ -41,6 +43,7 @@ def extract_datafile_metadata(datafile_path):
         coord_cols = ['Cell X Position', 'Cell Y Position']
         image_string_processing_func = lambda x: x.removesuffix('-MACRO-POS')
         marker_suffix = None
+        markers = None
 
     # If the file is in Will's original REEC format...
     elif 'HYPOXICIN' in columns_list:
@@ -52,6 +55,18 @@ def extract_datafile_metadata(datafile_path):
         cols_hi = [col for col in columns_list if col.endswith(marker_suffix)]
         marker_cols = cols_hi[:cols_hi.index([col for col in cols_hi if col.startswith('NUC_')][0])]
         coord_cols = ['CentroidX', 'CentroidY']
+        markers = None
+
+    # If the file is from QuPath...
+    elif tuple(columns_list[:4]) == ('Image', 'Class', 'Centroid X µm', 'Centroid Y µm'):
+        file_format = 'QuPath'
+        image_column_str = 'Image'
+        image_string_processing_func = lambda x: x.split('.qptiff - ')[-1].replace(' ', '_')
+        marker_prefix = ''
+        marker_suffix = None
+        marker_cols = 'Class'
+        coord_cols = ['Centroid X µm', 'Centroid Y µm']
+        markers = list(set([item for row in [x.split(': ') for x in pd.read_csv(datafile_path, usecols=['Class'])['Class'].unique()] for item in row]) - {'Other'})
 
     # If the file is of unknown format...
     else:
@@ -59,12 +74,11 @@ def extract_datafile_metadata(datafile_path):
         file_format, image_column_str, marker_prefix, marker_cols, coord_cols, image_string_processing_func = None, None, None, None, None, None
 
     # Obtain the actual markers from the marker columns and the marker prefix, and maybe a marker suffix
-    if marker_cols is not None:
-        markers = [x.removeprefix(marker_prefix) for x in marker_cols]
-        if marker_suffix is not None:
-            markers = [x.removesuffix(marker_suffix) for x in marker_cols]
-    else:
-        markers = None
+    if markers is None:
+        if marker_cols is not None:
+            markers = [x.removeprefix(marker_prefix) for x in marker_cols]
+            if marker_suffix is not None:
+                markers = [x.removesuffix(marker_suffix) for x in marker_cols]
 
     # Return the the datafile metadata
     return image_column_str, image_string_processing_func, coord_cols, marker_prefix, file_format, markers
@@ -655,6 +669,142 @@ class REEC(Native):
         # Variable definitions from attributes
         df = self.data
         extra_cols_to_keep = self.extra_cols_to_keep
+
+        # Extract just the columns to keep in the trimmed dataframe
+        requested_cols_not_present = [col_to_keep for col_to_keep in extra_cols_to_keep if col_to_keep not in df.columns]
+        extra_cols_to_keep = [col_to_keep for col_to_keep in extra_cols_to_keep if col_to_keep in df.columns]
+        if len(requested_cols_not_present) > 0:
+            print('WARNING: Requested column(s) {} are not present in the dataset'.format(requested_cols_not_present))
+        cols_to_keep = ['Slide ID', 'tag', 'Cell X Position', 'Cell Y Position'] + df.loc[0, :].filter(regex='^Phenotype ').index.tolist() + extra_cols_to_keep
+
+        # Attribute assignments from variables
+        self.data = df.loc[:, cols_to_keep]
+
+    def extra_processing(self):
+
+        # Variable definitions from attributes
+        df = self.data
+
+        # Here just delete ROIs containing a single coordinate since we may have performed patching and that resulted in such situations
+        df = delete_rois_with_single_coord(df)
+
+        # Attribute assignments from variables
+        self.data = df
+
+
+class QuPath(Native):
+    """QuPath format first from TAIS.
+
+    Sample instantiation:
+
+        import dataset_formats
+        dataset_class = getattr(dataset_formats, 'QuPath')
+        dataset_obj = dataset_class(input_datafile=os.path.join(input_dir, tais1_input_file), coord_units_in_microns=1)
+        dataset_obj.process_dataset()
+
+    Note that the units of the coordinates in input_datafile are microns.
+    """
+
+    def adhere_to_slide_id_format(self):
+        """Ensure the "Slide ID" column of the data conforms to the required format
+        """
+
+        image_column_str, image_string_processing_func, _, _, _, _ = extract_datafile_metadata(self.input_datafile)
+
+        # Variable definitions from attributes
+        image_location = self.data[image_column_str]
+
+        # Determine the image "numbers"
+        # srs_imagenum = image_location.apply(lambda x: x.split('_')[-1].rstrip('.tif'))
+        # srs_imagenum = image_location.apply(lambda x: x.split('_')[-1].split('.')[0])  # make it not have to be a .tif extension but rather any extension
+        srs_imagenum = image_location.apply(image_string_processing_func)
+
+        # Get the unique image numbers
+        unique_images = srs_imagenum.unique()
+
+        # Calculate a dictionary mapper that maps the unique images to integers
+        mapper = dict(zip(unique_images, [x + 1 for x in range(len(unique_images))]))
+
+        # Attribute assignments
+        self.data['Slide ID'] = srs_imagenum.apply(lambda x: '{}A-imagenum_{}'.format(mapper[x], x))
+
+    def adhere_to_tag_format(self):
+        """Ensure the "tag" column of the data conforms to the required format
+        """
+
+        # Variable definitions from attributes
+        df = self.data
+        roi_width = self.roi_width
+        overlap = self.overlap
+        input_datafile = self.input_datafile
+
+        dummy_micron_per_px = 0.15  # roughly 63X I think
+        print('WARNING: Dummy conversion between microns and pixels is being used. Tag/ROI names do not actually correspond to pixels; instead of pixels we\'re using arbitrary integer units!')
+
+        # Define the function to convert the coordinate descriptors to pixels, if not already in pixels
+        func_coords_to_pixels = lambda x: (x / dummy_micron_per_px).astype(int)
+        func_microns_to_pixels = lambda x: int(x / dummy_micron_per_px)
+
+        # Either patch up the dataset into ROIs and assign the ROI ("tag") column accordingly, or don't and assign the ROI column accordingly
+        df = potentially_apply_patching(df, input_datafile, roi_width, overlap, func_coords_to_pixels, func_microns_to_pixels)
+
+        # Overwrite the original dataframe with the one having the appended ROI column (I'd imagine this line is unnecessary)
+        self.data = df
+
+    def adhere_to_cell_position_format(self):
+        """Ensure the "Cell X Position" and "Cell Y Position" columns of the data conform to the required format.
+
+        In the QuPath case, the coordinates are already in microns which we know from the column headings.
+        """
+
+        # Variable definitions from attributes
+        df = self.data
+
+        # Convert coordinates to microns by multiplying by coord_units_in_microns, creating the new columns for the x- and y-coordinates
+        df['Cell X Position'] = df['Centroid X µm']
+        df['Cell Y Position'] = df['Centroid Y µm']
+
+        # In case the spacings/precisions of the cells in these datasets are not good (e.g., very small or arbitrary spacings), make them as good as possible
+        dummy_micron_per_px = 0.15  # roughly 63X I think
+        print('WARNING: Dummy conversion between microns and pixels is being used. Minimum coordinate spacing does not actually essentially correspond to the correct conversion between microns and pixels; instead of pixels we\'re using arbitrary integer units!')
+        microns_per_pixel = dummy_micron_per_px
+        df[['Cell X Position', 'Cell Y Position']] = (df[['Cell X Position', 'Cell Y Position']] / microns_per_pixel).astype(int) * microns_per_pixel
+
+        # Attribute assignments from variables
+        self.data = df
+
+    def adhere_to_phenotype_format(self):
+        """Ensure the "Phenotype XXXX" columns of the data conform to the required format
+        """
+
+        # Import relevant library
+        import numpy as np
+        import pandas as pd
+
+        # Variable definition from attributes
+        df = self.data
+
+        # Add "Phenotype XXXX" columns to the dataframe from the "Class" column entries
+        df = pd.concat([df, pd.DataFrame(df['Class'].apply(lambda x: dict([(y, 1) for y in ['Phenotype ' + marker for marker in x.split(': ')]])).to_list()).replace({np.nan: 0}).astype(int)], axis='columns')
+        if 'Phenotype Other' in df.columns:
+            df = df.drop('Phenotype Other', axis='columns')
+
+        # For each phenotype column, convert zeros and ones to -'s and +'s
+        for col in df.filter(regex='^Phenotype\ '):
+            df[col] = df[col].map({0: '-', 1: '+'})
+
+        # Attribute assignments from variables
+        self.data = df
+
+    def trim_dataframe(self):
+        """Replace the Pandas dataframe with a trimmed version containing just the necessary columns
+        """
+
+        # Variable definitions from attributes
+        df = self.data
+
+        # Get the intensity column names
+        extra_cols_to_keep = [col for col in df.columns if col.endswith(': Mean')]
 
         # Extract just the columns to keep in the trimmed dataframe
         requested_cols_not_present = [col_to_keep for col_to_keep in extra_cols_to_keep if col_to_keep not in df.columns]
