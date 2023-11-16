@@ -4,7 +4,7 @@ name = "Welcome"
 icon = ""
 
 [[pages]]
-path = "pages/0_Data Import and Export.py"
+path = "pages/Data Import and Export.py"
 name = "Data Import and Export"
 icon = ""
 
