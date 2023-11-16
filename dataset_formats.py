@@ -459,7 +459,7 @@ class GMBSecondGeneration(Native):
 
 
 class OMAL(Native):
-    """Class representing format of the data the OMAL group is using around Winter/Spring 2022
+    """Class representing format of the data the OMAL group is using around Winter/Spring 2022. More generally, this is the HALO format!
 
     Sample instantiation:
 
