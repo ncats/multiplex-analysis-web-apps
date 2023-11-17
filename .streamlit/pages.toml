@@ -24,7 +24,7 @@ name = "Tool Parameter Selection"
 icon = ""
 
 [[pages]]
-path = "pages/01_Run_Workflow.py"
+path = "pages/01_Run_workflow.py"
 name = "Run SIT Workflow"
 icon = ""
 
