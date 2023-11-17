@@ -1,0 +1,19 @@
+dir:
+  projectPaths: ['/NIH/Data Management & Analysis Program (DMAP)/apps/basic_phenotyper/data/']
+  usDatasetPaths: ['/NIDAP/Transplant and Immunotherapy Section/data/preprocessed_data/Ly51EpCAMMHCII_unstructured', 
+                   '/NIDAP/Transplant and Immunotherapy Section/data/preprocessed_data/thymus_unstructured']
+  OutputCSVPaths_S: ['/NIH/Data Management & Analysis Program (DMAP)/apps/basic_phenotyper/data/']
+  OutputCSVPaths_U: ['/NIH/Data Management & Analysis Program (DMAP)/apps/basic_phenotyper/data/Dashboard Outputs']
+
+def_df:
+  CentroidX: [0]
+  CentroidY: [0]
+  condition: ['None']
+  marker_a: [1]
+
+filt_feat:
+  SEL_feat: ['condition']
+  CHK_feat: []
+
+analysis:
+  marker_pre: 'marker_'

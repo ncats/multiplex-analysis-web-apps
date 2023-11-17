@@ -64,8 +64,6 @@ def get_current_settings():
     return settings
 
 def streamlit_write_function(message):
-    import streamlit as st
-    # st.write(message)
     st.error(message, icon="🚨")
 
 def update_session_state_keys(transformation_dict):
