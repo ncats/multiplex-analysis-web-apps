@@ -2,6 +2,7 @@
 This is the python script which produces the PHENOTYPING PAGE
 '''
 import os
+import time
 import streamlit as st
 from st_pages import show_pages_from_config, add_indentation
 from streamlit_extras.add_vertical_space import add_vertical_space 
@@ -42,6 +43,12 @@ def setFiltering_features(file_format):
     elif file_format == 'OMAL':
         st.session_state.SEL_feat = ['Slide_ID']
         st.session_state.CHK_feat = []
+    elif file_format == 'GMBSecondGeneration':
+        st.session_state.SEL_feat = ['Slide_ID']
+        st.session_state.CHK_feat = []
+    elif file_format == 'Native':
+        st.session_state.SEL_feat = ['Slide_ID']
+        st.session_state.CHK_feat = []
     else:
         st.session_state.SEL_feat = []
         st.session_state.CHK_feat = []
@@ -79,7 +86,9 @@ def main():
     st.header('Phenotyper\nNCATS-NCI-DMAP')
 
     input_directory = os.path.join('.', 'input')
+    output_directory = os.path.join('.', 'output')
     options_for_input_datafiles = [x for x in os.listdir(input_directory) if x.endswith(('.csv', '.tsv'))]
+    phenoFileOptions = [x for x in os.listdir(output_directory) if (x.startswith('phenotype_summary')) and (x.endswith(('.csv', '.tsv')))]
 
     dataLoadedCols = st.columns([2,2,2])
     with dataLoadedCols[0]:
@@ -87,6 +96,7 @@ def main():
         st.number_input('x-y coordinate units (microns):', min_value=0.0, key='phenotyping_micron_coordinate_units', help='E.g., if the coordinates in the input datafile were pixels, this number would be a conversion to microns in units of microns/pixel.', format='%.4f', step=0.0001)
 
         if (st.button('Load Data')) and (st.session_state.datafileU is not None):
+            start = time.time()
             input_datafile = os.path.join('input', st.session_state.datafileU)
             _, _, _, _, file_format, _ = dataset_formats.extract_datafile_metadata(input_datafile)
 
@@ -100,9 +110,19 @@ def main():
                                         extra_cols_to_keep=['tNt', 'GOODNUC', 'HYPOXIC', 'NORMOXIC', 'NucArea', 'RelOrientation'])
             dataset_obj.process_dataset()
             st.session_state = ndl.loadDataButton(st.session_state, dataset_obj.data, 'Input', st.session_state.datafileU[:-4])
+            stop = time.time()
+            elapsed = round(stop-start)
+            print(f'{input_datafile} took {elapsed}s to load into memory')
 
-    with dataLoadedCols[2]:
-        pass
+    with dataLoadedCols[1]:
+        st.selectbox(label = 'Choose a previous phenotyping file', options = phenoFileOptions, key = 'phenoFileSelect')
+        if (st.button('Load Phenotyping File')) and (st.session_state.phenoFileSelect is not None):
+            phenotype_file = os.path.join('output', st.session_state.phenoFileSelect)
+            st.session_state.spec_summ_load = bpl.load_previous_species_summary(phenotype_file)
+            st.session_state.phenoMeth = 'Custom'
+            st.session_state = ndl.updatePhenotyping(st.session_state)
+            st.session_state.pointstSliderVal_Sel = st.session_state.calcSliderVal
+
     with dataLoadedCols[2]:
     ### Data Phenotyping Container ###
         with st.form('Analysis Levers'):

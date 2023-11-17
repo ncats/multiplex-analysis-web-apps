@@ -318,8 +318,16 @@ def update_df_phenotype(df, spec_summ):
     Returns:
         Pandas dataframe: Same as input dataframe but with a "phenotype" column appended or overwritten
     """
-    df['phenotype'] = df['species_name_long'].map(dict(zip(spec_summ['species_name_long'].to_list(), spec_summ['phenotype'].to_list())))
+    df['phenotype'] = df['species_name_short'].map(dict(zip(spec_summ['species_name_short'].to_list(), spec_summ['phenotype'].to_list())))
     return df
+
+def load_previous_species_summary(filename):
+
+    spec_summ_load = pd.read_csv(filename)
+
+    spec_summ = spec_summ_load
+
+    return spec_summ
 
 def draw_scatter_fig(figsize=(12, 12)):
 
