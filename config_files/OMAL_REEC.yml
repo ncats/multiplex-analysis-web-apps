@@ -1,0 +1,24 @@
+dir:
+  projectPaths: ['/NIH/OMAL/reec-UMAP/data/preprocessed_data/']
+  usDatasetPaths: ['/NIH/OMAL/reec-UMAP/Input']
+  OutputCSVPaths_S: ['/NIH/OMAL/reec-UMAP/data/analyzed_data/']
+  OutputCSVPaths_U: ['/NIH/OMAL/reec-UMAP/Output']
+
+def_df:
+  Cell_X_Position: [0]
+  Cell_Y_Position: [0]
+  Index: [1]
+  tNt: ['48h Untreated']
+  GOODNUC: [1]
+  Phenotype_a: [1]
+
+filt_feat:
+  SEL_feat: ['tNt']
+  CHK_feat: ['GOODNUC']
+
+analysis:
+  dataset_type: 'OMAL_will'
+  marker_pre: 'Phenotype_'
+  outcomes_BOOL: ['HYPOXIC', 'NORMOXIC']
+  outcomes_nBOOL: ['NucArea', 'RelOrientation']
+  outcomes_nBOOL_thresh: [0, 0]
