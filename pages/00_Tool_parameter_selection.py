@@ -41,7 +41,8 @@ def main():
                 st.session_state['settings__input_datafile__format'] = file_format
 
             # Update analysis__images_to_analyze options
-            st.session_state['options_for_images'] = utils.get_unique_image_ids_from_datafile(input_datafile_path)
+            # st.session_state['options_for_images'] = utils.get_unique_image_ids_from_datafile(input_datafile_path)
+            st.session_state['options_for_images'] = list(dataset_formats.get_image_series_in_datafile(input_datafile_path).unique())
 
             # Update analysis__images_to_analyze value
             st.session_state['settings__analysis__images_to_analyze'] = st.session_state['options_for_images']

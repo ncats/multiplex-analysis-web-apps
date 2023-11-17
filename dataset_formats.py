@@ -48,8 +48,8 @@ def extract_datafile_metadata(datafile_path):
     # If the file is in Will's original REEC format...
     elif 'HYPOXICIN' in columns_list:
         file_format = 'REEC'
-        image_column_str = 'ImageFile'
-        image_string_processing_func = lambda x: x.split('/')[-1].removesuffix('.tif').replace(' ', '_')
+        image_column_str = ['ImageFile', 'tNt']
+        image_string_processing_func = [lambda x: x.split('/')[-1].removesuffix('.tif').replace(' ', '_'), lambda x: x.replace(' ', '_')]
         marker_prefix = ''
         marker_suffix = '_HI'
         cols_hi = [col for col in columns_list if col.endswith(marker_suffix)]
@@ -146,11 +146,11 @@ class Native:
         # Import the text file using Pandas
         if os.path.exists(input_datafile):
             df = pd.read_csv(input_datafile, sep=sep)
-            relevant_column_str, string_processing_func, _, _, _, _ = extract_datafile_metadata(input_datafile)
             if images_to_analyze is None:  # if this is unset, choose all images in the dataset (i.e., effectively do not filter)
-                images_to_analyze = list(pd.Series(df[relevant_column_str].unique()).apply(lambda x: string_processing_func(x).strip()))
-            df = df[df[relevant_column_str].apply(lambda x: string_processing_func(x).strip() in images_to_analyze)]
-            print('Text file "{}" with separator "{}" has been successfully read and filtered to images {}'.format(input_datafile, sep, images_to_analyze))
+                print('Text file "{}" with separator "{}" has been successfully read (no image filtering has been performed)'.format(input_datafile, sep))
+            else:
+                df = df[get_image_series_in_datafile(input_datafile).apply(lambda x: x in images_to_analyze)]  # get just the rows of df corresponding to the selected images to analyze
+                print('Text file "{}" with separator "{}" has been successfully read and filtered to images {}'.format(input_datafile, sep, images_to_analyze))
         else:
             print('ERROR: Text file "{}" does not exist'.format(input_datafile))
 
@@ -459,7 +459,7 @@ class GMBSecondGeneration(Native):
 
 
 class OMAL(Native):
-    """Class representing format of the data the OMAL group is using around Winter/Spring 2022
+    """Class representing format of the data the OMAL group is using around Winter/Spring 2022. More generally, this is the HALO format!
 
     Sample instantiation:
 
@@ -581,15 +581,11 @@ class REEC(Native):
         """Ensure the "Slide ID" column of the data conforms to the required format
         """
 
-        image_column_str, image_string_processing_func, _, _, _, _ = extract_datafile_metadata(self.input_datafile)
-
-        # Variable definitions from attributes
-        image_location = self.data[image_column_str]
+        df = self.data
+        input_datafile = self.input_datafile
 
         # Determine the image "numbers"
-        # srs_imagenum = image_location.apply(lambda x: x.split('_')[-1].rstrip('.tif'))
-        # srs_imagenum = image_location.apply(lambda x: x.split('_')[-1].split('.')[0])  # make it not have to be a .tif extension but rather any extension
-        srs_imagenum = image_location.apply(image_string_processing_func)
+        srs_imagenum = get_image_series_in_datafile(input_datafile)
 
         # Get the unique image numbers
         unique_images = srs_imagenum.unique()
@@ -598,7 +594,9 @@ class REEC(Native):
         mapper = dict(zip(unique_images, [x + 1 for x in range(len(unique_images))]))
 
         # Attribute assignments
-        self.data['Slide ID'] = srs_imagenum.apply(lambda x: '{}A-imagenum_{}'.format(mapper[x], x))
+        df['Slide ID'] = srs_imagenum.apply(lambda x: '{}A-imagenum_{}'.format(mapper[x], x))
+
+        self.data = df
 
     def adhere_to_tag_format(self):
         """Ensure the "tag" column of the data conforms to the required format
@@ -709,15 +707,8 @@ class QuPath(Native):
         """Ensure the "Slide ID" column of the data conforms to the required format
         """
 
-        image_column_str, image_string_processing_func, _, _, _, _ = extract_datafile_metadata(self.input_datafile)
-
-        # Variable definitions from attributes
-        image_location = self.data[image_column_str]
-
         # Determine the image "numbers"
-        # srs_imagenum = image_location.apply(lambda x: x.split('_')[-1].rstrip('.tif'))
-        # srs_imagenum = image_location.apply(lambda x: x.split('_')[-1].split('.')[0])  # make it not have to be a .tif extension but rather any extension
-        srs_imagenum = image_location.apply(image_string_processing_func)
+        srs_imagenum = get_image_series_in_datafile(self.input_datafile)
 
         # Get the unique image numbers
         unique_images = srs_imagenum.unique()
@@ -1223,3 +1214,13 @@ def delete_rois_with_single_coord(df):
     df = df.reset_index(drop=True)
 
     return df
+
+def get_image_series_in_datafile(input_datafile):
+    import pandas as pd
+    relevant_column_str, string_processing_func, _, _, _, _ = extract_datafile_metadata(input_datafile)
+    sep = (',' if input_datafile.split('.')[-1] == 'csv' else '\t')
+    if isinstance(relevant_column_str, str):
+        return pd.read_csv(input_datafile, sep=sep, usecols=[relevant_column_str]).iloc[:, 0].apply(lambda x: string_processing_func(x).strip())
+    else:
+        df_image_cols = pd.read_csv(input_datafile, sep=sep, usecols=relevant_column_str)[relevant_column_str]  # preseve column order with the [relevant_column_str] at the end
+        return df_image_cols.iloc[:, 0].apply(lambda x: string_processing_func[0](x).strip()) + '__' + df_image_cols.iloc[:, 1].apply(lambda x: string_processing_func[1](x).strip())
