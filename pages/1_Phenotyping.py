@@ -32,6 +32,17 @@ def update_input_data_editor():
         for key2, value2 in value.items():
             st.session_state.spec_summ_dataeditor.loc[key, key2] = value2
 
+def setFiltering_features(file_format):
+    if file_format == 'REEC':
+        st.session_state.SEL_feat = ['tNt']
+        st.session_state.CHK_feat = ['GOODNUC']
+    elif file_format == 'QuPath':
+        st.session_state.SEL_feat = ['Slide_ID']
+        st.session_state.CHK_feat = []
+    else:
+        st.session_state.SEL_feat = []
+        st.session_state.CHK_feat = []
+
 def main():
     '''
     Main function for running the page
@@ -64,12 +75,18 @@ def main():
 
     st.header('Phenotyper\nNCATS-NCI-DMAP')
 
+    input_directory = os.path.join('.', 'input')
+    options_for_input_datafiles = [x for x in os.listdir(input_directory) if x.endswith(('.csv', '.tsv'))]
+
     dataLoadedCols = st.columns([1,3])
     with dataLoadedCols[0]:
+        st.selectbox(label = 'Choose a datafile', options = options_for_input_datafiles, key = 'datafileU')
         if st.button('Load Data'):
-            st.session_state.datafileU = 'pt_pt_pt_TnT 48h Untreated zScore areaNorm 48 h AA1 Reg_microns.csv'
-            dataset_class = getattr(dataset_formats, 'REEC')  # done this way so that the format (e.g., “REEC”) can be select programmatically
-            dataset_obj = dataset_class(input_datafile = os.path.join('input', st.session_state.datafileU), 
+            input_datafile = os.path.join('input', st.session_state.datafileU)
+            _, _, _, _, file_format, _ = dataset_formats.extract_datafile_metadata(input_datafile)
+            dataset_class = getattr(dataset_formats, file_format)  # done this way so that the format (e.g., “REEC”) can be select programmatically
+            setFiltering_features(file_format)
+            dataset_obj = dataset_class(input_datafile, 
                                         coord_units_in_microns = 1, 
                                         extra_cols_to_keep=['tNt', 'GOODNUC', 'HYPOXIC', 'NORMOXIC', 'NucArea', 'RelOrientation'])
             dataset_obj.process_dataset()

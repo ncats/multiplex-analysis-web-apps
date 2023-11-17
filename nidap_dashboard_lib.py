@@ -54,8 +54,8 @@ def init_session_state(session_state, settings_yaml_file):
     session_state.reqFeatures = df_default.columns[:-1]
 
     # Features for filtering
-    session_state.SEL_feat = settings['filt_feat']['SEL_feat']
-    session_state.CHK_feat = settings['filt_feat']['CHK_feat']
+    session_state.SEL_feat = []
+    session_state.CHK_feat = []
 
     # Features for Outcomes Analysis
     session_state.outcomes_BOOL = settings['analysis']['outcomes_BOOL']
@@ -68,9 +68,9 @@ def init_session_state(session_state, settings_yaml_file):
     session_state.usDatasetPaths = settings['dir']['usDatasetPaths']
 
     # Dataset Dictionaries of files in each unstructure dataset
-    session_state.files_dict = {}
-    for dataset in session_state.usDatasetPaths:
-        session_state.files_dict[dataset] = load_listofFiles(session_state.fiol, dataset)
+    # session_state.files_dict = {}
+    # for dataset in session_state.usDatasetPaths:
+    #     session_state.files_dict[dataset] = load_listofFiles(session_state.fiol, dataset)
 
     # List of DataSets to save CSV to
     session_state.OutputCSVPaths_S = settings['dir']['OutputCSVPaths_S']
@@ -84,8 +84,6 @@ def init_session_state(session_state, settings_yaml_file):
 
     # Selected Dataset Meta Information
     session_state.selectProj = ''
-    session_state.datafileS  = ''
-    session_state.datafileU  = ''
     session_state.datafile   = ''
 
     # Default Upload File value
