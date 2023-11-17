@@ -81,7 +81,7 @@ def main():
     dataLoadedCols = st.columns([1,3])
     with dataLoadedCols[0]:
         st.selectbox(label = 'Choose a datafile', options = options_for_input_datafiles, key = 'datafileU')
-        if st.button('Load Data'):
+        if (st.button('Load Data')) and (st.session_state.datafileU is not None):
             input_datafile = os.path.join('input', st.session_state.datafileU)
             _, _, _, _, file_format, _ = dataset_formats.extract_datafile_metadata(input_datafile)
             dataset_class = getattr(dataset_formats, file_format)  # done this way so that the format (e.g., “REEC”) can be select programmatically
