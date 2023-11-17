@@ -314,7 +314,7 @@ class Native:
         """
         pass
 
-    def process_dataset(self, write_new_datafile=True, new_datafile_suffix='-converted'):
+    def process_dataset(self, write_new_datafile=False, new_datafile_suffix='-converted'):
         """Convert dataset to the format required for the SIP library
 
         Args:
@@ -621,7 +621,7 @@ class REEC(Native):
     def adhere_to_cell_position_format(self):
         """Ensure the "Cell X Position" and "Cell Y Position" columns of the data conform to the required format.
 
-        In the REEC case, the coordinates are already in microns as long as the filename ends with "_microns.csv".
+        In the REEC case, the coordinates are already in microns as long as the filename ends with "_microns.csv", and even if they don't end with that, according to Will.
         """
 
         # Variable definitions from attributes
