@@ -109,10 +109,14 @@ def main():
                                         coord_units_in_microns = st.session_state.phenotyping_micron_coordinate_units, 
                                         extra_cols_to_keep=['tNt', 'GOODNUC', 'HYPOXIC', 'NORMOXIC', 'NucArea', 'RelOrientation'])
             dataset_obj.process_dataset()
+            stop_dataload = time.time()
+            elapsed_dataload = round(stop_dataload - start, 2)
+            print(f'{input_datafile} tool {elapsed_dataload}s to load into memory')
+            
             st.session_state = ndl.loadDataButton(st.session_state, dataset_obj.data, 'Input', st.session_state.datafileU[:-4])
-            stop = time.time()
-            elapsed = round(stop-start)
-            print(f'{input_datafile} took {elapsed}s to load into memory')
+            stop_phenotyping = time.time()
+            elapsed_phenotyping = round(stop_phenotyping-stop_dataload, 2)
+            print(f'{input_datafile} took {elapsed_phenotyping}s to perform phenotyping')
 
     with dataLoadedCols[1]:
         st.selectbox(label = 'Choose a previous phenotyping file', options = phenoFileOptions, key = 'phenoFileSelect')
