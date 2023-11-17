@@ -11,7 +11,7 @@ def extract_datafile_metadata(datafile_path):
 
     # If the file is in the newest, "HALO" format...
     if 'Image Location' in columns_list:
-        file_format = 'HALO'
+        file_format = 'OMAL'
         image_column_str = 'Image Location'
         first_dapi_positive_col = [x for x in columns_list if 'DAPI Positive' in x][0]
         index_start = columns_list.index('YMax') + 1
