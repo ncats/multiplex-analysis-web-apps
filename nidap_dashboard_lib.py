@@ -43,7 +43,7 @@ def init_session_state(session_state, settings_yaml_file):
         settings = yaml.load(file, yaml.UnsafeLoader)
 
     # Analysis Settings
-    session_state.marker_pre  = settings['analysis']['marker_pre']
+    session_state.marker_pre  = 'Phenotype_' # settings['analysis']['marker_pre']
 
     # df Default
     df_dict = {}
@@ -295,7 +295,7 @@ def loadDataButton(session_state, df_import, projectName, fileName):
     session_state.df, \
     session_state.marker_names, \
     session_state.spec_summ, \
-    session_state.assign_pheno = prepare_data(df_import)
+    session_state.assign_pheno = prepare_data(df_import, session_state.marker_pre)
     prepDataSp = time.time()
 
     # Meta Data
@@ -354,7 +354,7 @@ def loadDataButton(session_state, df_import, projectName, fileName):
 
     return session_state
 
-def prepare_data(df_orig):
+def prepare_data(df_orig, marker_col_prefix):
     """
     To be run each time the 'Load Data' button is hit
     """
@@ -370,7 +370,7 @@ def prepare_data(df_orig):
     df_raw = df_orig.copy()
 
     # Perform pre-processing (based on app-specific needs)
-    df_raw, marker_names, spec_summ, assign_pheno = bpl.preprocess_df(df_raw)
+    df_raw, marker_names, spec_summ, assign_pheno = bpl.preprocess_df(df_raw, marker_col_prefix)
     procDFSP = time.time()
 
     # Make a copy of df_raw as df
@@ -586,7 +586,7 @@ def setFigureObjs(session_state, InSliderVal = None):
     # Seaborn
     session_state.phenoFig, session_state.ax = bpl.draw_scatter_fig(figsize=session_state.figsize)
     session_state.phenoFig = bpl.scatter_plot(df_plot, session_state.phenoFig, session_state.ax, title, 
-                                              xVar = 'CentroidX', yVar = 'CentroidY', hueVar='phenotype', 
+                                              xVar = 'Cell_X_Position', yVar = 'Cell_Y_Position', hueVar='phenotype', 
                                               hueOrder=session_state.phenoOrder)
 
     # Altair

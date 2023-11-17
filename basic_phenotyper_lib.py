@@ -34,7 +34,7 @@ def load_dataset(dataset_path, loadNIDAP=False):
         import pandas as pd
         return pd.read_csv(dataset_path)
 
-def preprocess_df(df):
+def preprocess_df(df, marker_col_prefix):
     '''Perform some preprocessing on our dataset to apply tranforms
     and collect meta-data
     '''
@@ -43,7 +43,6 @@ def preprocess_df(df):
     preprocSt = time.time()
 
     # Step 1: Add a 'bits' column to identify unique markers
-    marker_col_prefix = 'marker_'
     df, marker_names = add_mark_bits_col(df, marker_col_prefix)
     bitsSp = time.time()
 
@@ -98,7 +97,7 @@ def add_mark_bits_col(df, marker_col_prefix):
 
     # Add a column to the original dataframe containing a concatenation of the bits in the marker columns to a single string, e.g., '0110'
     # Previously called Species String
-    df['mark_bits'] = df_markers.apply(lambda row: ''.join((str(x) for x in row)), axis='columns')
+    df['mark_bits'] = df_markers.apply(lambda row: ''.join((str(1) if x == '+' else str(0) for x in row)), axis='columns')
 
     # Add a column of prettier names for the species, e.g., 'VIM- ECAD+ COX2+ NOS2-'
     df['species_name_long'] = df['mark_bits'].apply(lambda mark_bits: ' '.join([marker_name + ('+' if marker_bit == '1' else '-') for marker_name, marker_bit in zip(marker_names, mark_bits)]))

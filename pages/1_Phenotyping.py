@@ -1,10 +1,12 @@
 '''
 This is the python script which produces the PHENOTYPING PAGE
 '''
+import os
 import streamlit as st
 from st_pages import show_pages_from_config, add_indentation
 from streamlit_extras.add_vertical_space import add_vertical_space 
 from streamlit_extras.app_logo import add_logo
+import dataset_formats
 
 # Import relevant libraries
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
@@ -62,20 +64,32 @@ def main():
 
     st.header('Phenotyper\nNCATS-NCI-DMAP')
 
+    dataLoadedCols = st.columns([1,3])
+    with dataLoadedCols[0]:
+        if st.button('Load Data'):
+            st.session_state.datafileU = 'pt_pt_pt_TnT 48h Untreated zScore areaNorm 48 h AA1 Reg_microns.csv'
+            dataset_class = getattr(dataset_formats, 'REEC')  # done this way so that the format (e.g., “REEC”) can be select programmatically
+            dataset_obj = dataset_class(input_datafile = os.path.join('input', st.session_state.datafileU), 
+                                        coord_units_in_microns = 1, 
+                                        extra_cols_to_keep=['tNt', 'GOODNUC', 'HYPOXIC', 'NORMOXIC', 'NucArea', 'RelOrientation'])
+            dataset_obj.process_dataset()
+            st.session_state = ndl.loadDataButton(st.session_state, dataset_obj.data, 'Input', st.session_state.datafileU[:-4])
+
+    with dataLoadedCols[1]:
     ### Data Phenotyping Container ###
-    with st.form('Analysis Levers'):
+        with st.form('Analysis Levers'):
 
-        phenotyping_labels = ('Species', 'Marker', 'Custom')
-        st.radio("Choose a Phenotyping Method",
-                    phenotyping_labels,
-                    horizontal= True,
-                    key = 'phenoMeth')
+            phenotyping_labels = ('Species', 'Marker', 'Custom')
+            st.radio("Choose a Phenotyping Method",
+                        phenotyping_labels,
+                        horizontal= True,
+                        key = 'phenoMeth')
 
-        # Every form must have a submit button.
-        submitted = st.form_submit_button('Apply Phenotyping Method')
-        if submitted:
-            st.session_state = ndl.updatePhenotyping(st.session_state)
-            st.session_state.pointstSliderVal_Sel = st.session_state.calcSliderVal
+            # Every form must have a submit button.
+            submitted = st.form_submit_button('Apply Phenotyping Method')
+            if submitted:
+                st.session_state = ndl.updatePhenotyping(st.session_state)
+                st.session_state.pointstSliderVal_Sel = st.session_state.calcSliderVal
 
     #
     if st.session_state.selected_phenoMeth != 'Not Selected':
