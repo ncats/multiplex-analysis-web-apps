@@ -4,6 +4,7 @@ import pandas as pd
 import warnings
 warnings.simplefilter(action='ignore', category= FutureWarning)
 warnings.filterwarnings("ignore", message=".*The 'nopython' keyword.*")
+pd.options.mode.chained_assignment = None  # default='warn'
 import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans # K-Means
 
@@ -50,11 +51,11 @@ def preprocess_df(df, marker_col_prefix):
     df['phenotype'] = 'unassigned'
     phenoSp = time.time()
 
-    # Step 3: Create phenotype column and assign a value of 'unassigned'
+    # Step 3: Create cluster column and assign a value of 'unassigned'
     df['cluster'] = -1
     clustSp = time.time()
 
-    # Step 4: Intialize Species Summary Dataframe 
+    # Step 4: Intialize Species Summary Dataframe
     spec_summ = init_species_summary(df)
     specSummSp = time.time()
 
@@ -62,12 +63,19 @@ def preprocess_df(df, marker_col_prefix):
     assign_pheno = init_assign_pheno(df)
     assignPhenoSp = time.time()
 
-    preprocTD = {'step1': np.round(bitsSp - preprocSt, 3),
-                 'step2': np.round(phenoSp - bitsSp, 3),
-                 'step3': np.round(clustSp - phenoSp, 3),
-                 'step4': np.round(specSummSp - clustSp, 3),
-                 'step5': np.round(assignPhenoSp - specSummSp, 3)}
-    # print(preprocTD)
+    preprocTD = {'Total': np.round(assignPhenoSp - preprocSt, 3),
+                 'Add Marker Bits': np.round(bitsSp - preprocSt, 3),
+                 'Create Phenotyping Column': np.round(phenoSp - bitsSp, 3),
+                 'Create Clustering Column': np.round(clustSp - phenoSp, 3),
+                 'Initalize Species Summary': np.round(specSummSp - clustSp, 3),
+                 'Initalize Assign Phenotype': np.round(assignPhenoSp - specSummSp, 3)}
+    print(f'''  Phenotyping Preprocessing Steps: {preprocTD['Total']}s
+    Add Marker Bits: {preprocTD['Add Marker Bits']}s
+    Create Phenotyping Column: {preprocTD['Create Phenotyping Column']}s
+    Create Clustering Column: {preprocTD['Create Clustering Column']}s
+    Initalize Species Summary: {preprocTD['Initalize Species Summary']}s
+    Initalize Assign Phenotype: {preprocTD['Initalize Assign Phenotype']}s
+          ''')
 
     return df, marker_names, spec_summ, assign_pheno
 
@@ -119,14 +127,31 @@ def init_species_summary(df):
     Returns:
         Pandas dataframe: Dataframe containing the value counts of each "exclusive" species
     """
-    import numpy as np
-    spec_summ = df[['species_name_short', 'phenotype', 'species_name_long']].groupby(by='species_name_short', as_index = False).agg(lambda x: np.unique(list(x))[0])
 
-    spec_summ['species_count'] = [sum(df['species_name_short'] == x) for x in spec_summ.species_name_short]
-    spec_summ['species_percent']   = [round(100*x/sum(spec_summ['species_count']), 2) for x in spec_summ['species_count']]
+    st_init_species = time.time()
+    spec_summ = df[['species_name_short', 'phenotype', 'species_name_long']]
+    sp_init_species = time.time()
+    elapsed = round(sp_init_species - st_init_species, 3)
+    print(f'        Initalizing Species Summary: {elapsed}s')
 
-    spec_summ = spec_summ.sort_values(by='species_count', ascending= False)
-    spec_summ = spec_summ.reset_index(drop=True)
+    spec_summ['species_count'] = spec_summ['species_name_short'].groupby(spec_summ['species_name_short']).transform('count')
+    spec_summ = spec_summ.drop_duplicates().reset_index(drop=True)
+    sp_species_count = time.time()
+    elapsed_counts = round(sp_species_count - sp_init_species, 3)
+    print(f'        Species Summary Counts Calculations: {elapsed_counts}s')
+
+    spec_summ['species_percent'] = [round(100*x/sum(spec_summ['species_count']), 2) for x in spec_summ['species_count']]
+    sp_species_per = time.time()
+    elapsed_per = round(sp_species_per - sp_species_count, 3)
+    print(f'        Species Summary Percents Calculations: {elapsed_per}s')
+
+    spec_summ = spec_summ.sort_values(by='species_count', ascending= False).reset_index(drop=True)
+    sp_species_sort = time.time()
+    elapsed_sort = round(sp_species_sort - sp_species_per, 3)
+    print(f'        Species Summary sorting: {elapsed_sort}s')
+    
+    elapsed_total = round(sp_species_sort - st_init_species, 3)
+    print(f'        Species Summary Total time: {elapsed_total}s')
 
     # Return the created dataframe
     return spec_summ
