@@ -57,6 +57,8 @@ def init_session_state(session_state, settings_yaml_file):
     session_state.SEL_feat = []
     session_state.CHK_feat = []
 
+    session_state['phenotyping_micron_coordinate_units'] = 0.25
+
     # Features for Outcomes Analysis
     session_state.outcomes_BOOL = settings['analysis']['outcomes_BOOL']
     session_state.outcomes_nBOOL = settings['analysis']['outcomes_nBOOL']
