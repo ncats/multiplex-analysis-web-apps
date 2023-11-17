@@ -81,9 +81,11 @@ def main():
     input_directory = os.path.join('.', 'input')
     options_for_input_datafiles = [x for x in os.listdir(input_directory) if x.endswith(('.csv', '.tsv'))]
 
-    dataLoadedCols = st.columns([1,3])
+    dataLoadedCols = st.columns([2,2,2])
     with dataLoadedCols[0]:
         st.selectbox(label = 'Choose a datafile', options = options_for_input_datafiles, key = 'datafileU')
+        st.number_input('x-y coordinate units (microns):', min_value=0.0, key='phenotyping_micron_coordinate_units', help='E.g., if the coordinates in the input datafile were pixels, this number would be a conversion to microns in units of microns/pixel.', format='%.4f', step=0.0001)
+
         if (st.button('Load Data')) and (st.session_state.datafileU is not None):
             input_datafile = os.path.join('input', st.session_state.datafileU)
             _, _, _, _, file_format, _ = dataset_formats.extract_datafile_metadata(input_datafile)
@@ -94,12 +96,14 @@ def main():
             dataset_class = getattr(dataset_formats, file_format)  # done this way so that the format (e.g., “REEC”) can be select programmatically
             setFiltering_features(file_format)
             dataset_obj = dataset_class(input_datafile, 
-                                        coord_units_in_microns = 1, 
+                                        coord_units_in_microns = st.session_state.phenotyping_micron_coordinate_units, 
                                         extra_cols_to_keep=['tNt', 'GOODNUC', 'HYPOXIC', 'NORMOXIC', 'NucArea', 'RelOrientation'])
             dataset_obj.process_dataset()
             st.session_state = ndl.loadDataButton(st.session_state, dataset_obj.data, 'Input', st.session_state.datafileU[:-4])
 
-    with dataLoadedCols[1]:
+    with dataLoadedCols[2]:
+        pass
+    with dataLoadedCols[2]:
     ### Data Phenotyping Container ###
         with st.form('Analysis Levers'):
 
@@ -147,7 +151,7 @@ def main():
 
     ## In-App Instructions
     if st.session_state.data_loaded is False:
-        st.warning('Data not loaded (See Data Import and Export)', icon="⚠️")
+        st.warning('Data not loaded (above)', icon="⚠️")
     elif st.session_state.selected_phenoMeth == st.session_state.noPhenoOpt:
         st.warning('No phenotyping method applied (above)', icon="⚠️")
     else:
