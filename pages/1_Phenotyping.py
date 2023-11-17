@@ -39,6 +39,9 @@ def setFiltering_features(file_format):
     elif file_format == 'QuPath':
         st.session_state.SEL_feat = ['Slide_ID']
         st.session_state.CHK_feat = []
+    elif file_format == 'OMAL':
+        st.session_state.SEL_feat = ['Slide_ID']
+        st.session_state.CHK_feat = []
     else:
         st.session_state.SEL_feat = []
         st.session_state.CHK_feat = []
@@ -84,6 +87,10 @@ def main():
         if (st.button('Load Data')) and (st.session_state.datafileU is not None):
             input_datafile = os.path.join('input', st.session_state.datafileU)
             _, _, _, _, file_format, _ = dataset_formats.extract_datafile_metadata(input_datafile)
+
+            if file_format == 'HALO':
+                file_format = 'OMAL'
+
             dataset_class = getattr(dataset_formats, file_format)  # done this way so that the format (e.g., “REEC”) can be select programmatically
             setFiltering_features(file_format)
             dataset_obj = dataset_class(input_datafile, 
