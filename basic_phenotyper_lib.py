@@ -105,7 +105,7 @@ def add_mark_bits_col(df, marker_col_prefix):
 
     # Add a column to the original dataframe containing a concatenation of the bits in the marker columns to a single string, e.g., '0110'
     # Previously called Species String
-    df['mark_bits'] = df_markers.apply(lambda row: ''.join((str(1) if x == '+' else str(0) for x in row)), axis='columns')
+    df['mark_bits'] = df_markers.apply(lambda row: ''.join((str(1) if str(x)[-1] == '+' else str(0) for x in row)), axis='columns')
 
     # Add a column of prettier names for the species, e.g., 'VIM- ECAD+ COX2+ NOS2-'
     df['species_name_long'] = df['mark_bits'].apply(lambda mark_bits: ' '.join([marker_name + ('+' if marker_bit == '1' else '-') for marker_name, marker_bit in zip(marker_names, mark_bits)]))
