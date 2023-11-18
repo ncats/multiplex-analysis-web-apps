@@ -1,10 +1,12 @@
-# Import relevant libraries
-import streamlit as st
 import os
+import yaml
+import streamlit as st
 from streamlit_extras.app_logo import add_logo
+from st_pages import show_pages_from_config, add_indentation
 import streamlit_utils
+
+# Import relevant libraries
 import utils
-import yaml  # can only do this after running "conda install pyyaml"
 
 def main():
 
@@ -18,7 +20,7 @@ def main():
     options_for_input_datafiles =                [x for x in os.listdir(input_directory) if x.endswith(('.csv', '.tsv'))]
     options_for_phenotype_identification_files = ([x for x in os.listdir(os.path.join(input_directory, 'phenotypes')) if x.endswith('.tsv')] if os.path.exists(os.path.join(input_directory, 'phenotypes')) else [])
     # options_for_annotation_files = st.session_state['options_for_annotation_files']  <-- dynamically updated options
-    options_for_input_datafile_formats = ['HALO', 'Native', 'GMBSecondGeneration']
+    options_for_input_datafile_formats = ['HALO', 'Native', 'GMBSecondGeneration', 'REEC']
     options_for_phenotyping_methods = ['Species', 'Marker', 'Custom']
     options_for_significance_calculation_methods = ['Poisson (radius)', 'Permutation (radius)', 'Permutation (k-nearest neighbors)']
     # options_for_images = st.session_state['options_for_images']  <-- dynamically updated options
@@ -39,7 +41,8 @@ def main():
                 st.session_state['settings__input_datafile__format'] = file_format
 
             # Update analysis__images_to_analyze options
-            st.session_state['options_for_images'] = utils.get_unique_image_ids_from_datafile(input_datafile_path)
+            # st.session_state['options_for_images'] = utils.get_unique_image_ids_from_datafile(input_datafile_path)
+            st.session_state['options_for_images'] = list(dataset_formats.get_image_series_in_datafile(input_datafile_path).unique())
 
             # Update analysis__images_to_analyze value
             st.session_state['settings__analysis__images_to_analyze'] = st.session_state['options_for_images']
@@ -104,16 +107,24 @@ def main():
     # Set a wide layout
     st.set_page_config(layout="wide")
 
-    # Restore previous session state values, including from other pages; see https://discuss.streamlit.io/t/simultaneous-multipage-widget-state-persistence-data-editors-with-identical-contents-and-multiprocessing-capability/52554 for more information
+    # Remove key values from session_state that should not persist
     for key, val in st.session_state.items():
-        if not key.endswith('__do_not_persist'):
+        if (not key.endswith('__do_not_persist')) and (not key.startswith('FormSubmitter:')):
             st.session_state[key] = val
+
+    # Apply pages order and indentation
+    add_indentation()
+    show_pages_from_config()
+
+    # Sidebar organization
+    with st.sidebar:
+        st.write('**:book: [Documentation](https://ncats.github.io/multiplex-analysis-web-apps)**')
+
+    # Add logo to page
+    add_logo('app_images/mawa_logo-width315.png', height=150)
 
     # Display page heading
     st.title('Tool parameter selection')
-
-    # Add placeholder logo to page
-    add_logo('app_images/logo2c.png', height=150)
 
     # Assign default keys
     streamlit_utils.assign_default_values_in_session_state('preset_parameter_file', utils.get_first_element_or_none(options_for_parameter_files))

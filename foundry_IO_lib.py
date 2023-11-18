@@ -28,7 +28,7 @@ class foundry_IO_lib:
             print('Not Operating on NIDAP')
             self.onNIDAP = False
             # Set SDK secrets
-            self.setEnvVar()
+            # self.setEnvVar()
         else:
             # Import SDK handling library
             from foundry.transforms import Dataset

@@ -1,12 +1,13 @@
 '''
 This is the python script which produces the PHENOTYPING PAGE
 '''
+import os
 import time
-import pandas as pd
-from datetime import datetime
 import streamlit as st
-from streamlit_javascript import st_javascript
+from st_pages import show_pages_from_config, add_indentation
 from streamlit_extras.add_vertical_space import add_vertical_space 
+from streamlit_extras.app_logo import add_logo
+import dataset_formats
 
 # Import relevant libraries
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
@@ -32,38 +33,115 @@ def update_input_data_editor():
         for key2, value2 in value.items():
             st.session_state.spec_summ_dataeditor.loc[key, key2] = value2
 
+def setFiltering_features(file_format):
+    if file_format == 'REEC':
+        st.session_state.SEL_feat = ['tNt']
+        st.session_state.CHK_feat = ['GOODNUC']
+    elif file_format == 'QuPath':
+        st.session_state.SEL_feat = ['Slide_ID']
+        st.session_state.CHK_feat = []
+    elif file_format == 'OMAL':
+        st.session_state.SEL_feat = ['Slide_ID']
+        st.session_state.CHK_feat = []
+    elif file_format == 'GMBSecondGeneration':
+        st.session_state.SEL_feat = ['Slide_ID']
+        st.session_state.CHK_feat = []
+    elif file_format == 'Native':
+        st.session_state.SEL_feat = ['Slide_ID']
+        st.session_state.CHK_feat = []
+    else:
+        st.session_state.SEL_feat = []
+        st.session_state.CHK_feat = []
+
 def main():
     '''
     Main function for running the page
     '''
 
-    # Use the whole page width
+    # Set a wide layout
     st.set_page_config(page_title="Phenotyping",
                        layout="wide")
 
+    # Remove key values from session_state that should not persist
     for key, val in st.session_state.items():
         if (not key.endswith('__do_not_persist')) and (not key.startswith('FormSubmitter:')):
             st.session_state[key] = val
 
-    if 'init_phenotyping' not in st.session_state:
-        st.session_state = ndl.init_session_state_Phenotyping(st.session_state)
+    # Apply pages order and indentation
+    add_indentation()
+    show_pages_from_config()
+
+    # Sidebar organization
+    with st.sidebar:
+        st.write('**:book: [Documentation](https://ncats.github.io/multiplex-analysis-web-apps)**')
+
+    # Add logo to page
+    add_logo('app_images/mawa_logo-width315.png', height=150)
+
+    if 'init' not in st.session_state:
+        settings_yaml_file = 'config_files/OMAL_REEC.yml'
+        # Initialize session_state values for streamlit processing
+        st.session_state = ndl.init_session_state(st.session_state, settings_yaml_file)
 
     st.header('Phenotyper\nNCATS-NCI-DMAP')
 
-    ### Data Phenotyping Container ###
-    with st.form('Analysis Levers'):
+    input_directory = os.path.join('.', 'input')
+    output_directory = os.path.join('.', 'output')
+    options_for_input_datafiles = [x for x in os.listdir(input_directory) if x.endswith(('.csv', '.tsv'))]
+    phenoFileOptions = [x for x in os.listdir(output_directory) if (x.startswith('phenotype_summary')) and (x.endswith(('.csv', '.tsv')))]
 
-        phenotyping_labels = ('Species', 'Marker', 'Custom')
-        st.radio("Choose a Phenotyping Method",
-                    phenotyping_labels,
-                    horizontal= True,
-                    key = 'phenoMeth')
+    dataLoadedCols = st.columns([2,2,2])
+    with dataLoadedCols[0]:
+        st.selectbox(label = 'Choose a datafile', options = options_for_input_datafiles, key = 'datafileU')
+        st.number_input('x-y coordinate units (microns):', min_value=0.0, key='phenotyping_micron_coordinate_units', help='E.g., if the coordinates in the input datafile were pixels, this number would be a conversion to microns in units of microns/pixel.', format='%.4f', step=0.0001)
 
-        # Every form must have a submit button.
-        submitted = st.form_submit_button('Apply Phenotyping Method')
-        if submitted:
+        if (st.button('Load Data')) and (st.session_state.datafileU is not None):
+            start = time.time()
+            input_datafile = os.path.join('input', st.session_state.datafileU)
+            _, _, _, _, file_format, _ = dataset_formats.extract_datafile_metadata(input_datafile)
+
+            if file_format == 'HALO':
+                file_format = 'OMAL'
+
+            dataset_class = getattr(dataset_formats, file_format)  # done this way so that the format (e.g., “REEC”) can be select programmatically
+            setFiltering_features(file_format)
+            dataset_obj = dataset_class(input_datafile, 
+                                        coord_units_in_microns = st.session_state.phenotyping_micron_coordinate_units, 
+                                        extra_cols_to_keep=['tNt', 'GOODNUC', 'HYPOXIC', 'NORMOXIC', 'NucArea', 'RelOrientation'])
+            dataset_obj.process_dataset()
+            stop_dataload = time.time()
+            elapsed_dataload = round(stop_dataload - start, 2)
+            print(f'{input_datafile} tool {elapsed_dataload}s to load into memory')
+            
+            st.session_state = ndl.loadDataButton(st.session_state, dataset_obj.data, 'Input', st.session_state.datafileU[:-4])
+            stop_phenotyping = time.time()
+            elapsed_phenotyping = round(stop_phenotyping-stop_dataload, 2)
+            print(f'{input_datafile} took {elapsed_phenotyping}s to perform phenotyping')
+
+    with dataLoadedCols[1]:
+        st.selectbox(label = 'Choose a previous phenotyping file', options = phenoFileOptions, key = 'phenoFileSelect')
+        if (st.button('Load Phenotyping File')) and (st.session_state.phenoFileSelect is not None):
+            phenotype_file = os.path.join('output', st.session_state.phenoFileSelect)
+            st.session_state.spec_summ_load = bpl.load_previous_species_summary(phenotype_file)
+            st.session_state.phenoMeth = 'Custom'
             st.session_state = ndl.updatePhenotyping(st.session_state)
             st.session_state.pointstSliderVal_Sel = st.session_state.calcSliderVal
+
+    with dataLoadedCols[2]:
+    ### Data Phenotyping Container ###
+        with st.form('Analysis Levers'):
+
+            phenotyping_labels = ('Species', 'Marker', 'Custom')
+            st.radio("Choose a Phenotyping Method",
+                        phenotyping_labels,
+                        horizontal= True,
+                        key = 'phenoMeth')
+
+            # Every form must have a submit button.
+            submitted = st.form_submit_button('Apply Phenotyping Method')
+            if submitted:
+                st.session_state = ndl.updatePhenotyping(st.session_state)
+                st.session_state.pointstSliderVal_Sel = st.session_state.calcSliderVal
 
     #
     if st.session_state.selected_phenoMeth != 'Not Selected':
@@ -95,14 +173,9 @@ def main():
                 st.session_state = ndl.setFigureObjs(st.session_state)
                 st.session_state.pointstSliderVal_Sel = st.session_state.calcSliderVal
 
-    ### SIDE BAR ORGANIZATION ###
-    with st.sidebar:
-        url = st_javascript("await fetch('').then(r => window.parent.location.href)")
-        st.write(f'''[Open app in new Tab]({url})\n (MS Edge/ Google Chrome)''')
-
     ## In-App Instructions
     if st.session_state.data_loaded is False:
-        st.warning('Data not loaded (See Previous Page)', icon="⚠️")
+        st.warning('Data not loaded (above)', icon="⚠️")
     elif st.session_state.selected_phenoMeth == st.session_state.noPhenoOpt:
         st.warning('No phenotyping method applied (above)', icon="⚠️")
     else:

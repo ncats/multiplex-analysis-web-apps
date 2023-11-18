@@ -5,8 +5,9 @@ import time
 import pandas as pd
 from datetime import datetime
 import streamlit as st
-from streamlit_javascript import st_javascript
+from st_pages import show_pages_from_config, add_indentation
 from streamlit_extras.add_vertical_space import add_vertical_space 
+from streamlit_extras.app_logo import add_logo
 
 # Import relevant libraries
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
@@ -79,19 +80,28 @@ def main():
         layout="wide"
     )
 
+    # Remove key values from session_state that should not persist
     for key, val in st.session_state.items():
         if (not key.endswith('__do_not_persist')) and (not key.startswith('FormSubmitter:')):
             st.session_state[key] = val
 
-    if 'init_neighborhood_profiles' not in st.session_state:
-        st.session_state = ndl.init_session_state_Neighborhood_Profiles(st.session_state)
+    # Apply pages order and indentation
+    add_indentation()
+    show_pages_from_config()
+
+    # Sidebar organization
+    with st.sidebar:
+        st.write('**:book: [Documentation](https://ncats.github.io/multiplex-analysis-web-apps)**')
+
+    # Add logo to page
+    add_logo('app_images/mawa_logo-width315.png', height=150)
+
+    if 'init' not in st.session_state:
+        settings_yaml_file = 'config_files/OMAL_REEC.yml'
+        # Initialize session_state values for streamlit processing
+        st.session_state = ndl.init_session_state(st.session_state, settings_yaml_file)
 
     st.header('Neighborhood Profiles\nNCATS-NCI-DMAP')
-
-    ### SIDE BAR ORGANIZATION ###
-    with st.sidebar:
-        url = st_javascript("await fetch('').then(r => window.parent.location.href)")
-        st.write(f'''[Open app in new Tab]({url})\n (MS Edge/ Google Chrome)''')
 
     clust_minmax = [1, 40]
     neiProCols = st.columns([1, 1, 2])
@@ -130,7 +140,7 @@ def main():
                         st.pyplot(elbowFig)
 
     if not st.session_state.phenotyping_completed:
-        st.warning('Step 0: Please complete phentoyping analysis on previous page', icon="⚠️")
+        st.warning('Step 0: Please complete phentoyping analysis (See Phenotyping Page)', icon="⚠️")
     elif not st.session_state.cell_counts_completed:
         st.warning('Step 1: Please complete Cell Counts and Areas analysis', icon="⚠️")
     elif not st.session_state.umapCompleted:
@@ -191,7 +201,6 @@ def main():
                         
                         ndl.save_png(NeiProFig, 'Neighborhood Profiles', st.session_state.neigh_prof_line_suffix)
                         st.toast(f'Added {st.session_state.neigh_prof_line_suffix} to export list')
-
 
 if __name__ == '__main__':
     main()

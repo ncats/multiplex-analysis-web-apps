@@ -24,7 +24,8 @@ def init_session_state(session_state, settings_yaml_file):
     Initialize session_state values for streamlit processing
     """
 
-    session_state.init          = True
+    session_state.init             = True
+    session_state.init_phenotyping = True
     session_state.cpu_pool_size = 8
 
     # Create an instance of the foundry IO Library
@@ -42,7 +43,7 @@ def init_session_state(session_state, settings_yaml_file):
         settings = yaml.load(file, yaml.UnsafeLoader)
 
     # Analysis Settings
-    session_state.marker_pre  = settings['analysis']['marker_pre']
+    session_state.marker_pre  = 'Phenotype_' # settings['analysis']['marker_pre']
 
     # df Default
     df_dict = {}
@@ -53,8 +54,10 @@ def init_session_state(session_state, settings_yaml_file):
     session_state.reqFeatures = df_default.columns[:-1]
 
     # Features for filtering
-    session_state.SEL_feat = settings['filt_feat']['SEL_feat']
-    session_state.CHK_feat = settings['filt_feat']['CHK_feat']
+    session_state.SEL_feat = []
+    session_state.CHK_feat = []
+
+    session_state['phenotyping_micron_coordinate_units'] = 0.25
 
     # Features for Outcomes Analysis
     session_state.outcomes_BOOL = settings['analysis']['outcomes_BOOL']
@@ -67,9 +70,9 @@ def init_session_state(session_state, settings_yaml_file):
     session_state.usDatasetPaths = settings['dir']['usDatasetPaths']
 
     # Dataset Dictionaries of files in each unstructure dataset
-    session_state.files_dict = {}
-    for dataset in session_state.usDatasetPaths:
-        session_state.files_dict[dataset] = load_listofFiles(session_state.fiol, dataset)
+    # session_state.files_dict = {}
+    # for dataset in session_state.usDatasetPaths:
+    #     session_state.files_dict[dataset] = load_listofFiles(session_state.fiol, dataset)
 
     # List of DataSets to save CSV to
     session_state.OutputCSVPaths_S = settings['dir']['OutputCSVPaths_S']
@@ -83,8 +86,6 @@ def init_session_state(session_state, settings_yaml_file):
 
     # Selected Dataset Meta Information
     session_state.selectProj = ''
-    session_state.datafileS  = ''
-    session_state.datafileU  = ''
     session_state.datafile   = ''
 
     # Default Upload File value
@@ -124,7 +125,10 @@ def init_session_state(session_state, settings_yaml_file):
 
     # Completing UMAP analysis
     # Has the UMAP been completed yet?
+    session_state.phenotyping_completed = False
+    session_state.cell_counts_completed = False
     session_state.umapCompleted = False
+    session_state.clustering_completed = False
     session_state.UMAPFigType = 'Density'
 
     # UMAP Lineage Display
@@ -167,6 +171,53 @@ def init_session_state(session_state, settings_yaml_file):
 def init_session_state_Phenotyping(session_state):
     session_state.init_phenotyping = True
 
+    # Create an instance of the foundry IO Library
+    session_state.fiol = foundry_IO_lib()
+    session_state.bc   = benchmark_collector(session_state.fiol)
+
+    # Set the directory configurations
+    settings_yaml_file = 'config_files/OMAL_REEC.yml'
+    d = os.path.dirname(os.path.abspath(__file__))
+    settings_yaml_path = os.path.join(d, settings_yaml_file)
+    with open(settings_yaml_path, mode='rt') as file:
+        settings = yaml.load(file, yaml.UnsafeLoader)
+
+    # Analysis Settings
+    session_state.marker_pre  = settings['analysis']['marker_pre']
+
+    # df Default
+    df_dict = {}
+    for feature in settings['def_df']:
+        df_dict[feature] = settings['def_df'][feature]
+
+    df_default                = pd.DataFrame(data = df_dict)
+    session_state.reqFeatures = df_default.columns[:-1]
+
+    # Features for filtering
+    session_state.SEL_feat = settings['filt_feat']['SEL_feat']
+    session_state.CHK_feat = settings['filt_feat']['CHK_feat']
+
+    # Features for Outcomes Analysis
+    session_state.outcomes_BOOL = settings['analysis']['outcomes_BOOL']
+    session_state.outcomes_nBOOL = settings['analysis']['outcomes_nBOOL']
+    session_state.outcomes_nBOOL_thresh = settings['analysis']['outcomes_nBOOL_thresh']
+    session_state.outcomes = session_state.outcomes_BOOL + session_state.outcomes_nBOOL
+
+    # Predefined Project Paths
+    session_state.projectPaths   = settings['dir']['projectPaths']
+    session_state.usDatasetPaths = settings['dir']['usDatasetPaths']
+
+    # Dataset Dictionaries of files in each unstructure dataset
+    session_state.files_dict = {}
+    for dataset in session_state.usDatasetPaths:
+        session_state.files_dict[dataset] = load_listofFiles(session_state.fiol, dataset)
+
+    # List of DataSets to save CSV to
+    session_state.OutputCSVPaths_S = settings['dir']['OutputCSVPaths_S']
+    session_state.OutputCSVPaths_U = settings['dir']['OutputCSVPaths_U']
+
+    session_state = loadDataButton(session_state, df_default, 'None', 'None')
+
     session_state.noPhenoOpt = 'Not Selected'
     session_state.phenoMeth = 'Species'                          # Default when first loaded
     session_state.selected_phenoMeth = session_state.noPhenoOpt  # Default when first loaded
@@ -178,9 +229,49 @@ def init_session_state_Phenotyping(session_state):
 def init_session_state_Neighborhood_Profiles(session_state):
     session_state.init_neighborhood_profiles = True
 
+    session_state.phenotyping_completed = False
     session_state.cell_counts_completed = False
     session_state.umapCompleted = False
     session_state.clustering_completed = False
+
+    return session_state
+
+def init_session_state_umap_analysis(session_state):
+    session_state.init_umap_analysis = True
+
+    session_state.umapCompleted = False
+    session_state.UMAPFigType = 'Density'
+
+    # UMAP Lineage Display
+    session_state.lineageDisplayToggle = 'Phenotypes'
+    session_state.lineageDisplayToggle_clus = 'Phenotypes'
+
+    # Unfiltered dropdown default options
+    session_state.defLineageOpt   = 'All Phenotypes'
+    session_state.defumapOutcomes = 'No Outcome'
+    session_state.definciOutcomes  = 'Cell Counts'
+
+    # Default UMAP dropdown options
+    session_state.umapPheno = [session_state.defLineageOpt]
+    session_state.umapMarks = [session_state.defLineageOpt]
+    session_state.umaplineages = [session_state.defLineageOpt]
+    session_state.umapOutcomes = [session_state.defumapOutcomes]
+
+    # Default Incidence dropdown options
+    session_state.inciOutcomes = [session_state.definciOutcomes]
+
+    # Default UMAPInspect settings
+    session_state.umapInspect_Ver = session_state.defLineageOpt
+    session_state.umapInspect_Feat = session_state.defumapOutcomes
+
+    # Default UMAP differences settings
+    session_state.diffUMAPSel_Ver  = session_state.defLineageOpt
+    session_state.diffUMAPSel_Feat = session_state.defumapOutcomes
+
+    # Default Incidence settings
+    session_state.inciPhenoSel   = session_state.defLineageOpt
+    session_state.inciOutcomeSel = session_state.definciOutcomes
+    session_state.Inci_Value_display = 'Count Differences'
 
     return session_state
 
@@ -204,7 +295,7 @@ def loadDataButton(session_state, df_import, projectName, fileName):
     session_state.df, \
     session_state.marker_names, \
     session_state.spec_summ, \
-    session_state.assign_pheno = prepare_data(df_import)
+    session_state.assign_pheno = prepare_data(df_import, session_state.marker_pre)
     prepDataSp = time.time()
 
     # Meta Data
@@ -263,7 +354,7 @@ def loadDataButton(session_state, df_import, projectName, fileName):
 
     return session_state
 
-def prepare_data(df_orig):
+def prepare_data(df_orig, marker_col_prefix):
     """
     To be run each time the 'Load Data' button is hit
     """
@@ -279,7 +370,7 @@ def prepare_data(df_orig):
     df_raw = df_orig.copy()
 
     # Perform pre-processing (based on app-specific needs)
-    df_raw, marker_names, spec_summ, assign_pheno = bpl.preprocess_df(df_raw)
+    df_raw, marker_names, spec_summ, assign_pheno = bpl.preprocess_df(df_raw, marker_col_prefix)
     procDFSP = time.time()
 
     # Make a copy of df_raw as df
@@ -495,7 +586,7 @@ def setFigureObjs(session_state, InSliderVal = None):
     # Seaborn
     session_state.phenoFig, session_state.ax = bpl.draw_scatter_fig(figsize=session_state.figsize)
     session_state.phenoFig = bpl.scatter_plot(df_plot, session_state.phenoFig, session_state.ax, title, 
-                                              xVar = 'CentroidX', yVar = 'CentroidY', hueVar='phenotype', 
+                                              xVar = 'Cell_X_Position', yVar = 'Cell_Y_Position', hueVar='phenotype', 
                                               hueOrder=session_state.phenoOrder)
 
     # Altair

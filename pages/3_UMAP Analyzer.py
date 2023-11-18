@@ -1,5 +1,6 @@
 import streamlit as st
-from streamlit_javascript import st_javascript
+from st_pages import show_pages_from_config, add_indentation
+from streamlit_extras.app_logo import add_logo
 import time
 
 # Import relevant libraries
@@ -20,16 +21,28 @@ def main():
         layout="wide"
     )
 
+    # Remove key values from session_state that should not persist
     for key, val in st.session_state.items():
         if (not key.endswith('__do_not_persist')) and (not key.startswith('FormSubmitter:')):
             st.session_state[key] = val
 
-    st.header('UMAP Differences Analyzer\nNCATS-NCI-DMAP')
+    # Apply pages order and indentation
+    add_indentation()
+    show_pages_from_config()
 
-    ### SIDE BAR ORGANIZATION ###
+    # Sidebar organization
     with st.sidebar:
-        url = st_javascript("await fetch('').then(r => window.parent.location.href)")
-        st.write(f'''[Open app in new Tab]({url})\n (MS Edge/ Google Chrome)''')
+        st.write('**:book: [Documentation](https://ncats.github.io/multiplex-analysis-web-apps)**')
+
+    # Add logo to page
+    add_logo('app_images/mawa_logo-width315.png', height=150)
+
+    if 'init' not in st.session_state:
+        settings_yaml_file = 'config_files/OMAL_REEC.yml'
+        # Initialize session_state values for streamlit processing
+        st.session_state = ndl.init_session_state(st.session_state, settings_yaml_file)
+
+    st.header('UMAP Differences Analyzer\nNCATS-NCI-DMAP')
 
     # Toggles for different figures
     figToggle1, figToggle2, figToggle3 = st.columns([1, 1, 2])
@@ -53,6 +66,8 @@ def main():
 
     if st.session_state.umapCompleted:
         st.session_state = ndl.setFigureObjs_UMAPDifferences(st.session_state)
+    else:
+        st.warning('No spatial UMAP analysis detected. Please complete Neighborhood Profiles')
 
     # Large UMAP Columns
     umapViz1, umapViz2 = st.columns(2)

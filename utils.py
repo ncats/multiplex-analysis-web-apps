@@ -439,7 +439,7 @@ def get_unique_image_ids_from_datafile(datafile_path):
         # Efficiently get just the relevant column of the datafile
         df = pd.read_csv(datafile_path, usecols=[relevant_column_str], sep=sep)
 
-        # Extract from it the unique image IDs
+        # Extract from it the unique image IDs (note this is a good way to sort the correct order of e.g. 1 and 10)
         return [y.strip() for y in sorted([string_processing_func(x) for x in df[relevant_column_str].unique()])]
 
     # If the datafile is not a recognized file format...
@@ -454,6 +454,7 @@ def get_updated_dynamic_options(input_directory, input_datafile_filename):
     
     # Import relevant libraries
     import os
+    import dataset_formats
 
     if input_datafile_filename is not None:
 
@@ -461,7 +462,8 @@ def get_updated_dynamic_options(input_directory, input_datafile_filename):
         input_datafile_path = os.path.join(input_directory, input_datafile_filename)
 
         # Update analysis__images_to_analyze options
-        options_for_images = get_unique_image_ids_from_datafile(input_datafile_path)
+        # options_for_images = get_unique_image_ids_from_datafile(input_datafile_path)
+        options_for_images = list(dataset_formats.get_image_series_in_datafile(input_datafile_path).unique())
 
         # annotation__used_annotation_files options
         annotations_dir_listing = ([x for x in os.listdir(os.path.join(input_directory, 'annotations')) if x.endswith('.csv')] if os.path.exists(os.path.join(input_directory, 'annotations')) else [])

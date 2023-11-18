@@ -8,25 +8,34 @@ import time
 from pathlib import Path
 from streamlit_extras.app_logo import add_logo
 import streamlit_utils
+from st_pages import show_pages_from_config, add_indentation
 
 def main():
 
     # Set a wide layout
     st.set_page_config(layout="wide")
 
-    # Restore previous session state values, including from other pages; see https://discuss.streamlit.io/t/simultaneous-multipage-widget-state-persistence-data-editors-with-identical-contents-and-multiprocessing-capability/52554 for more information
+    # Remove key values from session_state that should not persist
     for key, val in st.session_state.items():
-        if not key.endswith('__do_not_persist'):
+        if (not key.endswith('__do_not_persist')) and (not key.startswith('FormSubmitter:')):
             st.session_state[key] = val
+
+    # Apply pages order and indentation
+    add_indentation()
+    show_pages_from_config()
+
+    # Sidebar organization
+    with st.sidebar:
+        st.write('**:book: [Documentation](https://ncats.github.io/multiplex-analysis-web-apps)**')
+
+    # Add logo to page
+    add_logo('app_images/mawa_logo-width315.png', height=150)
 
     # Constant
     input_directory = os.path.join('.', 'input')
     
     # Display page heading
     st.title('Run workflow')
-
-    # Add placeholder logo to page
-    add_logo('app_images/logo2c.png', height=150)
 
     if ('settings__input_datafile__filename' in st.session_state) and (st.session_state['settings__input_datafile__filename'] is not None):
 
