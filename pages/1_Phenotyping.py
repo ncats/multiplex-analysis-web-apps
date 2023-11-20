@@ -4,6 +4,7 @@ This is the python script which produces the PHENOTYPING PAGE
 import os
 import time
 import streamlit as st
+import pandas as pd
 from st_pages import show_pages_from_config, add_indentation
 from streamlit_extras.add_vertical_space import add_vertical_space 
 from streamlit_extras.app_logo import add_logo
@@ -32,6 +33,9 @@ def update_input_data_editor():
     for key, value in st.session_state['saved_dataeditor_values']['edited_rows'].items():
         for key2, value2 in value.items():
             st.session_state.spec_summ_dataeditor.loc[key, key2] = value2
+
+    # uniqueVals = st.session_state.spec_summ_dataeditor['phenotype'].unique()
+    # st.session_state.spec_summ_dataeditor['phenotype'] = st.session_state.spec_summ_dataeditor['phenotype'].astype(pd.CategoricalDtype(uniqueVals))
 
 def setFiltering_features(file_format):
     if file_format == 'REEC':
@@ -199,6 +203,7 @@ def main():
             st.session_state.spec_summ = st.data_editor(st.session_state.spec_summ_dataeditor,
                                                         key='dataeditor__do_not_persist',
                                                         use_container_width=True,
+                                                        disabled=('species_name_short', 'species_name_long', 'species_count', 'species_percent'),
                                                         on_change=data_editor_change_callback)
 
             # Update the Dataset with the Species Summary changes
