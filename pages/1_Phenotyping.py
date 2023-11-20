@@ -39,7 +39,7 @@ def update_input_data_editor():
 
 def setFiltering_features(file_format):
     if file_format == 'REEC':
-        st.session_state.SEL_feat = ['tNt']
+        st.session_state.SEL_feat = ['Slide_ID', 'tNt']
         st.session_state.CHK_feat = ['GOODNUC']
     elif file_format == 'QuPath':
         st.session_state.SEL_feat = ['Slide_ID']
@@ -123,7 +123,7 @@ def main():
             print(f'{input_datafile} took {elapsed_phenotyping}s to perform phenotyping')
 
     with dataLoadedCols[1]:
-        st.selectbox(label = 'Choose a previous phenotyping file', options = phenoFileOptions, key = 'phenoFileSelect')
+        st.selectbox(label = 'Choose a previous phenotyping file', options = phenoFileOptions, key = 'phenoFileSelect', help='Loaded .csv files populate here when the file name begins with "phenotype_summary"')
         if (st.button('Load Phenotyping File')) and (st.session_state.phenoFileSelect is not None):
             phenotype_file = os.path.join('output', st.session_state.phenoFileSelect)
             st.session_state.spec_summ_load = bpl.load_previous_species_summary(phenotype_file)
