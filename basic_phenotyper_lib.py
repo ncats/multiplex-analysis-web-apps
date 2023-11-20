@@ -429,22 +429,15 @@ def scatter_plot(df, fig, ax, figTitle, xVar, yVar, hueVar, hueOrder, xLim = Non
         [ax.spines[sp].set_visible(False) for sp in ax.spines]
         ax.set(xticks=[], yticks=[])
 
-    x_lim_cmp = ax.get_xlim()
-    y_lim_cmp = ax.get_ylim()
-    minaxis = min([x_lim_cmp[0], y_lim_cmp[0]])
-    maxaxis = max([x_lim_cmp[1], y_lim_cmp[1]])
-
     if xLim is not None:
         ax.set_xlim(xLim[0], xLim[1])
     else:
-        xLim = [minaxis, maxaxis]
-        ax.set_xlim(xLim)
+        xLim = ax.get_xlim()
     
     if yLim is not None:
         ax.set_ylim(yLim[0], yLim[1])
     else:
-        yLim = [minaxis, maxaxis]
-        ax.set_ylim(yLim)
+        yLim = ax.get_ylim()
 
     if small_ver == True:
         lgd_fontsize = 20
