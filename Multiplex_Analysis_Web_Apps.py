@@ -5,6 +5,9 @@ from streamlit_javascript import st_javascript
 from st_pages import show_pages_from_config, add_indentation
 from streamlit_extras.app_logo import add_logo
 
+# Import relevant libraries
+import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
+
 # Function to determine whether we're on NIDAP
 def platform_is_nidap():
     import numpy as np
@@ -36,13 +39,13 @@ def main():
     # Add logo to page
     add_logo('app_images/mawa_logo-width315.png', height=150)
 
-    # Display page heading
-    st.title('Welcome')
-
     # Initialize the platform object
     if 'platform' not in st.session_state:
         st.session_state['platform'] = platform_io.Platform(platform=('nidap' if platform_is_nidap() else 'local'))
     
+    intro_markdown = ndl.read_markdown_file('markdown/MAWA_WelcomePage.md')
+    st.markdown(intro_markdown, unsafe_allow_html=True)
+
 # Call the main function
 if __name__ == '__main__':
     main()
