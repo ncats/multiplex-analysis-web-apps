@@ -314,7 +314,7 @@ class Native:
         """
         pass
 
-    def process_dataset(self, write_new_datafile=False, new_datafile_suffix='-converted'):
+    def process_dataset(self, write_new_datafile=False, new_datafile_suffix='-converted', do_calculate_minimum_coordinate_spacing_per_roi=True):
         """Convert dataset to the format required for the SIP library
 
         Args:
@@ -338,7 +338,8 @@ class Native:
         self.trim_dataframe()
 
         # Calculate and output the minimum coordinate spacing
-        self.calculate_minimum_coordinate_spacing_per_roi()
+        if do_calculate_minimum_coordinate_spacing_per_roi:
+            self.calculate_minimum_coordinate_spacing_per_roi()
 
         # Perform any additional processing for the dataset
         self.extra_processing()
