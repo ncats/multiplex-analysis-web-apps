@@ -314,7 +314,7 @@ class Native:
         """
         pass
 
-    def process_dataset(self, write_new_datafile=True, new_datafile_suffix='-converted'):
+    def process_dataset(self, write_new_datafile=False, new_datafile_suffix='-converted', do_calculate_minimum_coordinate_spacing_per_roi=True):
         """Convert dataset to the format required for the SIP library
 
         Args:
@@ -338,7 +338,8 @@ class Native:
         self.trim_dataframe()
 
         # Calculate and output the minimum coordinate spacing
-        self.calculate_minimum_coordinate_spacing_per_roi()
+        if do_calculate_minimum_coordinate_spacing_per_roi:
+            self.calculate_minimum_coordinate_spacing_per_roi()
 
         # Perform any additional processing for the dataset
         self.extra_processing()
@@ -621,7 +622,7 @@ class REEC(Native):
     def adhere_to_cell_position_format(self):
         """Ensure the "Cell X Position" and "Cell Y Position" columns of the data conform to the required format.
 
-        In the REEC case, the coordinates are already in microns as long as the filename ends with "_microns.csv".
+        In the REEC case, the coordinates are already in microns as long as the filename ends with "_microns.csv", and even if they don't end with that, according to Will.
         """
 
         # Variable definitions from attributes

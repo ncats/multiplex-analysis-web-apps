@@ -105,7 +105,7 @@ def main():
             dataset_obj = dataset_class(input_datafile, 
                                         coord_units_in_microns = st.session_state.phenotyping_micron_coordinate_units, 
                                         extra_cols_to_keep=['tNt', 'GOODNUC', 'HYPOXIC', 'NORMOXIC', 'NucArea', 'RelOrientation'])
-            dataset_obj.process_dataset()
+            dataset_obj.process_dataset(do_calculate_minimum_coordinate_spacing_per_roi=False)
             stop_dataload = time.time()
             elapsed_dataload = round(stop_dataload - start, 2)
             print(f'{input_datafile} tool {elapsed_dataload}s to load into memory')

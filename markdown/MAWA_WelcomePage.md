@@ -12,7 +12,7 @@ Welcome to the Multiple Analysis Web Apps (MAWA) presented by NCATS-NCI-DMAP. Th
 
 
 
-## Neighborhood Profiles Workflow
+## Neighborhoood Profiles Workflow
 Based on the conversations with our working groups, the following is the intended workflow for using this application.  
 1. Data Import and Export
 2. Phenotyping
