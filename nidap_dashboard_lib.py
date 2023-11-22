@@ -54,6 +54,7 @@ def init_session_state(session_state, settings_yaml_file):
     session_state.reqFeatures = df_default.columns[:-1]
 
     # Features for filtering
+    session_state.file_format = 'Native'
     session_state.SEL_feat = []
     session_state.CHK_feat = []
 
@@ -316,6 +317,13 @@ def loadDataButton(session_state, df_import, projectName, fileName):
     resetVarsSp = time.time()
 
     # Filtering
+    session_state.SEL_feat = ['Slide_ID']
+    session_state.CHK_feat = []
+    
+    # if session_state.file_format == 'REEC':
+    #     session_state.SEL_feat.extend(['tNt'])
+    #     session_state.CHK_feat.extend(['GOODNUC'])
+
     # All filter categories
     features4filter = session_state.SEL_feat + session_state.CHK_feat
     # Create variables in session state
@@ -421,7 +429,7 @@ def updatePhenotyping(session_state):
 
     session_state.spec_summ = bpl.init_species_summary(session_state.df)
     session_state.assign_pheno = bpl.init_assign_pheno(session_state.df)
-    session_state.spec_summ_cuTb = session_state.spec_summ.copy()
+    session_state.spec_summ_dataeditor = session_state.spec_summ.copy()
 
     # Perform filtering
     session_state.df_filt = perform_filtering(session_state)

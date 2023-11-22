@@ -4,6 +4,7 @@ This is the python script which produces the PHENOTYPING PAGE
 import os
 import time
 import streamlit as st
+import pandas as pd
 from st_pages import show_pages_from_config, add_indentation
 from streamlit_extras.add_vertical_space import add_vertical_space 
 from streamlit_extras.app_logo import add_logo
@@ -22,6 +23,19 @@ def data_editor_change_callback():
     '''
     st.session_state['saved_dataeditor_values'] = st.session_state['dataeditor__do_not_persist']
 
+    # Update the Dataset with the Species Summary changes
+    st.session_state.df = bpl.update_df_phenotype(st.session_state.df, st.session_state.spec_summ)
+    st.session_state.df_filt = ndl.perform_filtering(st.session_state)
+
+    ## Assign Special spec_sum based on current spec_sum
+    st.session_state.spec_summ_load = st.session_state.spec_summ.copy()
+
+    # Update the Assigned Phenotypes dataframe with Species Summary changes
+    st.session_state.assign_pheno = bpl.init_assign_pheno(st.session_state.df)
+
+    # Set Figure Objects
+    st.session_state = ndl.setFigureObjs(st.session_state, st.session_state.pointstSliderVal_Sel)
+
 def update_input_data_editor():
     '''
     update_input_data_editor is a function that remakes the input dataframe to the streamlit
@@ -33,25 +47,8 @@ def update_input_data_editor():
         for key2, value2 in value.items():
             st.session_state.spec_summ_dataeditor.loc[key, key2] = value2
 
-def setFiltering_features(file_format):
-    if file_format == 'REEC':
-        st.session_state.SEL_feat = ['tNt']
-        st.session_state.CHK_feat = ['GOODNUC']
-    elif file_format == 'QuPath':
-        st.session_state.SEL_feat = ['Slide_ID']
-        st.session_state.CHK_feat = []
-    elif file_format == 'OMAL':
-        st.session_state.SEL_feat = ['Slide_ID']
-        st.session_state.CHK_feat = []
-    elif file_format == 'GMBSecondGeneration':
-        st.session_state.SEL_feat = ['Slide_ID']
-        st.session_state.CHK_feat = []
-    elif file_format == 'Native':
-        st.session_state.SEL_feat = ['Slide_ID']
-        st.session_state.CHK_feat = []
-    else:
-        st.session_state.SEL_feat = []
-        st.session_state.CHK_feat = []
+    # uniqueVals = st.session_state.spec_summ_dataeditor['phenotype'].unique()
+    # st.session_state.spec_summ_dataeditor['phenotype'] = st.session_state.spec_summ_dataeditor['phenotype'].astype(pd.CategoricalDtype(uniqueVals))
 
 def main():
     '''
@@ -103,8 +100,8 @@ def main():
             if file_format == 'HALO':
                 file_format = 'OMAL'
 
+            st.session_state.file_format = file_format
             dataset_class = getattr(dataset_formats, file_format)  # done this way so that the format (e.g., “REEC”) can be select programmatically
-            setFiltering_features(file_format)
             dataset_obj = dataset_class(input_datafile, 
                                         coord_units_in_microns = st.session_state.phenotyping_micron_coordinate_units, 
                                         extra_cols_to_keep=['tNt', 'GOODNUC', 'HYPOXIC', 'NORMOXIC', 'NucArea', 'RelOrientation'])
@@ -119,7 +116,7 @@ def main():
             print(f'{input_datafile} took {elapsed_phenotyping}s to perform phenotyping')
 
     with dataLoadedCols[1]:
-        st.selectbox(label = 'Choose a previous phenotyping file', options = phenoFileOptions, key = 'phenoFileSelect')
+        st.selectbox(label = 'Choose a previous phenotyping file', options = phenoFileOptions, key = 'phenoFileSelect', help='Loaded .csv files populate here when the file name begins with "phenotype_summary"')
         if (st.button('Load Phenotyping File')) and (st.session_state.phenoFileSelect is not None):
             phenotype_file = os.path.join('output', st.session_state.phenoFileSelect)
             st.session_state.spec_summ_load = bpl.load_previous_species_summary(phenotype_file)
@@ -199,21 +196,8 @@ def main():
             st.session_state.spec_summ = st.data_editor(st.session_state.spec_summ_dataeditor,
                                                         key='dataeditor__do_not_persist',
                                                         use_container_width=True,
+                                                        disabled=('species_name_short', 'species_name_long', 'species_count', 'species_percent'),
                                                         on_change=data_editor_change_callback)
-
-            # Update the Dataset with the Species Summary changes
-            st.session_state.df = bpl.update_df_phenotype(st.session_state.df, st.session_state.spec_summ)
-            st.session_state.df_filt = ndl.perform_filtering(st.session_state)
-
-            ## Assign Special spec_sum based on current spec_sum
-            st.session_state.spec_summ_load = st.session_state.spec_summ.copy()
-
-            # Update the Assigned Phenotypes dataframe with Species Summary changes
-            st.session_state.assign_pheno = bpl.init_assign_pheno(st.session_state.df)
-
-            # Set Figure Objects
-            st.session_state = ndl.setFigureObjs(st.session_state, st.session_state.pointstSliderVal_Sel)
-
         else:
             st.dataframe(st.session_state.spec_summ, use_container_width=True)
 
