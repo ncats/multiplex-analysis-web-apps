@@ -317,6 +317,16 @@ def loadDataButton(session_state, df_import, projectName, fileName):
     resetVarsSp = time.time()
 
     # Filtering
+    session_state.selSlideId = 0
+    session_state.uniSlideId = sorted(session_state.df_raw['Slide_ID'].unique())
+    session_state.numSlideId = len(session_state.uniSlideId)
+
+    session_state.prog_left_disabeled = True
+    session_state.prog_right_disabeled = False
+    if session_state.numSlideId == 1:
+        session_state.prog_right_disabeled = True
+
+
     session_state.SEL_feat = ['Slide_ID']
     session_state.CHK_feat = []
     
@@ -476,12 +486,14 @@ def perform_filtering(session_state):
     """
 
     # Create dictionaries of filter types
-    session_state = init_filter_struct(session_state)
+    session_state = init_filter_struct(session_state, 
+                                       session_state.SEL_feat,
+                                       session_state.CHK_feat)
 
     # Filter the dataset
     return filter_dataset(session_state.df, session_state.SELdict, session_state.CHKdict)
 
-def init_filter_struct(session_state):
+def init_filter_struct(session_state, SEL_feat, CHK_feat):
     """
     Initalize filtering data structures
     """
@@ -489,10 +501,10 @@ def init_filter_struct(session_state):
     SELdict = dict()
     CHKdict = dict()
 
-    for key in session_state.SEL_feat:
+    for key in SEL_feat:
         SELdict['{}'.format(key)] = session_state[eval('"sel" + key')]
 
-    for key in session_state.CHK_feat:
+    for key in CHK_feat:
         CHKdict['{}'.format(key)] = session_state[eval('"sel" + key')]
 
     session_state.SELdict = SELdict

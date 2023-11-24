@@ -50,6 +50,22 @@ def update_input_data_editor():
     # uniqueVals = st.session_state.spec_summ_dataeditor['phenotype'].unique()
     # st.session_state.spec_summ_dataeditor['phenotype'] = st.session_state.spec_summ_dataeditor['phenotype'].astype(pd.CategoricalDtype(uniqueVals))
 
+def slide_id_prog_left_callback():
+    st.session_state.prog_left_disabeled  = False
+    st.session_state.prog_right_disabeled = False
+    if st.session_state.selSlideId > 0:
+        st.session_state.selSlideId -=1
+        if st.session_state.selSlideId == 0:
+            st.session_state.prog_left_disabeled = True
+
+def slide_id_prog_right_callback():
+    st.session_state.prog_left_disabeled  = False
+    st.session_state.prog_right_disabeled = False
+    if st.session_state.selSlideId < st.session_state.numSlideId-1:
+        st.session_state.selSlideId +=1
+        if st.session_state.selSlideId == st.session_state.numSlideId-1:
+            st.session_state.prog_right_disabeled = True
+
 def main():
     '''
     Main function for running the page
@@ -184,8 +200,8 @@ def main():
     # Second column on the page
     with vizCol2:
 
-        ### PHENOTYPE SUMMARY TABLE ###
-        st.markdown('## Phenotype Summary')
+        ### PHENOTYPE ASSIGNMENTS TABLE ###
+        st.markdown('## Phenotype Assignments')
         if st.session_state.selected_phenoMeth == 'Custom':
 
             if 'saved_dataeditor_values' in st.session_state:
@@ -201,8 +217,8 @@ def main():
         else:
             st.dataframe(st.session_state.spec_summ, use_container_width=True)
 
-        ### ASSIGNED PHENOTYPES TABLE ###
-        st.write('## Assigned Phenotypes')
+        ### PHENOTYPE SUMMARY TABLE ###
+        st.write('## Phenotype Summary')
         st.write('The following phenotypes will update as the table above is modified. Double-click a cell to see all its contents at once.')
         st.dataframe(st.session_state.assign_pheno, use_container_width=True)
 
@@ -248,6 +264,16 @@ def main():
                 st.markdown('### Plotting full scatterplot')
 
             st.write(f'Drawing {st.session_state.drawnPoints} points')
+
+        imageProgCol = st.columns([3, 1, 1, 2])
+        with imageProgCol[0]:
+            st.write(st.session_state.selSlideId)
+        with imageProgCol[1]:
+            st.button('←', on_click=slide_id_prog_left_callback, disabled=st.session_state.prog_left_disabeled)
+        with imageProgCol[2]:
+            st.button('→', on_click=slide_id_prog_right_callback, disabled=st.session_state.prog_right_disabeled)
+        with imageProgCol[3]:
+            st.write(f'Image {st.session_state.selSlideId+1} of {st.session_state.numSlideId}')
 
         st.session_state.bc.startTimer()
         st.pyplot(st.session_state.phenoFig)
