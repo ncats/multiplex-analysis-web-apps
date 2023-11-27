@@ -296,7 +296,7 @@ def loadDataButton(session_state, df_import, projectName, fileName):
     session_state.df, \
     session_state.marker_names, \
     session_state.spec_summ, \
-    session_state.assign_pheno = prepare_data(df_import, session_state.marker_pre)
+    session_state.pheno_summ = prepare_data(df_import, session_state.marker_pre)
     prepDataSp = time.time()
 
     # Meta Data
@@ -387,7 +387,7 @@ def prepare_data(df_orig, marker_col_prefix):
     df_raw = df_orig.copy()
 
     # Perform pre-processing (based on app-specific needs)
-    df_raw, marker_names, spec_summ, assign_pheno = bpl.preprocess_df(df_raw, marker_col_prefix)
+    df_raw, marker_names, spec_summ, pheno_summ = bpl.preprocess_df(df_raw, marker_col_prefix)
     procDFSP = time.time()
 
     # Make a copy of df_raw as df
@@ -397,7 +397,7 @@ def prepare_data(df_orig, marker_col_prefix):
                   'procDF': np.round(procDFSP - fx_colsSp, 3)}
     # print(prepDataTD)
 
-    return df_raw, df, marker_names, spec_summ, assign_pheno
+    return df_raw, df, marker_names, spec_summ, pheno_summ
 
 def fix_df_cols(df):
     """
@@ -432,8 +432,7 @@ def updatePhenotyping(session_state):
     of the apps
     
     '''
-    # Ascribe the selected phenotyping method.
-   
+
     # Create the session_state.df which is ostensibly 
     session_state.df = assign_phenotype_col(session_state.df_raw,
                                             session_state.spec_summ_load,
@@ -442,10 +441,11 @@ def updatePhenotyping(session_state):
 
     # Initalize Species Summary Table
     session_state.spec_summ    = bpl.init_species_summary(session_state.df)
-    # Intialize Assigned Phenotypes Table
-    session_state.assign_pheno = bpl.init_assign_pheno(session_state.df)
     # Set the data_editor species summary 
     session_state.spec_summ_dataeditor = session_state.spec_summ.copy()
+
+    # Create Phenotypes Summary Table based on 'phenotype' column in df
+    session_state.pheno_summ = bpl.init_pheno_summ(session_state.df)
 
     # Perform filtering
     session_state.df_filt = perform_filtering(session_state)
@@ -584,7 +584,7 @@ def setFigureObjs(session_state, InSliderVal = None):
              f'DATASET: {session_state.datafile}',
              f'PHENO METHOD: {session_state.selected_phenoMeth}']
 
-    session_state.phenoOrder = list(session_state.assign_pheno.loc[session_state.assign_pheno['phenotype_count'].index, 'phenotype'])
+    session_state.phenoOrder = list(session_state.pheno_summ.loc[session_state.pheno_summ['phenotype_count'].index, 'phenotype'])
 
     # NumPoints
     targCellCount = 150000 

@@ -24,13 +24,14 @@ def data_editor_change_callback():
     st.session_state['saved_dataeditor_values'] = st.session_state['dataeditor__do_not_persist']
 
     # Update the Dataset with the Species Summary changes
-    st.session_state.df = bpl.assign_phenotype_custom(st.session_state.df, st.session_state.spec_summ)
+    st.session_state.df = bpl.assign_phenotype_custom(st.session_state.df, 
+                                                      st.session_state.spec_summ)
 
     ## Assign Special spec_sum based on current spec_sum
     st.session_state.spec_summ_load = st.session_state.spec_summ.copy()
 
-    # Update the Assigned Phenotypes dataframe with Species Summary changes
-    st.session_state.assign_pheno = bpl.init_assign_pheno(st.session_state.df)
+    # Create Phenotypes Summary Table based on 'phenotype' column in df
+    st.session_state.pheno_summ = bpl.init_pheno_summ(st.session_state.df)
 
     # Perform filtering
     st.session_state.df_filt = ndl.perform_filtering(st.session_state)
@@ -224,7 +225,7 @@ def main():
         ### PHENOTYPE SUMMARY TABLE ###
         st.write('## Phenotype Summary')
         st.write('The following phenotypes will update as the table above is modified. Double-click a cell to see all its contents at once.')
-        st.dataframe(st.session_state.assign_pheno, use_container_width=True)
+        st.dataframe(st.session_state.pheno_summ, use_container_width=True)
 
         # Prepare for Exporting
         st.session_state.df_update = st.session_state.df.copy().drop(['mark_bits', 'species_name_long', 'species_name_short'], axis=1)

@@ -60,7 +60,7 @@ def preprocess_df(df, marker_col_prefix):
     specSummSp = time.time()
 
     # Step 5: Intialize Phenotype Assignment Dataframe (based on Species Summary)
-    assign_pheno = init_assign_pheno(df)
+    pheno_summ = init_pheno_summ(df)
     assignPhenoSp = time.time()
 
     preprocTD = {'Total': np.round(assignPhenoSp - preprocSt, 3),
@@ -77,7 +77,7 @@ def preprocess_df(df, marker_col_prefix):
     Initalize Assign Phenotype: {preprocTD['Initalize Assign Phenotype']}s
           ''')
 
-    return df, marker_names, spec_summ, assign_pheno
+    return df, marker_names, spec_summ, pheno_summ
 
 def date_time_adjust(df, field):
     import pandas as pd
@@ -122,7 +122,6 @@ def init_species_summary(df):
 
     Args:
         df (Pandas dataframe): Dataframe containing data from the input dataset, including a "mark_bits" column
-        marker_names (list): List of marker names in the dataset
 
     Returns:
         Pandas dataframe: Dataframe containing the value counts of each "exclusive" species
@@ -156,8 +155,15 @@ def init_species_summary(df):
     # Return the created dataframe
     return spec_summ
 
-def init_assign_pheno(df):
-    import numpy as np
+def init_pheno_summ(df):
+    """For each unique species (elsewhere called "exclusive" phenotyping), generate information concerning their prevalence in a new dataframe.
+
+    Args:
+        df (Pandas dataframe): Dataframe containing data from the input dataset, including a "mark_bits" column
+
+    Returns:
+        assign_pheno (Pandas dataframe): Dataframe containing the value counts of each "exclusive" species
+    """
 
     assign_pheno = df[['phenotype', 'species_name_short', 'species_name_long']].groupby(by='phenotype', as_index = False).agg(lambda x: np.unique(list(x)))
 
@@ -172,7 +178,6 @@ def remove_compound_species(df, marker_names, allow_compound_species=True):
     For each compound species ('Species int' not just a plain power of two), add each 
     individual phenotype to the end of the dataframe individually and then delete the original compound entry
     '''
-    import numpy as np
 
     # Remove compound species if requested
     if not allow_compound_species:
