@@ -24,7 +24,7 @@ def data_editor_change_callback():
     st.session_state['saved_dataeditor_values'] = st.session_state['dataeditor__do_not_persist']
 
     # Update the Dataset with the Species Summary changes
-    st.session_state.df = bpl.update_df_phenotype(st.session_state.df, st.session_state.spec_summ)
+    st.session_state.df = bpl.assign_phenotype_custom(st.session_state.df, st.session_state.spec_summ)
     st.session_state.df_filt = ndl.perform_filtering(st.session_state)
 
     ## Assign Special spec_sum based on current spec_sum

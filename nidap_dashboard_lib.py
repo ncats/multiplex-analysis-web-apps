@@ -326,7 +326,6 @@ def loadDataButton(session_state, df_import, projectName, fileName):
     if session_state.numSlideId == 1:
         session_state.prog_right_disabeled = True
 
-
     session_state.SEL_feat = ['Slide_ID']
     session_state.CHK_feat = []
     
@@ -429,29 +428,37 @@ def load_dataset(fiol, dataset_path, files_dict, file_path, loadCompass=False):
 
 def updatePhenotyping(session_state):
     '''
+    Function that is run when changes are made to the phenotyping settings
+    of the apps
     
     '''
+    # Ascribe the selected phenotyping method.
     session_state.selected_phenoMeth = session_state.phenoMeth
-    session_state.df = changePhenoMeth(session_state.df_raw,
-                                       session_state.spec_summ_load,
-                                       session_state.selected_phenoMeth,
-                                       session_state.marker_names)
+    # Create the session_state.df which is ostensibly 
+    session_state.df = assign_phenotype_col(session_state.df_raw,
+                                            session_state.spec_summ_load,
+                                            session_state.selected_phenoMeth,
+                                            session_state.marker_names)
 
-    session_state.spec_summ = bpl.init_species_summary(session_state.df)
+    # Initalize Species Summary Table
+    session_state.spec_summ    = bpl.init_species_summary(session_state.df)
+    # Intialize Assigned Phenotypes Table
     session_state.assign_pheno = bpl.init_assign_pheno(session_state.df)
+    # Set the data_editor species summary 
     session_state.spec_summ_dataeditor = session_state.spec_summ.copy()
 
     # Perform filtering
     session_state.df_filt = perform_filtering(session_state)
 
-    # Set Figure Objects
+    # Set Figure Objects based on updated df
     session_state = setFigureObjs(session_state)
 
     return session_state
 
-def changePhenoMeth(df_raw, spec_summ_load, phenoMeth, marker_names):
+def assign_phenotype_col(df_raw, spec_summ_load, phenoMeth, marker_names):
     """
-    Toggle for changing the phenotyping method
+    Assign a new column to the raw dataset (df_raw) called 'phenotype' based on the 
+    phenotyping method selected. The returned dataset (df) is considered 
     """
 
     df = df_raw.copy()
@@ -468,11 +475,11 @@ def changePhenoMeth(df_raw, spec_summ_load, phenoMeth, marker_names):
         # multiple positive markers
         df = bpl.remove_compound_species(df, marker_names, allow_compound_species=allow_compound_species)
 
-        # Add a pretty phenotype column to the dataframe
-        df = bpl.species_as_phenotype(df)
+        # Assign phenotype column to dataframe based on species name
+        df = bpl.assign_phenotype_species(df)
     else:
-        # Update df based on previously saved species_summ
-        df = bpl.update_df_phenotype(df, spec_summ_load)
+        # Assign phenotype column to dataframe based on species summary
+        df = bpl.assign_phenotype_custom(df, spec_summ_load)
 
     return df
 

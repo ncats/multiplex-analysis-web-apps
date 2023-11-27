@@ -319,31 +319,36 @@ def incorporate_phenotype_identifications(df_objects_orig, tsv_file=None):
     # I may have run into this issue before
     return df_objects_new
 
-def species_as_phenotype(df):
-    """Add a pretty phenotype column from the marker columns via the calculated species integer.
+def assign_phenotype_species(df):
+    """Add a "phenotype" column to df based on the from the marker columns via the calculated species integer.
 
     Args:
-        df (Pandas dataframe): Dataframe containing the "Species int" column.
-        markers (list): List of strings where each is a marker in the dataset.
-    """
-
-    # Create a "phenotype" column mapping from the "Species int"s to the pretty phenotypes
-    df['phenotype'] = df['species_name_short']
-
-    # Return the dataframe with the new phenotypes column
-    return(df)
-
-def update_df_phenotype(df, spec_summ):
-    """Add a "phenotype" column to the original dataset containing the phenotypes as assigned by the biologist.
-
-    Args:
-        df (Pandas dataframe): Dataframe of the input dataset containing a "mark_bits" column
-        df_value_counts (Pandas dataframe): Dataframe containing the value counts of each "exclusive" species
+        df (Pandas dataframe): Dataframe containing the "species_name_short" column
 
     Returns:
-        Pandas dataframe: Same as input dataframe but with a "phenotype" column appended or overwritten
+        df (Pandas dataframe): Input dataframe with an added "phenotype" column appended or overwritten
     """
+
+    # Create a "phenotype" column based on the from the "species_name_short"
+    df['phenotype'] = df['species_name_short']
+
+    # Return dataframe with phenotype column
+    return df
+
+def assign_phenotype_custom(df, spec_summ):
+    """Add a "phenotype" column to df based on a species summary dataframe which identfies custom phenotype assignments from custom phenotyping
+
+    Args:
+        df (Pandas dataframe): Dataframe containing the "species_name_short" column
+        spec_summ (Pandas dataframe): Dataframe containing the custom assignments of phenotypes based on "species_name_short"
+
+    Returns:
+        df (Pandas dataframe): Input dataframe with an added "phenotype" column appended or overwritten
+    """
+    # Create a "phenotype" column mapped from a species summary dataset
     df['phenotype'] = df['species_name_short'].map(dict(zip(spec_summ['species_name_short'].to_list(), spec_summ['phenotype'].to_list())))
+    
+    # Return dataframe with phenotype column
     return df
 
 def load_previous_species_summary(filename):
