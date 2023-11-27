@@ -433,7 +433,7 @@ def updatePhenotyping(session_state):
     
     '''
     # Ascribe the selected phenotyping method.
-    session_state.selected_phenoMeth = session_state.phenoMeth
+   
     # Create the session_state.df which is ostensibly 
     session_state.df = assign_phenotype_col(session_state.df_raw,
                                             session_state.spec_summ_load,

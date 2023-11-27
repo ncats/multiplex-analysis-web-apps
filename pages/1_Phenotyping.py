@@ -25,7 +25,6 @@ def data_editor_change_callback():
 
     # Update the Dataset with the Species Summary changes
     st.session_state.df = bpl.assign_phenotype_custom(st.session_state.df, st.session_state.spec_summ)
-    st.session_state.df_filt = ndl.perform_filtering(st.session_state)
 
     ## Assign Special spec_sum based on current spec_sum
     st.session_state.spec_summ_load = st.session_state.spec_summ.copy()
@@ -33,7 +32,10 @@ def data_editor_change_callback():
     # Update the Assigned Phenotypes dataframe with Species Summary changes
     st.session_state.assign_pheno = bpl.init_assign_pheno(st.session_state.df)
 
-    # Set Figure Objects
+    # Perform filtering
+    st.session_state.df_filt = ndl.perform_filtering(st.session_state)
+
+    # Set Figure Objects based on updated df
     st.session_state = ndl.setFigureObjs(st.session_state, st.session_state.pointstSliderVal_Sel)
 
 def update_input_data_editor():
@@ -137,6 +139,7 @@ def main():
             phenotype_file = os.path.join('output', st.session_state.phenoFileSelect)
             st.session_state.spec_summ_load = bpl.load_previous_species_summary(phenotype_file)
             st.session_state.phenoMeth = 'Custom'
+            st.session_state.selected_phenoMeth = 'Custom'
             st.session_state = ndl.updatePhenotyping(st.session_state)
             st.session_state.pointstSliderVal_Sel = st.session_state.calcSliderVal
 
@@ -153,6 +156,7 @@ def main():
             # Every form must have a submit button.
             submitted = st.form_submit_button('Apply Phenotyping Method')
             if submitted:
+                st.session_state.selected_phenoMeth = st.session_state.phenoMeth
                 st.session_state = ndl.updatePhenotyping(st.session_state)
                 st.session_state.pointstSliderVal_Sel = st.session_state.calcSliderVal
 
