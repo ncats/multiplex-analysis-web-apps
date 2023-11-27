@@ -54,20 +54,36 @@ def update_input_data_editor():
     # st.session_state.spec_summ_dataeditor['phenotype'] = st.session_state.spec_summ_dataeditor['phenotype'].astype(pd.CategoricalDtype(uniqueVals))
 
 def slide_id_prog_left_callback():
-    st.session_state.prog_left_disabeled  = False
-    st.session_state.prog_right_disabeled = False
-    if st.session_state.selSlideId > 0:
-        st.session_state.selSlideId -=1
-        if st.session_state.selSlideId == 0:
-            st.session_state.prog_left_disabeled = True
+    if st.session_state.idxSlide_ID > 0:
+        st.session_state.idxSlide_ID -=1
+        st.session_state.selSlide_ID = st.session_state.uniSlide_ID[st.session_state.idxSlide_ID]
+        filter_and_plot()
 
 def slide_id_prog_right_callback():
+    if st.session_state.idxSlide_ID < st.session_state.numSlide_ID-1:
+        st.session_state.idxSlide_ID +=1
+        st.session_state.selSlide_ID = st.session_state.uniSlide_ID[st.session_state.idxSlide_ID]
+        filter_and_plot()
+
+def slide_id_callback():
+    st.session_state.idxSlide_ID = st.session_state.uniSlide_ID.index(st.session_state.selSlide_ID)
+    filter_and_plot()
+
+def filter_and_plot():
     st.session_state.prog_left_disabeled  = False
     st.session_state.prog_right_disabeled = False
-    if st.session_state.selSlideId < st.session_state.numSlideId-1:
-        st.session_state.selSlideId +=1
-        if st.session_state.selSlideId == st.session_state.numSlideId-1:
-            st.session_state.prog_right_disabeled = True
+
+    if st.session_state.idxSlide_ID == 0:
+        st.session_state.prog_left_disabeled = True
+
+    if st.session_state.idxSlide_ID == st.session_state.numSlide_ID-1:
+        st.session_state.prog_right_disabeled = True
+
+    # Filtered dataset
+    st.session_state.df_filt = ndl.perform_filtering(st.session_state)
+
+    # Update and reset Figure Objects
+    st.session_state = ndl.setFigureObjs(st.session_state)
 
 def main():
     '''
@@ -272,13 +288,16 @@ def main():
 
         imageProgCol = st.columns([3, 1, 1, 2])
         with imageProgCol[0]:
-            st.write(st.session_state.selSlideId)
+            st.selectbox('Slide_ID',
+                         (st.session_state.uniSlide_ID),
+                         key = 'selSlide_ID',
+                         on_change=slide_id_callback)
         with imageProgCol[1]:
             st.button('←', on_click=slide_id_prog_left_callback, disabled=st.session_state.prog_left_disabeled)
         with imageProgCol[2]:
             st.button('→', on_click=slide_id_prog_right_callback, disabled=st.session_state.prog_right_disabeled)
         with imageProgCol[3]:
-            st.write(f'Image {st.session_state.selSlideId+1} of {st.session_state.numSlideId}')
+            st.write(f'Image {st.session_state.idxSlide_ID+1} of {st.session_state.numSlide_ID}')
 
         st.session_state.bc.startTimer()
         st.pyplot(st.session_state.phenoFig)

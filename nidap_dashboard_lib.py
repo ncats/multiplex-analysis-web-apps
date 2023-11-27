@@ -10,6 +10,7 @@ import yaml
 import numpy as np
 import pandas as pd
 import altair as alt
+from natsort import natsorted
 from pathlib import Path
 from datetime import datetime
 alt.data_transformers.disable_max_rows()
@@ -317,18 +318,9 @@ def loadDataButton(session_state, df_import, projectName, fileName):
     resetVarsSp = time.time()
 
     # Filtering
-    session_state.selSlideId = 0
-    session_state.uniSlideId = sorted(session_state.df_raw['Slide_ID'].unique())
-    session_state.numSlideId = len(session_state.uniSlideId)
-
-    session_state.prog_left_disabeled = True
-    session_state.prog_right_disabeled = False
-    if session_state.numSlideId == 1:
-        session_state.prog_right_disabeled = True
-
-    session_state.SEL_feat_widg = ['Slide_ID']
+    session_state.SEL_feat_widg = []
     session_state.CHK_feat_widg = []
-    session_state.SEL_feat = session_state.SEL_feat_widg + []
+    session_state.SEL_feat = session_state.SEL_feat_widg + ['Slide_ID']
     session_state.CHK_feat = session_state.CHK_feat_widg + []
     
     # if session_state.file_format == 'REEC':
@@ -339,14 +331,22 @@ def loadDataButton(session_state, df_import, projectName, fileName):
     features4filter = session_state.SEL_feat + session_state.CHK_feat
     # Create variables in session state
     for feature in features4filter:
-        session_state[eval('"uni" + feature')] = sorted(session_state.df_raw[feature].unique())    # Unique Values
+        session_state[eval('"uni" + feature')] = natsorted(session_state.df_raw[feature].unique())    # Unique Values
         if feature in session_state.CHK_feat:
             session_state[eval('"sel" + feature')] = 0
         else:
             session_state[eval('"sel" + feature')] = session_state[eval('"uni" + feature')][0] # Selected Value (default)
 
+    session_state.idxSlide_ID = 0
+    session_state.numSlide_ID = len(session_state.uniSlide_ID)
+
+    session_state.prog_left_disabeled = True
+    session_state.prog_right_disabeled = False
+    if session_state.numSlide_ID == 1:
+        session_state.prog_right_disabeled = True
+
     # Filtered dataset based on default filter settings and note the time
-    session_state.df_filt = perform_filtering(session_state) 
+    session_state.df_filt = perform_filtering(session_state)
     setfiltSp = time.time()
 
     # Draw Points Slider
@@ -450,7 +450,7 @@ def updatePhenotyping(session_state):
     session_state.pheno_summ = bpl.init_pheno_summ(session_state.df)
 
     # Perform filtering
-    session_state.df_filt = perform_filtering(session_state, session_state.SEL, session_state.CHK)
+    session_state.df_filt = perform_filtering(session_state)
 
     # Set Figure Objects based on updated df
     session_state = setFigureObjs(session_state)
