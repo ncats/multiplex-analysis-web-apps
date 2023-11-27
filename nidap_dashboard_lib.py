@@ -326,8 +326,10 @@ def loadDataButton(session_state, df_import, projectName, fileName):
     if session_state.numSlideId == 1:
         session_state.prog_right_disabeled = True
 
-    session_state.SEL_feat = ['Slide_ID']
-    session_state.CHK_feat = []
+    session_state.SEL_feat_widg = ['Slide_ID']
+    session_state.CHK_feat_widg = []
+    session_state.SEL_feat = session_state.SEL_feat_widg + []
+    session_state.CHK_feat = session_state.CHK_feat_widg + []
     
     # if session_state.file_format == 'REEC':
     #     session_state.SEL_feat.extend(['tNt'])
@@ -448,7 +450,7 @@ def updatePhenotyping(session_state):
     session_state.pheno_summ = bpl.init_pheno_summ(session_state.df)
 
     # Perform filtering
-    session_state.df_filt = perform_filtering(session_state)
+    session_state.df_filt = perform_filtering(session_state, session_state.SEL, session_state.CHK)
 
     # Set Figure Objects based on updated df
     session_state = setFigureObjs(session_state)

@@ -171,14 +171,14 @@ def main():
             filt_col = st.columns([1, 2])
             with filt_col[0]:
                 # Select Box Features
-                for feat in st.session_state.SEL_feat:
+                for feat in st.session_state.SEL_feat_widg:
                     st.selectbox(feat,
                                 (st.session_state.df_raw[feat].unique()),
                                 key = 'sel' + feat)
 
             with filt_col[1]:
                 # Check Box Features
-                for feat in st.session_state.CHK_feat:
+                for feat in st.session_state.CHK_feat_widg:
                     st.checkbox(feat,
                                 key = 'sel' + feat)
 
