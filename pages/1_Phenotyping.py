@@ -285,6 +285,9 @@ def main():
                 st.markdown('### Plotting full scatterplot')
 
             st.write(f'Drawing {st.session_state.drawnPoints} points')
+            st.checkbox('Omit drawing cells with all negative markers',
+                        key = 'selhas_pos_mark',
+                        on_change=filter_and_plot)
 
         imageProgCol = st.columns([3, 1, 1, 2])
         with imageProgCol[0]:

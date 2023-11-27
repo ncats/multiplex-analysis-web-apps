@@ -321,7 +321,7 @@ def loadDataButton(session_state, df_import, projectName, fileName):
     session_state.SEL_feat_widg = []
     session_state.CHK_feat_widg = []
     session_state.SEL_feat = session_state.SEL_feat_widg + ['Slide_ID']
-    session_state.CHK_feat = session_state.CHK_feat_widg + []
+    session_state.CHK_feat = session_state.CHK_feat_widg + ['has_pos_mark']
     
     # if session_state.file_format == 'REEC':
     #     session_state.SEL_feat.extend(['tNt'])

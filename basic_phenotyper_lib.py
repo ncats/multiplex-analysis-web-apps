@@ -114,6 +114,10 @@ def add_mark_bits_col(df, marker_col_prefix):
     df['species_name_short'] = df['species_name_long'].apply(lambda species_name_long: ' '.join([x for x in filter(lambda x: x[-1] == '+', species_name_long.split(' '))]))
     df.loc[(df['species_name_short'] == ''), 'species_name_short'] = 'Other'
 
+    # Create a new column called 'has pos mark' identifying which species_name_shorts are not Other
+    df['has_pos_mark'] = True
+    df.loc[df['species_name_short'] == 'Other', 'has_pos_mark'] = False
+
     # Return the dataframe with the marker bits column appended as well as the list of marker names
     return df, marker_names
 
