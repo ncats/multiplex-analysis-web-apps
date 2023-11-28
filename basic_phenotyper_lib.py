@@ -529,7 +529,7 @@ def setup_Spatial_UMAP(df, marker_col_prefix, phenoOrder, cpu_pool_size = 1):
 
     # set explicitly as numpy array the cell coordinates (x, y)
     # Notice here that I needed to change the script to CentroidX, CentroidY
-    spatial_umap.cell_positions = spatial_umap.cells[['CentroidX', 'CentroidY']].values
+    spatial_umap.cell_positions = spatial_umap.cells[['Cell_X_Position', 'Cell_Y_Position']].values
     # set explicitly as one hot data frame the cell labels
     spatial_umap.cell_labels = pd.get_dummies(spatial_umap.cells['Lineage'])
     # set the region is to be analyzed (a TMA core is treated similar to a region of a interest)
@@ -555,7 +555,7 @@ def setup_Spatial_UMAP(df, marker_col_prefix, phenoOrder, cpu_pool_size = 1):
     spatial_umap.calc_proportions(area_threshold)
 
     phenoLabel = phenoOrder
-    phenoColor = mpl.colormaps['tab20'].colors
+    phenoColor = mpl.colormaps['tab20'].resampled(128).colors
 
     # Create a dictionary of phenotypes and the colors to draw them as
     spatial_umap.pheno_palette_dict = dict([(phenoLabel[x], phenoColor[x]) for x in range(len(phenoLabel))])

@@ -637,7 +637,7 @@ def setFigureObjs_UMAP(session_state):
     # Seaborn
     session_state.seabornFig_clust, session_state.ax = bpl.draw_scatter_fig(figsize=session_state.figsize)
     session_state.seabornFig_clust = bpl.scatter_plot(clustered_cells, session_state.seabornFig_clust, session_state.ax, title,
-                                                      xVar = 'CentroidX', yVar = 'CentroidY', hueVar = 'clust_label',
+                                                      xVar = 'Cell_X_Position', yVar = 'Cell_Y_Position', hueVar = 'clust_label',
                                                       hueOrder=clustOrder)
 
     # Altair
@@ -787,7 +787,7 @@ def setFigureObjs_UMAPDifferences(session_state):
     else:
         normAxis = None
 
-    session_state.heatmapfig = bpl.createHeatMap(cellsUMAP, session_state.assign_pheno['phenotype'], title, normAxis)
+    session_state.heatmapfig = bpl.createHeatMap(cellsUMAP, session_state.pheno_summ['phenotype'], title, normAxis)
 
     ### Incidence Line Graph ###
     # Filter by the lineage
@@ -831,7 +831,7 @@ def setFigureObjs_UMAPDifferences(session_state):
     # Cell Counts
     else:
         for clust_label, group in cellsUMAP.groupby('clust_label'):
-            inciDF.loc[clust_label, 'counts'] = group['ID'].count()
+            inciDF.loc[clust_label, 'counts'] = group['Slide_ID'].count()
 
     # Title
     inciTitle = [f'Incidence by Cluster']
