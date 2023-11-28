@@ -24,16 +24,19 @@ def data_editor_change_callback():
     st.session_state['saved_dataeditor_values'] = st.session_state['dataeditor__do_not_persist']
 
     # Update the Dataset with the Species Summary changes
-    st.session_state.df = bpl.update_df_phenotype(st.session_state.df, st.session_state.spec_summ)
-    st.session_state.df_filt = ndl.perform_filtering(st.session_state)
+    st.session_state.df = bpl.assign_phenotype_custom(st.session_state.df, 
+                                                      st.session_state.spec_summ)
 
     ## Assign Special spec_sum based on current spec_sum
     st.session_state.spec_summ_load = st.session_state.spec_summ.copy()
 
-    # Update the Assigned Phenotypes dataframe with Species Summary changes
-    st.session_state.assign_pheno = bpl.init_assign_pheno(st.session_state.df)
+    # Create Phenotypes Summary Table based on 'phenotype' column in df
+    st.session_state.pheno_summ = bpl.init_pheno_summ(st.session_state.df)
 
-    # Set Figure Objects
+    # Perform filtering
+    st.session_state.df_filt = ndl.perform_filtering(st.session_state)
+
+    # Set Figure Objects based on updated df
     st.session_state = ndl.setFigureObjs(st.session_state, st.session_state.pointstSliderVal_Sel)
 
 def update_input_data_editor():
@@ -49,6 +52,38 @@ def update_input_data_editor():
 
     # uniqueVals = st.session_state.spec_summ_dataeditor['phenotype'].unique()
     # st.session_state.spec_summ_dataeditor['phenotype'] = st.session_state.spec_summ_dataeditor['phenotype'].astype(pd.CategoricalDtype(uniqueVals))
+
+def slide_id_prog_left_callback():
+    if st.session_state.idxSlide_ID > 0:
+        st.session_state.idxSlide_ID -=1
+        st.session_state.selSlide_ID = st.session_state.uniSlide_ID[st.session_state.idxSlide_ID]
+        filter_and_plot()
+
+def slide_id_prog_right_callback():
+    if st.session_state.idxSlide_ID < st.session_state.numSlide_ID-1:
+        st.session_state.idxSlide_ID +=1
+        st.session_state.selSlide_ID = st.session_state.uniSlide_ID[st.session_state.idxSlide_ID]
+        filter_and_plot()
+
+def slide_id_callback():
+    st.session_state.idxSlide_ID = st.session_state.uniSlide_ID.index(st.session_state.selSlide_ID)
+    filter_and_plot()
+
+def filter_and_plot():
+    st.session_state.prog_left_disabeled  = False
+    st.session_state.prog_right_disabeled = False
+
+    if st.session_state.idxSlide_ID == 0:
+        st.session_state.prog_left_disabeled = True
+
+    if st.session_state.idxSlide_ID == st.session_state.numSlide_ID-1:
+        st.session_state.prog_right_disabeled = True
+
+    # Filtered dataset
+    st.session_state.df_filt = ndl.perform_filtering(st.session_state)
+
+    # Update and reset Figure Objects
+    st.session_state = ndl.setFigureObjs(st.session_state)
 
 def main():
     '''
@@ -121,6 +156,7 @@ def main():
             phenotype_file = os.path.join('output', st.session_state.phenoFileSelect)
             st.session_state.spec_summ_load = bpl.load_previous_species_summary(phenotype_file)
             st.session_state.phenoMeth = 'Custom'
+            st.session_state.selected_phenoMeth = 'Custom'
             st.session_state = ndl.updatePhenotyping(st.session_state)
             st.session_state.pointstSliderVal_Sel = st.session_state.calcSliderVal
 
@@ -137,6 +173,7 @@ def main():
             # Every form must have a submit button.
             submitted = st.form_submit_button('Apply Phenotyping Method')
             if submitted:
+                st.session_state.selected_phenoMeth = st.session_state.phenoMeth
                 st.session_state = ndl.updatePhenotyping(st.session_state)
                 st.session_state.pointstSliderVal_Sel = st.session_state.calcSliderVal
 
@@ -150,14 +187,14 @@ def main():
             filt_col = st.columns([1, 2])
             with filt_col[0]:
                 # Select Box Features
-                for feat in st.session_state.SEL_feat:
+                for feat in st.session_state.SEL_feat_widg:
                     st.selectbox(feat,
                                 (st.session_state.df_raw[feat].unique()),
                                 key = 'sel' + feat)
 
             with filt_col[1]:
                 # Check Box Features
-                for feat in st.session_state.CHK_feat:
+                for feat in st.session_state.CHK_feat_widg:
                     st.checkbox(feat,
                                 key = 'sel' + feat)
 
@@ -184,8 +221,8 @@ def main():
     # Second column on the page
     with vizCol2:
 
-        ### PHENOTYPE SUMMARY TABLE ###
-        st.markdown('## Phenotype Summary')
+        ### PHENOTYPE ASSIGNMENTS TABLE ###
+        st.markdown('## Phenotype Assignments')
         if st.session_state.selected_phenoMeth == 'Custom':
 
             if 'saved_dataeditor_values' in st.session_state:
@@ -201,10 +238,10 @@ def main():
         else:
             st.dataframe(st.session_state.spec_summ, use_container_width=True)
 
-        ### ASSIGNED PHENOTYPES TABLE ###
-        st.write('## Assigned Phenotypes')
+        ### PHENOTYPE SUMMARY TABLE ###
+        st.write('## Phenotype Summary')
         st.write('The following phenotypes will update as the table above is modified. Double-click a cell to see all its contents at once.')
-        st.dataframe(st.session_state.assign_pheno, use_container_width=True)
+        st.dataframe(st.session_state.pheno_summ, use_container_width=True)
 
         # Prepare for Exporting
         st.session_state.df_update = st.session_state.df.copy().drop(['mark_bits', 'species_name_long', 'species_name_short'], axis=1)
@@ -248,6 +285,22 @@ def main():
                 st.markdown('### Plotting full scatterplot')
 
             st.write(f'Drawing {st.session_state.drawnPoints} points')
+            st.checkbox('Omit drawing cells with all negative markers',
+                        key = 'selhas_pos_mark',
+                        on_change=filter_and_plot)
+
+        imageProgCol = st.columns([3, 1, 1, 2])
+        with imageProgCol[0]:
+            st.selectbox('Slide_ID',
+                         (st.session_state.uniSlide_ID),
+                         key = 'selSlide_ID',
+                         on_change=slide_id_callback)
+        with imageProgCol[1]:
+            st.button('←', on_click=slide_id_prog_left_callback, disabled=st.session_state.prog_left_disabeled)
+        with imageProgCol[2]:
+            st.button('→', on_click=slide_id_prog_right_callback, disabled=st.session_state.prog_right_disabeled)
+        with imageProgCol[3]:
+            st.write(f'Image {st.session_state.idxSlide_ID+1} of {st.session_state.numSlide_ID}')
 
         st.session_state.bc.startTimer()
         st.pyplot(st.session_state.phenoFig)

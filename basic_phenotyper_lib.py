@@ -60,7 +60,7 @@ def preprocess_df(df, marker_col_prefix):
     specSummSp = time.time()
 
     # Step 5: Intialize Phenotype Assignment Dataframe (based on Species Summary)
-    assign_pheno = init_assign_pheno(df)
+    pheno_summ = init_pheno_summ(df)
     assignPhenoSp = time.time()
 
     preprocTD = {'Total': np.round(assignPhenoSp - preprocSt, 3),
@@ -77,7 +77,7 @@ def preprocess_df(df, marker_col_prefix):
     Initalize Assign Phenotype: {preprocTD['Initalize Assign Phenotype']}s
           ''')
 
-    return df, marker_names, spec_summ, assign_pheno
+    return df, marker_names, spec_summ, pheno_summ
 
 def date_time_adjust(df, field):
     import pandas as pd
@@ -114,6 +114,10 @@ def add_mark_bits_col(df, marker_col_prefix):
     df['species_name_short'] = df['species_name_long'].apply(lambda species_name_long: ' '.join([x for x in filter(lambda x: x[-1] == '+', species_name_long.split(' '))]))
     df.loc[(df['species_name_short'] == ''), 'species_name_short'] = 'Other'
 
+    # Create a new column called 'has pos mark' identifying which species_name_shorts are not Other
+    df['has_pos_mark'] = True
+    df.loc[df['species_name_short'] == 'Other', 'has_pos_mark'] = False
+
     # Return the dataframe with the marker bits column appended as well as the list of marker names
     return df, marker_names
 
@@ -122,7 +126,6 @@ def init_species_summary(df):
 
     Args:
         df (Pandas dataframe): Dataframe containing data from the input dataset, including a "mark_bits" column
-        marker_names (list): List of marker names in the dataset
 
     Returns:
         Pandas dataframe: Dataframe containing the value counts of each "exclusive" species
@@ -156,8 +159,15 @@ def init_species_summary(df):
     # Return the created dataframe
     return spec_summ
 
-def init_assign_pheno(df):
-    import numpy as np
+def init_pheno_summ(df):
+    """For each unique species (elsewhere called "exclusive" phenotyping), generate information concerning their prevalence in a new dataframe.
+
+    Args:
+        df (Pandas dataframe): Dataframe containing data from the input dataset, including a "mark_bits" column
+
+    Returns:
+        assign_pheno (Pandas dataframe): Dataframe containing the value counts of each "exclusive" species
+    """
 
     assign_pheno = df[['phenotype', 'species_name_short', 'species_name_long']].groupby(by='phenotype', as_index = False).agg(lambda x: np.unique(list(x)))
 
@@ -172,7 +182,6 @@ def remove_compound_species(df, marker_names, allow_compound_species=True):
     For each compound species ('Species int' not just a plain power of two), add each 
     individual phenotype to the end of the dataframe individually and then delete the original compound entry
     '''
-    import numpy as np
 
     # Remove compound species if requested
     if not allow_compound_species:
@@ -319,31 +328,36 @@ def incorporate_phenotype_identifications(df_objects_orig, tsv_file=None):
     # I may have run into this issue before
     return df_objects_new
 
-def species_as_phenotype(df):
-    """Add a pretty phenotype column from the marker columns via the calculated species integer.
+def assign_phenotype_species(df):
+    """Add a "phenotype" column to df based on the from the marker columns via the calculated species integer.
 
     Args:
-        df (Pandas dataframe): Dataframe containing the "Species int" column.
-        markers (list): List of strings where each is a marker in the dataset.
-    """
-
-    # Create a "phenotype" column mapping from the "Species int"s to the pretty phenotypes
-    df['phenotype'] = df['species_name_short']
-
-    # Return the dataframe with the new phenotypes column
-    return(df)
-
-def update_df_phenotype(df, spec_summ):
-    """Add a "phenotype" column to the original dataset containing the phenotypes as assigned by the biologist.
-
-    Args:
-        df (Pandas dataframe): Dataframe of the input dataset containing a "mark_bits" column
-        df_value_counts (Pandas dataframe): Dataframe containing the value counts of each "exclusive" species
+        df (Pandas dataframe): Dataframe containing the "species_name_short" column
 
     Returns:
-        Pandas dataframe: Same as input dataframe but with a "phenotype" column appended or overwritten
+        df (Pandas dataframe): Input dataframe with an added "phenotype" column appended or overwritten
     """
+
+    # Create a "phenotype" column based on the from the "species_name_short"
+    df['phenotype'] = df['species_name_short']
+
+    # Return dataframe with phenotype column
+    return df
+
+def assign_phenotype_custom(df, spec_summ):
+    """Add a "phenotype" column to df based on a species summary dataframe which identfies custom phenotype assignments from custom phenotyping
+
+    Args:
+        df (Pandas dataframe): Dataframe containing the "species_name_short" column
+        spec_summ (Pandas dataframe): Dataframe containing the custom assignments of phenotypes based on "species_name_short"
+
+    Returns:
+        df (Pandas dataframe): Input dataframe with an added "phenotype" column appended or overwritten
+    """
+    # Create a "phenotype" column mapped from a species summary dataset
     df['phenotype'] = df['species_name_short'].map(dict(zip(spec_summ['species_name_short'].to_list(), spec_summ['phenotype'].to_list())))
+    
+    # Return dataframe with phenotype column
     return df
 
 def load_previous_species_summary(filename):

@@ -10,6 +10,7 @@ import yaml
 import numpy as np
 import pandas as pd
 import altair as alt
+from natsort import natsorted
 from pathlib import Path
 from datetime import datetime
 alt.data_transformers.disable_max_rows()
@@ -296,7 +297,7 @@ def loadDataButton(session_state, df_import, projectName, fileName):
     session_state.df, \
     session_state.marker_names, \
     session_state.spec_summ, \
-    session_state.assign_pheno = prepare_data(df_import, session_state.marker_pre)
+    session_state.pheno_summ = prepare_data(df_import, session_state.marker_pre)
     prepDataSp = time.time()
 
     # Meta Data
@@ -317,8 +318,10 @@ def loadDataButton(session_state, df_import, projectName, fileName):
     resetVarsSp = time.time()
 
     # Filtering
-    session_state.SEL_feat = ['Slide_ID']
-    session_state.CHK_feat = []
+    session_state.SEL_feat_widg = []
+    session_state.CHK_feat_widg = []
+    session_state.SEL_feat = session_state.SEL_feat_widg + ['Slide_ID']
+    session_state.CHK_feat = session_state.CHK_feat_widg + ['has_pos_mark']
     
     # if session_state.file_format == 'REEC':
     #     session_state.SEL_feat.extend(['tNt'])
@@ -328,14 +331,22 @@ def loadDataButton(session_state, df_import, projectName, fileName):
     features4filter = session_state.SEL_feat + session_state.CHK_feat
     # Create variables in session state
     for feature in features4filter:
-        session_state[eval('"uni" + feature')] = sorted(session_state.df_raw[feature].unique())    # Unique Values
+        session_state[eval('"uni" + feature')] = natsorted(session_state.df_raw[feature].unique())    # Unique Values
         if feature in session_state.CHK_feat:
             session_state[eval('"sel" + feature')] = 0
         else:
             session_state[eval('"sel" + feature')] = session_state[eval('"uni" + feature')][0] # Selected Value (default)
 
+    session_state.idxSlide_ID = 0
+    session_state.numSlide_ID = len(session_state.uniSlide_ID)
+
+    session_state.prog_left_disabeled = True
+    session_state.prog_right_disabeled = False
+    if session_state.numSlide_ID == 1:
+        session_state.prog_right_disabeled = True
+
     # Filtered dataset based on default filter settings and note the time
-    session_state.df_filt = perform_filtering(session_state) 
+    session_state.df_filt = perform_filtering(session_state)
     setfiltSp = time.time()
 
     # Draw Points Slider
@@ -378,7 +389,7 @@ def prepare_data(df_orig, marker_col_prefix):
     df_raw = df_orig.copy()
 
     # Perform pre-processing (based on app-specific needs)
-    df_raw, marker_names, spec_summ, assign_pheno = bpl.preprocess_df(df_raw, marker_col_prefix)
+    df_raw, marker_names, spec_summ, pheno_summ = bpl.preprocess_df(df_raw, marker_col_prefix)
     procDFSP = time.time()
 
     # Make a copy of df_raw as df
@@ -388,7 +399,7 @@ def prepare_data(df_orig, marker_col_prefix):
                   'procDF': np.round(procDFSP - fx_colsSp, 3)}
     # print(prepDataTD)
 
-    return df_raw, df, marker_names, spec_summ, assign_pheno
+    return df_raw, df, marker_names, spec_summ, pheno_summ
 
 def fix_df_cols(df):
     """
@@ -419,29 +430,37 @@ def load_dataset(fiol, dataset_path, files_dict, file_path, loadCompass=False):
 
 def updatePhenotyping(session_state):
     '''
+    Function that is run when changes are made to the phenotyping settings
+    of the apps
     
     '''
-    session_state.selected_phenoMeth = session_state.phenoMeth
-    session_state.df = changePhenoMeth(session_state.df_raw,
-                                       session_state.spec_summ_load,
-                                       session_state.selected_phenoMeth,
-                                       session_state.marker_names)
 
-    session_state.spec_summ = bpl.init_species_summary(session_state.df)
-    session_state.assign_pheno = bpl.init_assign_pheno(session_state.df)
+    # Create the session_state.df which is ostensibly 
+    session_state.df = assign_phenotype_col(session_state.df_raw,
+                                            session_state.spec_summ_load,
+                                            session_state.selected_phenoMeth,
+                                            session_state.marker_names)
+
+    # Initalize Species Summary Table
+    session_state.spec_summ    = bpl.init_species_summary(session_state.df)
+    # Set the data_editor species summary 
     session_state.spec_summ_dataeditor = session_state.spec_summ.copy()
+
+    # Create Phenotypes Summary Table based on 'phenotype' column in df
+    session_state.pheno_summ = bpl.init_pheno_summ(session_state.df)
 
     # Perform filtering
     session_state.df_filt = perform_filtering(session_state)
 
-    # Set Figure Objects
+    # Set Figure Objects based on updated df
     session_state = setFigureObjs(session_state)
 
     return session_state
 
-def changePhenoMeth(df_raw, spec_summ_load, phenoMeth, marker_names):
+def assign_phenotype_col(df_raw, spec_summ_load, phenoMeth, marker_names):
     """
-    Toggle for changing the phenotyping method
+    Assign a new column to the raw dataset (df_raw) called 'phenotype' based on the 
+    phenotyping method selected. The returned dataset (df) is considered 
     """
 
     df = df_raw.copy()
@@ -458,11 +477,11 @@ def changePhenoMeth(df_raw, spec_summ_load, phenoMeth, marker_names):
         # multiple positive markers
         df = bpl.remove_compound_species(df, marker_names, allow_compound_species=allow_compound_species)
 
-        # Add a pretty phenotype column to the dataframe
-        df = bpl.species_as_phenotype(df)
+        # Assign phenotype column to dataframe based on species name
+        df = bpl.assign_phenotype_species(df)
     else:
-        # Update df based on previously saved species_summ
-        df = bpl.update_df_phenotype(df, spec_summ_load)
+        # Assign phenotype column to dataframe based on species summary
+        df = bpl.assign_phenotype_custom(df, spec_summ_load)
 
     return df
 
@@ -476,12 +495,14 @@ def perform_filtering(session_state):
     """
 
     # Create dictionaries of filter types
-    session_state = init_filter_struct(session_state)
+    session_state = init_filter_struct(session_state, 
+                                       session_state.SEL_feat,
+                                       session_state.CHK_feat)
 
     # Filter the dataset
     return filter_dataset(session_state.df, session_state.SELdict, session_state.CHKdict)
 
-def init_filter_struct(session_state):
+def init_filter_struct(session_state, SEL_feat, CHK_feat):
     """
     Initalize filtering data structures
     """
@@ -489,10 +510,10 @@ def init_filter_struct(session_state):
     SELdict = dict()
     CHKdict = dict()
 
-    for key in session_state.SEL_feat:
+    for key in SEL_feat:
         SELdict['{}'.format(key)] = session_state[eval('"sel" + key')]
 
-    for key in session_state.CHK_feat:
+    for key in CHK_feat:
         CHKdict['{}'.format(key)] = session_state[eval('"sel" + key')]
 
     session_state.SELdict = SELdict
@@ -565,7 +586,7 @@ def setFigureObjs(session_state, InSliderVal = None):
              f'DATASET: {session_state.datafile}',
              f'PHENO METHOD: {session_state.selected_phenoMeth}']
 
-    session_state.phenoOrder = list(session_state.assign_pheno.loc[session_state.assign_pheno['phenotype_count'].index, 'phenotype'])
+    session_state.phenoOrder = list(session_state.pheno_summ.loc[session_state.pheno_summ['phenotype_count'].index, 'phenotype'])
 
     # NumPoints
     targCellCount = 150000 
