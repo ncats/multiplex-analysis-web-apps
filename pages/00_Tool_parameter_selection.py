@@ -104,6 +104,41 @@ def main():
         if str2 in settings[str1]:
             st.session_state['settings__{}__{}'.format(str1, str2)] = settings[str1][str2]
 
+    def create_phenotype_assignments_file_from_phenotyper(df_phenotype_assignments):
+
+        # Import relevant library
+        from datetime import datetime
+
+        # Set the full directory path to the phenotypes files
+        phenotypes_path = os.path.join(input_directory, 'phenotypes')
+
+        # Create this path if it doesn't already exist
+        if not os.path.exists(phenotypes_path):
+            os.makedirs(phenotypes_path)
+
+        # Set the filename of the phenotype assignments file to write
+        filename = 'phenotype_assignments_from_phenotyper-{}.tsv'.format(datetime.now().strftime("%Y%m%d_%H%M%S"))
+
+        # Assign a new dataframe as a subset of the one containing the phenotype assignments and modify one of its columns to spec
+        df_phenotype_assignments_to_write = df_phenotype_assignments[['species_count', 'species_percent', 'species_name_short', 'phenotype']]
+        df_phenotype_assignments_to_write['species_name_short'] = df_phenotype_assignments_to_write['species_name_short'].apply(lambda x: x.rstrip('+').split('+ '))
+
+        # Write the dataframe to disk
+        df_phenotype_assignments_to_write.to_csv(path_or_buf=os.path.join(phenotypes_path, filename), sep='\t', header=False)
+
+        # Return the filename of the written file
+        return filename
+
+    def load_relevant_settings_from_phenotyper():
+        st.session_state['settings__input_datafile__filename'] = st.session_state['datafileU']
+        update_dependencies_of_input_datafile_filename()
+        st.session_state['settings__input_datafile__coordinate_units'] = st.session_state['phenotyping_micron_coordinate_units']
+        if st.session_state['phenoMeth'] == 'Custom':
+            phenotyper_assignments_filename = create_phenotype_assignments_file_from_phenotyper(st.session_state['spec_summ_dataeditor'])  # --> confirm with Dante that this is the one to use
+            st.session_state['settings__phenotyping__phenotype_identification_file'] = phenotyper_assignments_filename
+        st.session_state['settings__phenotyping__method'] = st.session_state['phenoMeth']
+        update_dependencies_of_phenotyping_method()
+
     # Set a wide layout
     st.set_page_config(layout="wide")
 
@@ -178,7 +213,7 @@ def main():
         st.selectbox('Optionally, instead load settings from available parameter file:', options_for_parameter_files, key='preset_parameter_file')
 
     # Optionally load the selected parameter file and map the loaded settings to the corresponding ones in the session state
-    if st.button('Load selected parameter file', disabled=(st.session_state['preset_parameter_file'] is None)):
+    if st.button(':arrow_down: Load selected parameter file', disabled=(st.session_state['preset_parameter_file'] is None)):
         with open(st.session_state['preset_parameter_file'], mode='rt') as file:
             preset_settings = yaml.load(file, yaml.UnsafeLoader)
         settings = utils.validate_presets_and_map_to_settings(preset_settings, options_for_input_datafiles, options_for_input_datafile_formats, options_for_phenotype_identification_files, st.session_state['options_for_annotation_files'], options_for_phenotyping_methods, options_for_significance_calculation_methods, st.session_state['options_for_images'], message_function=streamlit_utils.streamlit_write_function)
@@ -211,6 +246,8 @@ def main():
         update_dependencies_of_annotation_coord_units_are_pixels()
         set_session_state_key(settings, 'annotation', 'microns_per_integer_unit')
         set_session_state_key(settings, 'plotting', 'min_log_pval')
+
+    st.button(':arrow_right: Load relevant settings from Phenotyper', on_click=load_relevant_settings_from_phenotyper)
 
     # Logical divider
     st.divider()

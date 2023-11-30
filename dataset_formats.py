@@ -544,7 +544,7 @@ class OMAL(Native):
         _, _, _, _, _, phenotype_columns = extract_datafile_metadata(input_datafile)
 
         # Rename the phenotype columns so that they are prepended with "Phenotype "
-        df = df.rename(dict(zip(phenotype_columns, ['Phenotype {}'.format(x) for x in phenotype_columns])), axis='columns')
+        df = df.rename(dict(zip(phenotype_columns, ['Phenotype {}'.format(x.strip()) for x in phenotype_columns])), axis='columns')
 
         # For each phenotype column, convert zeros and ones to -'s and +'s
         for col in df.filter(regex='^Phenotype\ '):
@@ -652,7 +652,7 @@ class REEC(Native):
         phenotype_columns = [marker + '_HI' for marker in markers]
 
         # Rename the phenotype columns so that they are prepended with "Phenotype "
-        df = df.rename(dict(zip(phenotype_columns, ['Phenotype {}'.format(marker) for marker in markers])), axis='columns')
+        df = df.rename(dict(zip(phenotype_columns, ['Phenotype {}'.format(marker.strip()) for marker in markers])), axis='columns')
 
         # For each phenotype column, convert zeros and ones to -'s and +'s
         for col in df.filter(regex='^Phenotype\ '):
@@ -777,7 +777,7 @@ class QuPath(Native):
         df = self.data
 
         # Add "Phenotype XXXX" columns to the dataframe from the "Class" column entries
-        df = pd.concat([df, pd.DataFrame(df['Class'].apply(lambda x: dict([(y, 1) for y in ['Phenotype ' + marker for marker in x.split(': ')]])).to_list()).replace({np.nan: 0}).astype(int)], axis='columns')
+        df = pd.concat([df, pd.DataFrame(df['Class'].apply(lambda x: dict([(y, 1) for y in ['Phenotype ' + marker.strip() for marker in x.split(': ')]])).to_list()).replace({np.nan: 0}).astype(int)], axis='columns')
         if 'Phenotype Other' in df.columns:
             df = df.drop('Phenotype Other', axis='columns')
 
