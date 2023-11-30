@@ -529,7 +529,7 @@ def setup_Spatial_UMAP(df, marker_col_prefix, phenoOrder, cpu_pool_size = 1):
 
     # set explicitly as numpy array the cell coordinates (x, y)
     # Notice here that I needed to change the script to CentroidX, CentroidY
-    spatial_umap.cell_positions = spatial_umap.cells[['CentroidX', 'CentroidY']].values
+    spatial_umap.cell_positions = spatial_umap.cells[['Cell_X_Position', 'Cell_Y_Position']].values
     # set explicitly as one hot data frame the cell labels
     spatial_umap.cell_labels = pd.get_dummies(spatial_umap.cells['Lineage'])
     # set the region is to be analyzed (a TMA core is treated similar to a region of a interest)
