@@ -484,7 +484,7 @@ def setup_Spatial_UMAP(df, marker_col_prefix, phenoOrder, cpu_pool_size = 1):
     spatial_umap.cells['Lineage'] = spatial_umap.cells['phenotype']
 
     # Set regions
-    spatial_umap.cells['TMA_core_id'] = spatial_umap.cells['Slide_ID']
+    spatial_umap.cells['TMA_core_id'] = spatial_umap.cells['Slide ID']
     # Set sample number
     if 'Sample_number' not in spatial_umap.cells:
         spatial_umap.cells['Sample_number'] = np.ones(spatial_umap.cells.shape[0])
