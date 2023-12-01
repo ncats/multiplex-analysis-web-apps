@@ -62,6 +62,7 @@ def slide_id_prog_left_callback():
     if st.session_state.idxSlide_ID > 0:
         st.session_state.idxSlide_ID -=1
         st.session_state.selSlide_ID = st.session_state.uniSlide_ID[st.session_state.idxSlide_ID]
+        st.session_state.selSlide_ID_short = st.session_state.uniSlide_ID_short[st.session_state.idxSlide_ID]
         filter_and_plot()
 
 def slide_id_prog_right_callback():
@@ -71,13 +72,15 @@ def slide_id_prog_right_callback():
     if st.session_state.idxSlide_ID < st.session_state.numSlide_ID-1:
         st.session_state.idxSlide_ID +=1
         st.session_state.selSlide_ID = st.session_state.uniSlide_ID[st.session_state.idxSlide_ID]
+        st.session_state.selSlide_ID_short = st.session_state.uniSlide_ID_short[st.session_state.idxSlide_ID]
         filter_and_plot()
 
 def slide_id_callback():
     '''
     callback function when the Cell_ID select box changes
     '''
-    st.session_state.idxSlide_ID = st.session_state.uniSlide_ID.index(st.session_state.selSlide_ID)
+    st.session_state.idxSlide_ID = st.session_state.uniSlide_ID_short.index(st.session_state.selSlide_ID_short)
+    st.session_state.selSlide_ID = st.session_state.uniSlide_ID[st.session_state.idxSlide_ID]
     filter_and_plot()
 
 def filter_and_plot():
@@ -302,8 +305,8 @@ def main():
         imageProgCol = st.columns([3, 1, 1, 2])
         with imageProgCol[0]:
             st.selectbox('Slide_ID',
-                         (st.session_state.uniSlide_ID),
-                         key = 'selSlide_ID',
+                         (st.session_state.uniSlide_ID_short),
+                         key = 'selSlide_ID_short',
                          on_change=slide_id_callback)
         with imageProgCol[1]:
             add_vertical_space(2)

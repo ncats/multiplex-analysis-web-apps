@@ -344,6 +344,8 @@ def loadDataButton(session_state, df_import, projectName, fileName):
 
     session_state.idxSlide_ID = 0
     session_state.numSlide_ID = len(session_state.uniSlide_ID)
+    session_state.uniSlide_ID_short = [x[x.find('imagenum_')+9: ] for x in session_state.uniSlide_ID]
+    session_state.selSlide_ID_short = session_state.uniSlide_ID_short[0]
 
     session_state.prog_left_disabeled = True
     session_state.prog_right_disabeled = False
