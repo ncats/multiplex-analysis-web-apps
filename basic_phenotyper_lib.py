@@ -357,6 +357,8 @@ def assign_phenotype_custom(df, spec_summ):
     # Create a "phenotype" column mapped from a species summary dataset
     df['phenotype'] = df['species_name_short'].map(dict(zip(spec_summ['species_name_short'].to_list(), spec_summ['phenotype'].to_list())))
     
+    df.loc[df['phenotype'].isna(), 'phenotype'] = 'unassigned'
+
     # Return dataframe with phenotype column
     return df
 
@@ -514,7 +516,7 @@ def setup_Spatial_UMAP(df, marker_col_prefix, phenoOrder, cpu_pool_size = 1):
     spatial_umap.cells['Lineage'] = spatial_umap.cells['phenotype']
 
     # Set regions
-    spatial_umap.cells['TMA_core_id'] = spatial_umap.cells['tNt']
+    spatial_umap.cells['TMA_core_id'] = spatial_umap.cells['Slide_ID']
     # Set sample number
     if 'Sample_number' not in spatial_umap.cells:
         spatial_umap.cells['Sample_number'] = np.ones(spatial_umap.cells.shape[0])
@@ -555,7 +557,7 @@ def setup_Spatial_UMAP(df, marker_col_prefix, phenoOrder, cpu_pool_size = 1):
     spatial_umap.calc_proportions(area_threshold)
 
     phenoLabel = phenoOrder
-    phenoColor = mpl.colormaps['tab20'].colors
+    phenoColor = mpl.colormaps['tab20'].resampled(128).colors
 
     # Create a dictionary of phenotypes and the colors to draw them as
     spatial_umap.pheno_palette_dict = dict([(phenoLabel[x], phenoColor[x]) for x in range(len(phenoLabel))])

@@ -21,9 +21,11 @@ def data_editor_change_callback():
     data_editor on_change method. This ensures the dashboard can remake the edited data_editor
     when the user navigates to a different page.
     '''
-    st.session_state['saved_dataeditor_values'] = st.session_state['dataeditor__do_not_persist']
+    st.session_state.saved_dataeditor_values = st.session_state['dataeditor__do_not_persist']
 
+    update_input_data_editor()
     # Update the Dataset with the Species Summary changes
+    st.session_state.spec_summ = st.session_state.spec_summ_dataeditor
     st.session_state.df = bpl.assign_phenotype_custom(st.session_state.df, 
                                                       st.session_state.spec_summ)
 
@@ -54,22 +56,34 @@ def update_input_data_editor():
     # st.session_state.spec_summ_dataeditor['phenotype'] = st.session_state.spec_summ_dataeditor['phenotype'].astype(pd.CategoricalDtype(uniqueVals))
 
 def slide_id_prog_left_callback():
+    '''
+    callback function when the left Cell_ID progression button is clicked
+    '''
     if st.session_state.idxSlide_ID > 0:
         st.session_state.idxSlide_ID -=1
         st.session_state.selSlide_ID = st.session_state.uniSlide_ID[st.session_state.idxSlide_ID]
         filter_and_plot()
 
 def slide_id_prog_right_callback():
+    '''
+    callback function when the right Cell_ID progression button is clicked
+    '''
     if st.session_state.idxSlide_ID < st.session_state.numSlide_ID-1:
         st.session_state.idxSlide_ID +=1
         st.session_state.selSlide_ID = st.session_state.uniSlide_ID[st.session_state.idxSlide_ID]
         filter_and_plot()
 
 def slide_id_callback():
+    '''
+    callback function when the Cell_ID select box changes
+    '''
     st.session_state.idxSlide_ID = st.session_state.uniSlide_ID.index(st.session_state.selSlide_ID)
     filter_and_plot()
 
 def filter_and_plot():
+    '''
+    function to update the filtering and the figure plotting
+    '''
     st.session_state.prog_left_disabeled  = False
     st.session_state.prog_right_disabeled = False
 
@@ -200,11 +214,7 @@ def main():
 
             submitted = st.form_submit_button('Apply Filters')
             if submitted:
-                # Filtered dataset
-                st.session_state.df_filt = ndl.perform_filtering(st.session_state)
-
-                # Update and reset Figure Objects
-                st.session_state = ndl.setFigureObjs(st.session_state)
+                filter_and_plot()
                 st.session_state.pointstSliderVal_Sel = st.session_state.calcSliderVal
 
     ## In-App Instructions
@@ -296,10 +306,13 @@ def main():
                          key = 'selSlide_ID',
                          on_change=slide_id_callback)
         with imageProgCol[1]:
+            add_vertical_space(2)
             st.button('←', on_click=slide_id_prog_left_callback, disabled=st.session_state.prog_left_disabeled)
         with imageProgCol[2]:
+            add_vertical_space(2)
             st.button('→', on_click=slide_id_prog_right_callback, disabled=st.session_state.prog_right_disabeled)
         with imageProgCol[3]:
+            add_vertical_space(2)
             st.write(f'Image {st.session_state.idxSlide_ID+1} of {st.session_state.numSlide_ID}')
 
         st.session_state.bc.startTimer()
