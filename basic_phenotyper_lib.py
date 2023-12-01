@@ -357,6 +357,8 @@ def assign_phenotype_custom(df, spec_summ):
     # Create a "phenotype" column mapped from a species summary dataset
     df['phenotype'] = df['species_name_short'].map(dict(zip(spec_summ['species_name_short'].to_list(), spec_summ['phenotype'].to_list())))
     
+    df.loc[df['phenotype'].isna(), 'phenotype'] = 'unassigned'
+
     # Return dataframe with phenotype column
     return df
 

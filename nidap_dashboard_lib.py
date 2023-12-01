@@ -303,8 +303,13 @@ def loadDataButton(session_state, df_import, projectName, fileName):
     # Meta Data
     session_state.selectProj = projectName # Project Name
     session_state.datafile   = fileName    # File Name
-    session_state.spec_summ_load = session_state.spec_summ.copy() # Default version that is loaded
+    session_state.spec_summ_load       = session_state.spec_summ.copy() # Default version that is loaded
     session_state.spec_summ_dataeditor = session_state.spec_summ.copy() # Default version that is used for custom phenotyping table
+
+    if 'dataeditor__do_not_persist' in session_state:
+        del session_state.dataeditor__do_not_persist
+    if 'saved_dataeditor_values' in session_state:
+        del session_state.saved_dataeditor_values
 
     # Default Phenotyping Method (Radio Button)
     session_state.noPhenoOpt = 'Not Selected'
@@ -432,7 +437,11 @@ def updatePhenotyping(session_state):
     '''
     Function that is run when changes are made to the phenotyping settings
     of the apps
-    
+    Args:
+        session_state: Streamlit data structure
+
+    Returns:
+        session_state: Streamlit data structure
     '''
 
     # Create the session_state.df which is ostensibly 
@@ -444,15 +453,22 @@ def updatePhenotyping(session_state):
     # Initalize Species Summary Table
     session_state.spec_summ    = bpl.init_species_summary(session_state.df)
     # Set the data_editor species summary 
+    
+    if 'dataeditor__do_not_persist' in session_state:
+        del session_state.dataeditor__do_not_persist
+    if 'saved_dataeditor_values' in session_state:
+        del session_state.saved_dataeditor_values
+
+    # session_state.spec_summ_load       = session_state.spec_summ.copy()
     session_state.spec_summ_dataeditor = session_state.spec_summ.copy()
 
     # Create Phenotypes Summary Table based on 'phenotype' column in df
     session_state.pheno_summ = bpl.init_pheno_summ(session_state.df)
 
-    # Perform filtering
+    # Filtered dataset
     session_state.df_filt = perform_filtering(session_state)
 
-    # Set Figure Objects based on updated df
+    # Update and reset Figure Objects
     session_state = setFigureObjs(session_state)
 
     return session_state
