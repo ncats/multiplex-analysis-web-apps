@@ -400,7 +400,7 @@ def scatter_plot(df, fig, ax, figTitle, xVar, yVar, hueVar, hueOrder, xLim = Non
     # Set the Title
     ax.set_frame_on(False) # Turn off the Frame
 
-    if xVar == 'Cell_X_Position':
+    if xVar == 'Cell X Position':
         ax.set_title(pltTitle, fontsize = 14, color = SlTC, ha='left', x=x, wrap=True)
         ax.set_xlabel('Centroid X ('r'$\mu m)$', fontsize = 14, color = SlTC)
         ax.set_ylabel('Centroid Y ('r'$\mu m)$', fontsize = 14, color = SlTC)
@@ -499,7 +499,7 @@ def setup_Spatial_UMAP(df, marker_col_prefix, phenoOrder, cpu_pool_size = 1):
 
     # set explicitly as numpy array the cell coordinates (x, y)
     # Notice here that I needed to change the script to CentroidX, CentroidY
-    spatial_umap.cell_positions = spatial_umap.cells[['Cell_X_Position', 'Cell_Y_Position']].values
+    spatial_umap.cell_positions = spatial_umap.cells[['Cell X Position', 'Cell Y Position']].values
     # set explicitly as one hot data frame the cell labels
     spatial_umap.cell_labels = pd.get_dummies(spatial_umap.cells['Lineage'])
     # set the region is to be analyzed (a TMA core is treated similar to a region of a interest)

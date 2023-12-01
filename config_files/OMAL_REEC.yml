@@ -11,7 +11,7 @@ def_df:
   Index: [1]
   tNt: ['48h Untreated']
   GOODNUC: [1]
-  Phenotype_a: [1]
+  Phenotype a: [1]
 
 filt_feat:
   SEL_feat: ['tNt']
@@ -19,7 +19,7 @@ filt_feat:
 
 analysis:
   dataset_type: 'OMAL_will'
-  marker_pre: 'Phenotype_'
+  marker_pre: 'Phenotype '
   outcomes_BOOL: ['HYPOXIC', 'NORMOXIC']
   outcomes_nBOOL: ['NucArea', 'RelOrientation']
   outcomes_nBOOL_thresh: [0, 0]
