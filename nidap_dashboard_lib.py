@@ -343,14 +343,14 @@ def loadDataButton(session_state, df_import, projectName, fileName):
         else:
             session_state[eval('"sel" + feature')] = session_state[eval('"uni" + feature')][0] # Selected Value (default)
 
-    session_state.idxSlide_ID = 0
-    session_state.numSlide_ID = len(session_state.uniSlide_ID)
-    session_state.uniSlide_ID_short = [x[x.find('imagenum_')+9: ] for x in session_state.uniSlide_ID]
-    session_state.selSlide_ID_short = session_state.uniSlide_ID_short[0]
+    session_state['idxSlide ID'] = 0
+    session_state['numSlide ID'] = len(session_state['uniSlide ID'])
+    session_state['uniSlide ID_short'] = [x[x.find('imagenum_')+9: ] for x in session_state['uniSlide ID']]
+    session_state['selSlide ID_short'] = session_state['uniSlide ID_short'][0]
 
     session_state.prog_left_disabeled = True
     session_state.prog_right_disabeled = False
-    if session_state.numSlide_ID == 1:
+    if session_state['numSlide ID'] == 1:
         session_state.prog_right_disabeled = True
 
     # Filtered dataset based on default filter settings and note the time
@@ -830,7 +830,7 @@ def setFigureObjs_UMAPDifferences(session_state):
     # Cell Counts
     else:
         for clust_label, group in cellsUMAP.groupby('clust_label'):
-            inciDF.loc[clust_label, 'counts'] = group['Slide_ID'].count()
+            inciDF.loc[clust_label, 'counts'] = group['Slide ID'].count()
 
     # Title
     inciTitle = [f'Incidence by Cluster']
