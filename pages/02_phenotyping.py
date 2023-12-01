@@ -4,7 +4,6 @@ This is the python script which produces the PHENOTYPING PAGE
 import os
 import time
 import streamlit as st
-import pandas as pd
 from st_pages import show_pages_from_config, add_indentation
 from streamlit_extras.add_vertical_space import add_vertical_space 
 from streamlit_extras.app_logo import add_logo
@@ -13,6 +12,7 @@ import dataset_formats
 # Import relevant libraries
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
 import basic_phenotyper_lib as bpl  # Useful functions for phenotyping collections of cells
+import app_top_of_page as top
 
 def data_editor_change_callback():
     '''
@@ -62,6 +62,7 @@ def slide_id_prog_left_callback():
     if st.session_state.idxSlide_ID > 0:
         st.session_state.idxSlide_ID -=1
         st.session_state.selSlide_ID = st.session_state.uniSlide_ID[st.session_state.idxSlide_ID]
+        st.session_state.selSlide_ID_short = st.session_state.uniSlide_ID_short[st.session_state.idxSlide_ID]
         filter_and_plot()
 
 def slide_id_prog_right_callback():
@@ -71,13 +72,15 @@ def slide_id_prog_right_callback():
     if st.session_state.idxSlide_ID < st.session_state.numSlide_ID-1:
         st.session_state.idxSlide_ID +=1
         st.session_state.selSlide_ID = st.session_state.uniSlide_ID[st.session_state.idxSlide_ID]
+        st.session_state.selSlide_ID_short = st.session_state.uniSlide_ID_short[st.session_state.idxSlide_ID]
         filter_and_plot()
 
 def slide_id_callback():
     '''
     callback function when the Cell_ID select box changes
     '''
-    st.session_state.idxSlide_ID = st.session_state.uniSlide_ID.index(st.session_state.selSlide_ID)
+    st.session_state.idxSlide_ID = st.session_state.uniSlide_ID_short.index(st.session_state.selSlide_ID_short)
+    st.session_state.selSlide_ID = st.session_state.uniSlide_ID[st.session_state.idxSlide_ID]
     filter_and_plot()
 
 def filter_and_plot():
@@ -123,6 +126,9 @@ def main():
 
     # Add logo to page
     add_logo('app_images/mawa_logo-width315.png', height=150)
+
+    # Run Top of Page (TOP) functions
+    st.session_state = top.check_for_platform(st.session_state)
 
     if 'init' not in st.session_state:
         settings_yaml_file = 'config_files/OMAL_REEC.yml'
@@ -195,28 +201,35 @@ def main():
     if st.session_state.selected_phenoMeth != 'Not Selected':
         st.session_state.phenotyping_completed = True
 
+    midCol = st.columns(2)
+    with midCol[0]:
     ### Data Filters Container ###
-    with st.expander('Data Filters'):
-        with st.form('Filter Levers'):
-            filt_col = st.columns([1, 2])
-            with filt_col[0]:
-                # Select Box Features
-                for feat in st.session_state.SEL_feat_widg:
-                    st.selectbox(feat,
-                                (st.session_state.df_raw[feat].unique()),
-                                key = 'sel' + feat)
+        with st.expander('Data Filters'):
+            with st.form('Filter Levers'):
+                filt_col = st.columns([1, 2])
+                with filt_col[0]:
+                    # Select Box Features
+                    for feat in st.session_state.SEL_feat_widg:
+                        st.selectbox(feat,
+                                    (st.session_state.df_raw[feat].unique()),
+                                    key = 'sel' + feat)
 
-            with filt_col[1]:
-                # Check Box Features
-                for feat in st.session_state.CHK_feat_widg:
-                    st.checkbox(feat,
-                                key = 'sel' + feat)
+                with filt_col[1]:
+                    # Check Box Features
+                    for feat in st.session_state.CHK_feat_widg:
+                        st.checkbox(feat,
+                                    key = 'sel' + feat)
 
-            submitted = st.form_submit_button('Apply Filters')
-            if submitted:
-                filter_and_plot()
-                st.session_state.pointstSliderVal_Sel = st.session_state.calcSliderVal
-
+                submitted = st.form_submit_button('Apply Filters')
+                if submitted:
+                    filter_and_plot()
+                    st.session_state.pointstSliderVal_Sel = st.session_state.calcSliderVal
+    with midCol[1]:
+         with st.expander('Choose Markers to include'):
+            print(st.session_state.marker_names)
+            # st.multiselect('Markers', options = st.session_state.marker_names,
+            #                           default = st.session_state.marker_names,
+            #                           key = 'marker_multi_sel')
     ## In-App Instructions
     if st.session_state.data_loaded is False:
         st.warning('Data not loaded (above)', icon="⚠️")
@@ -302,8 +315,8 @@ def main():
         imageProgCol = st.columns([3, 1, 1, 2])
         with imageProgCol[0]:
             st.selectbox('Slide_ID',
-                         (st.session_state.uniSlide_ID),
-                         key = 'selSlide_ID',
+                         (st.session_state.uniSlide_ID_short),
+                         key = 'selSlide_ID_short',
                          on_change=slide_id_callback)
         with imageProgCol[1]:
             add_vertical_space(2)
