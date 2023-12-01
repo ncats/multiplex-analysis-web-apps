@@ -121,8 +121,11 @@ def main():
         filename = 'phenotype_assignments_from_phenotyper-{}.tsv'.format(datetime.now().strftime("%Y%m%d_%H%M%S"))
 
         # Assign a new dataframe as a subset of the one containing the phenotype assignments and modify one of its columns to spec
-        df_phenotype_assignments_to_write = df_phenotype_assignments[['species_count', 'species_percent', 'species_name_short', 'phenotype']]
-        df_phenotype_assignments_to_write['species_name_short'] = df_phenotype_assignments_to_write['species_name_short'].apply(lambda x: x.rstrip('+').split('+ '))
+        df_phenotype_assignments_to_write = df_phenotype_assignments[['species_count', 'species_percent', 'species_name_short', 'phenotype', 'species_name_long']]
+        df_phenotype_assignments_to_write = df_phenotype_assignments_to_write[df_phenotype_assignments_to_write['species_name_long'].apply(lambda species_name_long: sum([0 if x[-1] == '-' else 1 for x in species_name_long.split(' ')]) != 0)]
+        df_phenotype_assignments_to_write = df_phenotype_assignments_to_write.drop('species_name_long', axis='columns')
+        df_phenotype_assignments_to_write['species_name_short'] = df_phenotype_assignments_to_write['species_name_short'].apply(lambda x: sorted(x.rstrip('+').split('+ ')))
+        df_phenotype_assignments_to_write['species_percent'] = df_phenotype_assignments_to_write['species_count'] / df_phenotype_assignments_to_write['species_count'].sum() * 100
 
         # Write the dataframe to disk
         df_phenotype_assignments_to_write.to_csv(path_or_buf=os.path.join(phenotypes_path, filename), sep='\t', header=False)
@@ -135,7 +138,7 @@ def main():
         update_dependencies_of_input_datafile_filename()
         st.session_state['settings__input_datafile__coordinate_units'] = st.session_state['phenotyping_micron_coordinate_units']
         if st.session_state['phenoMeth'] == 'Custom':
-            phenotyper_assignments_filename = create_phenotype_assignments_file_from_phenotyper(st.session_state['spec_summ_dataeditor'])  # --> confirm with Dante that this is the one to use
+            phenotyper_assignments_filename = create_phenotype_assignments_file_from_phenotyper(st.session_state['spec_summ_dataeditor'])
             st.session_state['settings__phenotyping__phenotype_identification_file'] = phenotyper_assignments_filename
         st.session_state['settings__phenotyping__method'] = st.session_state['phenoMeth']
         update_dependencies_of_phenotyping_method()
