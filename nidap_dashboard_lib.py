@@ -344,8 +344,8 @@ def loadDataButton(session_state, df_import, projectName, fileName):
 
     session_state.idxSlide_ID = 0
     session_state.numSlide_ID = len(session_state.uniSlide_ID)
-    session_state.uniSlide_ID_short = [x[0:9] for x in session_state.uniSlide_ID]
-    print(session_state.uniSlide_ID_short)
+    session_state.uniSlide_ID_short = [x[x.find('imagenum_')+9: ] for x in session_state.uniSlide_ID]
+    session_state.selSlide_ID_short = session_state.uniSlide_ID_short[0]
 
     session_state.prog_left_disabeled = True
     session_state.prog_right_disabeled = False
@@ -609,6 +609,9 @@ def setFigureObjs(session_state, InSliderVal = None):
     # NumPoints
     targCellCount = 150000 
     df_plot = session_state.df_filt.copy()
+
+    # minXY = df_plot[['Cell_X_Position', 'Cell_Y_Position']].min()-1
+    # maxXY = df_plot[['Cell_X_Position', 'Cell_Y_Position']].max()+1
 
     numPoints = session_state.df_filt.shape[0]
     if (numPoints > targCellCount) & (InSliderVal is None):
