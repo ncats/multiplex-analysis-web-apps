@@ -5,7 +5,7 @@ dir:
   OutputCSVPaths_U: ['/NIH/OMAL/reec-UMAP/Output']
 
 def_df:
-  Slide_ID: ['Demo']
+  Slide_ID: ['imagenum_Demo']
   Cell_X_Position: [0]
   Cell_Y_Position: [0]
   Index: [1]

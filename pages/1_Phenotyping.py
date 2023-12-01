@@ -198,28 +198,35 @@ def main():
     if st.session_state.selected_phenoMeth != 'Not Selected':
         st.session_state.phenotyping_completed = True
 
+    midCol = st.columns(2)
+    with midCol[0]:
     ### Data Filters Container ###
-    with st.expander('Data Filters'):
-        with st.form('Filter Levers'):
-            filt_col = st.columns([1, 2])
-            with filt_col[0]:
-                # Select Box Features
-                for feat in st.session_state.SEL_feat_widg:
-                    st.selectbox(feat,
-                                (st.session_state.df_raw[feat].unique()),
-                                key = 'sel' + feat)
+        with st.expander('Data Filters'):
+            with st.form('Filter Levers'):
+                filt_col = st.columns([1, 2])
+                with filt_col[0]:
+                    # Select Box Features
+                    for feat in st.session_state.SEL_feat_widg:
+                        st.selectbox(feat,
+                                    (st.session_state.df_raw[feat].unique()),
+                                    key = 'sel' + feat)
 
-            with filt_col[1]:
-                # Check Box Features
-                for feat in st.session_state.CHK_feat_widg:
-                    st.checkbox(feat,
-                                key = 'sel' + feat)
+                with filt_col[1]:
+                    # Check Box Features
+                    for feat in st.session_state.CHK_feat_widg:
+                        st.checkbox(feat,
+                                    key = 'sel' + feat)
 
-            submitted = st.form_submit_button('Apply Filters')
-            if submitted:
-                filter_and_plot()
-                st.session_state.pointstSliderVal_Sel = st.session_state.calcSliderVal
-
+                submitted = st.form_submit_button('Apply Filters')
+                if submitted:
+                    filter_and_plot()
+                    st.session_state.pointstSliderVal_Sel = st.session_state.calcSliderVal
+    with midCol[1]:
+         with st.expander('Choose Markers to include'):
+            print(st.session_state.marker_names)
+            # st.multiselect('Markers', options = st.session_state.marker_names,
+            #                           default = st.session_state.marker_names,
+            #                           key = 'marker_multi_sel')
     ## In-App Instructions
     if st.session_state.data_loaded is False:
         st.warning('Data not loaded (above)', icon="⚠️")
