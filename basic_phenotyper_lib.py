@@ -8,33 +8,6 @@ pd.options.mode.chained_assignment = None  # default='warn'
 import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans # K-Means
 
-def load_dataframe(dataset_path, loadNIDAP):
-    '''(1) Identify the file that has our data
-       (2) Unload the file into a PANDAS Dataframe
-       (3) Perform preprocessing
-       (4) Return preprocessed dataframes and metadata
-       '''
-    print('Loading Data')
-    # Load dataset from NIDAP (or local)
-    df_raw = load_dataset(dataset_path, loadNIDAP=loadNIDAP)
-
-    # Perform pre-processing (based on app-specific needs)
-    df_raw, marker_names = preprocess_df(df_raw)
-
-    # Make a copy of df_raw as df
-    df = df_raw.copy()
-    return df_raw, df, marker_names
-
-def load_dataset(dataset_path, loadNIDAP=False):
-    '''Unload the actual file as a PANDAS dataframe'''
-
-    if loadNIDAP:
-        from palantir.datasets import dataset
-        return dataset(dataset_path).read_pandas()
-    else:
-        import pandas as pd
-        return pd.read_csv(dataset_path)
-
 def preprocess_df(df, marker_col_prefix):
     '''Perform some preprocessing on our dataset to apply tranforms
     and collect meta-data
@@ -69,7 +42,7 @@ def preprocess_df(df, marker_col_prefix):
                  'Create Clustering Column': np.round(clustSp - phenoSp, 3),
                  'Initalize Species Summary': np.round(specSummSp - clustSp, 3),
                  'Initalize Assign Phenotype': np.round(assignPhenoSp - specSummSp, 3)}
-    print(f'''  Phenotyping Preprocessing Steps: {preprocTD['Total']}s
+    print(f'''      Phenotyping Preprocessing Steps: {preprocTD['Total']}s
     Add Marker Bits: {preprocTD['Add Marker Bits']}s
     Create Phenotyping Column: {preprocTD['Create Phenotyping Column']}s
     Create Clustering Column: {preprocTD['Create Clustering Column']}s
@@ -78,11 +51,6 @@ def preprocess_df(df, marker_col_prefix):
           ''')
 
     return df, marker_names, spec_summ, pheno_summ
-
-def date_time_adjust(df, field):
-    import pandas as pd
-    df[field] = pd.to_datetime(df[field])
-    return df
 
 def add_mark_bits_col(df, marker_col_prefix):
     """Add a column to the dataframe containing a string of the marker bits in the same order as the 
