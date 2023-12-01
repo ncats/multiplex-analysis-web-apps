@@ -59,28 +59,28 @@ def slide_id_prog_left_callback():
     '''
     callback function when the left Cell_ID progression button is clicked
     '''
-    if st.session_state.idxSlide_ID > 0:
-        st.session_state.idxSlide_ID -=1
-        st.session_state.selSlide_ID = st.session_state.uniSlide_ID[st.session_state.idxSlide_ID]
-        st.session_state.selSlide_ID_short = st.session_state.uniSlide_ID_short[st.session_state.idxSlide_ID]
+    if st.session_state['idxSlide ID'] > 0:
+        st.session_state['idxSlide ID'] -=1
+        st.session_state['selSlide ID'] = st.session_state['uniSlide ID'][st.session_state['idxSlide ID']]
+        st.session_state['selSlide ID_short'] = st.session_state['uniSlide ID_short'][st.session_state['idxSlide ID']]
         filter_and_plot()
 
 def slide_id_prog_right_callback():
     '''
     callback function when the right Cell_ID progression button is clicked
     '''
-    if st.session_state.idxSlide_ID < st.session_state.numSlide_ID-1:
-        st.session_state.idxSlide_ID +=1
-        st.session_state.selSlide_ID = st.session_state.uniSlide_ID[st.session_state.idxSlide_ID]
-        st.session_state.selSlide_ID_short = st.session_state.uniSlide_ID_short[st.session_state.idxSlide_ID]
+    if st.session_state['idxSlide ID'] < st.session_state['numSlide ID']-1:
+        st.session_state['idxSlide ID'] +=1
+        st.session_state['selSlide ID'] = st.session_state['uniSlide ID'][st.session_state['idxSlide ID']]
+        st.session_state['selSlide ID_short'] = st.session_state['uniSlide ID_short'][st.session_state['idxSlide ID']]
         filter_and_plot()
 
 def slide_id_callback():
     '''
     callback function when the Cell_ID select box changes
     '''
-    st.session_state.idxSlide_ID = st.session_state.uniSlide_ID_short.index(st.session_state.selSlide_ID_short)
-    st.session_state.selSlide_ID = st.session_state.uniSlide_ID[st.session_state.idxSlide_ID]
+    st.session_state['idxSlide ID'] = st.session_state['uniSlide ID_short'].index(st.session_state['selSlide ID_short'])
+    st.session_state['selSlide ID'] = st.session_state['uniSlide ID'][st.session_state['idxSlide ID']]
     filter_and_plot()
 
 def filter_and_plot():
@@ -90,10 +90,10 @@ def filter_and_plot():
     st.session_state.prog_left_disabeled  = False
     st.session_state.prog_right_disabeled = False
 
-    if st.session_state.idxSlide_ID == 0:
+    if st.session_state['idxSlide ID'] == 0:
         st.session_state.prog_left_disabeled = True
 
-    if st.session_state.idxSlide_ID == st.session_state.numSlide_ID-1:
+    if st.session_state['idxSlide ID'] == st.session_state['numSlide ID']-1:
         st.session_state.prog_right_disabeled = True
 
     # Filtered dataset
@@ -313,9 +313,9 @@ def main():
 
         imageProgCol = st.columns([3, 1, 1, 2])
         with imageProgCol[0]:
-            st.selectbox('Slide_ID',
-                         (st.session_state.uniSlide_ID_short),
-                         key = 'selSlide_ID_short',
+            st.selectbox('Slide ID',
+                         (st.session_state['uniSlide ID_short']),
+                         key = 'selSlide ID_short',
                          on_change=slide_id_callback)
         with imageProgCol[1]:
             add_vertical_space(2)
@@ -325,7 +325,7 @@ def main():
             st.button('→', on_click=slide_id_prog_right_callback, disabled=st.session_state.prog_right_disabeled)
         with imageProgCol[3]:
             add_vertical_space(2)
-            st.write(f'Image {st.session_state.idxSlide_ID+1} of {st.session_state.numSlide_ID}')
+            st.write(f'Image {st.session_state["idxSlide ID"]+1} of {st.session_state["numSlide ID"]}')
 
         st.session_state.bc.startTimer()
         st.pyplot(st.session_state.phenoFig)
