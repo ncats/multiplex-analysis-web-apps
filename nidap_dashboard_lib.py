@@ -610,6 +610,9 @@ def setFigureObjs(session_state, InSliderVal = None):
     targCellCount = 150000 
     df_plot = session_state.df_filt.copy()
 
+    # minXY = df_plot[['Cell_X_Position', 'Cell_Y_Position']].min()-1
+    # maxXY = df_plot[['Cell_X_Position', 'Cell_Y_Position']].max()+1
+
     numPoints = session_state.df_filt.shape[0]
     if (numPoints > targCellCount) & (InSliderVal is None):
         n = targCellCount
