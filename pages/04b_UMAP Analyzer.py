@@ -1,11 +1,11 @@
 import streamlit as st
 from st_pages import show_pages_from_config, add_indentation
 from streamlit_extras.app_logo import add_logo
-import time
 
 # Import relevant libraries
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
 import basic_phenotyper_lib as bpl  # Useful functions for phenotyping collections of cells
+import app_top_of_page as top
 
 def reset_phenotype_selection():
     st.session_state.umapInspect_Ver = st.session_state.defLineageOpt
@@ -36,6 +36,9 @@ def main():
 
     # Add logo to page
     add_logo('app_images/mawa_logo-width315.png', height=150)
+
+    # Run Top of Page (TOP) functions
+    st.session_state = top.check_for_platform(st.session_state)
 
     if 'init' not in st.session_state:
         settings_yaml_file = 'config_files/OMAL_REEC.yml'

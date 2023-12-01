@@ -5,6 +5,8 @@ import utils as utils
 import os
 from streamlit_extras.app_logo import add_logo
 
+import app_top_of_page as top
+
 def main():
 
     # Create functions to update correlated widgets
@@ -39,6 +41,9 @@ def main():
 
     # Add logo to page
     add_logo('app_images/mawa_logo-width315.png', height=150)
+
+    # Run Top of Page (TOP) functions
+    st.session_state = top.check_for_platform(st.session_state)
 
     # Display page heading
     st.title('ROI P values overlaid on slides')
