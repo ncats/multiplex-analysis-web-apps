@@ -226,10 +226,9 @@ def main():
                     st.session_state.pointstSliderVal_Sel = st.session_state.calcSliderVal
     with midCol[1]:
          with st.expander('Choose Markers to include'):
-            print(st.session_state.marker_names)
-            # st.multiselect('Markers', options = st.session_state.marker_names,
-            #                           default = st.session_state.marker_names,
-            #                           key = 'marker_multi_sel')
+            st.multiselect('Markers', options = st.session_state.marker_names,
+                                      key = 'marker_multi_sel')
+
     ## In-App Instructions
     if st.session_state.data_loaded is False:
         st.warning('Data not loaded (above)', icon="⚠️")

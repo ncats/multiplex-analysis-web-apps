@@ -44,7 +44,7 @@ def init_session_state(session_state, settings_yaml_file):
         settings = yaml.load(file, yaml.UnsafeLoader)
 
     # Analysis Settings
-    session_state.marker_pre  = 'Phenotype_' # settings['analysis']['marker_pre']
+    session_state.marker_pre  = 'Phenotype ' # settings['analysis']['marker_pre']
 
     # df Default
     df_dict = {}
@@ -305,6 +305,7 @@ def loadDataButton(session_state, df_import, projectName, fileName):
     session_state.datafile   = fileName    # File Name
     session_state.spec_summ_load       = session_state.spec_summ.copy() # Default version that is loaded
     session_state.spec_summ_dataeditor = session_state.spec_summ.copy() # Default version that is used for custom phenotyping table
+    session_state.marker_multi_sel = session_state.marker_names
 
     if 'dataeditor__do_not_persist' in session_state:
         del session_state.dataeditor__do_not_persist
@@ -325,7 +326,7 @@ def loadDataButton(session_state, df_import, projectName, fileName):
     # Filtering
     session_state.SEL_feat_widg = []
     session_state.CHK_feat_widg = []
-    session_state.SEL_feat = session_state.SEL_feat_widg + ['Slide_ID']
+    session_state.SEL_feat = session_state.SEL_feat_widg + ['Slide ID']
     session_state.CHK_feat = session_state.CHK_feat_widg + ['has_pos_mark']
     
     # if session_state.file_format == 'REEC':
@@ -388,10 +389,6 @@ def prepare_data(df_orig, marker_col_prefix):
     # Time the components of the prepare_data step
     prepDataSt = time.time()
 
-    # Fix column names if needed and note the time
-    df_orig = fix_df_cols(df_orig)
-    fx_colsSp = time.time()
-
     # Set df_raw as the baseline dataframe
     df_raw = df_orig.copy()
 
@@ -402,29 +399,10 @@ def prepare_data(df_orig, marker_col_prefix):
     # Make a copy of df_raw as df
     df = df_raw.copy()
 
-    prepDataTD = {'fx_cols': np.round(fx_colsSp - prepDataSt, 3),
-                  'procDF': np.round(procDFSP - fx_colsSp, 3)}
+    prepDataTD = {'procDF': np.round(procDFSP - prepDataSt, 3)}
     # print(prepDataTD)
 
     return df_raw, df, marker_names, spec_summ, pheno_summ
-
-def fix_df_cols(df):
-    """
-    Fixing column names with goofy (illegal) characters
-    """
-
-    char_to_replace = {' (': '_', '(': '_', '): ': '_',  ')': '_', ': ': '_', ':': '_', ' ': '_'}
-
-    colList = list(df.columns)
-    newColDict = {}
-    for col in colList:
-        colNew = col
-        for key, value in char_to_replace.items():
-            # Replace key character with value character in string
-            colNew = colNew.replace(key, value)
-        newColDict[col] = colNew
-    df = df.rename(newColDict, axis=1)
-    return df
 
 def load_dataset(fiol, dataset_path, files_dict, file_path, loadCompass=False):
     """
@@ -610,8 +588,8 @@ def setFigureObjs(session_state, InSliderVal = None):
     targCellCount = 150000 
     df_plot = session_state.df_filt.copy()
 
-    # minXY = df_plot[['Cell_X_Position', 'Cell_Y_Position']].min()-1
-    # maxXY = df_plot[['Cell_X_Position', 'Cell_Y_Position']].max()+1
+    # minXY = df_plot[['Cell X Position', 'Cell Y Position']].min()-1
+    # maxXY = df_plot[['Cell X Position', 'Cell Y Position']].max()+1
 
     numPoints = session_state.df_filt.shape[0]
     if (numPoints > targCellCount) & (InSliderVal is None):
@@ -636,7 +614,7 @@ def setFigureObjs(session_state, InSliderVal = None):
     # Seaborn
     session_state.phenoFig, session_state.ax = bpl.draw_scatter_fig(figsize=session_state.figsize)
     session_state.phenoFig = bpl.scatter_plot(df_plot, session_state.phenoFig, session_state.ax, title, 
-                                              xVar = 'Cell_X_Position', yVar = 'Cell_Y_Position', hueVar='phenotype', 
+                                              xVar = 'Cell X Position', yVar = 'Cell Y Position', hueVar='phenotype', 
                                               hueOrder=session_state.phenoOrder)
 
     # Altair
@@ -658,7 +636,7 @@ def setFigureObjs_UMAP(session_state):
     # Seaborn
     session_state.seabornFig_clust, session_state.ax = bpl.draw_scatter_fig(figsize=session_state.figsize)
     session_state.seabornFig_clust = bpl.scatter_plot(clustered_cells, session_state.seabornFig_clust, session_state.ax, title,
-                                                      xVar = 'Cell_X_Position', yVar = 'Cell_Y_Position', hueVar = 'clust_label',
+                                                      xVar = 'Cell X Position', yVar = 'Cell Y Position', hueVar = 'clust_label',
                                                       hueOrder=clustOrder)
 
     # Altair
