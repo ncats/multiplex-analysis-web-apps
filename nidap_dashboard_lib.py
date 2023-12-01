@@ -303,8 +303,13 @@ def loadDataButton(session_state, df_import, projectName, fileName):
     # Meta Data
     session_state.selectProj = projectName # Project Name
     session_state.datafile   = fileName    # File Name
-    session_state.spec_summ_load = session_state.spec_summ.copy() # Default version that is loaded
+    session_state.spec_summ_load       = session_state.spec_summ.copy() # Default version that is loaded
     session_state.spec_summ_dataeditor = session_state.spec_summ.copy() # Default version that is used for custom phenotyping table
+
+    if 'dataeditor__do_not_persist' in session_state:
+        del session_state.dataeditor__do_not_persist
+    if 'saved_dataeditor_values' in session_state:
+        del session_state.saved_dataeditor_values
 
     # Default Phenotyping Method (Radio Button)
     session_state.noPhenoOpt = 'Not Selected'
@@ -339,6 +344,8 @@ def loadDataButton(session_state, df_import, projectName, fileName):
 
     session_state.idxSlide_ID = 0
     session_state.numSlide_ID = len(session_state.uniSlide_ID)
+    session_state.uniSlide_ID_short = [x[0:9] for x in session_state.uniSlide_ID]
+    print(session_state.uniSlide_ID_short)
 
     session_state.prog_left_disabeled = True
     session_state.prog_right_disabeled = False
@@ -432,7 +439,11 @@ def updatePhenotyping(session_state):
     '''
     Function that is run when changes are made to the phenotyping settings
     of the apps
-    
+    Args:
+        session_state: Streamlit data structure
+
+    Returns:
+        session_state: Streamlit data structure
     '''
 
     # Create the session_state.df which is ostensibly 
@@ -444,15 +455,22 @@ def updatePhenotyping(session_state):
     # Initalize Species Summary Table
     session_state.spec_summ    = bpl.init_species_summary(session_state.df)
     # Set the data_editor species summary 
+    
+    if 'dataeditor__do_not_persist' in session_state:
+        del session_state.dataeditor__do_not_persist
+    if 'saved_dataeditor_values' in session_state:
+        del session_state.saved_dataeditor_values
+
+    # session_state.spec_summ_load       = session_state.spec_summ.copy()
     session_state.spec_summ_dataeditor = session_state.spec_summ.copy()
 
     # Create Phenotypes Summary Table based on 'phenotype' column in df
     session_state.pheno_summ = bpl.init_pheno_summ(session_state.df)
 
-    # Perform filtering
+    # Filtered dataset
     session_state.df_filt = perform_filtering(session_state)
 
-    # Set Figure Objects based on updated df
+    # Update and reset Figure Objects
     session_state = setFigureObjs(session_state)
 
     return session_state
@@ -637,7 +655,7 @@ def setFigureObjs_UMAP(session_state):
     # Seaborn
     session_state.seabornFig_clust, session_state.ax = bpl.draw_scatter_fig(figsize=session_state.figsize)
     session_state.seabornFig_clust = bpl.scatter_plot(clustered_cells, session_state.seabornFig_clust, session_state.ax, title,
-                                                      xVar = 'CentroidX', yVar = 'CentroidY', hueVar = 'clust_label',
+                                                      xVar = 'Cell_X_Position', yVar = 'Cell_Y_Position', hueVar = 'clust_label',
                                                       hueOrder=clustOrder)
 
     # Altair
@@ -787,7 +805,7 @@ def setFigureObjs_UMAPDifferences(session_state):
     else:
         normAxis = None
 
-    session_state.heatmapfig = bpl.createHeatMap(cellsUMAP, session_state.assign_pheno['phenotype'], title, normAxis)
+    session_state.heatmapfig = bpl.createHeatMap(cellsUMAP, session_state.pheno_summ['phenotype'], title, normAxis)
 
     ### Incidence Line Graph ###
     # Filter by the lineage
@@ -831,7 +849,7 @@ def setFigureObjs_UMAPDifferences(session_state):
     # Cell Counts
     else:
         for clust_label, group in cellsUMAP.groupby('clust_label'):
-            inciDF.loc[clust_label, 'counts'] = group['ID'].count()
+            inciDF.loc[clust_label, 'counts'] = group['Slide_ID'].count()
 
     # Title
     inciTitle = [f'Incidence by Cluster']

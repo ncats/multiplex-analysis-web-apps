@@ -233,22 +233,20 @@ def plot_mean_neighborhood_profile(ax, selClus, dist_bin, cell_density, phenoSet
         axesDict = dict()
         for i , key in enumerate(phenoSet):
             plotax = ax.errorbar(dist_bin, means[:, i, selClus], yerr=error[:, i, selClus], color=phenoSet[key])
-
-            ax.set_xticks(dist_bin)
-            # ax.set_xticklabels(['0-25', '26-50', '51-100', '101-150', '151-200'])
-            ax.set_xlim([0, 225])
-            ax.set_ylim([0, maxDens])
-            ax.set_title(f'Cluster {selClus}: Densities', fontsize = 16, color = SlTC)
-            ax.set_xlabel('Spatial Bound (\u03BCm)', fontsize = 14, color = SlTC)
-            ax.set_ylabel('Cell Density', fontsize = 14, color = SlTC)
-
-            # ax.set_frame_on(False)
-            ax.spines['left'].set_color(SlTC)
-            ax.spines['bottom'].set_color(SlTC)
-            ax.tick_params(axis='x', colors=SlTC, which='both')
-            ax.tick_params(axis='y', colors=SlTC, which='both')
-            
             axesDict[key] = plotax
+
+        ax.set_xticks(dist_bin)
+        ax.set_xlim([0, 225])
+        ax.set_ylim([0, maxDens])
+        ax.set_title(f'Cluster {selClus}: Densities', fontsize = 16, color = SlTC)
+        ax.set_xlabel('Spatial Bound (\u03BCm)', fontsize = 14, color = SlTC)
+        ax.set_ylabel('Cell Density', fontsize = 14, color = SlTC)
+
+        # ax.set_frame_on(False)
+        ax.spines['left'].set_color(SlTC)
+        ax.spines['bottom'].set_color(SlTC)
+        ax.tick_params(axis='x', colors=SlTC, which='both')
+        ax.tick_params(axis='y', colors=SlTC, which='both')
 
         if legF:
             ax.legend(axesDict.values(), axesDict.keys(),
