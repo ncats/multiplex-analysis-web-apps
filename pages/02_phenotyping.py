@@ -4,7 +4,6 @@ This is the python script which produces the PHENOTYPING PAGE
 import os
 import time
 import streamlit as st
-import pandas as pd
 from st_pages import show_pages_from_config, add_indentation
 from streamlit_extras.add_vertical_space import add_vertical_space 
 from streamlit_extras.app_logo import add_logo
@@ -13,6 +12,7 @@ import dataset_formats
 # Import relevant libraries
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
 import basic_phenotyper_lib as bpl  # Useful functions for phenotyping collections of cells
+import app_top_of_page as top
 
 def data_editor_change_callback():
     '''
@@ -126,6 +126,9 @@ def main():
 
     # Add logo to page
     add_logo('app_images/mawa_logo-width315.png', height=150)
+
+    # Run Top of Page (TOP) functions
+    st.session_state = top.check_for_platform(st.session_state)
 
     if 'init' not in st.session_state:
         settings_yaml_file = 'config_files/OMAL_REEC.yml'

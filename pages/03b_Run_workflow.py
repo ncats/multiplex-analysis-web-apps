@@ -9,6 +9,7 @@ from pathlib import Path
 from streamlit_extras.app_logo import add_logo
 import streamlit_utils
 from st_pages import show_pages_from_config, add_indentation
+import app_top_of_page as top
 
 def main():
 
@@ -30,6 +31,9 @@ def main():
 
     # Add logo to page
     add_logo('app_images/mawa_logo-width315.png', height=150)
+
+    # Run Top of Page (TOP) functions
+    st.session_state = top.check_for_platform(st.session_state)
 
     # Constant
     input_directory = os.path.join('.', 'input')

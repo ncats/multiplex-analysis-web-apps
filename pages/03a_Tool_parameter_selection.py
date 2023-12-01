@@ -7,6 +7,7 @@ import streamlit_utils
 
 # Import relevant libraries
 import utils
+import app_top_of_page as top
 
 def main():
 
@@ -157,6 +158,9 @@ def main():
 
     # Add logo to page
     add_logo('app_images/mawa_logo-width315.png', height=150)
+
+    # Run Top of Page (TOP) functions
+    st.session_state = top.check_for_platform(st.session_state)
 
     # Display page heading
     st.title('Tool parameter selection')
