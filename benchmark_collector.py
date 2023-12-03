@@ -47,8 +47,6 @@ class benchmark_collector:
             elapsedTime = np.round(self.spTimer - self.stTimer, 3)
             print(f'{msg} took {elapsedTime} s')
 
-
-
     def check_df(self):
         print(self.benchmarkDF.head())
 
