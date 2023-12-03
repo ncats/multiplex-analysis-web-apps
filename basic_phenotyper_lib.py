@@ -16,8 +16,10 @@ def preprocess_df(df, marker_col_prefix):
     # Step 0: Start the timer
     preprocSt = time.time()
 
+    marker_names = identify_marker_columns(df, marker_col_prefix)
+
     # Step 1: Add a 'bits' column to identify unique markers
-    df, marker_names = add_mark_bits_col(df, marker_col_prefix)
+    df = add_mark_bits_col(df, marker_names, marker_col_prefix)
     bitsSp = time.time()
 
     # Step 2: Create phenotype column and assign a value of 'unassigned'
@@ -52,7 +54,17 @@ def preprocess_df(df, marker_col_prefix):
 
     return df, marker_names, spec_summ, pheno_summ
 
-def add_mark_bits_col(df, marker_col_prefix):
+def identify_marker_columns(df, marker_col_prefix):
+    '''
+    Identify the marker columns that are present in the base dataset
+    '''
+    # Create a dataframe of just the marker columns
+    df_markers = df.filter(regex='^{}'.format(marker_col_prefix))
+
+    # Get a list of the markers in the datafile
+    return [x.lstrip(marker_col_prefix) for x in df_markers.columns]
+
+def add_mark_bits_col(df, marker_names, marker_col_prefix):
     """Add a column to the dataframe containing a string of the marker bits in the same order as the 
     also-returned marker_names list.
 
@@ -66,10 +78,8 @@ def add_mark_bits_col(df, marker_col_prefix):
     """
 
     # Create a dataframe of just the marker columns
-    df_markers = df.filter(regex='^{}'.format(marker_col_prefix))
-
-    # Get a list of the markers in the datafile
-    marker_names = [x.lstrip(marker_col_prefix) for x in df_markers.columns]
+    marker_cols = [marker_col_prefix + x for x in marker_names]
+    df_markers = df[marker_cols]
 
     # Add a column to the original dataframe containing a concatenation of the bits in the marker columns to a single string, e.g., '0110'
     # Previously called Species String
@@ -86,7 +96,7 @@ def add_mark_bits_col(df, marker_col_prefix):
     df.loc[df['species_name_short'] == 'Other', 'has_pos_mark'] = False
 
     # Return the dataframe with the marker bits column appended as well as the list of marker names
-    return df, marker_names
+    return df
 
 def init_species_summary(df):
     """For each unique species (elsewhere called "exclusive" phenotyping), generate information concerning their prevalence in a new dataframe.
