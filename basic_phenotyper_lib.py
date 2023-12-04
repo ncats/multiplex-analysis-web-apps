@@ -466,7 +466,7 @@ def wrapTitleText(title):
 
     return wrapTitle
 
-def setup_Spatial_UMAP(df, marker_col_prefix, phenoOrder, cpu_pool_size = 1):
+def setup_Spatial_UMAP(df, marker_names, phenoOrder, cpu_pool_size = 1):
     # Import Libraries REMOVE THIS APPEND LATER
     import pandas as pd
     import numpy as np
@@ -477,8 +477,6 @@ def setup_Spatial_UMAP(df, marker_col_prefix, phenoOrder, cpu_pool_size = 1):
     spatial_umap.cells = df
     spatial_umap.patients = spatial_umap.makeDummyClinic(10)
 
-    # Apply the Marker Information that we are used to:
-    spatial_umap.cells, marker_names = add_mark_bits_col(spatial_umap.cells, marker_col_prefix)
     # Set Lineage
     spatial_umap.cells['Lineage'] = spatial_umap.cells['phenotype']
 
