@@ -296,8 +296,15 @@ def loadDataButton(session_state, df_import, projectName, fileName):
     session_state.datafile   = fileName    # File Name
     session_state.df_update_filename_U = session_state.datafile + '_updated'
 
+    # Identify Markers in the dataset
+    bc.startTimer()
+    session_state.marker_names = bpl.identify_marker_columns(df_import, session_state.marker_pre)
+    bc.printElapsedTime(msg = 'Identifying Marker Names')
+
     # Set Phenotyping Elements
-    session_state = set_phenotyping_elements(session_state, df_import, session_state.marker_pre)
+    bc.startTimer()
+    session_state = set_phenotyping_elements(session_state, df_import)
+    bc.printElapsedTime(msg = 'Setting Phenotying Elements')
 
     # Data has now undergone enough transformation to be called 'LOADED'
     session_state.data_loaded = True
@@ -353,26 +360,16 @@ def loadDataButton(session_state, df_import, projectName, fileName):
 
     return session_state
 
-def set_phenotyping_elements(session_state, df_orig, marker_col_prefix):
+def set_phenotyping_elements(session_state, df_orig):
     """
     To be run each time new data is loaded using the 'Load Data' method
     """
 
-    # Create the bench mark collector obj
-    bc = benchmark_collector()
-
-    # Identify Markers in the dataset
-    bc.startTimer()
-    session_state.marker_names = bpl.identify_marker_columns(df_orig, marker_col_prefix)
-    bc.printElapsedTime(msg = 'Identifying Marker Names')
-
     # Perform pre-processing (phenotying columns, pheno_assign table, pheno_summ table)
-    bc.startTimer()
     session_state.df_raw, \
     session_state.df, \
     session_state.spec_summ, \
-    session_state.pheno_summ = bpl.preprocess_df(df_orig, session_state.marker_names, marker_col_prefix)
-    bc.printElapsedTime(msg = 'Processing Phenotying Elements')
+    session_state.pheno_summ = bpl.preprocess_df(df_orig, session_state.marker_names, session_state.marker_pre)
 
     # Initalize Custom Phenotyping Variables
     session_state.spec_summ_load       = session_state.spec_summ.copy() # Default version that is loaded
