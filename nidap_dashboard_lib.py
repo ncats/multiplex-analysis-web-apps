@@ -310,6 +310,7 @@ def loadDataButton(session_state, df_import, projectName, fileName):
     session_state.data_loaded = True
 
     # Analysis Setting Init
+    session_state.loaded_marker_names = session_state.marker_names
     session_state.marker_multi_sel = session_state.marker_names
     session_state.pointstSliderVal_Sel = 100
     session_state.calcSliderVal  = 100
