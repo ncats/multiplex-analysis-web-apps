@@ -18,9 +18,9 @@ def init_spatial_umap():
     countTSt = time.time()
     with st.spinner('Calculating Cell Counts and Areas'):
         st.session_state.spatial_umap = bpl.setup_Spatial_UMAP(st.session_state.df,
-                                                            st.session_state.marker_pre,
-                                                            st.session_state.phenoOrder,
-                                                            st.session_state.cpu_pool_size)
+                                                               st.session_state.marker_multi_sel,
+                                                               st.session_state.phenoOrder,
+                                                               st.session_state.cpu_pool_size)
     st.write('Done Calculating Cell Counts and Areas')
 
     # Record time elapsed
