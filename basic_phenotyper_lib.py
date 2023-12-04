@@ -10,30 +10,36 @@ from sklearn.cluster import KMeans # K-Means
 
 from benchmark_collector import benchmark_collector # Benchmark Collector Class
 
-def preprocess_df(df, marker_names, marker_col_prefix):
+def preprocess_df(df_orig, marker_names, marker_col_prefix):
     '''Perform some preprocessing on our dataset to apply tranforms
     and collect meta-data
     '''
 
     # Create the bench mark collector obj
     bc = benchmark_collector()
+
+    # Set df_raw as the baseline dataframe
+    df_raw = df_orig.copy()
     
     # Step 1: Initalize the columns needed for phenotyping
     bc.startTimer()
-    df = init_pheno_cols(df, marker_names, marker_col_prefix)
+    df_raw = init_pheno_cols(df_raw, marker_names, marker_col_prefix)
     bc.printElapsedTime(msg = '     Initializing Phenotyping Columns')
 
     # Step 2: Intialize Phenotying Assignments dataframe
     bc.startTimer()
-    spec_summ = init_species_summary(df)
+    spec_summ = init_species_summary(df_raw)
     bc.printElapsedTime(msg = '     Initializing Phenotyping Assignments Table')
 
     # Step 3: Intialize Phenotype Summary Dataframe (based on Phenotying Assigments)
     bc.startTimer()
-    pheno_summ = init_pheno_summ(df)
+    pheno_summ = init_pheno_summ(df_raw)
     bc.printElapsedTime(msg = '     Initializing Phenotype Summary Table')
 
-    return df, spec_summ, pheno_summ
+    # Make a copy of df_raw as df
+    df = df_raw.copy()
+
+    return df_raw, df, spec_summ, pheno_summ
 
 def identify_marker_columns(df, marker_col_prefix):
     '''

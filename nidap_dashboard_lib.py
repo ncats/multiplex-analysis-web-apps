@@ -386,24 +386,18 @@ def prepare_data(df_orig, marker_col_prefix):
     To be run each time the 'Load Data' button is hit
     """
 
-    # Time the components of the prepare_data step
+    # Create the bench mark collector obj
     bc = benchmark_collector()
-
-    # Set df_raw as the baseline dataframe
-    df_raw = df_orig.copy()
 
     # Identify Markers in the dataset
     bc.startTimer()
-    marker_names = bpl.identify_marker_columns(df_raw, marker_col_prefix)
+    marker_names = bpl.identify_marker_columns(df_orig, marker_col_prefix)
     bc.printElapsedTime(msg = 'Identifying Marker Names')
 
     # Perform pre-processing (based on app-specific needs)
     bc.startTimer()
-    df_raw, spec_summ, pheno_summ = bpl.preprocess_df(df_raw, marker_names, marker_col_prefix)
+    df_raw, df, spec_summ, pheno_summ = bpl.preprocess_df(df_orig, marker_names, marker_col_prefix)
     bc.printElapsedTime(msg = 'Processing Phenotying Elements')
-
-    # Make a copy of df_raw as df
-    df = df_raw.copy()
 
     return df_raw, df, marker_names, spec_summ, pheno_summ
 
