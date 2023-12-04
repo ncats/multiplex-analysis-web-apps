@@ -94,9 +94,7 @@ def init_session_state(session_state, settings_yaml_file):
     session_state.uploaded_file = None
 
     # Output file information
-    session_state.df_update_filename_S = ''
     session_state.df_update_filename_U = ''
-    session_state.pheno_assign_filename_S = 'phenotype_summary'
     session_state.pheno_assign_filename_U = 'phenotype_summary'
     session_state.NeighborProPng = 'NeighborhoodProfile'
 
@@ -290,7 +288,9 @@ def loadDataButton(session_state, df_import, projectName, fileName):
     """
     print('Loading Data')
 
-    loadDataSt = time.time()
+    # Create the bench mark collector obj
+    bc = benchmark_collector()
+
     session_state.data_loaded = True
     # Prepare dataframe(s) for use in the dashboard and note the time
     session_state.df_raw, \
@@ -298,14 +298,14 @@ def loadDataButton(session_state, df_import, projectName, fileName):
     session_state.marker_names, \
     session_state.spec_summ, \
     session_state.pheno_summ = prepare_data(df_import, session_state.marker_pre)
-    prepDataSp = time.time()
 
     # Meta Data
     session_state.selectProj = projectName # Project Name
     session_state.datafile   = fileName    # File Name
+    session_state.df_update_filename_U = session_state.datafile + '_updated'
+
     session_state.spec_summ_load       = session_state.spec_summ.copy() # Default version that is loaded
     session_state.spec_summ_dataeditor = session_state.spec_summ.copy() # Default version that is used for custom phenotyping table
-    session_state.marker_multi_sel = session_state.marker_names
 
     if 'dataeditor__do_not_persist' in session_state:
         del session_state.dataeditor__do_not_persist
@@ -314,16 +314,17 @@ def loadDataButton(session_state, df_import, projectName, fileName):
 
     # Default Phenotyping Method (Radio Button)
     session_state.noPhenoOpt = 'Not Selected'
-    session_state.phenoMeth = 'Species'                          # Default when first loaded
+    session_state.phenoMeth  = 'Species'                         # Default when first loaded
     session_state.selected_phenoMeth = session_state.noPhenoOpt  # Default when first loaded
 
-    # Clustering (If applicable)
-    session_state.selected_nClus = 1
+    # Analysis Setting Init
+    session_state.marker_multi_sel = session_state.marker_names
+    session_state.pointstSliderVal_Sel = 100
+    session_state.calcSliderVal  = 100
+    session_state.selected_nClus = 1         # Clustering (If applicable)
+    session_state.NormHeatRadio  = 'No Norm' # Heatmap Radio
 
-    # Note the time after completing above processing steps
-    resetVarsSp = time.time()
-
-    # Filtering
+    # Initalize Filtering Settings
     session_state.SEL_feat_widg = []
     session_state.CHK_feat_widg = []
     session_state.SEL_feat = session_state.SEL_feat_widg + ['Slide ID']
@@ -343,6 +344,7 @@ def loadDataButton(session_state, df_import, projectName, fileName):
         else:
             session_state[eval('"sel" + feature')] = session_state[eval('"uni" + feature')][0] # Selected Value (default)
 
+    # Slide ID Progression Initializeion
     session_state['idxSlide ID'] = 0
     session_state['numSlide ID'] = len(session_state['uniSlide ID'])
     session_state['uniSlide ID_short'] = [x[x.find('imagenum_')+9: ] for x in session_state['uniSlide ID']]
@@ -353,37 +355,22 @@ def loadDataButton(session_state, df_import, projectName, fileName):
     if session_state['numSlide ID'] == 1:
         session_state.prog_right_disabeled = True
 
-    # Filtered dataset based on default filter settings and note the time
+    # Perform Filtering
+    bc.startTimer()
     session_state.df_filt = perform_filtering(session_state)
-    setfiltSp = time.time()
+    # bc.printElapsedTime(msg = 'Performing Filtering')
 
-    # Draw Points Slider
-    session_state.pointstSliderVal_Sel = 100
-    session_state.calcSliderVal = 100
-
-    # Output File names
-    session_state.df_update_filename_S = session_state.datafile + '_updated'
-    session_state.df_update_filename_U = session_state.datafile + '_updated'
-
-    # Heatmap Radio
-    session_state.NormHeatRadio = 'No Norm'
-
-    # Set Figure Objects and note the time
-    session_state = setFigureObjs(session_state) # First view of the filtered datasets (Seaborn/Altair)
+    # Set Figure Objects
+    bc.startTimer()
+    session_state = setFigureObjs(session_state)
     session_state.pointstSliderVal_Sel = session_state.calcSliderVal
-    setFigSp = time.time()
-
-    loadDataTD = {'prepData': np.round(prepDataSp - loadDataSt, 3),
-                  'resetVar': np.round(resetVarsSp - prepDataSp, 3),
-                  'setFilt': np.round(setfiltSp - resetVarsSp, 3),
-                  'setFig': np.round(setFigSp - setfiltSp, 3)}
-    # print(loadDataTD)
+    # bc.printElapsedTime(msg = 'Setting Figure Objects')
 
     return session_state
 
 def prepare_data(df_orig, marker_col_prefix):
     """
-    To be run each time the 'Load Data' button is hit
+    To be run each time new data is loaded using the 'Load Data' method
     """
 
     # Create the bench mark collector obj
