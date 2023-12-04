@@ -127,17 +127,17 @@ def init_session_state(session_state, settings_yaml_file):
     # Has the UMAP been completed yet?
     session_state.phenotyping_completed = False
     session_state.cell_counts_completed = False
-    session_state.umapCompleted = False
-    session_state.clustering_completed = False
-    session_state.UMAPFigType = 'Density'
+    session_state.umapCompleted         = False
+    session_state.clustering_completed  = False
+    session_state.UMAPFigType           = 'Density'
 
     # UMAP Lineage Display
     session_state.lineageDisplayToggle = 'Phenotypes'
     session_state.lineageDisplayToggle_clus = 'Phenotypes'
 
     # Unfiltered dropdown default options
-    session_state.defLineageOpt   = 'All Phenotypes'
-    session_state.defumapOutcomes = 'No Outcome'
+    session_state.defLineageOpt    = 'All Phenotypes'
+    session_state.defumapOutcomes  = 'No Outcome'
     session_state.definciOutcomes  = 'Cell Counts'
 
     # Default UMAP dropdown options
@@ -291,18 +291,17 @@ def loadDataButton(session_state, df_import, projectName, fileName):
     # Create the bench mark collector obj
     bc = benchmark_collector()
 
-    session_state.data_loaded = True
-    # Prepare dataframe(s) for use in the dashboard and note the time
+    # Meta Data
+    session_state.selectProj = projectName # Project Name
+    session_state.datafile   = fileName    # File Name
+    session_state.df_update_filename_U = session_state.datafile + '_updated'
+
+    # DataFrame prep
     session_state.df_raw, \
     session_state.df, \
     session_state.marker_names, \
     session_state.spec_summ, \
     session_state.pheno_summ = prepare_data(df_import, session_state.marker_pre)
-
-    # Meta Data
-    session_state.selectProj = projectName # Project Name
-    session_state.datafile   = fileName    # File Name
-    session_state.df_update_filename_U = session_state.datafile + '_updated'
 
     session_state.spec_summ_load       = session_state.spec_summ.copy() # Default version that is loaded
     session_state.spec_summ_dataeditor = session_state.spec_summ.copy() # Default version that is used for custom phenotyping table
@@ -316,6 +315,8 @@ def loadDataButton(session_state, df_import, projectName, fileName):
     session_state.noPhenoOpt = 'Not Selected'
     session_state.phenoMeth  = 'Species'                         # Default when first loaded
     session_state.selected_phenoMeth = session_state.noPhenoOpt  # Default when first loaded
+
+    session_state.data_loaded = True
 
     # Analysis Setting Init
     session_state.marker_multi_sel = session_state.marker_names
