@@ -2,7 +2,6 @@
 import pandas as pd
 import seaborn as sns
 import streamlit as st
-# import plotly.express as px
 import plotly.graph_objects as go
 
 # Update the dependencies of the selectbox for the current analysis column
@@ -42,21 +41,21 @@ st.write('Column range: {}'.format(column_range))
 # Determine the x-y data to plot for the selected column, calculating the KDE for each column only once ever
 if column_to_plot not in list(st.session_state['mg__dfs_to_plot']):
     line2d = sns.kdeplot(df, x=column_to_plot).get_lines()[0]
-    st.session_state['mg__dfs_to_plot'][column_to_plot] = pd.DataFrame({'Value': line2d.get_xdata(), 'Density': line2d.get_ydata()})
-df_to_plot = st.session_state['mg__dfs_to_plot'][column_to_plot]
+    curr_df = pd.DataFrame({'Value': line2d.get_xdata(), 'Density': line2d.get_ydata()})
+    st.session_state['mg__dfs_to_plot'][column_to_plot] = curr_df[(curr_df['Value'] >= column_range[0]) & (curr_df['Value'] <= column_range[1])]  # needed because the KDE can extend outside the possible value range
+df_to_plot_full = st.session_state['mg__dfs_to_plot'][column_to_plot]
 
 # Write some text boxes for the desired ranges for the current analysis column. Could make this stronger by enforcing the min_value and max_value parameters in each widget to correspond to the other so that the chosen max is never less than the chosen min, but initial attempts at this shows strange behavior and isn't worth debugging for now
-st.number_input(label='Minimum value:', min_value=column_range[0], max_value=column_range[1], key='mg__selected_min_val')
-st.number_input(label='Maximum value:', min_value=column_range[0], max_value=column_range[1], key='mg__selected_max_val')
+st.slider(label='Minimum value:', min_value=column_range[0], max_value=column_range[1], key='mg__selected_min_val')
+st.slider(label='Maximum value:', min_value=column_range[0], max_value=column_range[1], key='mg__selected_max_val')
 
-# Create a dataframe that is the selected subset of the full dataframe
-df_to_plot_selected = df_to_plot[(df_to_plot['Value'] >= st.session_state['mg__selected_min_val']) & (df_to_plot['Value'] <= st.session_state['mg__selected_max_val'])]
+# Create a view of the full dataframe that is the selected subset
+df_to_plot_selected = df_to_plot_full[(df_to_plot_full['Value'] >= st.session_state['mg__selected_min_val']) & (df_to_plot_full['Value'] <= st.session_state['mg__selected_max_val'])]
 
 # Plot the Plotly figure in Streamlit
-# st.plotly_chart(px.area(pd.concat([df_to_plot, df_to_plot_selected]), x='Value', y='Density', color='label', hover_data={'Value': False, 'Density': False}).update_layout(hovermode='x unified'))
 fig = go.Figure()
-fig.add_trace(go.Scatter(x=df_to_plot['Value'], y=df_to_plot['Density'], fill='tozeroy', mode='none', fillcolor='yellow', name='Full', hovertemplate=' ')) # fill down to xaxis
-fig.add_trace(go.Scatter(x=df_to_plot_selected['Value'], y=df_to_plot_selected['Density'], fill='tozeroy', mode='none', fillcolor='red', name='Selected', hoverinfo='skip')) # fill to trace0 y
+fig.add_trace(go.Scatter(x=df_to_plot_full['Value'], y=df_to_plot_full['Density'], fill='tozeroy', mode='none', fillcolor='yellow', name='Full', hovertemplate=' '))
+fig.add_trace(go.Scatter(x=df_to_plot_selected['Value'], y=df_to_plot_selected['Density'], fill='tozeroy', mode='none', fillcolor='red', name='Selected', hoverinfo='skip'))
 fig.update_layout(hovermode='x unified')
 st.plotly_chart(fig)
 
