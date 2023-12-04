@@ -102,6 +102,10 @@ def filter_and_plot():
     # Update and reset Figure Objects
     st.session_state = ndl.setFigureObjs(st.session_state)
 
+def marker_multiselect_callback():
+    st.session_state.marker_names = st.session_state.marker_multi_sel
+    st.session_state = ndl.set_phenotyping_elements(st.session_state, st.session_state.df_raw)
+
 def main():
     '''
     Main function for running the page
@@ -226,8 +230,9 @@ def main():
                     st.session_state.pointstSliderVal_Sel = st.session_state.calcSliderVal
     with midCol[1]:
          with st.expander('Choose Markers to include'):
-            st.multiselect('Markers', options = st.session_state.marker_names,
-                                      key = 'marker_multi_sel')
+            st.multiselect('Markers', options = st.session_state.loaded_marker_names,
+                                      key = 'marker_multi_sel',
+                                      on_change=marker_multiselect_callback)
 
     ## In-App Instructions
     if st.session_state.data_loaded is False:
