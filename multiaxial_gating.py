@@ -54,9 +54,9 @@ df_to_plot_selected = df_to_plot_full[(df_to_plot_full['Value'] >= st.session_st
 
 # Plot the Plotly figure in Streamlit
 fig = go.Figure()
-fig.add_trace(go.Scatter(x=df_to_plot_full['Value'], y=df_to_plot_full['Density'], fill='tozeroy', mode='none', fillcolor='yellow', name='Full', hovertemplate=' '))
-fig.add_trace(go.Scatter(x=df_to_plot_selected['Value'], y=df_to_plot_selected['Density'], fill='tozeroy', mode='none', fillcolor='red', name='Selected', hoverinfo='skip'))
-fig.update_layout(hovermode='x unified')
+fig.add_trace(go.Scatter(x=df_to_plot_full['Value'], y=df_to_plot_full['Density'], fill='tozeroy', mode='none', fillcolor='yellow', name='Full dataset', hovertemplate=' '))
+fig.add_trace(go.Scatter(x=df_to_plot_selected['Value'], y=df_to_plot_selected['Density'], fill='tozeroy', mode='none', fillcolor='red', name='Selection', hoverinfo='skip'))
+fig.update_layout(hovermode='x unified', title_text='Density vs. column value')
 st.plotly_chart(fig)
 
 # Update the run-before key
