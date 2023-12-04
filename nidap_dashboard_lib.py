@@ -387,20 +387,23 @@ def prepare_data(df_orig, marker_col_prefix):
     """
 
     # Time the components of the prepare_data step
-    prepDataSt = time.time()
+    bc = benchmark_collector()
 
     # Set df_raw as the baseline dataframe
     df_raw = df_orig.copy()
 
+    # Identify Markers in the dataset
+    bc.startTimer()
+    marker_names = bpl.identify_marker_columns(df_raw, marker_col_prefix)
+    bc.printElapsedTime(msg = 'Identifying Marker Names')
+
     # Perform pre-processing (based on app-specific needs)
-    df_raw, marker_names, spec_summ, pheno_summ = bpl.preprocess_df(df_raw, marker_col_prefix)
-    procDFSP = time.time()
+    bc.startTimer()
+    df_raw, spec_summ, pheno_summ = bpl.preprocess_df(df_raw, marker_names, marker_col_prefix)
+    bc.printElapsedTime(msg = 'Processing Phenotying Elements')
 
     # Make a copy of df_raw as df
     df = df_raw.copy()
-
-    prepDataTD = {'procDF': np.round(procDFSP - prepDataSt, 3)}
-    # print(prepDataTD)
 
     return df_raw, df, marker_names, spec_summ, pheno_summ
 

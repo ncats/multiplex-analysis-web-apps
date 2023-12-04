@@ -10,35 +10,30 @@ from sklearn.cluster import KMeans # K-Means
 
 from benchmark_collector import benchmark_collector # Benchmark Collector Class
 
-def preprocess_df(df, marker_col_prefix):
+def preprocess_df(df, marker_names, marker_col_prefix):
     '''Perform some preprocessing on our dataset to apply tranforms
     and collect meta-data
     '''
 
-    # Step 0: Start the timer
+    # Create the bench mark collector obj
     bc = benchmark_collector()
     
-    # Step 1: Identify the Markers in the dataframe
-    bc.startTimer()
-    marker_names = identify_marker_columns(df, marker_col_prefix)
-    bc.printElapsedTime(msg = '     Identifying Marker Columns')
-
-    # Step 2: Initalize the columns needed for phenotyping
+    # Step 1: Initalize the columns needed for phenotyping
     bc.startTimer()
     df = init_pheno_cols(df, marker_names, marker_col_prefix)
-    bc.printElapsedTime(msg = '     Initializing Phenotying Columns')
+    bc.printElapsedTime(msg = '     Initializing Phenotyping Columns')
 
-    # Step 3: Intialize Species Summary Dataframe
+    # Step 2: Intialize Phenotying Assignments dataframe
     bc.startTimer()
     spec_summ = init_species_summary(df)
-    bc.printElapsedTime(msg = '     Initializing Phenotying Assignments Table')
+    bc.printElapsedTime(msg = '     Initializing Phenotyping Assignments Table')
 
-    # Step 4: Intialize Phenotype Assignment Dataframe (based on Species Summary)
+    # Step 3: Intialize Phenotype Summary Dataframe (based on Phenotying Assigments)
     bc.startTimer()
     pheno_summ = init_pheno_summ(df)
-    bc.printElapsedTime(msg = '     Initializing Phenotying Summary Table')
+    bc.printElapsedTime(msg = '     Initializing Phenotype Summary Table')
 
-    return df, marker_names, spec_summ, pheno_summ
+    return df, spec_summ, pheno_summ
 
 def identify_marker_columns(df, marker_col_prefix):
     '''
