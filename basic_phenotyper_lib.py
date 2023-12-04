@@ -28,7 +28,7 @@ def preprocess_df(df_orig, marker_names, marker_col_prefix):
 
     # Step 2: Intialize Phenotying Assignments dataframe
     bc.startTimer()
-    spec_summ = init_species_summary(df_raw)
+    pheno_assign = init_pheno_assign(df_raw)
     bc.printElapsedTime(msg = '     Initializing Phenotyping Assignments Table')
 
     # Step 3: Intialize Phenotype Summary Dataframe (based on Phenotying Assigments)
@@ -39,7 +39,7 @@ def preprocess_df(df_orig, marker_names, marker_col_prefix):
     # Make a copy of df_raw as df
     df = df_raw.copy()
 
-    return df_raw, df, spec_summ, pheno_summ
+    return df_raw, df, pheno_assign, pheno_summ
 
 def identify_marker_columns(df, marker_col_prefix):
     '''
@@ -91,7 +91,7 @@ def init_pheno_cols(df, marker_names, marker_col_prefix):
     # Return the dataframe with the marker bits column appended as well as the list of marker names
     return df
 
-def init_species_summary(df):
+def init_pheno_assign(df):
     """For each unique species (elsewhere called "exclusive" phenotyping), generate information concerning their prevalence in a new dataframe.
 
     Args:

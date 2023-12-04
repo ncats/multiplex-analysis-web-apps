@@ -296,26 +296,10 @@ def loadDataButton(session_state, df_import, projectName, fileName):
     session_state.datafile   = fileName    # File Name
     session_state.df_update_filename_U = session_state.datafile + '_updated'
 
-    # DataFrame prep
-    session_state.df_raw, \
-    session_state.df, \
-    session_state.marker_names, \
-    session_state.spec_summ, \
-    session_state.pheno_summ = prepare_data(df_import, session_state.marker_pre)
+    # Set Phenotyping Elements
+    session_state = set_phenotyping_elements(session_state, df_import, session_state.marker_pre)
 
-    session_state.spec_summ_load       = session_state.spec_summ.copy() # Default version that is loaded
-    session_state.spec_summ_dataeditor = session_state.spec_summ.copy() # Default version that is used for custom phenotyping table
-
-    if 'dataeditor__do_not_persist' in session_state:
-        del session_state.dataeditor__do_not_persist
-    if 'saved_dataeditor_values' in session_state:
-        del session_state.saved_dataeditor_values
-
-    # Default Phenotyping Method (Radio Button)
-    session_state.noPhenoOpt = 'Not Selected'
-    session_state.phenoMeth  = 'Species'                         # Default when first loaded
-    session_state.selected_phenoMeth = session_state.noPhenoOpt  # Default when first loaded
-
+    # Data has now undergone enough transformation to be called 'LOADED'
     session_state.data_loaded = True
 
     # Analysis Setting Init
@@ -369,7 +353,7 @@ def loadDataButton(session_state, df_import, projectName, fileName):
 
     return session_state
 
-def prepare_data(df_orig, marker_col_prefix):
+def set_phenotyping_elements(session_state, df_orig, marker_col_prefix):
     """
     To be run each time new data is loaded using the 'Load Data' method
     """
@@ -379,15 +363,32 @@ def prepare_data(df_orig, marker_col_prefix):
 
     # Identify Markers in the dataset
     bc.startTimer()
-    marker_names = bpl.identify_marker_columns(df_orig, marker_col_prefix)
+    session_state.marker_names = bpl.identify_marker_columns(df_orig, marker_col_prefix)
     bc.printElapsedTime(msg = 'Identifying Marker Names')
 
-    # Perform pre-processing (based on app-specific needs)
+    # Perform pre-processing (phenotying columns, pheno_assign table, pheno_summ table)
     bc.startTimer()
-    df_raw, df, spec_summ, pheno_summ = bpl.preprocess_df(df_orig, marker_names, marker_col_prefix)
+    session_state.df_raw, \
+    session_state.df, \
+    session_state.spec_summ, \
+    session_state.pheno_summ = bpl.preprocess_df(df_orig, session_state.marker_names, marker_col_prefix)
     bc.printElapsedTime(msg = 'Processing Phenotying Elements')
 
-    return df_raw, df, marker_names, spec_summ, pheno_summ
+    # Initalize Custom Phenotyping Variables
+    session_state.spec_summ_load       = session_state.spec_summ.copy() # Default version that is loaded
+    session_state.spec_summ_dataeditor = session_state.spec_summ.copy() # Default version that is used for custom phenotyping table
+
+    if 'dataeditor__do_not_persist' in session_state:
+        del session_state.dataeditor__do_not_persist
+    if 'saved_dataeditor_values' in session_state:
+        del session_state.saved_dataeditor_values
+
+    # Initalize Phenotyping Settings (Radio BUttons)
+    session_state.noPhenoOpt = 'Not Selected'
+    session_state.phenoMeth  = 'Species'                         # Default when first loaded
+    session_state.selected_phenoMeth = session_state.noPhenoOpt  # Default when first loaded
+
+    return session_state
 
 def load_dataset(fiol, dataset_path, files_dict, file_path, loadCompass=False):
     """
@@ -416,7 +417,7 @@ def updatePhenotyping(session_state):
                                             session_state.marker_names)
 
     # Initalize Species Summary Table
-    session_state.spec_summ    = bpl.init_species_summary(session_state.df)
+    session_state.spec_summ    = bpl.init_pheno_assign(session_state.df)
     # Set the data_editor species summary 
     
     if 'dataeditor__do_not_persist' in session_state:
