@@ -25,9 +25,29 @@ def update_dependencies_of_column_for_filtering():
 def update_column_options():
     return [column for column in st.session_state['mg__all_numeric_columns'] if column in (set(st.session_state['mg__all_numeric_columns']) - set(st.session_state['mg__df_current_phenotype']['Column for filtering']))]
 
-# Add to the current phenotype and update the options for the column for filtering and its dependencies
+# Add to the current phenotype and update the previous parts of the app
 def update_dependencies_of_button_for_adding_column_filter_to_current_phenotype(column_for_filtering, selected_min_val, selected_max_val):
+
+    # Do some work
     st.session_state['mg__df_current_phenotype'] = pd.concat([st.session_state['mg__df_current_phenotype'], pd.DataFrame(pd.Series({'Column for filtering': column_for_filtering, 'Minimum value': selected_min_val, 'Maximum value': selected_max_val})).T]).reset_index(drop=True)
+
+    # Reset everything else
+    st.session_state['mg__column_for_filtering'] = update_column_options()[0]
+    update_dependencies_of_column_for_filtering()
+
+# Add to the phenotype assignments for the new dataset and update the previous parts of the app
+def update_dependencies_of_button_for_adding_phenotype_to_new_dataset():
+
+    # Do some work
+    curr_phenotype_dict = dict()
+    for row in st.session_state['mg__df_current_phenotype'].itertuples(index=False):
+        curr_col, curr_min, curr_max = row
+        curr_phenotype_dict[curr_col + ' [[min]]'] = curr_min
+        curr_phenotype_dict[curr_col + ' [[max]]'] = curr_max
+    st.session_state['mg__df_phenotype_assignments'] = pd.concat([st.session_state['mg__df_phenotype_assignments'], pd.DataFrame(pd.Series(curr_phenotype_dict, name=st.session_state['mg__current_phenotype_name'])).T]).rename_axis('Phenotype')
+
+    # Reset everything else
+    st.session_state['mg__df_current_phenotype'] = pd.DataFrame(columns=['Column for filtering', 'Minimum value', 'Maximum value'])
     st.session_state['mg__column_for_filtering'] = update_column_options()[0]
     update_dependencies_of_column_for_filtering()
 
@@ -63,10 +83,6 @@ df = st.session_state['mg__df']
 unique_images_short = st.session_state['mg__unique_images_short']
 unique_image_dict = st.session_state['mg__unique_image_dict']
 
-# Get the first image in the dataset
-if 'mg__image_to_plot' not in st.session_state:
-    st.session_state['mg__image_to_plot'] = unique_images_short[0]
-
 # Define the main columns
 main_columns = st.columns(3)
 
@@ -77,8 +93,7 @@ with main_columns[0]:
     st.header(':one: Column filter')
 
     # Have a dropdown for the column on which to perform a kernel density estimate
-    column_options = update_column_options()
-    st.selectbox(label='Column for filtering:', options=column_options, key='mg__column_for_filtering', on_change=update_dependencies_of_column_for_filtering)
+    st.selectbox(label='Column for filtering:', options=update_column_options(), key='mg__column_for_filtering', on_change=update_dependencies_of_column_for_filtering)
     column_for_filtering = st.session_state['mg__column_for_filtering']
 
     # Output information on the column range
@@ -114,6 +129,9 @@ with main_columns[0]:
     st.button(':star2: Add column filter to current phenotype :star2:', use_container_width=True, on_click=update_dependencies_of_button_for_adding_column_filter_to_current_phenotype, args=(column_for_filtering, selected_min_val, selected_max_val))
 
     # # Optionally plot a cell scatter plot
+    # # Get the first image in the dataset
+    # if 'mg__image_to_plot' not in st.session_state:
+    #     st.session_state['mg__image_to_plot'] = unique_images_short[0]
     # st.selectbox(label='Image to plot:', options=unique_images_short, key='mg__image_to_plot')
     # image_to_plot = st.session_state['mg__image_to_plot']
     # if st.button('Update (or plot for the first time) the scatter plot of selected cells'):
@@ -137,8 +155,7 @@ with main_columns[1]:
     st.text_input(label='Phenotype name:', key='mg__current_phenotype_name')
 
     # If we want to add the current phenotype to the new dataset...
-    if st.button(label=':star2: Add phenotype to new dataset :star2:', use_container_width=True):
-        st.write(st.session_state['mg__df_current_phenotype'].drop_duplicates(ignore_index=True))
+    st.button(label=':star2: Add phenotype to new dataset :star2:', use_container_width=True, on_click=update_dependencies_of_button_for_adding_phenotype_to_new_dataset)
 
 # New dataset
 with main_columns[2]:
@@ -146,4 +163,5 @@ with main_columns[2]:
     # Column header
     st.header(':three: New dataset')
 
-    st.write('bleh')
+    # Output the dataframe holding the specifications for all phenotypes
+    st.dataframe(st.session_state['mg__df_phenotype_assignments'])
