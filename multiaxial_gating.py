@@ -109,7 +109,8 @@ if 'mg__current_phenotype_name' not in st.session_state:
 input_directory = os.path.join('.', 'input')
 
 # Set datafile information --> turn into widgets soon
-input_datafilename = 'measurementsEpCAMLy51MHCII-exported.csv'
+# input_datafilename = 'measurementsEpCAMLy51MHCII-exported.csv'
+input_datafilename = 'measurementsthymus-exported.csv'
 coord_units_in_microns = 1
 
 # Load the data only once, otherwise keep it in memory
@@ -256,6 +257,6 @@ st.markdown('''
               * Grab the two input parameters from this multiaxial gating page
               * Instead of loading the dataset from dataset_formats.py in the Phenotyper, just grab the dataframe `st.session_state['mg__df']`
               * Implement saving of the two edited dataframes upon page-swapping as that's certainly not implemented now
-              * Perform somewhat rigorous testing to ensure there are no bugs anywhere, e.g., no way to add two filters on the same column for the same phenotype; no reverting of dataframe values after some period of time, etc.
+              * Perform somewhat rigorous testing *on NIDAP* to ensure there are no bugs anywhere, e.g., no way to add two filters on the same column for the same phenotype; no reverting of dataframe values after some period of time, etc.
             * More?
 ''')
