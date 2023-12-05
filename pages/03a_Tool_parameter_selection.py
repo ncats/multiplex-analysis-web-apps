@@ -107,8 +107,9 @@ def main():
 
     def create_phenotype_assignments_file_from_phenotyper(df_phenotype_assignments):
 
-        # Import relevant library
+        # Import relevant libraries
         from datetime import datetime
+        import numpy as np
 
         # Set the full directory path to the phenotypes files
         phenotypes_path = os.path.join(input_directory, 'phenotypes')
@@ -120,12 +121,19 @@ def main():
         # Set the filename of the phenotype assignments file to write
         filename = 'phenotype_assignments_from_phenotyper-{}.tsv'.format(datetime.now().strftime("%Y%m%d_%H%M%S"))
 
-        # Assign a new dataframe as a subset of the one containing the phenotype assignments and modify one of its columns to spec
+        # Assign a new dataframe as a subset of the one containing the phenotype assignments
         df_phenotype_assignments_to_write = df_phenotype_assignments[['species_count', 'species_percent', 'species_name_short', 'phenotype', 'species_name_long']]
+
+        # Set the index to the "Species int" value in time_cell_interaction_lib.py
+        full_marker_list = [x.removeprefix('Phenotype ') for x in st.session_state['df'].columns if x.startswith('Phenotype ')]
+        num_all_markers = len(full_marker_list)
+        df_phenotype_assignments_to_write.index = df_phenotype_assignments_to_write['species_name_short'].apply(lambda species_name_short: (sum([2 ** (num_all_markers - full_marker_list.index(positive_marker) - 1) for positive_marker in species_name_short[:-1].split('+ ')]) if species_name_short != 'Other' else 0))
+
+        # Modify the columns to spec
         df_phenotype_assignments_to_write = df_phenotype_assignments_to_write[df_phenotype_assignments_to_write['species_name_long'].apply(lambda species_name_long: sum([0 if x[-1] == '-' else 1 for x in species_name_long.split(' ')]) != 0)]
         df_phenotype_assignments_to_write = df_phenotype_assignments_to_write.drop('species_name_long', axis='columns')
         df_phenotype_assignments_to_write['species_name_short'] = df_phenotype_assignments_to_write['species_name_short'].apply(lambda x: sorted(x.rstrip('+').split('+ ')))
-        df_phenotype_assignments_to_write['species_percent'] = df_phenotype_assignments_to_write['species_count'] / df_phenotype_assignments_to_write['species_count'].sum() * 100
+        df_phenotype_assignments_to_write['species_percent'] = (df_phenotype_assignments_to_write['species_count'] / df_phenotype_assignments_to_write['species_count'].sum() * 100).apply(lambda x: np.round(x, decimals=8))
 
         # Write the dataframe to disk
         df_phenotype_assignments_to_write.to_csv(path_or_buf=os.path.join(phenotypes_path, filename), sep='\t', header=False)
