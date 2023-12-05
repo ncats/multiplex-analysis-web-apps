@@ -5,7 +5,6 @@ import streamlit as st
 import plotly.graph_objects as go
 import os
 import dataset_formats
-import plotly.express as px
 
 # Function to load the data in a unified format
 def load_data(input_datafile_path, coord_units_in_microns, dataset_format):
@@ -42,11 +41,14 @@ df = st.session_state['mg__df']
 unique_images_short = st.session_state['mg__unique_images_short']
 unique_image_dict = st.session_state['mg__unique_image_dict']
 
-# Define the main two columns
-main_columns = st.columns(2)
+# Define the main columns
+main_columns = st.columns(3)
 
-# In the first main column...
+# Column filter
 with main_columns[0]:
+
+    # Column header
+    st.header(':one: Column filter')
 
     # Have a dropdown for the column on which to perform a kernel density estimate
     st.selectbox(label='Column for filtering:', options=df.select_dtypes(include='number').columns, key='mg__column_to_plot', on_change=update_dependencies_of_column_to_plot)
@@ -93,26 +95,41 @@ with main_columns[0]:
     fig.update_layout(hovermode='x unified', xaxis_title='Column value', yaxis_title='Density')
     st.plotly_chart(fig)
 
-    # If we want to add the selection to the phenotype assignment...
-    if st.button('Add column filter to current phenotype'):
+    # If we want to add the current column filter to the current phenotype assignment...
+    if st.button(':star2: Add column filter to current phenotype :star2:', use_container_width=True):
         st.session_state['mg__df_current_phenotype'] = pd.concat([st.session_state['mg__df_current_phenotype'], pd.DataFrame(pd.Series({'Column for filtering': column_to_plot, 'Minimum value': selected_min_val, 'Maximum value': selected_max_val})).T]).reset_index(drop=True)
 
-    # Optionally plot a cell scatter plot
-    st.selectbox(label='Image to plot:', options=unique_images_short, key='mg__image_to_plot')
-    image_to_plot = st.session_state['mg__image_to_plot']
-    if st.button('Update (or plot for the first time) the scatter plot of selected cells'):
-        df_selected_image = df.loc[df['Slide ID'] == unique_image_dict[image_to_plot], ['Cell X Position', 'Cell Y Position', column_to_plot]].copy()
-        df_selected_image['Label'] = 'Other'
-        df_selected_image.loc[(df_selected_image[column_to_plot] >= selected_min_val) & (df_selected_image[column_to_plot] <= selected_max_val), 'Label'] = 'Selection'
-        fig = px.scatter(data_frame=df_selected_image, x='Cell X Position', y='Cell Y Position', color='Label')
-        fig.update_xaxes(scaleanchor='y')
-        st.plotly_chart(fig)
+    # # Optionally plot a cell scatter plot
+    # st.selectbox(label='Image to plot:', options=unique_images_short, key='mg__image_to_plot')
+    # image_to_plot = st.session_state['mg__image_to_plot']
+    # if st.button('Update (or plot for the first time) the scatter plot of selected cells'):
+    #     df_selected_image = df.loc[df['Slide ID'] == unique_image_dict[image_to_plot], ['Cell X Position', 'Cell Y Position', column_to_plot]].copy()
+    #     df_selected_image['Label'] = 'Other'
+    #     df_selected_image.loc[(df_selected_image[column_to_plot] >= selected_min_val) & (df_selected_image[column_to_plot] <= selected_max_val), 'Label'] = 'Selection'
+    #     fig = px.scatter(data_frame=df_selected_image, x='Cell X Position', y='Cell Y Position', color='Label')
+    #     fig.update_xaxes(scaleanchor='y')
+    #     st.plotly_chart(fig)
 
-# In the second main column...
+# Current phenotype
 with main_columns[1]:
+
+    # Column header
+    st.header(':two: Current phenotype')
 
     # Output the dataframe holding the phenotype that's currently being built
     st.dataframe(st.session_state['mg__df_current_phenotype'])
 
+    # Choose a phenotype name
     st.text_input(label='Phenotype name:', key='mg__current_phenotype_name')
-    st.button(label='Add phenotype', use_container_width=True)
+
+    # If we want to add the current phenotype to the new dataset...
+    if st.button(label=':star2: Add phenotype to new dataset :star2:', use_container_width=True):
+        pass
+
+# New dataset
+with main_columns[2]:
+
+    # Column header
+    st.header(':three: New dataset')
+
+    st.write('bleh')
