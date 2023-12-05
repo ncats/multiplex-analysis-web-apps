@@ -9,6 +9,11 @@ name = "Data Import and Export"
 icon = ""
 
 [[pages]]
+path = "pages/multiaxial_gating.py"
+name = "Multi-axial Gating"
+icon = ""
+
+[[pages]]
 path = "pages/02_phenotyping.py"
 name = "Phenotyping"
 icon = ""
