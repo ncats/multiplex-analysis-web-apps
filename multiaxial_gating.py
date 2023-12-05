@@ -5,6 +5,7 @@ import streamlit as st
 import plotly.graph_objects as go
 import os
 import dataset_formats
+import plotly.express as px
 
 # Function to load the data in a unified format
 def load_data(input_datafile_path, coord_units_in_microns, dataset_format):
@@ -38,30 +39,36 @@ def update_dependencies_of_button_for_adding_column_filter_to_current_phenotype(
 # Add to the phenotype assignments for the new dataset and update the previous parts of the app
 def update_dependencies_of_button_for_adding_phenotype_to_new_dataset():
 
+    # Set the current column filters dataframe to use, which if "edited" may cause bouncing (once we initialize the dataframe with the previous values in the naive way?) since I'm not using the session state but am instead using the return value of st.data_editor()
+    df_current_phenotype = st.session_state['mg__df_current_phenotype_edited']
+
     # Do some work
     curr_phenotype_dict = dict()
-    for row in st.session_state['mg__df_current_phenotype'].itertuples(index=False):
+    for row in df_current_phenotype.itertuples(index=False):
         curr_col, curr_min, curr_max = row
         curr_phenotype_dict[curr_col + ' [[min]]'] = curr_min
         curr_phenotype_dict[curr_col + ' [[max]]'] = curr_max
     st.session_state['mg__df_phenotype_assignments'] = pd.concat([st.session_state['mg__df_phenotype_assignments'], pd.DataFrame(pd.Series(curr_phenotype_dict, name=st.session_state['mg__current_phenotype_name'])).T]).rename_axis('Phenotype')
 
     # Reset everything else
-    st.session_state['mg__df_current_phenotype'] = pd.DataFrame(columns=['Column for filtering', 'Minimum value', 'Maximum value'])
+    df_current_phenotype = pd.DataFrame(columns=['Column for filtering', 'Minimum value', 'Maximum value'])
     st.session_state['mg__column_for_filtering'] = update_column_options()[0]
     update_dependencies_of_column_for_filtering()
 
 # From the phenotype assignments, add one column per phenotype to the original dataframe containing pluses where all the phenotype criteria are met
 def add_new_phenotypes_to_main_df(df):
 
+    # Set the phenotype assignments dataframe to use, which if "edited" may cause bouncing (once we initialize the dataframe with the previous values in the naive way?) since I'm not using the session state but am instead using the return value of st.data_editor()
+    df_phenotype_assignments = st.session_state['mg__df_phenotype_assignments_edited']
+
     # For each set of phenotype assignments...
-    for row in st.session_state['mg__df_phenotype_assignments'].itertuples():
+    for row in df_phenotype_assignments.itertuples():
 
         # Obtain the name of the current phenotype
         phenotype = row[0]
 
         # Create a dataframe from the current row so that we can split and add columns
-        curr_df = pd.Series(dict(zip(st.session_state['mg__df_phenotype_assignments'].columns, row[1:])), name=phenotype).dropna().to_frame().reset_index()
+        curr_df = pd.Series(dict(zip(df_phenotype_assignments.columns, row[1:])), name=phenotype).dropna().to_frame().reset_index()
 
         # Add a "column" column containing the name of the filtering column
         curr_df['column'] = [x.split(' [[')[0] for x in curr_df['index']]
@@ -80,6 +87,9 @@ def add_new_phenotypes_to_main_df(df):
 
         # Add a column to the original dataframe with the new phenotype satisfying all of its filtering criteria
         st.session_state['mg__df']['Phenotype {}'.format(phenotype)] = phenotype_bools.apply(lambda x: ('+' if x else '-'))
+
+# def save_data_editor_values(key):
+#     st.session_state[key.removesuffix('__do_not_persist') + '_edited'] = st.session_state[key]
 
 # Set page settings
 st.set_page_config(layout='wide', page_title='Multiaxial Gating')
@@ -160,28 +170,16 @@ with main_columns[0]:
     # Add the current column filter to the current phenotype assignment
     st.button(':star2: Add column filter to current phenotype :star2:', use_container_width=True, on_click=update_dependencies_of_button_for_adding_column_filter_to_current_phenotype, args=(column_for_filtering, selected_min_val, selected_max_val))
 
-    # # Optionally plot a cell scatter plot
-    # # Get the first image in the dataset
-    # if 'mg__image_to_plot' not in st.session_state:
-    #     st.session_state['mg__image_to_plot'] = unique_images_short[0]
-    # st.selectbox(label='Image to plot:', options=unique_images_short, key='mg__image_to_plot')
-    # image_to_plot = st.session_state['mg__image_to_plot']
-    # if st.button('Update (or plot for the first time) the scatter plot of selected cells'):
-    #     df_selected_image = df.loc[df['Slide ID'] == unique_image_dict[image_to_plot], ['Cell X Position', 'Cell Y Position', column_for_filtering]].copy()
-    #     df_selected_image['Label'] = 'Other'
-    #     df_selected_image.loc[(df_selected_image[column_for_filtering] >= selected_min_val) & (df_selected_image[column_for_filtering] <= selected_max_val), 'Label'] = 'Selection'
-    #     fig = px.scatter(data_frame=df_selected_image, x='Cell X Position', y='Cell Y Position', color='Label')
-    #     fig.update_xaxes(scaleanchor='y')
-    #     st.plotly_chart(fig)
-
 # Current phenotype and phenotype assignments
 with main_columns[1]:
 
     # Column header
-    st.header(':two: Current phenotype')
+    st.header(':two: Current phenotype', help='Note you can refine values in the following table by editing them directly or even deleting whole rows.')
 
     # Output the dataframe holding the phenotype that's currently being built
-    st.dataframe(st.session_state['mg__df_current_phenotype'])
+    # st.dataframe(st.session_state['mg__df_current_phenotype'])
+    st.session_state['mg__df_current_phenotype_edited'] = st.data_editor(st.session_state['mg__df_current_phenotype'], num_rows='dynamic')
+    # st.data_editor(st.session_state['mg__df_current_phenotype'], key='mg__df_current_phenotype__do_not_persist', on_change=save_data_editor_values, args='mg__df_current_phenotype__do_not_persist')
 
     # Choose a phenotype name
     st.text_input(label='Phenotype name:', key='mg__current_phenotype_name')
@@ -190,10 +188,11 @@ with main_columns[1]:
     st.button(label=':star2: Add phenotype to assignments table :star2:', use_container_width=True, on_click=update_dependencies_of_button_for_adding_phenotype_to_new_dataset)
 
     # Column header
-    st.header(':three: Phenotype assignments')
+    st.header(':three: Phenotype assignments', help='Note you can refine values in the following table by editing them directly or even deleting whole rows.')
 
     # Output the dataframe holding the specifications for all phenotypes
-    st.dataframe(st.session_state['mg__df_phenotype_assignments'])
+    # st.dataframe(st.session_state['mg__df_phenotype_assignments'])
+    st.session_state['mg__df_phenotype_assignments_edited'] = st.data_editor(st.session_state['mg__df_phenotype_assignments'], num_rows='dynamic')
 
     # Generate the new dataset
     st.button(label=':star2: Generate the new dataset from the phenotype assignments :star2:', use_container_width=True, on_click=add_new_phenotypes_to_main_df, args=(df,))
@@ -204,6 +203,59 @@ with main_columns[2]:
     # Column header
     st.header(':four: New dataset')
 
-    # Print out a snippet of the main dataframe
-    st.write('Augmented dataset snippet:')
-    st.dataframe(st.session_state['mg__df'].head(10))
+    # Print out a sample of the main dataframe
+    st.write('Augmented dataset sample:')
+    st.dataframe(st.session_state['mg__df'].sample(5))
+
+    # Get a list of all new phenotypes
+    new_phenotypes = [column for column in st.session_state['mg__df'].columns if column.startswith('Phenotype ')]
+
+    # If at least one phenotype has been assigned...
+    if len(new_phenotypes) > 0:
+
+        # Initialize the plot of an optional cell scatter plot to the first image in the dataset
+        if 'mg__image_to_plot' not in st.session_state:
+            st.session_state['mg__image_to_plot'] = unique_images_short[0]
+        if 'mg__phenotype_to_plot' not in st.session_state:
+            st.session_state['mg__phenotype_to_plot'] = new_phenotypes[0]
+
+        # Generate widgets for the plotting parameters
+        st.selectbox(label='Image to plot:', options=unique_images_short, key='mg__image_to_plot')
+        st.selectbox(label='Phenotype to plot:', options=new_phenotypes, key='mg__phenotype_to_plot')
+        
+        # If the button is pressed
+        if st.button('Plot the selected phenotype in the selected image'):
+            df_for_scatterplot = df.loc[df['Slide ID'] == unique_image_dict[st.session_state['mg__image_to_plot']], ['Cell X Position', 'Cell Y Position', st.session_state['mg__phenotype_to_plot']]]
+            fig = px.scatter(data_frame=df_for_scatterplot, x='Cell X Position', y='Cell Y Position', color=st.session_state['mg__phenotype_to_plot'])
+            fig.update_xaxes(scaleanchor='y')
+            st.plotly_chart(fig)
+
+        # Optionally run some checks
+        if st.toggle(label='Do checks'):
+        
+            # Write out the detected cutoffs to use for basic validation
+            phenotypes_orig = ['Phenotype_orig MHCII', 'Phenotype_orig Ly51', 'Phenotype_orig EpCAM']
+            intensities = ['MHC II (CH3 Fluor Cy3): Membrane: Mean', 'Ly51 (CH4 Fluor Cy5): Membrane: Mean', 'EpCAM (CH2 Fluor GFP): Membrane: Mean']
+            for ipheno in range(len(phenotypes_orig)):
+                tmp = st.session_state['mg__df'][phenotypes_orig[ipheno]]
+                tmp.index = st.session_state['mg__df'][intensities[ipheno]]
+                tmp = tmp.sort_index()
+                st.write('Intensity cutoff for {}: {}'.format(phenotypes_orig[ipheno], tmp[tmp == '+'].index[0]))
+
+            # Write the numbers of positive markers to compare the new phenotypes with the original phenotypes
+            for phenotype_orig in phenotypes_orig:
+                st.write(st.session_state['mg__df'][phenotype_orig].value_counts())
+                st.write(st.session_state['mg__df'][phenotype_orig.replace('_orig', '').replace('MHCII', 'MHC II') + ' new'].value_counts())
+
+st.header('TODO')
+st.markdown('''
+            * Add widgets for the two input parameters
+            * Perform more minor testing
+            * Specify what needs to be done for integration:
+              * Add multiaxial gating as a page preceding the Phenotyper
+              * Grab the two input parameters from this multiaxial gating page
+              * Instead of loading the dataset from dataset_formats.py in the Phenotyper, just grab the dataframe `st.session_state['mg__df']`
+              * Implement saving of the two edited dataframes upon page-swapping as that's certainly not implemented now
+              * Perform somewhat rigorous testing to ensure there are no bugs anywhere, e.g., no way to add two filters on the same column for the same phenotype; no reverting of dataframe values after some period of time, etc.
+            * More?
+''')
