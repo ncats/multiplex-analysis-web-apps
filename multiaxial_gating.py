@@ -51,6 +51,36 @@ def update_dependencies_of_button_for_adding_phenotype_to_new_dataset():
     st.session_state['mg__column_for_filtering'] = update_column_options()[0]
     update_dependencies_of_column_for_filtering()
 
+# From the phenotype assignments, add one column per phenotype to the original dataframe containing pluses where all the phenotype criteria are met
+def add_new_phenotypes_to_main_df(df):
+
+    # For each set of phenotype assignments...
+    for row in st.session_state['mg__df_phenotype_assignments'].itertuples():
+
+        # Obtain the name of the current phenotype
+        phenotype = row[0]
+
+        # Create a dataframe from the current row so that we can split and add columns
+        curr_df = pd.Series(dict(zip(st.session_state['mg__df_phenotype_assignments'].columns, row[1:])), name=phenotype).dropna().to_frame().reset_index()
+
+        # Add a "column" column containing the name of the filtering column
+        curr_df['column'] = [x.split(' [[')[0] for x in curr_df['index']]
+
+        # Drop the unnecessary "index" column
+        curr_df = curr_df.drop(['index'], axis='columns')
+
+        # Initialize a Series of booleans to True
+        phenotype_bools = pd.Series([True] * len(df))
+
+        # For each filtering column...
+        for column, value_range in curr_df.groupby(by='column')[phenotype].apply(lambda x: list(x)).items():  # note the groupby appears to result in the column's order of min then max
+
+            # Determine where the current column values are within the specified range criterion
+            phenotype_bools = phenotype_bools & (df[column] >= value_range[0]) & (df[column] <= value_range[1])
+
+        # Add a column to the original dataframe with the new phenotype satisfying all of its filtering criteria
+        st.session_state['mg__df']['Phenotype {}'.format(phenotype)] = phenotype_bools.apply(lambda x: ('+' if x else '-'))
+
 # Set page settings
 st.set_page_config(layout='wide', page_title='Multiaxial Gating')
 st.title('Multiaxial Gating')
@@ -79,12 +109,14 @@ if 'mg__df' not in st.session_state:
     st.session_state['mg__unique_images_short'] = [x.split('-imagenum_')[1] for x in unique_images]
     st.session_state['mg__unique_image_dict'] = dict(zip(st.session_state['mg__unique_images_short'], unique_images))
     st.session_state['mg__all_numeric_columns'] = st.session_state['mg__df'].select_dtypes(include='number').columns
+    phenotype_columns = [column for column in st.session_state['mg__df'].columns if column.startswith('Phenotype ')]
+    st.session_state['mg__df'] = st.session_state['mg__df'].rename(columns=dict(zip(phenotype_columns, [column.replace('Phenotype ', 'Phenotype_orig ') for column in phenotype_columns])))
 df = st.session_state['mg__df']
 unique_images_short = st.session_state['mg__unique_images_short']
 unique_image_dict = st.session_state['mg__unique_image_dict']
 
 # Define the main columns
-main_columns = st.columns(3)
+main_columns = st.columns(3, gap='medium')
 
 # Column filter
 with main_columns[0]:
@@ -125,7 +157,7 @@ with main_columns[0]:
     fig.update_layout(hovermode='x unified', xaxis_title='Column value', yaxis_title='Density')
     st.plotly_chart(fig)
 
-    # If we want to add the current column filter to the current phenotype assignment...
+    # Add the current column filter to the current phenotype assignment
     st.button(':star2: Add column filter to current phenotype :star2:', use_container_width=True, on_click=update_dependencies_of_button_for_adding_column_filter_to_current_phenotype, args=(column_for_filtering, selected_min_val, selected_max_val))
 
     # # Optionally plot a cell scatter plot
@@ -142,7 +174,7 @@ with main_columns[0]:
     #     fig.update_xaxes(scaleanchor='y')
     #     st.plotly_chart(fig)
 
-# Current phenotype
+# Current phenotype and phenotype assignments
 with main_columns[1]:
 
     # Column header
@@ -154,14 +186,24 @@ with main_columns[1]:
     # Choose a phenotype name
     st.text_input(label='Phenotype name:', key='mg__current_phenotype_name')
 
-    # If we want to add the current phenotype to the new dataset...
-    st.button(label=':star2: Add phenotype to new dataset :star2:', use_container_width=True, on_click=update_dependencies_of_button_for_adding_phenotype_to_new_dataset)
+    # Add the current phenotype to the phenotype assignments table
+    st.button(label=':star2: Add phenotype to assignments table :star2:', use_container_width=True, on_click=update_dependencies_of_button_for_adding_phenotype_to_new_dataset)
+
+    # Column header
+    st.header(':three: Phenotype assignments')
+
+    # Output the dataframe holding the specifications for all phenotypes
+    st.dataframe(st.session_state['mg__df_phenotype_assignments'])
+
+    # Generate the new dataset
+    st.button(label=':star2: Generate the new dataset from the phenotype assignments :star2:', use_container_width=True, on_click=add_new_phenotypes_to_main_df, args=(df,))
 
 # New dataset
 with main_columns[2]:
 
     # Column header
-    st.header(':three: New dataset')
+    st.header(':four: New dataset')
 
-    # Output the dataframe holding the specifications for all phenotypes
-    st.dataframe(st.session_state['mg__df_phenotype_assignments'])
+    # Print out a snippet of the main dataframe
+    st.write('Augmented dataset snippet:')
+    st.dataframe(st.session_state['mg__df'].head(10))
