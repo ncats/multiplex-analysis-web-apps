@@ -2,6 +2,7 @@
 import pandas as pd
 import seaborn as sns
 import streamlit as st
+from st_pages import show_pages_from_config, add_indentation
 import plotly.graph_objects as go
 import os
 import dataset_formats
@@ -93,7 +94,11 @@ def add_new_phenotypes_to_main_df(df):
 
 # Set page settings
 st.set_page_config(layout='wide', page_title='Multiaxial Gating')
-st.title('Multiaxial Gating')
+st.title('Multi-axial Gating')
+
+# Apply pages order and indentation
+add_indentation()
+show_pages_from_config()
 
 # Initialize some things in the session state
 if 'mg__dfs_to_plot' not in st.session_state:
