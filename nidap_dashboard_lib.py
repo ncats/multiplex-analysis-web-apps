@@ -562,9 +562,9 @@ def setFigureObjs(session_state, InSliderVal = None):
     Organize Figure Objects to be used in plotting
     """
 
-    title = [f'PROJECT Path: {session_state.selectProj}', 
-             f'DATASET: {session_state.datafile}',
-             f'PHENO METHOD: {session_state.selected_phenoMeth}']
+    title = [f'DATASET: {session_state.datafile}',
+             f'PHENO METHOD: {session_state.selected_phenoMeth}',
+             f'SLIDE ID: {session_state["selSlide ID_short"]}']
 
     session_state.phenoOrder = list(session_state.pheno_summ.loc[session_state.pheno_summ['phenotype_count'].index, 'phenotype'])
 
@@ -611,28 +611,27 @@ def setFigureObjs_UMAP(session_state):
     Organize Figure Objects to be used in plotting but for clustering
     """
 
-    title = [f'PROJECT Path: {session_state.selectProj}', 
-             f'DATASET: {session_state.datafile}',
-             f'PHENO METHOD: {session_state.selected_phenoMeth}']
+    title = [f'DATASET: {session_state.datafile}',
+             f'PHENO METHOD: {session_state.selected_phenoMeth}',
+             f'SLIDE ID: {session_state["selSlide ID_short"]}']
 
-    clustered_cells = session_state.spatial_umap.cells.loc[session_state.spatial_umap.cells.loc[:, 'umap_test'] == True, :]
-    clustOrder = sorted(clustered_cells['clust_label'].unique())
+    clustOrder = sorted(session_state.df_umap_filt['clust_label'].unique())
     # Seaborn
     session_state.seabornFig_clust, session_state.ax = bpl.draw_scatter_fig(figsize=session_state.figsize)
-    session_state.seabornFig_clust = bpl.scatter_plot(clustered_cells, session_state.seabornFig_clust, session_state.ax, title,
+    session_state.seabornFig_clust = bpl.scatter_plot(session_state.df_umap_filt, session_state.seabornFig_clust, session_state.ax, title,
                                                       xVar = 'Cell X Position', yVar = 'Cell Y Position', hueVar = 'clust_label',
                                                       hueOrder=clustOrder)
 
     # Altair
-    session_state.altairFig_clust = drawAltairObj(clustered_cells, title, clustOrder, session_state.seabornFig_clust, session_state.ax, legendCol = 'clust_label')
+    session_state.altairFig_clust = drawAltairObj(session_state.df_umap_filt, title, clustOrder, session_state.seabornFig_clust, session_state.ax, legendCol = 'clust_label')
 
     return session_state
 
 def setFigureObjs_UMAPDifferences(session_state):
 
-    title = [f'PROJECT Path: {session_state.selectProj}',
-             f'DATASET: {session_state.datafile}',
-             f'PHENO METHOD: {session_state.selected_phenoMeth}']
+    title = [f'DATASET: {session_state.datafile}',
+             f'PHENO METHOD: {session_state.selected_phenoMeth}',
+             f'SLIDE ID: {session_state["selSlide ID_short"]}']
 
     dfUMAP = pd.DataFrame(data = session_state.spatial_umap.umap_test, columns = ['X', 'Y'])
     dfUMAP['Cluster'] = session_state.spatial_umap.cells['clust_label'].values[session_state.spatial_umap.cells['umap_test']]

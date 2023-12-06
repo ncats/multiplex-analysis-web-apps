@@ -53,6 +53,8 @@ def apply_umap(UMAPStyle):
     st.session_state.inciOutcomes = [st.session_state.definciOutcomes]
     st.session_state.inciOutcomes.extend(st.session_state.outcomes)
 
+    st.session_state.df_umap = st.session_state.spatial_umap.cells.loc[st.session_state.spatial_umap.cells['umap_test'], :]
+
     # Perform possible cluster variations with the completed UMAP
     with st.spinner('Calculating Possible Clusters'):
         st.session_state.clust_range, st.session_state.wcss = bpl.measure_possible_clust(st.session_state.spatial_umap, clust_minmax)
@@ -70,6 +72,11 @@ def set_clusters():
     st.session_state.bc.set_value_df('time_to_run_cluster', ClustElapsed)
 
     st.session_state.clustering_completed = True
+
+def slide_id_callback():
+    # st.session_state['idxSlide ID'] = st.session_state['uniSlide ID_short'].index(st.session_state['selSlide ID_short'])
+    idx =  st.session_state['idxSlide ID'] = st.session_state['uniSlide ID_short'].index(st.session_state['selSlide ID_short'])
+    st.session_state['selSlide ID'] = st.session_state['uniSlide ID'][idx]
 
 def main():
     '''
@@ -162,15 +169,29 @@ def main():
         # Print a column header
         st.header('Clusters Plot')
 
-        if st.session_state.umapCompleted:
-            st.session_state = ndl.setFigureObjs_UMAP(st.session_state)
+        clustOPheno = st.radio('Plot Colors by: ',
+                               ('Clusters', 'Phenotype'),
+                               horizontal = True, index = 0, key = 'clustOPheno')
+        
+        imageProgCol = st.columns([3, 1, 1, 2])
+        with imageProgCol[0]:
+            st.selectbox('Slide ID',
+                         (st.session_state['uniSlide ID_short']),
+                         key = 'selSlide ID_short',
+                         on_change=slide_id_callback)
+        with imageProgCol[1]:
+            add_vertical_space(2)
+            # st.button('←', on_click=slide_id_prog_left_callback, disabled=st.session_state.prog_left_disabeled)
+        with imageProgCol[2]:
+            add_vertical_space(2)
+            # st.button('→', on_click=slide_id_prog_right_callback, disabled=st.session_state.prog_right_disabeled)
+        with imageProgCol[3]:
+            add_vertical_space(2)
+            st.write(f'Image {st.session_state["idxSlide ID"]+1} of {st.session_state["numSlide ID"]}')
 
-            visOpCol1 , visOpCol2 = st.columns(2)
-            with visOpCol1:
-                clustOPheno = st.radio(
-                        'Plot Colors by: ',
-                            ('Clusters', 'Phenotype'),
-                            horizontal = True, index = 0, key = 'clustOPheno')
+        if st.session_state.umapCompleted:
+            st.session_state.df_umap_filt = st.session_state.df_umap.loc[st.session_state.df_umap['Slide ID'] == st.session_state['selSlide ID'], :]
+            st.session_state = ndl.setFigureObjs_UMAP(st.session_state)
 
             if clustOPheno == 'Clusters':
                 st.pyplot(st.session_state.seabornFig_clust)
