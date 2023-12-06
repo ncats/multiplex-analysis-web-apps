@@ -15,7 +15,7 @@ import basic_phenotyper_lib as bpl  # Useful functions for phenotyping collectio
 import app_top_of_page as top
 
 def init_spatial_umap():
-    countTSt = time.time()
+    st.session_state.bc.startTimer()
     with st.spinner('Calculating Cell Counts and Areas'):
         st.session_state.spatial_umap = bpl.setup_Spatial_UMAP(st.session_state.df,
                                                                st.session_state.marker_multi_sel,
@@ -24,21 +24,20 @@ def init_spatial_umap():
     st.write('Done Calculating Cell Counts and Areas')
 
     # Record time elapsed
-    countElapsed = time.time() - countTSt
-    st.session_state.bc.set_value_df('time_to_run_counts', countElapsed)
+    st.session_state.bc.set_value_df('time_to_run_counts', st.session_state.bc.elapsedTime())
 
     st.session_state.cell_counts_completed = True
 
 def apply_umap(UMAPStyle):
     clust_minmax = [1, 40]
-    UMAPTSt = time.time()
+    st.session_state.bc.startTimer()
     with st.spinner('Calculating UMAP'):
         st.session_state.spatial_umap = bpl.perform_spatialUMAP(st.session_state.spatial_umap, UMAPStyle)
     st.write('Done Calculating Spatial UMAP')
     
     # Record time elapsed
-    UMAPElapsed = time.time() - UMAPTSt
-    st.session_state.bc.set_value_df('time_to_run_UMAP', UMAPElapsed)
+    st.session_state.bc.printElapsedTime(msg = f'Performing UMAP')
+    st.session_state.bc.set_value_df('time_to_run_UMAP', st.session_state.bc.elapsedTime())
 
     # List of possible UMAP Lineages as defined by the completed UMAP
     st.session_state.umapPheno = [st.session_state.defLineageOpt]
@@ -56,20 +55,23 @@ def apply_umap(UMAPStyle):
     st.session_state.df_umap = st.session_state.spatial_umap.cells.loc[st.session_state.spatial_umap.cells['umap_test'], :]
 
     # Perform possible cluster variations with the completed UMAP
+    st.session_state.bc.startTimer()
     with st.spinner('Calculating Possible Clusters'):
         st.session_state.clust_range, st.session_state.wcss = bpl.measure_possible_clust(st.session_state.spatial_umap, clust_minmax)
+    st.session_state.bc.printElapsedTime(msg = f'Calculating posstible clusters')
+
     st.session_state.wcss_calc_completed = True
     st.session_state.umapCompleted = True
 
 def set_clusters():
-    clust_t_st = time.time()
+    st.session_state.bc.startTimer()
     st.session_state.spatial_umap = bpl.perform_clusteringUMAP(st.session_state.spatial_umap, st.session_state.slider_clus_val)
     st.session_state.selected_nClus = st.session_state.slider_clus_val
     st.write('Done Calculating Clusters')
 
     # Record time elapsed
-    ClustElapsed = time.time() - clust_t_st
-    st.session_state.bc.set_value_df('time_to_run_cluster', ClustElapsed)
+    st.session_state.bc.printElapsedTime(msg = f'Setting Clusters')
+    st.session_state.bc.set_value_df('time_to_run_cluster', st.session_state.bc.elapsedTime())
 
     st.session_state.clustering_completed = True
 

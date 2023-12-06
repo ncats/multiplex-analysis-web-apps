@@ -23,7 +23,6 @@ class benchmark_collector:
              'nCells': [None],
              'CellsxSlide': [None],
              'time_load_data': [None],
-             'time_finish_draw': [None],
              'time_to_run_counts': [None],
              'time_to_run_UMAP': [None],
              'time_to_run_cluster': [None]}
@@ -38,11 +37,16 @@ class benchmark_collector:
     def stopTimer(self):
         self.spTimer = time.time()
 
-    def printElapsedTime(self, msg):
+    def elapsedTime(self):
         if self.stTimer is not None:
             self.stopTimer()
-            elapsedTime = np.round(self.spTimer - self.stTimer, 3)
-            print(f'{msg} took {elapsedTime} s')
+            elapsedTime =  np.round(self.spTimer - self.stTimer, 3)
+        else:
+            elapsedTime = None
+        return elapsedTime
+
+    def printElapsedTime(self, msg):
+        print(f'{msg} took {self.elapsedTime()} s')
 
     def check_df(self):
         print(self.benchmarkDF.head())

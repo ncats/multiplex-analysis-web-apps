@@ -355,6 +355,11 @@ def loadDataButton(session_state, df_import, projectName, fileName):
     session_state.pointstSliderVal_Sel = session_state.calcSliderVal
     # bc.printElapsedTime(msg = 'Setting Figure Objects')
 
+    session_state.bc.set_value_df('file', fileName)
+    session_state.bc.set_value_df('nSlides', session_state['numSlide ID'])
+    session_state.bc.set_value_df('nCells', df_import.shape[0])
+    session_state.bc.set_value_df('CellsxSlide', [[session_state.df.loc[session_state.df['Slide ID'] == x, :].shape[0] for x in session_state['uniSlide ID']]])
+
     return session_state
 
 def set_phenotyping_elements(session_state, df_orig):

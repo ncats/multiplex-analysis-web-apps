@@ -154,7 +154,7 @@ def main():
         st.number_input('x-y coordinate units (microns):', min_value=0.0, key='phenotyping_micron_coordinate_units', help='E.g., if the coordinates in the input datafile were pixels, this number would be a conversion to microns in units of microns/pixel.', format='%.4f', step=0.0001)
 
         if (st.button('Load Data')) and (st.session_state.datafileU is not None):
-            start = time.time()
+            st.session_state.bc.startTimer()
             input_datafile = os.path.join('input', st.session_state.datafileU)
             _, _, _, _, file_format, _ = dataset_formats.extract_datafile_metadata(input_datafile)
 
@@ -167,14 +167,13 @@ def main():
                                         coord_units_in_microns = st.session_state.phenotyping_micron_coordinate_units, 
                                         extra_cols_to_keep=['tNt', 'GOODNUC', 'HYPOXIC', 'NORMOXIC', 'NucArea', 'RelOrientation'])
             dataset_obj.process_dataset(do_calculate_minimum_coordinate_spacing_per_roi=False)
-            stop_dataload = time.time()
-            elapsed_dataload = round(stop_dataload - start, 2)
-            print(f'{input_datafile} tool {elapsed_dataload}s to load into memory')
+            st.session_state.bc.printElapsedTime(msg = f'Loading {input_datafile} into memory')
             
+            st.session_state.bc.startTimer()
             st.session_state = ndl.loadDataButton(st.session_state, dataset_obj.data, 'Input', st.session_state.datafileU[:-4])
-            stop_phenotyping = time.time()
-            elapsed_phenotyping = round(stop_phenotyping-stop_dataload, 2)
-            print(f'{input_datafile} took {elapsed_phenotyping}s to perform phenotyping')
+            st.session_state.bc.printElapsedTime(msg = f'Performing Phenotyping on {input_datafile}')
+
+            st.session_state.bc.set_value_df('time_load_data', st.session_state.bc.elapsedTime())
 
     with dataLoadedCols[1]:
         st.selectbox(label = 'Choose a previous phenotyping file', options = phenoFileOptions, key = 'phenoFileSelect', help='Loaded .csv files populate here when the file name begins with "phenotype_summary"')
