@@ -33,10 +33,6 @@ def init_session_state(session_state, settings_yaml_file):
     session_state.fiol = foundry_IO_lib()
     session_state.bc   = benchmark_collector(session_state.fiol)
 
-    # Set benchmarking values
-    session_state.bc.set_value_df('counts_multiprocess', True)
-    session_state.bc.set_value_df('cpu_pool_size', session_state.cpu_pool_size)
-
     # Set the directory configurations
     d = os.path.dirname(os.path.abspath(__file__))
     settings_yaml_path = os.path.join(d, settings_yaml_file)

@@ -124,20 +124,22 @@ def main():
     add_indentation()
     show_pages_from_config()
 
+    if 'init' not in st.session_state:
+        settings_yaml_file = 'config_files/OMAL_REEC.yml'
+        # Initialize session_state values for streamlit processing
+        st.session_state = ndl.init_session_state(st.session_state, settings_yaml_file)
+
     # Sidebar organization
     with st.sidebar:
         st.write('**:book: [Documentation](https://ncats.github.io/multiplex-analysis-web-apps)**')
+
+        st.button('Record Benchmarking', on_click=st.session_state.bc.save_run_to_csv)
 
     # Add logo to page
     add_logo('app_images/mawa_logo-width315.png', height=150)
 
     # Run Top of Page (TOP) functions
     st.session_state = top.check_for_platform(st.session_state)
-
-    if 'init' not in st.session_state:
-        settings_yaml_file = 'config_files/OMAL_REEC.yml'
-        # Initialize session_state values for streamlit processing
-        st.session_state = ndl.init_session_state(st.session_state, settings_yaml_file)
 
     st.header('Phenotyper\nNCATS-NCI-DMAP')
 

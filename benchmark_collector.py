@@ -12,28 +12,25 @@ class benchmark_collector:
         else:
             onNIDAP = self.fiol.onNIDAP
             
-        self.benchmark_csv = "C:/Users/smithdaj/OneDrive - National Institutes of Health/General/neighborhood-profiles/Neighborhood-Profiles-Benchmarks.csv"
+        self.benchmark_csv = "C:/Users/smithdaj/OneDrive - National Institutes of Health/Documents - NCATS-NCI-DMAP/MAWA/MAWA_Suite_Benchmarking.csv"
         self.benchmark_project_path = '/NIH/Data Management & Analysis Program (DMAP)/benchmarking/'
         self.benchmark_dataset     = 'Neighborhood-Profiles-Benchmarks'
 
         d = {'id': [datetime.now()],
              'on_NIDAP': [onNIDAP],
-             'NUMBA_NUM_THREADS': ['NaN'],
-             'file': ['NaN'],
-             'nRows': ['NaN'],
-             'data_import_loc': ['NaN'],
-             'time_load_data': ['NaN'],
-             'time_finish_draw': ['NaN'],
-             'time_to_run_counts': ['NaN'],
-             'time_to_run_UMAP': ['NaN'],
-             'time_to_run_cluster': ['NaN'],
-             'counts_multiprocess': [False],
-             'cpu_pool_size': [1],
-             'new_pooling': [True]}
+             'file': [None],
+             'nSlides': [None],
+             'nCells': [None],
+             'CellsxSlide': [None],
+             'time_load_data': [None],
+             'time_finish_draw': [None],
+             'time_to_run_counts': [None],
+             'time_to_run_UMAP': [None],
+             'time_to_run_cluster': [None]}
         self.benchmarkDF = pd.DataFrame(data = d)
 
-        self.stTimer = 'None'
-        self.spTimer = 'None'
+        self.stTimer = None
+        self.spTimer = None
     
     def startTimer(self):
         self.stTimer = time.time()
@@ -53,7 +50,7 @@ class benchmark_collector:
     def set_value_df(self, field, value):
         self.benchmarkDF[field] = value
 
-    def save_run_toCsv(self):
+    def save_run_to_csv(self):
         self.benchmarkDF.to_csv(self.benchmark_csv, mode='a', index=False, header=False)
         print('Saved run to Benchmarking csv')
 
