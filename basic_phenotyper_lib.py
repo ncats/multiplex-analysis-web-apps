@@ -6,6 +6,7 @@ warnings.simplefilter(action='ignore', category= FutureWarning)
 warnings.filterwarnings("ignore", message=".*The 'nopython' keyword.*")
 pd.options.mode.chained_assignment = None  # default='warn'
 import matplotlib.pyplot as plt
+import seaborn as sns
 from sklearn.cluster import KMeans # K-Means
 
 from benchmark_collector import benchmark_collector # Benchmark Collector Class
@@ -371,9 +372,6 @@ def scatter_plot(df, fig, ax, figTitle, xVar, yVar, hueVar, hueOrder, xLim = Non
         saveFlag (Boolean, optional): Boolean Flag to save the figure to disk using matplotlib methods. Defaults to FALSE
     """
 
-    # Import relevant libraries
-    import seaborn as sns
-
     figTitle = wrapTitleText(figTitle)
     pltTitle = ''
     for i in figTitle:
@@ -521,11 +519,7 @@ def setup_Spatial_UMAP(df, marker_names, phenoOrder, cpu_pool_size = 1):
     # calculate proportions based on species counts/# cells within an arc
     spatial_umap.calc_proportions(area_threshold)
 
-    phenoLabel = phenoOrder
-    phenoColor = mpl.colormaps['tab20'].resampled(128).colors
-
-    # Create a dictionary of phenotypes and the colors to draw them as
-    spatial_umap.pheno_palette_dict = dict([(phenoLabel[x], phenoColor[x]) for x in range(len(phenoLabel))])
+    spatial_umap.phenoLabel = phenoOrder
 
     spatial_umap.cells['clust_label'] = -1
 
@@ -578,7 +572,7 @@ def perform_clusteringUMAP(spatial_umap, nClus):
     # Add cluster label column to cells dataframe
     spatial_umap.cells.loc[spatial_umap.cells.loc[:, 'umap_test'] == True, 'clust_label'] = kmeansObj.labels_
     # With the cluster labels assigned, perform mean calculations
-    spatial_umap.densMeansDict, spatial_umap.propMeansDict = spatial_umap.mean_measures()
+    spatial_umap.mean_measures()
 
     return spatial_umap
 
@@ -692,9 +686,7 @@ def neighProfileDraw(spatial_umap, selClus, figsize=(14, 16)):
     NeiProFig = plt.figure(figsize=figsize, facecolor = SlBgC)
     ax = NeiProFig.add_subplot(1, 1, 1, facecolor = SlBgC)
 
-    maxDens = spatial_umap.density.max().max() # This will be a good var to use when outliers are corrected for
-
-    umPT.plot_mean_neighborhood_profile(ax, selClus, spatial_umap.dist_bin_um, spatial_umap.densMeansDict, spatial_umap.pheno_palette_dict, 0.1, legF=1)
+    umPT.plot_mean_neighborhood_profile(ax, spatial_umap.dist_bin_um, spatial_umap.dens_df, selClus, maxDens=spatial_umap.maxdens_df, legF=1)
 
     return NeiProFig
 

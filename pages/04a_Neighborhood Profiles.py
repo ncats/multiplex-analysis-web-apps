@@ -213,9 +213,10 @@ def main():
     with uNeighPCol:
         st.header('Neighborhood Profiles')
         if 'spatial_umap' in st.session_state:
-            if hasattr(st.session_state.spatial_umap, "densMeansDict"):
-                selNeighFig = st.selectbox('Select a cluster to view', list(range(st.session_state.selected_nClus)))
-
+            selNeighFig = st.selectbox('Select a cluster to view', 
+                                       list(range(st.session_state.selected_nClus)))
+            if hasattr(st.session_state.spatial_umap, 'dens_df'):
+                
                 NeiProFig = bpl.neighProfileDraw(st.session_state.spatial_umap, selNeighFig)
                 st.pyplot(fig=NeiProFig)
 

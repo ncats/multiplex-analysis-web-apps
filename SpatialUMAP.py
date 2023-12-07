@@ -204,7 +204,10 @@ class SpatialUMAP:
         print(f'{np.sum(self.cells["umap_test"] == 1)} elements assigned to testing data. ~{np.round(100*np.sum(self.cells["umap_test"] == 1)/self.cells.shape[0])}%')
     
     def calc_densities(self, area_threshold):
-        # calculate density base on counts of cells / area of each arc examine
+        '''
+        calculate density base on counts of cells / area of each arc examine
+        '''
+
         # instantiate our density output matrix
         self.density = np.empty(self.counts.shape)
         # identify those cells that do not have enough other cells around them. Any that
@@ -217,7 +220,10 @@ class SpatialUMAP:
         self.density[filtIdx] = self.counts[filtIdx] / self.areas[filtIdx][..., np.newaxis]
 
     def calc_proportions(self, area_threshold):
-        # calculate proportion base on counts of cells / total cells within an arc examine
+        '''
+        calculate proportion base on counts of cells / total cells within an arc examine
+        '''
+
         # instantiate our proportion output matrix
         self.proportion = np.empty(self.counts.shape)
         # identify those cells that do not have enough other cells around them. Any that
@@ -230,48 +236,47 @@ class SpatialUMAP:
         self.proportion[filtIdx] = self.counts[filtIdx] / self.counts[filtIdx].sum(axis = 2)[..., np.newaxis]
 
     def mean_measures(self):
-        labels     = np.array([])
-        meanDArray = np.zeros((0))
-        stdDArray  = np.zeros((0))
-        meanPArray = np.zeros((0))
-        stdPArray  = np.zeros((0))
+        '''
+        Setup density values for means
+        '''
 
-        # Group by cluster
+        self.dens_df = pd.DataFrame()
+        self.prop_df = pd.DataFrame()
         for clust_label, group in self.cells.groupby('clust_label'):
+            
             if clust_label != -1:
-                ## These Indicies
                 ind = group.index
 
-                ## Cluster
-                label = clust_label
-
-                ## Densities [n, dist, phenotype]
-                theseDen = self.density[ind] # Take these indicies from self.density
-                meanDen  = theseDen.mean(axis = 0)
-                semDen   = theseDen.std(axis = 0)
-
-                ## Proportions [n, x, phenotype]
+                smalldf_D = pd.DataFrame()
+                smalldf_P = pd.DataFrame()
+                theseDen = self.density[ind]
                 thesePro = self.proportion[ind]
-                meanPro  = thesePro.mean(axis = 0)
-                semPro   = thesePro.std(axis = 0)
+                for i, pheno in enumerate(self.phenoLabel):
 
-                if meanPArray.shape == (0,):
-                    labels     = label
-                    meanDArray = meanDen
-                    stdDArray  = semDen
-                    meanPArray = meanPro
-                    stdPArray  = semPro
-                else:
-                    labels     = np.append(labels, label)
-                    meanDArray = np.dstack((meanDArray, meanDen))
-                    stdDArray  = np.dstack((stdDArray, semDen))
-                    meanPArray = np.dstack((meanPArray, meanPro))
-                    stdPArray  = np.dstack((stdPArray, semPro))
+                    theseDen_pheno = theseDen[:,:,i]
+                    r, c = theseDen_pheno.shape
+                    theseDen_flat = theseDen_pheno.reshape(-1)
 
-        densMeansDict = {'label': labels, 'means': meanDArray, 'error': stdDArray}
-        propMeansDict = {'label': labels, 'means': meanPArray, 'error': stdPArray}
+                    thesePro_pheno = thesePro[:,:,i]
+                    r, c = thesePro_pheno.shape
+                    thesePro_flat = thesePro_pheno.reshape(-1)
+                    
+                    smalldf_D['dist_bin'] = np.tile(self.dist_bin_um, r)
+                    smalldf_D['density'] = theseDen_flat
+                    smalldf_D['phenotype'] = pheno
+                    smalldf_D['cluster'] = clust_label
 
-        return densMeansDict, propMeansDict
+                    smalldf_P['dist_bin'] = np.tile(self.dist_bin_um, r)
+                    smalldf_P['density'] = thesePro_flat
+                    smalldf_P['phenotype'] = pheno
+                    smalldf_P['cluster'] = clust_label
+
+                    self.dens_df = pd.concat([self.dens_df, smalldf_D], 0).reset_index(drop=True)
+                    self.prop_df = pd.concat([self.prop_df, smalldf_P], 0).reset_index(drop=True)
+
+        self.dens_df_mean = self.dens_df.groupby(['cluster', 'phenotype', 'dist_bin'], as_index=False).mean()
+        self.dens_df_se   = self.dens_df.groupby(['cluster', 'phenotype', 'dist_bin'], as_index=False).sem()
+        self.maxdens_df   = 1.05*max(self.dens_df_mean['density'] + self.dens_df_se['density'])
     
     def makeDummyClinic(self, length):
         # A method for quickly making a clinic dataset if needed to pair with existitng Spatial UMAP methods

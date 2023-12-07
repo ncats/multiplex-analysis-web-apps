@@ -1,9 +1,11 @@
 # Author: Alex Baras, MD, PhD (https://github.com/alexbaras)
 # NCATS Maintainer: Dante J Smith, PhD (https://github.com/djsmith17)
 import numpy as np
-import matplotlib.pyplot as plt
+import pandas as pd
 import matplotlib as mpl
+import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
+import seaborn as sns
 import altair as alt
 alt.data_transformers.disable_max_rows()
 from scipy import ndimage as ndi
@@ -215,7 +217,7 @@ def plot_neighborhood_profile_propor(ax, cell_label, dist_bin, cell_propor, phen
         plt.legend()
 
     
-def plot_mean_neighborhood_profile(ax, selClus, dist_bin, cell_density, phenoSet, maxDens=0.1, legF=0):
+def plot_mean_neighborhood_profile(ax, dist_bin, dens_df, selClus, maxDens=0.1, legF=0):
     '''This function generates the line plots of the phenotype density 
     at different distances from a given cell
     '''
@@ -224,40 +226,39 @@ def plot_mean_neighborhood_profile(ax, selClus, dist_bin, cell_density, phenoSet
     SlTC   = '#FAFAFA'  # Streamlit Text Color
     Sl2BgC = '#262730'  # Streamlit Secondary Background Color
 
-    means = cell_density['means']
-    error = cell_density['error']
+    dens_df = dens_df.loc[dens_df['cluster'] == selClus, :]
 
-    if means.ndim == 3:
-        maxDens = means[:,:,selClus].max() + error[:,:,selClus].max()
+    sns.lineplot(dens_df,
+                 x = 'dist_bin',
+                 y = 'density',
+                 hue = 'phenotype',
+                 errorbar = 'se',
+                 err_style = 'bars',
+                 palette = 'tab20',
+                 ax = ax)
 
-        axesDict = dict()
-        for i , key in enumerate(phenoSet):
-            plotax = ax.errorbar(dist_bin, means[:, i, selClus], yerr=error[:, i, selClus], color=phenoSet[key])
-            axesDict[key] = plotax
+    ax.set_xticks(dist_bin)
+    ax.set_xlim([0, 225])
+    ax.set_ylim([0, maxDens])
+    ax.set_title(f'Cluster {selClus}: Densities', fontsize = 16, color = SlTC)
+    ax.set_xlabel('Spatial Bound (\u03BCm)', fontsize = 14, color = SlTC)
+    ax.set_ylabel('Cell Density', fontsize = 14, color = SlTC)
 
-        ax.set_xticks(dist_bin)
-        ax.set_xlim([0, 225])
-        ax.set_ylim([0, maxDens])
-        ax.set_title(f'Cluster {selClus}: Densities', fontsize = 16, color = SlTC)
-        ax.set_xlabel('Spatial Bound (\u03BCm)', fontsize = 14, color = SlTC)
-        ax.set_ylabel('Cell Density', fontsize = 14, color = SlTC)
+    # ax.set_frame_on(False)
+    ax.spines[['left', 'bottom']].set_color(SlTC)
+    ax.spines[['right', 'top']].set_visible(False)
+    ax.tick_params(axis='x', colors=SlTC, which='both')
+    ax.tick_params(axis='y', colors=SlTC, which='both')
 
-        # ax.set_frame_on(False)
-        ax.spines['left'].set_color(SlTC)
-        ax.spines['bottom'].set_color(SlTC)
-        ax.tick_params(axis='x', colors=SlTC, which='both')
-        ax.tick_params(axis='y', colors=SlTC, which='both')
-
-        if legF:
-            ax.legend(axesDict.values(), axesDict.keys(),
-                    bbox_to_anchor=(-0.05, -0.1), 
-                    loc='upper left', 
-                    fontsize = 12,
-                    borderaxespad=0, 
-                    ncols = 4,
-                    facecolor = Sl2BgC,
-                    edgecolor = Sl2BgC,
-                    labelcolor = SlTC)
+    if legF:
+        ax.legend(bbox_to_anchor=(-0.05, -0.1), 
+                  loc='upper left', 
+                  fontsize = 12,
+                  borderaxespad=0, 
+                  ncols = 4,
+                  facecolor = Sl2BgC,
+                  edgecolor = Sl2BgC,
+                  labelcolor = SlTC)
 
 def plot_incidence_line(ax, df, phenotype):
     
