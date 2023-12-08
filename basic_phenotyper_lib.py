@@ -475,8 +475,11 @@ def setup_Spatial_UMAP(df, marker_names, phenoOrder, cpu_pool_size = 1):
     spatial_umap.cells = df
     spatial_umap.patients = spatial_umap.makeDummyClinic(10)
 
-    # Set Lineage
+    # Set Lineage and sort
     spatial_umap.cells['Lineage'] = spatial_umap.cells['phenotype']
+    spatial_umap.cells['Lineage'] = spatial_umap.cells['Lineage'].astype("category")
+    spatial_umap.cells['Lineage'] = spatial_umap.cells['Lineage'].cat.set_categories(phenoOrder)
+    # spatial_umap.cells = spatial_umap.cells.sort_values(["Lineage"])
 
     # Set regions
     spatial_umap.cells['TMA_core_id'] = spatial_umap.cells['Slide ID']
