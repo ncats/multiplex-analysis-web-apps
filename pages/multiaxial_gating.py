@@ -7,8 +7,7 @@ import plotly.graph_objects as go
 import os
 import dataset_formats
 import plotly.express as px
-import streamlit_dataframe_editor
-from streamlit_javascript import st_javascript
+import streamlit_dataframe_editor as sde
 
 # Function to load the data in a unified format
 def load_data(input_datafile_path, coord_units_in_microns, dataset_format):
@@ -37,7 +36,7 @@ def update_dependencies_of_button_for_adding_column_filter_to_current_phenotype(
 
     # Add the selected column filter to the current phenotype assignments dataframe and update the phenotype assignments dataframe with this new dataframe
     new_df_contents = pd.concat([df_current_phenotype, pd.DataFrame(pd.Series({'Column for filtering': column_for_filtering, 'Minimum value': selected_min_val, 'Maximum value': selected_max_val})).T]).reset_index(drop=True)
-    st.session_state['mg__de_current_phenotype'].update_editor_contents(new_df_contents=new_df_contents, reset_key=True)
+    st.session_state['mg__de_current_phenotype'].update_editor_contents(new_df_contents=new_df_contents)
 
     # Set the currently selected column as the first of the possible options
     st.session_state['mg__column_for_filtering'] = update_column_options()[0]
@@ -63,7 +62,7 @@ def update_dependencies_of_button_for_adding_phenotype_to_new_dataset():
 
     # Update the contents of the phenotype assignments data editor
     new_df_contents = pd.concat([df_phenotype_assignments, pd.DataFrame(pd.Series(curr_phenotype_dict, name=st.session_state['mg__current_phenotype_name'])).T]).rename_axis('Phenotype').reset_index(drop=False)
-    st.session_state['mg__de_phenotype_assignments'].update_editor_contents(new_df_contents=new_df_contents, reset_key=True)
+    st.session_state['mg__de_phenotype_assignments'].update_editor_contents(new_df_contents=new_df_contents)
 
     # Clear the current phenotype dataframe editor to its default value
     st.session_state['mg__de_current_phenotype'].reset_dataframe_content()
@@ -117,13 +116,8 @@ def main():
     add_indentation()
     show_pages_from_config()
 
-    # Reload everything in the session state except for widgets that cannot be so saved, which we manually ignore by appending "__do_not_persist" to the widget's key
-    for key, val in st.session_state.items():
-        if (not key.endswith('__do_not_persist')) and (not key.startswith('FormSubmitter:')):
-            st.session_state[key] = val
-
-    # Get the URL of the current page, per https://discuss.streamlit.io/t/what-is-the-current-page-in-use-multipage-app/41898, which we've used before but keeping the reference here anyway. Remember something strange happens here, with the script running twice or the like and not picking up the session state fully or vice versa, so sometimes we see strange behavior as a result though it's usually not a bit deal. In this case I've taken care of it anyway below by resetting the index on default_df_contents2
-    curr_url = st_javascript("await fetch('').then(r => window.parent.location.href)")
+    # Run streamlit-dataframe-editor library initialization tasks at the top of the page
+    st.session_state = sde.initialize_session_state(st.session_state)
 
     # Set the default dataframes to be edited
     default_df_current_phenotype = pd.DataFrame(columns=['Column for filtering', 'Minimum value', 'Maximum value'])
@@ -135,11 +129,9 @@ def main():
     if 'mg__current_phenotype_name' not in st.session_state:
         st.session_state['mg__current_phenotype_name'] = ''
     if 'mg__de_current_phenotype' not in st.session_state:
-        st.session_state['mg__de_current_phenotype'] = streamlit_dataframe_editor.DataframeEditor(df_name='mg__df_current_phenotype', default_df_contents=default_df_current_phenotype)
+        st.session_state['mg__de_current_phenotype'] = sde.DataframeEditor(df_name='mg__df_current_phenotype', default_df_contents=default_df_current_phenotype)
     if 'mg__de_phenotype_assignments' not in st.session_state:
-        st.session_state['mg__de_phenotype_assignments'] = streamlit_dataframe_editor.DataframeEditor(df_name='mg__df_phenotype_assignments', default_df_contents=default_df_phenotype_assignments)
-    if 'previous_url' not in st.session_state:
-        st.session_state['previous_url'] = curr_url
+        st.session_state['mg__de_phenotype_assignments'] = sde.DataframeEditor(df_name='mg__df_phenotype_assignments', default_df_contents=default_df_phenotype_assignments)
 
     # Constant
     input_directory = os.path.join('.', 'input')
@@ -224,7 +216,7 @@ def main():
             st.header(':two: Current phenotype', help='Note you can refine values in the following table by editing them directly or even deleting (or adding) whole rows.')
 
             # Output the dataframe holding the phenotype that's currently being built
-            st.session_state['mg__de_current_phenotype'].process_data_editor(current_page_id=curr_url, previous_page_key='previous_url')
+            st.session_state['mg__de_current_phenotype'].dataframe_editor()
 
             # Choose a phenotype name
             st.text_input(label='Phenotype name:', key='mg__current_phenotype_name')
@@ -236,7 +228,7 @@ def main():
             st.header(':three: Phenotype assignments', help='Note you can refine values in the following table by editing them directly or even deleting whole rows.')
 
             # Output the dataframe holding the specifications for all phenotypes
-            st.session_state['mg__de_phenotype_assignments'].process_data_editor(current_page_id=curr_url, previous_page_key='previous_url')
+            st.session_state['mg__de_phenotype_assignments'].dataframe_editor()
 
             # Generate the new dataset
             st.button(label=':star2: Generate the new dataset from the phenotype assignments :star2:', use_container_width=True, on_click=add_new_phenotypes_to_main_df, args=(df,))
@@ -291,8 +283,8 @@ def main():
                         st.write(st.session_state['mg__df'][phenotype_orig].value_counts())
                         st.write(st.session_state['mg__df'][phenotype_orig.replace('_orig', '').replace('MHCII', 'MHC II') + ' new'].value_counts())
 
-        # Save the URL of the current page before we potentially leave the page. This must be present on every page
-        st.session_state['previous_url'] = curr_url
+        # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
+        st.session_state = sde.finalize_session_state(st.session_state)
 
 if __name__ == '__main__':
     main()
