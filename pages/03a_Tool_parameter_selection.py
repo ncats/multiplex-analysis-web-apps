@@ -8,6 +8,7 @@ import streamlit_utils
 # Import relevant libraries
 import utils
 import app_top_of_page as top
+import streamlit_dataframe_editor as sde
 
 def main():
 
@@ -154,10 +155,8 @@ def main():
     # Set a wide layout
     st.set_page_config(layout="wide")
 
-    # Remove key values from session_state that should not persist
-    for key, val in st.session_state.items():
-        if (not key.endswith('__do_not_persist')) and (not key.startswith('FormSubmitter:')):
-            st.session_state[key] = val
+    # Run streamlit-dataframe-editor library initialization tasks at the top of the page
+    st.session_state = sde.initialize_session_state(st.session_state)
 
     # Apply pages order and indentation
     add_indentation()
@@ -310,6 +309,9 @@ def main():
         st.checkbox('Are pixels the units of the annotation file coordinates?', key='settings__annotation__coord_units_are_pixels', disabled=st.session_state['annotation_coord_units_are_pixels_is_disabled'], on_change=update_dependencies_of_annotation_coord_units_are_pixels)
         st.number_input('Number of microns per integer unit (microns):', min_value=0.0, key='settings__annotation__microns_per_integer_unit', format='%.4f', disabled=(st.session_state['annotation_microns_per_integer_unit_is_disabled1'] or st.session_state['annotation_microns_per_integer_unit_is_disabled2']), help='Conversion of the coordinates in microns to an integer (not necessarily pixels). If the input coordinates are pixels (which are obviously integers), then this value ("microns_per_integer_unit") could be the same as the number of microns per coordinate unit ("coordinate_units") set above--which is basically trivial--so the box above should be checked. This is the most common case. But if, say, the input coordinate units were microns, then coordinate_units=1 and microns_per_integer_unit is most likely a different number, e.g., the number of microns per pixel. The point is to be able to convert the annotation coordinates to integer units, which don\'t necessarily need to be (but usually are) pixels.', step=0.0001)
         st.number_input('Minimum density log P value for plotting:', max_value=0.0, key='settings__plotting__min_log_pval', disabled=st.session_state['plotting_min_log_pval_is_disabled'])
+
+    # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
+    st.session_state = sde.finalize_session_state(st.session_state)
 
 if __name__ == '__main__':
     main()

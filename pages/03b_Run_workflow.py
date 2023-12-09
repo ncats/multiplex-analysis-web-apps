@@ -10,16 +10,15 @@ from streamlit_extras.app_logo import add_logo
 import streamlit_utils
 from st_pages import show_pages_from_config, add_indentation
 import app_top_of_page as top
+import streamlit_dataframe_editor as sde
 
 def main():
 
     # Set a wide layout
     st.set_page_config(layout="wide")
 
-    # Remove key values from session_state that should not persist
-    for key, val in st.session_state.items():
-        if (not key.endswith('__do_not_persist')) and (not key.startswith('FormSubmitter:')):
-            st.session_state[key] = val
+    # Run streamlit-dataframe-editor library initialization tasks at the top of the page
+    st.session_state = sde.initialize_session_state(st.session_state)
 
     # Apply pages order and indentation
     add_indentation()
@@ -396,6 +395,9 @@ def main():
 
     else:
         st.warning('An input datafile must be selected on the previous page', icon='⚠️')
+
+    # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
+    st.session_state = sde.finalize_session_state(st.session_state)
 
 if __name__ == '__main__':
     main()

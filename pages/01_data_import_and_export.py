@@ -4,6 +4,7 @@ This is the python script which produces the PHENOTYPING PAGE
 import streamlit as st
 from st_pages import show_pages_from_config, add_indentation
 from streamlit_extras.app_logo import add_logo
+import streamlit_dataframe_editor as sde
 
 # Import relevant libraries
 import streamlit_utils
@@ -18,10 +19,8 @@ def main():
     st.set_page_config(page_title="Data Import and Export",
                        layout="wide")
 
-    # Remove key values from session_state that should not persist
-    for key, val in st.session_state.items():
-        if (not key.endswith('__do_not_persist')) and (not key.startswith('FormSubmitter:')):
-            st.session_state[key] = val
+    # Run streamlit-dataframe-editor library initialization tasks at the top of the page
+    st.session_state = sde.initialize_session_state(st.session_state)
 
     # Apply pages order and indentation
     add_indentation()
@@ -101,6 +100,9 @@ def main():
 
     # Since the platform object above was a local copy of that in Streamlit, and it may have been modified, save it back to Streamlit
     st.session_state['platform'] = platform
+
+    # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
+    st.session_state = sde.finalize_session_state(st.session_state)
 
 if __name__ == '__main__':
     main()
