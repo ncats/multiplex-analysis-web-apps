@@ -8,6 +8,7 @@ import os
 import dataset_formats
 import plotly.express as px
 import streamlit_dataframe_editor as sde
+import utils
 
 # Function to load the data in a unified format
 def load_data(input_datafile_path, coord_units_in_microns, dataset_format):
@@ -122,6 +123,12 @@ def main():
     default_df_current_phenotype = pd.DataFrame(columns=['Column for filtering', 'Minimum value', 'Maximum value'])
     default_df_phenotype_assignments = pd.DataFrame()
 
+    # Constant
+    input_directory = os.path.join('.', 'input')
+
+    # Set the options for input data filenames
+    options_for_input_datafiles = [x for x in os.listdir(input_directory) if x.endswith(('.csv', '.tsv'))]
+
     # Initialize some things in the session state
     if 'mg__dfs_to_plot' not in st.session_state:
         st.session_state['mg__dfs_to_plot'] = dict()
@@ -131,14 +138,17 @@ def main():
         st.session_state['mg__de_current_phenotype'] = sde.DataframeEditor(df_name='mg__df_current_phenotype', default_df_contents=default_df_current_phenotype)
     if 'mg__de_phenotype_assignments' not in st.session_state:
         st.session_state['mg__de_phenotype_assignments'] = sde.DataframeEditor(df_name='mg__df_phenotype_assignments', default_df_contents=default_df_phenotype_assignments)
+    if 'mg__input_datafile_filename' not in st.session_state:
+        st.session_state['mg__input_datafile_filename'] = utils.get_first_element_or_none(options_for_input_datafiles)
+    if 'mg__input_datafile_coordinate_units' not in st.session_state:
+        st.session_state['mg__input_datafile_coordinate_units'] = 0.25
 
-    # Constant
-    input_directory = os.path.join('.', 'input')
-
-    # Set datafile information --> turn into widgets soon
-    # input_datafilename = 'measurementsEpCAMLy51MHCII-exported.csv'
-    input_datafilename = 'measurementsthymus-exported.csv'
-    coord_units_in_microns = 1
+    # Set datafile information
+    st.header(':one: Input datafile settings')
+    st.selectbox('Filename:', options_for_input_datafiles, key='mg__input_datafile_filename', help='An input datafile must be present in the "input" directory and have a .csv or .tsv extension.')
+    input_datafilename = st.session_state['mg__input_datafile_filename']
+    st.number_input('x-y coordinate units (microns):', min_value=0.0, key='mg__input_datafile_coordinate_units', help='E.g., if the coordinates in the input datafile were pixels, this number would be a conversion to microns in units of microns/pixel.', format='%.4f', step=0.0001)
+    coord_units_in_microns = st.session_state['mg__input_datafile_coordinate_units']
 
     # Load the data
     if st.button('Load data'):
@@ -169,7 +179,7 @@ def main():
         with main_columns[0]:
 
             # Column header
-            st.header(':one: Column filter')
+            st.header(':two: Column filter')
 
             # Have a dropdown for the column on which to perform a kernel density estimate
             st.selectbox(label='Column for filtering:', options=update_column_options(), key='mg__column_for_filtering', on_change=update_dependencies_of_column_for_filtering)
@@ -209,7 +219,7 @@ def main():
         with main_columns[1]:
 
             # Column header
-            st.header(':two: Current phenotype', help='Note you can refine values in the following table by editing them directly or even deleting (or adding) whole rows.')
+            st.header(':three: Current phenotype', help='Note you can refine values in the following table by editing them directly or even deleting (or adding) whole rows.')
 
             # Output the dataframe holding the phenotype that's currently being built
             st.session_state['mg__de_current_phenotype'].dataframe_editor()
@@ -221,7 +231,7 @@ def main():
             st.button(label=':star2: Add phenotype to assignments table :star2:', use_container_width=True, on_click=update_dependencies_of_button_for_adding_phenotype_to_new_dataset)
 
             # Column header
-            st.header(':three: Phenotype assignments', help='Note you can refine values in the following table by editing them directly or even deleting whole rows.')
+            st.header(':four: Phenotype assignments', help='Note you can refine values in the following table by editing them directly or even deleting whole rows.')
 
             # Output the dataframe holding the specifications for all phenotypes
             st.session_state['mg__de_phenotype_assignments'].dataframe_editor()
@@ -233,7 +243,7 @@ def main():
         with main_columns[2]:
 
             # Column header
-            st.header(':four: New dataset')
+            st.header(':five: New dataset')
 
             # Print out a sample of the main dataframe
             st.write('Augmented dataset sample:')
