@@ -20,9 +20,8 @@ def load_data(input_datafile_path, coord_units_in_microns, dataset_format):
 def update_dependencies_of_column_for_filtering():
     df = st.session_state['mg__df']
     column_for_filtering = st.session_state['mg__column_for_filtering']
-    st.session_state['mg__curr_column_range'] = [df[column_for_filtering].min(), df[column_for_filtering].max()]
-    st.session_state['mg__selected_min_val'] = st.session_state['mg__curr_column_range'][0]
-    st.session_state['mg__selected_max_val'] = st.session_state['mg__curr_column_range'][1]
+    st.session_state['mg__curr_column_range'] = (df[column_for_filtering].min(), df[column_for_filtering].max())
+    st.session_state['mg__selected_value_range'] = st.session_state['mg__curr_column_range']
 
 # Set the column options to all numeric columns less columns that have already been used for filtering for the current phenotype
 def update_column_options():
@@ -190,11 +189,8 @@ def main():
             df_to_plot_full = st.session_state['mg__dfs_to_plot'][column_for_filtering]
 
             # Write some text boxes for the desired ranges for the current analysis column. Could make this stronger by enforcing the min_value and max_value parameters in each widget to correspond to the other so that the chosen max is never less than the chosen min, but initial attempts at this shows strange behavior and isn't worth debugging for now
-            # Implement range slider here!
-            st.slider(label='Minimum value:', min_value=column_range[0], max_value=column_range[1], key='mg__selected_min_val')
-            st.slider(label='Maximum value:', min_value=column_range[0], max_value=column_range[1], key='mg__selected_max_val')
-            selected_min_val = st.session_state['mg__selected_min_val']
-            selected_max_val = st.session_state['mg__selected_max_val']
+            st.slider(label='Value range:', min_value=column_range[0], max_value=column_range[1], key='mg__selected_value_range')
+            selected_min_val, selected_max_val = st.session_state['mg__selected_value_range']
 
             # Create a view of the full dataframe that is the selected subset
             df_to_plot_selected = df_to_plot_full[(df_to_plot_full['Value'] >= selected_min_val) & (df_to_plot_full['Value'] <= selected_max_val)]
