@@ -16,7 +16,7 @@ import app_top_of_page as top
 import streamlit_dataframe_editor as sde
 
 def init_spatial_umap():
-    countTSt = time.time()
+    st.session_state.bc.startTimer()
     with st.spinner('Calculating Cell Counts and Areas'):
         st.session_state.spatial_umap = bpl.setup_Spatial_UMAP(st.session_state.df,
                                                                st.session_state.marker_multi_sel,
@@ -25,21 +25,20 @@ def init_spatial_umap():
     st.write('Done Calculating Cell Counts and Areas')
 
     # Record time elapsed
-    countElapsed = time.time() - countTSt
-    st.session_state.bc.set_value_df('time_to_run_counts', countElapsed)
+    st.session_state.bc.set_value_df('time_to_run_counts', st.session_state.bc.elapsedTime())
 
     st.session_state.cell_counts_completed = True
 
 def apply_umap(UMAPStyle):
     clust_minmax = [1, 40]
-    UMAPTSt = time.time()
+    st.session_state.bc.startTimer()
     with st.spinner('Calculating UMAP'):
         st.session_state.spatial_umap = bpl.perform_spatialUMAP(st.session_state.spatial_umap, UMAPStyle)
     st.write('Done Calculating Spatial UMAP')
     
     # Record time elapsed
-    UMAPElapsed = time.time() - UMAPTSt
-    st.session_state.bc.set_value_df('time_to_run_UMAP', UMAPElapsed)
+    st.session_state.bc.printElapsedTime(msg = f'Performing UMAP')
+    st.session_state.bc.set_value_df('time_to_run_UMAP', st.session_state.bc.elapsedTime())
 
     # List of possible UMAP Lineages as defined by the completed UMAP
     st.session_state.umapPheno = [st.session_state.defLineageOpt]
@@ -54,23 +53,33 @@ def apply_umap(UMAPStyle):
     st.session_state.inciOutcomes = [st.session_state.definciOutcomes]
     st.session_state.inciOutcomes.extend(st.session_state.outcomes)
 
+    st.session_state.df_umap = st.session_state.spatial_umap.cells.loc[st.session_state.spatial_umap.cells['umap_test'], :]
+
     # Perform possible cluster variations with the completed UMAP
+    st.session_state.bc.startTimer()
     with st.spinner('Calculating Possible Clusters'):
         st.session_state.clust_range, st.session_state.wcss = bpl.measure_possible_clust(st.session_state.spatial_umap, clust_minmax)
+    st.session_state.bc.printElapsedTime(msg = f'Calculating posstible clusters')
+
     st.session_state.wcss_calc_completed = True
     st.session_state.umapCompleted = True
 
 def set_clusters():
-    clust_t_st = time.time()
+    st.session_state.bc.startTimer()
     st.session_state.spatial_umap = bpl.perform_clusteringUMAP(st.session_state.spatial_umap, st.session_state.slider_clus_val)
     st.session_state.selected_nClus = st.session_state.slider_clus_val
     st.write('Done Calculating Clusters')
 
     # Record time elapsed
-    ClustElapsed = time.time() - clust_t_st
-    st.session_state.bc.set_value_df('time_to_run_cluster', ClustElapsed)
+    st.session_state.bc.printElapsedTime(msg = f'Setting Clusters')
+    st.session_state.bc.set_value_df('time_to_run_cluster', st.session_state.bc.elapsedTime())
 
     st.session_state.clustering_completed = True
+
+def slide_id_callback():
+    # st.session_state['idxSlide ID'] = st.session_state['uniSlide ID_short'].index(st.session_state['selSlide ID_short'])
+    idx =  st.session_state['idxSlide ID'] = st.session_state['uniSlide ID_short'].index(st.session_state['selSlide ID_short'])
+    st.session_state['selSlide ID'] = st.session_state['uniSlide ID'][idx]
 
 def main():
     '''
@@ -161,15 +170,29 @@ def main():
         # Print a column header
         st.header('Clusters Plot')
 
-        if st.session_state.umapCompleted:
-            st.session_state = ndl.setFigureObjs_UMAP(st.session_state)
+        clustOPheno = st.radio('Plot Colors by: ',
+                               ('Clusters', 'Phenotype'),
+                               horizontal = True, index = 0, key = 'clustOPheno')
+        
+        imageProgCol = st.columns([3, 1, 1, 2])
+        with imageProgCol[0]:
+            st.selectbox('Slide ID',
+                         (st.session_state['uniSlide ID_short']),
+                         key = 'selSlide ID_short',
+                         on_change=slide_id_callback)
+        with imageProgCol[1]:
+            add_vertical_space(2)
+            # st.button('←', on_click=slide_id_prog_left_callback, disabled=st.session_state.prog_left_disabeled)
+        with imageProgCol[2]:
+            add_vertical_space(2)
+            # st.button('→', on_click=slide_id_prog_right_callback, disabled=st.session_state.prog_right_disabeled)
+        with imageProgCol[3]:
+            add_vertical_space(2)
+            st.write(f'Image {st.session_state["idxSlide ID"]+1} of {st.session_state["numSlide ID"]}')
 
-            visOpCol1 , visOpCol2 = st.columns(2)
-            with visOpCol1:
-                clustOPheno = st.radio(
-                        'Plot Colors by: ',
-                            ('Clusters', 'Phenotype'),
-                            horizontal = True, index = 0, key = 'clustOPheno')
+        if st.session_state.umapCompleted:
+            st.session_state.df_umap_filt = st.session_state.df_umap.loc[st.session_state.df_umap['Slide ID'] == st.session_state['selSlide ID'], :]
+            st.session_state = ndl.setFigureObjs_UMAP(st.session_state)
 
             if clustOPheno == 'Clusters':
                 st.pyplot(st.session_state.seabornFig_clust)
@@ -189,9 +212,10 @@ def main():
     with uNeighPCol:
         st.header('Neighborhood Profiles')
         if 'spatial_umap' in st.session_state:
-            if hasattr(st.session_state.spatial_umap, "densMeansDict"):
-                selNeighFig = st.selectbox('Select a cluster to view', list(range(st.session_state.selected_nClus)))
-
+            selNeighFig = st.selectbox('Select a cluster to view', 
+                                       list(range(st.session_state.selected_nClus)))
+            if hasattr(st.session_state.spatial_umap, 'dens_df'):
+                
                 NeiProFig = bpl.neighProfileDraw(st.session_state.spatial_umap, selNeighFig)
                 st.pyplot(fig=NeiProFig)
 
