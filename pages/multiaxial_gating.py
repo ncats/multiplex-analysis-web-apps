@@ -153,6 +153,12 @@ def add_new_phenotypes_to_main_df(df):
     # Debugging output
     print('------------------------')
 
+# Function to clear the session state as would be desired when loading a new dataset
+def clear_session_state(keep_keys=[]):
+    for key in (set(st.session_state.keys()) - set(keep_keys)):
+        del st.session_state[key]
+
+# Main function
 def main():
 
     # Set page settings
@@ -206,7 +212,7 @@ def main():
     # Load the data
     input_datafile_columns = st.columns(2)
     with input_datafile_columns[0]:
-        if st.button('Load data', use_container_width=True):
+        if st.button('Load data', use_container_width=True, on_click=clear_session_state, kwargs={'keep_keys': ['mg__input_datafile_filename', 'mg__input_datafile_coordinate_units']}):
             st.session_state['mg__df'] = load_data(os.path.join(input_directory, input_datafilename), coord_units_in_microns, dataset_formats.extract_datafile_metadata(os.path.join(input_directory, input_datafilename))[4])
             unique_images = st.session_state['mg__df']['Slide ID'].unique()
             st.session_state['mg__unique_images_short'] = [x.split('-imagenum_')[1] for x in unique_images]
@@ -383,5 +389,6 @@ def main():
         # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
         st.session_state = sde.finalize_session_state(st.session_state)
 
+# Call the main function
 if __name__ == '__main__':
     main()
