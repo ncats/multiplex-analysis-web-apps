@@ -132,7 +132,7 @@ def main():
     with st.sidebar:
         st.write('**:book: [Documentation](https://ncats.github.io/multiplex-analysis-web-apps)**')
 
-        st.button('Record Benchmarking', on_click=st.session_state.bc.save_run_to_csv)
+        # st.button('Record Benchmarking', on_click=st.session_state.bc.save_run_to_csv)
 
     # Add logo to page
     add_logo('app_images/mawa_logo-width315.png', height=150)
