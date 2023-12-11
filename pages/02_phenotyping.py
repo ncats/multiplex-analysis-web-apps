@@ -174,10 +174,12 @@ def main():
                 st.session_state = ndl.loadDataButton(st.session_state, dataset_obj.data, 'Input', st.session_state.datafileU[:-4])
                 st.session_state.bc.printElapsedTime(msg = f'Performing Phenotyping on {input_datafile}')
 
-                st.session_state.bc.set_value_df('time_load_data', st.session_state.bc.elapsedTime())
         with databuttonCols[1]:
-            if (st.button('Load Multi-axial Gating Data')):
-                pass
+            if (st.button('Load Multi-axial Gating Data')) & ('mg__df' in st.session_state):
+                st.session_state.bc.startTimer()
+                st.session_state = ndl.loadDataButton(st.session_state, st.session_state['mg__df'], 'Mutli-axial Gating', st.session_state.mg__input_datafile_filename[:-4])
+                st.session_state.bc.printElapsedTime(msg = f'Performing Phenotyping')
+        st.session_state.bc.set_value_df('time_load_data', st.session_state.bc.elapsedTime())
 
     with dataLoadedCols[1]:
         st.selectbox(label = 'Choose a previous phenotyping file', options = phenoFileOptions, key = 'phenoFileSelect', help='Loaded .csv files populate here when the file name begins with "phenotype_summary"')
