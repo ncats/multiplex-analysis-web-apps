@@ -9,6 +9,7 @@ import dataset_formats
 import plotly.express as px
 import streamlit_dataframe_editor as sde
 import utils
+import matplotlib.pyplot as plt
 
 # Function to load the data in a unified format
 def load_data(input_datafile_path, coord_units_in_microns, dataset_format):
@@ -21,25 +22,33 @@ def load_data(input_datafile_path, coord_units_in_microns, dataset_format):
 def update_dependencies_of_column_for_filtering():
     df = st.session_state['mg__df']
     column_for_filtering = st.session_state['mg__column_for_filtering']
-    st.session_state['mg__curr_column_range'] = (df[column_for_filtering].min(), df[column_for_filtering].max())
-    st.session_state['mg__selected_value_range'] = st.session_state['mg__curr_column_range']
+    if column_for_filtering in st.session_state['mg__all_numeric_columns']:
+        st.session_state['mg__selected_column_type'] = 'numeric'
+        st.session_state['mg__curr_column_range'] = (df[column_for_filtering].min(), df[column_for_filtering].max())
+        st.session_state['mg__selected_value_range'] = st.session_state['mg__curr_column_range']  # initialize the selected range to the entire range
+    else:
+        st.session_state['mg__selected_column_type'] = 'categorical'
+        st.session_state['mg__curr_column_unique_values'] = df[column_for_filtering].unique()
+        st.session_state['mg__selected_column_values'] = []  # initialize the selected values to nothing
 
-# Set the column options to all numeric columns less columns that have already been used for filtering for the current phenotype
-def update_column_options():
-    return [column for column in st.session_state['mg__all_numeric_columns'] if column in (set(st.session_state['mg__all_numeric_columns']) - set(st.session_state['mg__de_current_phenotype'].reconstruct_edited_dataframe()['Column for filtering']))]
+# Set the column options to all columns of the desired type less columns that have already been used for filtering for the current phenotype
+def update_column_options(key_for_column_list='mg__all_columns'):
+    # old default: key_for_column_list='mg__all_numeric_columns'
+    return [column for column in st.session_state[key_for_column_list] if column in (set(st.session_state[key_for_column_list]) - set(st.session_state['mg__de_current_phenotype'].reconstruct_edited_dataframe()['Column for filtering']))]
 
 # Add to the current phenotype and update the previous parts of the app
-def update_dependencies_of_button_for_adding_column_filter_to_current_phenotype(column_for_filtering, selected_min_val, selected_max_val):
+def update_dependencies_of_button_for_adding_column_filter_to_current_phenotype(column_for_filtering, selected_min_val=None, selected_max_val=None, selected_column_values=None):
 
     # Get the current value of the current phenotype dataframe editor
     df_current_phenotype = st.session_state['mg__de_current_phenotype'].reconstruct_edited_dataframe()
 
     # Add the selected column filter to the current phenotype assignments dataframe and update the phenotype assignments dataframe with this new dataframe
-    new_df_contents = pd.concat([df_current_phenotype, pd.DataFrame(pd.Series({'Column for filtering': column_for_filtering, 'Minimum value': selected_min_val, 'Maximum value': selected_max_val})).T]).reset_index(drop=True)
+    dataframe_to_add = pd.DataFrame(pd.Series({'Column for filtering': column_for_filtering, 'Minimum value': selected_min_val, 'Maximum value': selected_max_val, 'Selected values': selected_column_values}))
+    new_df_contents = pd.concat([df_current_phenotype, dataframe_to_add.T]).reset_index(drop=True)
     st.session_state['mg__de_current_phenotype'].update_editor_contents(new_df_contents=new_df_contents)
 
     # Set the currently selected column as the first of the possible options
-    st.session_state['mg__column_for_filtering'] = update_column_options()[0]
+    st.session_state['mg__column_for_filtering'] = update_column_options(key_for_column_list='mg__all_numeric_columns')[0]
 
     # Since the column selection must have just changed, update its dependencies
     update_dependencies_of_column_for_filtering()
@@ -53,22 +62,26 @@ def update_dependencies_of_button_for_adding_phenotype_to_new_dataset():
     if 'Phenotype' in df_phenotype_assignments.columns:
         df_phenotype_assignments = df_phenotype_assignments.set_index('Phenotype')
 
-    # Populate a dictionary of the column filteres for the current phenotype
+    # Populate a dictionary of the column filters for the current phenotype
     curr_phenotype_dict = dict()
     for row in df_current_phenotype.itertuples(index=False):
-        curr_col, curr_min, curr_max = row
-        curr_phenotype_dict[curr_col + ' [[min]]'] = curr_min
-        curr_phenotype_dict[curr_col + ' [[max]]'] = curr_max
+        curr_col, curr_min, curr_max, curr_items = row
+        if curr_items is None:  # numeric column filter
+            curr_phenotype_dict[curr_col + ' [[min]]'] = curr_min
+            curr_phenotype_dict[curr_col + ' [[max]]'] = curr_max
+        else:  # categorical column filter
+            curr_phenotype_dict[curr_col + ' [[items]]'] = curr_items
 
     # Update the contents of the phenotype assignments data editor
-    new_df_contents = pd.concat([df_phenotype_assignments, pd.DataFrame(pd.Series(curr_phenotype_dict, name=st.session_state['mg__current_phenotype_name'])).T]).rename_axis('Phenotype').reset_index(drop=False)
+    dataframe_to_add = pd.DataFrame(pd.Series(curr_phenotype_dict, name=st.session_state['mg__current_phenotype_name']))
+    new_df_contents = pd.concat([df_phenotype_assignments, dataframe_to_add.T]).rename_axis('Phenotype').reset_index(drop=False)
     st.session_state['mg__de_phenotype_assignments'].update_editor_contents(new_df_contents=new_df_contents)
 
     # Clear the current phenotype dataframe editor to its default value
     st.session_state['mg__de_current_phenotype'].reset_dataframe_content()
 
     # Set the currently selected column as the first of the possible options
-    st.session_state['mg__column_for_filtering'] = update_column_options()[0]
+    st.session_state['mg__column_for_filtering'] = update_column_options(key_for_column_list='mg__all_numeric_columns')[0]
 
     # Since the column selection must have just changed, update its dependencies
     update_dependencies_of_column_for_filtering()
@@ -79,13 +92,20 @@ def add_new_phenotypes_to_main_df(df):
     # Get the current values of the phenotype assignments data editor
     df_phenotype_assignments = st.session_state['mg__de_phenotype_assignments'].reconstruct_edited_dataframe().set_index('Phenotype')
 
+    # Debugging output
+    print('-- Phenotype criteria --')
+    print()
+
     # For each set of phenotype assignments...
-    for row in df_phenotype_assignments.itertuples():
+    for iphenotype, row in enumerate(df_phenotype_assignments.itertuples()):
 
         # Obtain the name of the current phenotype
         phenotype = row[0]
 
-        # Create a dataframe from the current row so that we can split and add columns
+        # Debugging output
+        print('Phenotype #{}: {}'.format(iphenotype + 1, phenotype))
+
+        # Create a dataframe from the current row (i.e., phenotype) so that we can split and add columns
         curr_df = pd.Series(dict(zip(df_phenotype_assignments.columns, row[1:])), name=phenotype).dropna().to_frame().reset_index()
 
         # Add a "column" column containing the name of the filtering column
@@ -98,13 +118,40 @@ def add_new_phenotypes_to_main_df(df):
         phenotype_bools = pd.Series([True] * len(df))
 
         # For each filtering column...
-        for column, value_range in curr_df.groupby(by='column')[phenotype].apply(lambda x: list(x)).items():  # note the groupby appears to result in the column's order of min then max
+        object_count_holder = []
+        for ifilter_col, (column, values) in enumerate(curr_df.groupby(by='column')[phenotype].apply(list).items()):  # note the groupby appears to result in the column's order of min then max
+
+            # Set the booleans if the boolean column filter is numeric (values = [min, max])
+            if len(values) == 2:
+                column_filter_bools = (df[column] >= values[0]) & (df[column] <= values[1])
+                print('  Column #{} (numeric): {}'.format(ifilter_col + 1, column))
+                print('    min: {}'.format(values[0]))
+                print('    max: {}'.format(values[1]))
+
+            # Set the booleans if the boolean column filter is categorical (values = [items])
+            else:
+                column_filter_bools = df[column].apply(lambda x: x in values[0])
+                print('  Column #{} (categorical): {}'.format(ifilter_col + 1, column))
+                print('    items: {}'.format(values[0]))
+
+            # Debugging output
+            curr_filter_column_count = column_filter_bools.sum()
+            object_count_holder.append(curr_filter_column_count)
+            print('    object count: {}'.format(curr_filter_column_count))
 
             # Determine where the current column values are within the specified range criterion
-            phenotype_bools = phenotype_bools & (df[column] >= value_range[0]) & (df[column] <= value_range[1])
+            phenotype_bools = phenotype_bools & column_filter_bools
+
+        # Debugging output
+        curr_phenotype_count = phenotype_bools.sum()
+        assert curr_phenotype_count <= min(object_count_holder), 'ERROR: The object count for the total phenotype must be smaller than the smallest object count for its individual column filters'
+        print('  Phenotype object count: {}'.format(curr_phenotype_count))
 
         # Add a column to the original dataframe with the new phenotype satisfying all of its filtering criteria
         st.session_state['mg__df']['Phenotype {}'.format(phenotype)] = phenotype_bools.apply(lambda x: ('+' if x else '-'))
+
+    # Debugging output
+    print('------------------------')
 
 def main():
 
@@ -130,8 +177,8 @@ def main():
     options_for_input_datafiles = [x for x in os.listdir(input_directory) if x.endswith(('.csv', '.tsv'))]
 
     # Initialize some things in the session state
-    if 'mg__dfs_to_plot' not in st.session_state:
-        st.session_state['mg__dfs_to_plot'] = dict()
+    if 'mg__kdes_or_hists_to_plot' not in st.session_state:
+        st.session_state['mg__kdes_or_hists_to_plot'] = dict()
     if 'mg__current_phenotype_name' not in st.session_state:
         st.session_state['mg__current_phenotype_name'] = ''
     if 'mg__de_current_phenotype' not in st.session_state:
@@ -143,22 +190,31 @@ def main():
     if 'mg__input_datafile_coordinate_units' not in st.session_state:
         st.session_state['mg__input_datafile_coordinate_units'] = 0.25
 
-    # Set datafile information
-    st.header(':one: Input datafile settings')
-    st.selectbox('Filename:', options_for_input_datafiles, key='mg__input_datafile_filename', help='An input datafile must be present in the "input" directory and have a .csv or .tsv extension.')
-    input_datafilename = st.session_state['mg__input_datafile_filename']
-    st.number_input('x-y coordinate units (microns):', min_value=0.0, key='mg__input_datafile_coordinate_units', help='E.g., if the coordinates in the input datafile were pixels, this number would be a conversion to microns in units of microns/pixel.', format='%.4f', step=0.0001)
-    coord_units_in_microns = st.session_state['mg__input_datafile_coordinate_units']
+    # Create columns for the input datafile settings
+    input_datafile_columns = st.columns(4)
+
+    # Set the input datafile name
+    with input_datafile_columns[0]:
+        st.selectbox('Filename:', options_for_input_datafiles, key='mg__input_datafile_filename', help='An input datafile must be present in the "input" directory and have a .csv or .tsv extension.')
+        input_datafilename = st.session_state['mg__input_datafile_filename']
+
+    # Set the input datafile coordinate units in microns
+    with input_datafile_columns[1]:
+        st.number_input('x-y coordinate units (microns):', min_value=0.0, key='mg__input_datafile_coordinate_units', help='E.g., if the coordinates in the input datafile were pixels, this number would be a conversion to microns in units of microns/pixel.', format='%.4f', step=0.0001)
+        coord_units_in_microns = st.session_state['mg__input_datafile_coordinate_units']
 
     # Load the data
-    if st.button('Load data'):
-        st.session_state['mg__df'] = load_data(os.path.join(input_directory, input_datafilename), coord_units_in_microns, dataset_formats.extract_datafile_metadata(os.path.join(input_directory, input_datafilename))[4])
-        unique_images = st.session_state['mg__df']['Slide ID'].unique()
-        st.session_state['mg__unique_images_short'] = [x.split('-imagenum_')[1] for x in unique_images]
-        st.session_state['mg__unique_image_dict'] = dict(zip(st.session_state['mg__unique_images_short'], unique_images))
-        st.session_state['mg__all_numeric_columns'] = st.session_state['mg__df'].select_dtypes(include='number').columns
-        phenotype_columns = [column for column in st.session_state['mg__df'].columns if column.startswith('Phenotype ')]
-        st.session_state['mg__df'] = st.session_state['mg__df'].rename(columns=dict(zip(phenotype_columns, [column.replace('Phenotype ', 'Phenotype_orig ') for column in phenotype_columns])))
+    input_datafile_columns = st.columns(2)
+    with input_datafile_columns[0]:
+        if st.button('Load data', use_container_width=True):
+            st.session_state['mg__df'] = load_data(os.path.join(input_directory, input_datafilename), coord_units_in_microns, dataset_formats.extract_datafile_metadata(os.path.join(input_directory, input_datafilename))[4])
+            unique_images = st.session_state['mg__df']['Slide ID'].unique()
+            st.session_state['mg__unique_images_short'] = [x.split('-imagenum_')[1] for x in unique_images]
+            st.session_state['mg__unique_image_dict'] = dict(zip(st.session_state['mg__unique_images_short'], unique_images))
+            phenotype_columns = [column for column in st.session_state['mg__df'].columns if column.startswith('Phenotype ')]
+            st.session_state['mg__df'] = st.session_state['mg__df'].rename(columns=dict(zip(phenotype_columns, [column.replace('Phenotype ', 'Phenotype_orig ') for column in phenotype_columns])))
+            st.session_state['mg__all_numeric_columns'] = st.session_state['mg__df'].select_dtypes(include='number').columns
+            st.session_state['mg__all_columns'] = st.session_state['mg__df'].columns
     
     # Warn the user that they need to load the data at least once
     if 'mg__df' not in st.session_state:
@@ -173,53 +229,88 @@ def main():
         unique_image_dict = st.session_state['mg__unique_image_dict']
 
         # Define the main columns
-        main_columns = st.columns(3, gap='medium')
+        main_columns = st.columns(3, gap='large')
 
         # Data column filter
         with main_columns[0]:
 
             # Column header
-            st.header(':two: Column filter')
+            st.header(':one: Column filter')
 
             # Have a dropdown for the column on which to perform a kernel density estimate
+            if 'mg__column_for_filtering' not in st.session_state:
+                st.session_state['mg__column_for_filtering'] = update_column_options(key_for_column_list='mg__all_numeric_columns')[0]
             st.selectbox(label='Column for filtering:', options=update_column_options(), key='mg__column_for_filtering', on_change=update_dependencies_of_column_for_filtering)
             column_for_filtering = st.session_state['mg__column_for_filtering']
 
-            # Output information on the column range
-            if 'mg__curr_column_range' not in st.session_state:
+            # Output information on the column
+            if 'mg__selected_column_type' not in st.session_state:
                 update_dependencies_of_column_for_filtering()
-            column_range = st.session_state['mg__curr_column_range']
-            st.write('Column range: {}'.format(column_range))
+            if st.session_state['mg__selected_column_type'] == 'numeric':
+                column_range = st.session_state['mg__curr_column_range']
+                st.write('Column\'s range: {}'.format(column_range))
+            else:
+                curr_column_unique_values = st.session_state['mg__curr_column_unique_values']
+                st.write('Column\'s unique values: `{}`'.format(curr_column_unique_values))
 
             # Determine the x-y data to plot for the selected column, calculating the KDE for each column only once ever
-            if column_for_filtering not in list(st.session_state['mg__dfs_to_plot']):
-                line2d = sns.kdeplot(df, x=column_for_filtering).get_lines()[0]
-                curr_df = pd.DataFrame({'Value': line2d.get_xdata(), 'Density': line2d.get_ydata()})
-                st.session_state['mg__dfs_to_plot'][column_for_filtering] = curr_df[(curr_df['Value'] >= column_range[0]) & (curr_df['Value'] <= column_range[1])]  # needed because the KDE can extend outside the possible value range
-            df_to_plot_full = st.session_state['mg__dfs_to_plot'][column_for_filtering]
+            if column_for_filtering not in list(st.session_state['mg__kdes_or_hists_to_plot']):
+                if st.session_state['mg__selected_column_type'] == 'numeric':
+                    line2d = sns.kdeplot(data=df, x=column_for_filtering).get_lines()[0]
+                    curr_df = pd.DataFrame({'Value': line2d.get_xdata(), 'Density': line2d.get_ydata()})
+                    st.session_state['mg__kdes_or_hists_to_plot'][column_for_filtering] = curr_df[(curr_df['Value'] >= column_range[0]) & (curr_df['Value'] <= column_range[1])]  # needed because the KDE can extend outside the possible value range
+                else:
+                    # Probably turn this into the get_lines() from the actual histogram plot which should be performed here so sns.hist() for the current column is only ever done once!!!!
+                    st.session_state['mg__kdes_or_hists_to_plot'][column_for_filtering] = df[column_for_filtering].to_frame()
+            kde_or_hist_to_plot_full = st.session_state['mg__kdes_or_hists_to_plot'][column_for_filtering]
 
-            # Write some text boxes for the desired ranges for the current analysis column. Could make this stronger by enforcing the min_value and max_value parameters in each widget to correspond to the other so that the chosen max is never less than the chosen min, but initial attempts at this shows strange behavior and isn't worth debugging for now
-            st.slider(label='Value range:', min_value=column_range[0], max_value=column_range[1], key='mg__selected_value_range')
-            selected_min_val, selected_max_val = st.session_state['mg__selected_value_range']
+            # If the selected column is numeric...
+            if st.session_state['mg__selected_column_type'] == 'numeric':
 
-            # Create a view of the full dataframe that is the selected subset
-            df_to_plot_selected = df_to_plot_full[(df_to_plot_full['Value'] >= selected_min_val) & (df_to_plot_full['Value'] <= selected_max_val)]
+                # Draw a range slider widget for selecting the range min and max
+                st.slider(label='Selected value range:', min_value=column_range[0], max_value=column_range[1], key='mg__selected_value_range')
+                selected_min_val, selected_max_val = st.session_state['mg__selected_value_range']
 
-            # Plot the Plotly figure in Streamlit
-            fig = go.Figure()
-            fig.add_trace(go.Scatter(x=df_to_plot_full['Value'], y=df_to_plot_full['Density'], fill='tozeroy', mode='none', fillcolor='yellow', name='Full dataset', hovertemplate=' '))
-            fig.add_trace(go.Scatter(x=df_to_plot_selected['Value'], y=df_to_plot_selected['Density'], fill='tozeroy', mode='none', fillcolor='red', name='Selection', hoverinfo='skip'))
-            fig.update_layout(hovermode='x unified', xaxis_title='Column value', yaxis_title='Density')
-            st.plotly_chart(fig)
+                # Create a view of the full dataframe that is the selected subset
+                df_to_plot_selected = kde_or_hist_to_plot_full[(kde_or_hist_to_plot_full['Value'] >= selected_min_val) & (kde_or_hist_to_plot_full['Value'] <= selected_max_val)]
+
+                # Plot the Plotly figure in Streamlit
+                fig = go.Figure()
+                fig.add_trace(go.Scatter(x=kde_or_hist_to_plot_full['Value'], y=kde_or_hist_to_plot_full['Density'], fill='tozeroy', mode='none', fillcolor='yellow', name='Full dataset', hovertemplate=' '))
+                fig.add_trace(go.Scatter(x=df_to_plot_selected['Value'], y=df_to_plot_selected['Density'], fill='tozeroy', mode='none', fillcolor='red', name='Selection', hoverinfo='skip'))
+                fig.update_layout(hovermode='x unified', xaxis_title='Column value', yaxis_title='Density')
+                st.plotly_chart(fig)
+
+                # Set the selection dictionary for the current filter to pass on to the current phenotype definition
+                selection_dict = {'column_for_filtering': column_for_filtering, 'selected_min_val': selected_min_val, 'selected_max_val': selected_max_val, 'selected_column_values': None}
+
+            # If the selected column is categorical...
+            else:
+
+                # Draw a multiselect widget for selecting the unique column values to use in the column filter
+                st.multiselect(label='Selected value items:', options=curr_column_unique_values, key='mg__selected_column_values')
+                selected_items = st.session_state['mg__selected_column_values']  # NOT YET USED TO DRAW MULTISELECTIONS ON PLOT, BUT WE SHOULD!!
+
+                # Print a warning message
+                st.info('Unlike for numeric columns, the plot below does not update based on the widget\'s selection above. This should be implemented in a future version of this app.', icon="ℹ️")
+
+                # Plot in Streamlit the Seaborn histogram of the possible values in the full dataset, not yet making this plot respond to the widget selection as done for numeric column types above
+                fig, ax = plt.subplots()
+                sns.histplot(data=kde_or_hist_to_plot_full, x=column_for_filtering, shrink=.8, ax=ax)
+                ax.set_xticklabels(labels=ax.get_xticklabels(), rotation=45, ha='right')
+                st.pyplot(fig)
+
+                # Set the selection dictionary for the current filter to pass on to the current phenotype definition
+                selection_dict = {'column_for_filtering': column_for_filtering, 'selected_min_val': None, 'selected_max_val': None, 'selected_column_values': selected_items}
 
             # Add the current column filter to the current phenotype assignment
-            st.button(':star2: Add column filter to current phenotype :star2:', use_container_width=True, on_click=update_dependencies_of_button_for_adding_column_filter_to_current_phenotype, args=(column_for_filtering, selected_min_val, selected_max_val))
+            st.button(':star2: Add column filter to current phenotype :star2:', use_container_width=True, on_click=update_dependencies_of_button_for_adding_column_filter_to_current_phenotype, kwargs=selection_dict)
 
         # Current phenotype and phenotype assignments
         with main_columns[1]:
 
             # Column header
-            st.header(':three: Current phenotype', help='Note you can refine values in the following table by editing them directly or even deleting (or adding) whole rows.')
+            st.header(':two: Current phenotype', help='Note you can refine non-list values in the following table by editing them directly or even deleting (or adding) whole rows.')
 
             # Output the dataframe holding the phenotype that's currently being built
             st.session_state['mg__de_current_phenotype'].dataframe_editor()
@@ -231,7 +322,7 @@ def main():
             st.button(label=':star2: Add phenotype to assignments table :star2:', use_container_width=True, on_click=update_dependencies_of_button_for_adding_phenotype_to_new_dataset)
 
             # Column header
-            st.header(':four: Phenotype assignments', help='Note you can refine values in the following table by editing them directly or even deleting whole rows.')
+            st.header(':three: Phenotype assignments', help='Note you can refine non-list values in the following table by editing them directly or even deleting whole rows.')
 
             # Output the dataframe holding the specifications for all phenotypes
             st.session_state['mg__de_phenotype_assignments'].dataframe_editor()
@@ -243,10 +334,10 @@ def main():
         with main_columns[2]:
 
             # Column header
-            st.header(':five: New dataset')
+            st.header(':four: New dataset')
 
-            # Print out a sample of the main dataframe
-            st.write('Augmented dataset sample:')
+            # Print out the first rows of the main dataframe
+            st.write('Augmented dataset head:')
             st.dataframe(st.session_state['mg__df'].head(5))
 
             # Get a list of all new phenotypes
@@ -272,7 +363,7 @@ def main():
                     fig.update_xaxes(scaleanchor='y')
                     st.plotly_chart(fig)
 
-                # Optionally run some checks
+                # Optionally run some checks --> specific to measurementsEpCAMLy51MHCII-exported.csv
                 if st.toggle(label='Do checks'):
 
                     # Write out the detected cutoffs to use for basic validation
