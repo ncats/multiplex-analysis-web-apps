@@ -7,6 +7,7 @@ import time
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
 import basic_phenotyper_lib as bpl  # Useful functions for phenotyping collections of cells
 import app_top_of_page as top
+import streamlit_dataframe_editor as sde
 
 def reset_phenotype_selection():
     st.session_state.inciPhenoSel = st.session_state.defLineageOpt
@@ -21,10 +22,8 @@ def main():
         layout="wide"
     )
 
-    # Remove key values from session_state that should not persist
-    for key, val in st.session_state.items():
-        if (not key.endswith('__do_not_persist')) and (not key.startswith('FormSubmitter:')):
-            st.session_state[key] = val
+    # Run streamlit-dataframe-editor library initialization tasks at the top of the page
+    st.session_state = sde.initialize_session_state(st.session_state)
 
     # Apply pages order and indentation
     add_indentation()
@@ -97,6 +96,9 @@ def main():
 
         if st.session_state.umapCompleted:
             st.pyplot(st.session_state.inciFig)
+
+    # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
+    st.session_state = sde.finalize_session_state(st.session_state)
 
 if __name__ == '__main__':
     main()

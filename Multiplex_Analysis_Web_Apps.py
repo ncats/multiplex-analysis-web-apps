@@ -4,6 +4,7 @@ import platform_io
 from streamlit_javascript import st_javascript
 from st_pages import show_pages_from_config, add_indentation
 from streamlit_extras.app_logo import add_logo
+import streamlit_dataframe_editor as sde
 
 # Import relevant libraries
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
@@ -20,10 +21,8 @@ def main():
     # Set a wide layout
     st.set_page_config(layout="wide")
 
-    # Restore previous session state values, including from other pages; see https://discuss.streamlit.io/t/simultaneous-multipage-widget-state-persistence-data-editors-with-identical-contents-and-multiprocessing-capability/52554 for more information
-    for key, val in st.session_state.items():
-        if (not key.endswith('__do_not_persist')) and (not key.startswith('FormSubmitter:')):
-            st.session_state[key] = val
+    # Run streamlit-dataframe-editor library initialization tasks at the top of the page
+    st.session_state = sde.initialize_session_state(st.session_state)
 
     # Apply pages order and indentation
     add_indentation()
@@ -45,6 +44,9 @@ def main():
     
     intro_markdown = ndl.read_markdown_file('markdown/MAWA_WelcomePage.md')
     st.markdown(intro_markdown, unsafe_allow_html=True)
+
+    # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
+    st.session_state = sde.finalize_session_state(st.session_state)
 
 # Call the main function
 if __name__ == '__main__':
