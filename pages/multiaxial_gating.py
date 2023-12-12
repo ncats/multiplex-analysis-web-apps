@@ -386,8 +386,8 @@ def main():
                         st.write(st.session_state['mg__df'][phenotype_orig].value_counts())
                         st.write(st.session_state['mg__df'][phenotype_orig.replace('_orig', '').replace('MHCII', 'MHC II') + ' new'].value_counts())
 
-        # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
-        st.session_state = sde.finalize_session_state(st.session_state)
+    # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
+    st.session_state = sde.finalize_session_state(st.session_state)
 
 # Call the main function
 if __name__ == '__main__':
