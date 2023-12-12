@@ -23,10 +23,16 @@ def data_editor_change_callback():
     when the user navigates to a different page.
     '''
 
-    curr_phenotype_assignments = st.session_state['pheno__de_phenotype_assignments'].reconstruct_edited_dataframe()
-    st.session_state.pheno__curr_phenotype_assignments = curr_phenotype_assignments
+    st.session_state.saved_dataeditor_values = st.session_state['dataeditor__do_not_persist']
 
-    st.session_state.df = bpl.assign_phenotype_custom(st.session_state.df, curr_phenotype_assignments)
+    update_input_data_editor()
+    # Update the Dataset with the Species Summary changes
+    st.session_state.spec_summ = st.session_state.spec_summ_dataeditor
+    st.session_state.df = bpl.assign_phenotype_custom(st.session_state.df, 
+                                                      st.session_state.spec_summ)
+
+    ## Assign Special spec_sum based on current spec_sum
+    st.session_state.spec_summ_load = st.session_state.spec_summ.copy()
 
     # Create Phenotypes Summary Table based on 'phenotype' column in df
     st.session_state.pheno_summ = bpl.init_pheno_summ(st.session_state.df)
@@ -259,9 +265,11 @@ def main():
 
             # Allow the user to edit the value counts dataframe
             st.write('Replace the "unassigned" values in the "phenotype_name" column below with a descriptive name, such as "M2 macrophage". Don\'t change the values in any other column!')
-            if 'pheno__de_phenotype_assignments' not in st.session_state:
-                st.session_state['pheno__de_phenotype_assignments'] = sde.DataframeEditor(df_name='pheno__df_phenotype_assignments', default_df_contents=bpl.init_pheno_assign(st.session_state.df))
-            st.session_state['pheno__de_phenotype_assignments'].dataframe_editor(on_change=data_editor_change_callback)  # note there is no return variable
+            st.session_state.spec_summ = st.data_editor(st.session_state.spec_summ_dataeditor,
+                                                        key='dataeditor__do_not_persist',
+                                                        use_container_width=True,
+                                                        disabled=('species_name_short', 'species_name_long', 'species_count', 'species_percent'),
+                                                        on_change=data_editor_change_callback)
         else:
             st.dataframe(st.session_state.spec_summ, use_container_width=True)
 
