@@ -83,6 +83,11 @@ def extract_datafile_metadata(datafile_path):
     # Return the the datafile metadata
     return image_column_str, image_string_processing_func, coord_cols, marker_prefix, file_format, markers
 
+# Extract just the bare-minimum columns to keep in the trimmed dataframe
+def trim_dataframe_basic(df):
+    cols_to_keep = ['Slide ID', 'tag', 'Cell X Position', 'Cell Y Position'] + df.loc[0, :].filter(regex='^Phenotype ').index.tolist()
+    return df.loc[:, cols_to_keep]
+
 class Native:
     """Class representing format of original Consolidated_data.txt file that Houssein sent us around 2017-2018
 
@@ -149,6 +154,10 @@ class Native:
             if images_to_analyze is None:  # if this is unset, choose all images in the dataset (i.e., effectively do not filter)
                 print('Text file "{}" with separator "{}" has been successfully read (no image filtering has been performed)'.format(input_datafile, sep))
             else:
+                # Probably implement this if..else at a later time
+                # if len([column for column in df.columns if column.startswith('Phenotype_orig ')]) > 0:
+                #     df = df[df['Slide ID'].apply(lambda x: x.split('-imagenum_')[1] in images_to_analyze)]
+                # else:
                 df = df[get_image_series_in_datafile(input_datafile).apply(lambda x: x in images_to_analyze)]  # get just the rows of df corresponding to the selected images to analyze
                 print('Text file "{}" with separator "{}" has been successfully read and filtered to images {}'.format(input_datafile, sep, images_to_analyze))
         else:
@@ -221,11 +230,8 @@ class Native:
         # Variable definitions from attributes
         df = self.data
 
-        # Extract just the columns to keep in the trimmed dataframe
-        cols_to_keep = ['Slide ID', 'tag', 'Cell X Position', 'Cell Y Position'] + df.loc[0, :].filter(regex='^Phenotype ').index.tolist()
-
         # Attribute assignments from variables
-        self.data = df.loc[:, cols_to_keep]
+        self.data = trim_dataframe_basic(df)
 
     def calculate_minimum_coordinate_spacing(self):
         """Calculate the minimum spacing (aside from zero) in the data coordinates after conversion to microns. Not sure this is ever used anymore.

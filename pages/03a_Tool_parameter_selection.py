@@ -9,6 +9,7 @@ import streamlit_utils
 import utils
 import app_top_of_page as top
 import streamlit_dataframe_editor as sde
+import dataset_formats
 
 def main():
 
@@ -44,6 +45,10 @@ def main():
 
             # Update analysis__images_to_analyze options
             # st.session_state['options_for_images'] = utils.get_unique_image_ids_from_datafile(input_datafile_path)
+            # Probably implement this if..else at a later time
+            # if ('df' in st.session_state) and (len([column for column in st.session_state.df.columns if column.startswith('Phenotype_orig ')]) > 0):  # if we've read in from the Phenotyper which read in from the Gater...
+            #     st.session_state['options_for_images'] = list(st.session_state.df['Slide ID'].apply(lambda x: x.split('-imagenum_')[1]).unique())
+            # else:
             st.session_state['options_for_images'] = list(dataset_formats.get_image_series_in_datafile(input_datafile_path).unique())
 
             # Update analysis__images_to_analyze value
@@ -136,21 +141,54 @@ def main():
         df_phenotype_assignments_to_write['species_name_short'] = df_phenotype_assignments_to_write['species_name_short'].apply(lambda x: sorted(x.rstrip('+').split('+ ')))
         df_phenotype_assignments_to_write['species_percent'] = (df_phenotype_assignments_to_write['species_count'] / df_phenotype_assignments_to_write['species_count'].sum() * 100).apply(lambda x: np.round(x, decimals=8))
 
-        # Write the dataframe to disk
+        # Write the dataframe to disk, also making a copy in the output directory so it can optionally be saved for good
         df_phenotype_assignments_to_write.to_csv(path_or_buf=os.path.join(phenotypes_path, filename), sep='\t', header=False)
+        df_phenotype_assignments_to_write.to_csv(path_or_buf=os.path.join(output_directory, filename), sep='\t', header=False)
+
+        # Return the filename of the written file
+        return filename
+
+    def write_datafile_from_gater(df):
+
+        # Import relevant library
+        from datetime import datetime
+
+        # Set the filename of the phenotype assignments file to write
+        filename = 'phenotyped_datafile_from_gater-{}.csv'.format(datetime.now().strftime("%Y%m%d_%H%M%S"))
+
+        # Trim the dataframe to only the required columns and write to disk
+        # Note it's inefficient to write a big file to multiple locations, but it's faster to implement as I'm doing now on 12/12/23
+        df_trimmed = dataset_formats.trim_dataframe_basic(df)
+        df_trimmed.to_csv(path_or_buf=os.path.join(output_directory, filename), index=False)
+        df_trimmed.to_csv(path_or_buf=os.path.join(input_directory, filename), index=False)
 
         # Return the filename of the written file
         return filename
 
     def load_relevant_settings_from_phenotyper():
-        st.session_state['settings__input_datafile__filename'] = st.session_state['datafileU']
+
+        # If the main data dataframe in the Phenotyper contains "Phenotype_orig " columns, then the Phenotyper must have loaded the dataframe from the Gater, which means there is no datafile, so we must create one, and set its filename as the input datafile
+        if len([column for column in st.session_state.df.columns if column.startswith('Phenotype_orig ')]) > 0:
+            st.session_state['settings__input_datafile__filename'] = write_datafile_from_gater(st.session_state.df)
+
+        # Otherwise, the datafile was likely read in from disk (as opposed to from memory via Streamlit), so set that filename as the input datafile
+        else:
+            st.session_state['settings__input_datafile__filename'] = st.session_state['datafileU']
+
+        # Update the dependencies of the input datafile filename since it has likely changed
         update_dependencies_of_input_datafile_filename()
-        st.session_state['settings__input_datafile__coordinate_units'] = st.session_state['phenotyping_micron_coordinate_units']
+
+        # Save the input datafile coordinate units in microns from the Phenotyper (since Dante hasn't ported it yet [phenotyping_micron_coordinate_units key], load from the Gater for now)
+        st.session_state['settings__input_datafile__coordinate_units'] = st.session_state['mg__input_datafile_coordinate_units']
+
+        # If the Phenotyper's phenotyping method is "Custom", create a phenotype assignments file (and assign the corresponding setting) from its phenotype assignment table
         if st.session_state['phenoMeth'] == 'Custom':
-            phenotyper_assignments_filename = create_phenotype_assignments_file_from_phenotyper(st.session_state['spec_summ_dataeditor'])
-            st.session_state['settings__phenotyping__phenotype_identification_file'] = phenotyper_assignments_filename
+            st.session_state['settings__phenotyping__phenotype_identification_file'] = create_phenotype_assignments_file_from_phenotyper(st.session_state.pheno__curr_phenotype_assignments)
+
+        # Set the phenotyping method from the Phenotyper and update its dependencies
         st.session_state['settings__phenotyping__method'] = st.session_state['phenoMeth']
         update_dependencies_of_phenotyping_method()
+
 
     # Set a wide layout
     st.set_page_config(layout="wide")
