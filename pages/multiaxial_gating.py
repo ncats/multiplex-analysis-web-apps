@@ -10,6 +10,7 @@ import plotly.express as px
 import streamlit_dataframe_editor as sde
 import utils
 import matplotlib.pyplot as plt
+import numpy as np
 
 # Function to load the data in a unified format
 def load_data(input_datafile_path, coord_units_in_microns, dataset_format):
@@ -182,6 +183,7 @@ def main():
     # Constants
     input_directory = os.path.join('.', 'input')
     num_categorical_values_cutoff = 10
+    tol = 1e-8
 
     # Set the options for input data filenames
     options_for_input_datafiles = [x for x in os.listdir(input_directory) if x.endswith(('.csv', '.tsv'))]
@@ -259,83 +261,97 @@ def main():
             if st.session_state['mg__selected_column_type'] == 'numeric':
                 column_range = st.session_state['mg__curr_column_range']
                 st.write('Column\'s range: {}'.format(column_range))
-            else:
+                if np.abs(column_range[1] - column_range[0]) < tol:
+                    trivial_column = True
+                else:
+                    trivial_column = False
+            else:  # categorical column
                 curr_column_unique_values = st.session_state['mg__curr_column_unique_values']
                 st.write('Column\'s unique values: `{}`'.format(curr_column_unique_values))
-
-            # Determine the x-y data to plot for the selected column, calculating the KDE for each column only once ever
-            if column_for_filtering not in list(st.session_state['mg__kdes_or_hists_to_plot']):
-                if st.session_state['mg__selected_column_type'] == 'numeric':
-                    line2d = sns.kdeplot(data=df, x=column_for_filtering).get_lines()[0]
-                    curr_df = pd.DataFrame({'Value': line2d.get_xdata(), 'Density': line2d.get_ydata()})
-                    st.session_state['mg__kdes_or_hists_to_plot'][column_for_filtering] = curr_df[(curr_df['Value'] >= column_range[0]) & (curr_df['Value'] <= column_range[1])]  # needed because the KDE can extend outside the possible value range
+                num_unique_values_in_curr_column = len(curr_column_unique_values)
+                if num_unique_values_in_curr_column == 1:
+                    trivial_column = True
                 else:
-                    vc = df[column_for_filtering].value_counts(sort=False)
-                    curr_df = pd.DataFrame({'Values': vc.index.to_list(), 'Counts': vc.to_list()})
-                    st.session_state['mg__kdes_or_hists_to_plot'][column_for_filtering] = curr_df
-            kde_or_hist_to_plot_full = st.session_state['mg__kdes_or_hists_to_plot'][column_for_filtering]
+                    trivial_column = False
 
-            # If the selected column is numeric...
-            if st.session_state['mg__selected_column_type'] == 'numeric':
+            # If the column is trivial, don't allow it to be filtered on
+            if trivial_column:
+                st.info('Selected column is trivial; not available for filtering.', icon="ℹ️")
 
-                # Draw a range slider widget for selecting the range min and max
-                st.slider(label='Selected value range:', min_value=column_range[0], max_value=column_range[1], key='mg__selected_value_range')
-                selected_min_val, selected_max_val = st.session_state['mg__selected_value_range']
-
-                # Create a view of the full dataframe that is the selected subset
-                df_to_plot_selected = kde_or_hist_to_plot_full[(kde_or_hist_to_plot_full['Value'] >= selected_min_val) & (kde_or_hist_to_plot_full['Value'] <= selected_max_val)]
-
-                # Plot the Plotly figure in Streamlit
-                fig = go.Figure()
-                fig.add_trace(go.Scatter(x=kde_or_hist_to_plot_full['Value'], y=kde_or_hist_to_plot_full['Density'], fill='tozeroy', mode='none', fillcolor='yellow', name='Full dataset', hovertemplate=' '))
-                fig.add_trace(go.Scatter(x=df_to_plot_selected['Value'], y=df_to_plot_selected['Density'], fill='tozeroy', mode='none', fillcolor='red', name='Selection', hoverinfo='skip'))
-                fig.update_layout(hovermode='x unified', xaxis_title='Column value', yaxis_title='Density')
-                fig.update_layout(legend=dict(yanchor="top", y=1.2, xanchor="left", x=0.01))
-                st.plotly_chart(fig, use_container_width=True)
-
-                # Set the selection dictionary for the current filter to pass on to the current phenotype definition
-                selection_dict = {'column_for_filtering': column_for_filtering, 'selected_min_val': selected_min_val, 'selected_max_val': selected_max_val, 'selected_column_values': None}
-
-                # Whether to disable the add column button
-                add_column_button_disabled = False
-
-            # If the selected column is categorical...
+            # If the selected column contains more than one value...
             else:
 
-                # If there's a tractable number of unique values in the selected column...
-                if len(curr_column_unique_values) <= num_categorical_values_cutoff:
+                # Determine the x-y data to plot for the selected column, calculating the KDE for each column only once ever
+                if column_for_filtering not in list(st.session_state['mg__kdes_or_hists_to_plot']):
+                    if st.session_state['mg__selected_column_type'] == 'numeric':
+                        line2d = sns.kdeplot(data=df, x=column_for_filtering).get_lines()[0]
+                        curr_df = pd.DataFrame({'Value': line2d.get_xdata(), 'Density': line2d.get_ydata()})
+                        st.session_state['mg__kdes_or_hists_to_plot'][column_for_filtering] = curr_df[(curr_df['Value'] >= column_range[0]) & (curr_df['Value'] <= column_range[1])]  # needed because the KDE can extend outside the possible value range
+                    else:
+                        vc = df[column_for_filtering].value_counts(sort=False)
+                        curr_df = pd.DataFrame({'Values': vc.index.to_list(), 'Counts': vc.to_list()})
+                        st.session_state['mg__kdes_or_hists_to_plot'][column_for_filtering] = curr_df
+                kde_or_hist_to_plot_full = st.session_state['mg__kdes_or_hists_to_plot'][column_for_filtering]
 
-                    # Draw a multiselect widget for selecting the unique column values to use in the column filter
-                    st.multiselect(label='Selected value items:', options=curr_column_unique_values, key='mg__selected_column_values')
-                    selected_items = st.session_state['mg__selected_column_values']  # NOT YET USED TO DRAW MULTISELECTIONS ON PLOT, BUT WE SHOULD!!
+                # If the selected column is numeric...
+                if st.session_state['mg__selected_column_type'] == 'numeric':
 
-                    # Print a warning message
-                    st.info('Unlike for numeric columns, the plot below does not update based on the widget\'s selection above. This should be implemented in a future version of this app.', icon="ℹ️")
+                    # Draw a range slider widget for selecting the range min and max
+                    st.slider(label='Selected value range:', min_value=column_range[0], max_value=column_range[1], key='mg__selected_value_range')
+                    selected_min_val, selected_max_val = st.session_state['mg__selected_value_range']
 
-                    # Plot in Streamlit the Matplotlib histogram of the possible values in the full dataset, not yet making this plot respond to the widget selection as done for numeric column types above
-                    # sns.histplot(data=kde_or_hist_to_plot_full, x=column_for_filtering, shrink=.8, ax=ax)
-                    fig, ax = plt.subplots()
-                    ax.bar(kde_or_hist_to_plot_full['Values'], kde_or_hist_to_plot_full['Counts'])
-                    ax.set_xlabel('Value')
-                    ax.set_ylabel('Count')
-                    ax.set_title('Counts of values of column {}'.format(column_for_filtering))
-                    ax.set_xticklabels(labels=ax.get_xticklabels(), rotation=45, ha='right')
-                    st.pyplot(fig)
+                    # Create a view of the full dataframe that is the selected subset
+                    df_to_plot_selected = kde_or_hist_to_plot_full[(kde_or_hist_to_plot_full['Value'] >= selected_min_val) & (kde_or_hist_to_plot_full['Value'] <= selected_max_val)]
+
+                    # Plot the Plotly figure in Streamlit
+                    fig = go.Figure()
+                    fig.add_trace(go.Scatter(x=kde_or_hist_to_plot_full['Value'], y=kde_or_hist_to_plot_full['Density'], fill='tozeroy', mode='none', fillcolor='yellow', name='Full dataset', hovertemplate=' '))
+                    fig.add_trace(go.Scatter(x=df_to_plot_selected['Value'], y=df_to_plot_selected['Density'], fill='tozeroy', mode='none', fillcolor='red', name='Selection', hoverinfo='skip'))
+                    fig.update_layout(hovermode='x unified', xaxis_title='Column value', yaxis_title='Density')
+                    fig.update_layout(legend=dict(yanchor="top", y=1.2, xanchor="left", x=0.01))
+                    st.plotly_chart(fig, use_container_width=True)
 
                     # Set the selection dictionary for the current filter to pass on to the current phenotype definition
-                    selection_dict = {'column_for_filtering': column_for_filtering, 'selected_min_val': None, 'selected_max_val': None, 'selected_column_values': selected_items}
+                    selection_dict = {'column_for_filtering': column_for_filtering, 'selected_min_val': selected_min_val, 'selected_max_val': selected_max_val, 'selected_column_values': None}
 
                     # Whether to disable the add column button
                     add_column_button_disabled = False
 
-                # If there are too many unique values in the column, do nothing
+                # If the selected column is categorical...
                 else:
-                    st.info('There are too many unique values (more than {}) in the selected categorical column. Filtering not currently allowed.'.format(num_categorical_values_cutoff), icon="ℹ️")
-                    selection_dict = dict()
-                    add_column_button_disabled = True
 
-            # Add the current column filter to the current phenotype assignment
-            st.button(':star2: Add column filter to current phenotype :star2:', use_container_width=True, on_click=update_dependencies_of_button_for_adding_column_filter_to_current_phenotype, kwargs=selection_dict, disabled=add_column_button_disabled)
+                    # If there's a tractable number of unique values in the selected column...
+                    if num_unique_values_in_curr_column <= num_categorical_values_cutoff:
+
+                        # Draw a multiselect widget for selecting the unique column values to use in the column filter
+                        st.multiselect(label='Selected value items:', options=curr_column_unique_values, key='mg__selected_column_values')
+                        selected_items = st.session_state['mg__selected_column_values']
+
+                        # Plot in Streamlit the Matplotlib histogram of the possible values in the full dataset
+                        # sns.histplot(data=kde_or_hist_to_plot_full, x=column_for_filtering, shrink=.8, ax=ax)
+                        fig, ax = plt.subplots()
+                        bar_colors = ['tab:red' if value in selected_items else 'y' for value in kde_or_hist_to_plot_full['Values']]
+                        ax.bar(kde_or_hist_to_plot_full['Values'], kde_or_hist_to_plot_full['Counts'], color=bar_colors)
+                        ax.set_xlabel('Value')
+                        ax.set_ylabel('Count')
+                        ax.set_title('Counts of values of column {}'.format(column_for_filtering))
+                        ax.set_xticklabels(labels=ax.get_xticklabels(), rotation=45, ha='right')
+                        st.pyplot(fig)
+
+                        # Set the selection dictionary for the current filter to pass on to the current phenotype definition
+                        selection_dict = {'column_for_filtering': column_for_filtering, 'selected_min_val': None, 'selected_max_val': None, 'selected_column_values': selected_items}
+
+                        # Whether to disable the add column button
+                        add_column_button_disabled = False
+
+                    # If there are too many unique values in the column, do nothing
+                    else:
+                        st.info('There are too many unique values (more than {}) in the selected categorical column. Filtering not currently allowed.'.format(num_categorical_values_cutoff), icon="ℹ️")
+                        selection_dict = dict()
+                        add_column_button_disabled = True
+
+                # Add the current column filter to the current phenotype assignment
+                st.button(':star2: Add column filter to current phenotype :star2:', use_container_width=True, on_click=update_dependencies_of_button_for_adding_column_filter_to_current_phenotype, kwargs=selection_dict, disabled=add_column_button_disabled)
 
         # Current phenotype and phenotype assignments
         with main_columns[1]:
