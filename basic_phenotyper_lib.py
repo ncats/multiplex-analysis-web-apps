@@ -50,7 +50,7 @@ def identify_marker_columns(df, marker_col_prefix):
     df_markers = df.filter(regex='^{}'.format(marker_col_prefix))
 
     # Get a list of the markers in the datafile
-    return [x.lstrip(marker_col_prefix) for x in df_markers.columns]
+    return [x.removeprefix(marker_col_prefix) for x in df_markers.columns]
 
 def init_pheno_cols(df, marker_names, marker_col_prefix):
     """Add a column to the dataframe containing a string of the marker bits in the same order as the 

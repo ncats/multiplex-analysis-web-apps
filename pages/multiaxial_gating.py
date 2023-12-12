@@ -56,102 +56,105 @@ def update_dependencies_of_button_for_adding_column_filter_to_current_phenotype(
 # Add to the phenotype assignments for the new dataset and update the previous parts of the app
 def update_dependencies_of_button_for_adding_phenotype_to_new_dataset():
 
-    # Get the current values of the two dataframe editors
-    df_current_phenotype = st.session_state['mg__de_current_phenotype'].reconstruct_edited_dataframe()
-    df_phenotype_assignments = st.session_state['mg__de_phenotype_assignments'].reconstruct_edited_dataframe()
-    if 'Phenotype' in df_phenotype_assignments.columns:
-        df_phenotype_assignments = df_phenotype_assignments.set_index('Phenotype')
+    if not st.session_state['mg__df_current_phenotype'].empty:
+        # Get the current values of the two dataframe editors
+        df_current_phenotype = st.session_state['mg__de_current_phenotype'].reconstruct_edited_dataframe()
+        df_phenotype_assignments = st.session_state['mg__de_phenotype_assignments'].reconstruct_edited_dataframe()
+        if 'Phenotype' in df_phenotype_assignments.columns:
+            df_phenotype_assignments = df_phenotype_assignments.set_index('Phenotype')
 
-    # Populate a dictionary of the column filters for the current phenotype
-    curr_phenotype_dict = dict()
-    for row in df_current_phenotype.itertuples(index=False):
-        curr_col, curr_min, curr_max, curr_items = row
-        if curr_items is None:  # numeric column filter
-            curr_phenotype_dict[curr_col + ' [[min]]'] = curr_min
-            curr_phenotype_dict[curr_col + ' [[max]]'] = curr_max
-        else:  # categorical column filter
-            curr_phenotype_dict[curr_col + ' [[items]]'] = curr_items
+        # Populate a dictionary of the column filters for the current phenotype
+        curr_phenotype_dict = dict()
+        for row in df_current_phenotype.itertuples(index=False):
+            curr_col, curr_min, curr_max, curr_items = row
+            if curr_items is None:  # numeric column filter
+                curr_phenotype_dict[curr_col + ' [[min]]'] = curr_min
+                curr_phenotype_dict[curr_col + ' [[max]]'] = curr_max
+            else:  # categorical column filter
+                curr_phenotype_dict[curr_col + ' [[items]]'] = curr_items
 
-    # Update the contents of the phenotype assignments data editor
-    dataframe_to_add = pd.DataFrame(pd.Series(curr_phenotype_dict, name=st.session_state['mg__current_phenotype_name']))
-    new_df_contents = pd.concat([df_phenotype_assignments, dataframe_to_add.T]).rename_axis('Phenotype').reset_index(drop=False)
-    st.session_state['mg__de_phenotype_assignments'].update_editor_contents(new_df_contents=new_df_contents)
+        # Update the contents of the phenotype assignments data editor
+        dataframe_to_add = pd.DataFrame(pd.Series(curr_phenotype_dict, name=st.session_state['mg__current_phenotype_name']))
+        new_df_contents = pd.concat([df_phenotype_assignments, dataframe_to_add.T]).rename_axis('Phenotype').reset_index(drop=False)
+        st.session_state['mg__de_phenotype_assignments'].update_editor_contents(new_df_contents=new_df_contents)
 
-    # Clear the current phenotype dataframe editor to its default value
-    st.session_state['mg__de_current_phenotype'].reset_dataframe_content()
+        # Clear the current phenotype dataframe editor to its default value
+        st.session_state['mg__de_current_phenotype'].reset_dataframe_content()
 
-    # Set the currently selected column as the first of the possible options
-    st.session_state['mg__column_for_filtering'] = update_column_options(key_for_column_list='mg__all_numeric_columns')[0]
+        # Set the currently selected column as the first of the possible options
+        st.session_state['mg__column_for_filtering'] = update_column_options(key_for_column_list='mg__all_numeric_columns')[0]
 
-    # Since the column selection must have just changed, update its dependencies
-    update_dependencies_of_column_for_filtering()
+        # Since the column selection must have just changed, update its dependencies
+        update_dependencies_of_column_for_filtering()
 
 # From the phenotype assignments, add one column per phenotype to the original dataframe containing pluses where all the phenotype criteria are met
 def add_new_phenotypes_to_main_df(df):
 
-    # Get the current values of the phenotype assignments data editor
-    df_phenotype_assignments = st.session_state['mg__de_phenotype_assignments'].reconstruct_edited_dataframe().set_index('Phenotype')
+    if not st.session_state['mg__df_phenotype_assignments'].empty:
 
-    # Debugging output
-    print('-- Phenotype criteria --')
-    print()
-
-    # For each set of phenotype assignments...
-    for iphenotype, row in enumerate(df_phenotype_assignments.itertuples()):
-
-        # Obtain the name of the current phenotype
-        phenotype = row[0]
+        # Get the current values of the phenotype assignments data editor
+        df_phenotype_assignments = st.session_state['mg__de_phenotype_assignments'].reconstruct_edited_dataframe().set_index('Phenotype')
 
         # Debugging output
-        print('Phenotype #{}: {}'.format(iphenotype + 1, phenotype))
+        print('-- Phenotype criteria --')
+        print()
 
-        # Create a dataframe from the current row (i.e., phenotype) so that we can split and add columns
-        curr_df = pd.Series(dict(zip(df_phenotype_assignments.columns, row[1:])), name=phenotype).dropna().to_frame().reset_index()
+        # For each set of phenotype assignments...
+        for iphenotype, row in enumerate(df_phenotype_assignments.itertuples()):
 
-        # Add a "column" column containing the name of the filtering column
-        curr_df['column'] = [x.split(' [[')[0] for x in curr_df['index']]
-
-        # Drop the unnecessary "index" column
-        curr_df = curr_df.drop(['index'], axis='columns')
-
-        # Initialize a Series of booleans to True
-        phenotype_bools = pd.Series([True] * len(df))
-
-        # For each filtering column...
-        object_count_holder = []
-        for ifilter_col, (column, values) in enumerate(curr_df.groupby(by='column')[phenotype].apply(list).items()):  # note the groupby appears to result in the column's order of min then max
-
-            # Set the booleans if the boolean column filter is numeric (values = [min, max])
-            if len(values) == 2:
-                column_filter_bools = (df[column] >= values[0]) & (df[column] <= values[1])
-                print('  Column #{} (numeric): {}'.format(ifilter_col + 1, column))
-                print('    min: {}'.format(values[0]))
-                print('    max: {}'.format(values[1]))
-
-            # Set the booleans if the boolean column filter is categorical (values = [items])
-            else:
-                column_filter_bools = df[column].apply(lambda x: x in values[0])
-                print('  Column #{} (categorical): {}'.format(ifilter_col + 1, column))
-                print('    items: {}'.format(values[0]))
+            # Obtain the name of the current phenotype
+            phenotype = row[0]
 
             # Debugging output
-            curr_filter_column_count = column_filter_bools.sum()
-            object_count_holder.append(curr_filter_column_count)
-            print('    object count: {}'.format(curr_filter_column_count))
+            print('Phenotype #{}: {}'.format(iphenotype + 1, phenotype))
 
-            # Determine where the current column values are within the specified range criterion
-            phenotype_bools = phenotype_bools & column_filter_bools
+            # Create a dataframe from the current row (i.e., phenotype) so that we can split and add columns
+            curr_df = pd.Series(dict(zip(df_phenotype_assignments.columns, row[1:])), name=phenotype).dropna().to_frame().reset_index()
+
+            # Add a "column" column containing the name of the filtering column
+            curr_df['column'] = [x.split(' [[')[0] for x in curr_df['index']]
+
+            # Drop the unnecessary "index" column
+            curr_df = curr_df.drop(['index'], axis='columns')
+
+            # Initialize a Series of booleans to True
+            phenotype_bools = pd.Series([True] * len(df))
+
+            # For each filtering column...
+            object_count_holder = []
+            for ifilter_col, (column, values) in enumerate(curr_df.groupby(by='column')[phenotype].apply(list).items()):  # note the groupby appears to result in the column's order of min then max
+
+                # Set the booleans if the boolean column filter is numeric (values = [min, max])
+                if len(values) == 2:
+                    column_filter_bools = (df[column] >= values[0]) & (df[column] <= values[1])
+                    print('  Column #{} (numeric): {}'.format(ifilter_col + 1, column))
+                    print('    min: {}'.format(values[0]))
+                    print('    max: {}'.format(values[1]))
+
+                # Set the booleans if the boolean column filter is categorical (values = [items])
+                else:
+                    column_filter_bools = df[column].apply(lambda x: x in values[0])
+                    print('  Column #{} (categorical): {}'.format(ifilter_col + 1, column))
+                    print('    items: {}'.format(values[0]))
+
+                # Debugging output
+                curr_filter_column_count = column_filter_bools.sum()
+                object_count_holder.append(curr_filter_column_count)
+                print('    object count: {}'.format(curr_filter_column_count))
+
+                # Determine where the current column values are within the specified range criterion
+                phenotype_bools = phenotype_bools & column_filter_bools
+
+            # Debugging output
+            curr_phenotype_count = phenotype_bools.sum()
+            assert curr_phenotype_count <= min(object_count_holder), 'ERROR: The object count for the total phenotype must be smaller than the smallest object count for its individual column filters'
+            print('  Phenotype object count: {}'.format(curr_phenotype_count))
+
+            # Add a column to the original dataframe with the new phenotype satisfying all of its filtering criteria
+            st.session_state['mg__df']['Phenotype {}'.format(phenotype)] = phenotype_bools.apply(lambda x: ('+' if x else '-'))
 
         # Debugging output
-        curr_phenotype_count = phenotype_bools.sum()
-        assert curr_phenotype_count <= min(object_count_holder), 'ERROR: The object count for the total phenotype must be smaller than the smallest object count for its individual column filters'
-        print('  Phenotype object count: {}'.format(curr_phenotype_count))
-
-        # Add a column to the original dataframe with the new phenotype satisfying all of its filtering criteria
-        st.session_state['mg__df']['Phenotype {}'.format(phenotype)] = phenotype_bools.apply(lambda x: ('+' if x else '-'))
-
-    # Debugging output
-    print('------------------------')
+        print('------------------------')
 
 # Function to clear the session state as would be desired when loading a new dataset
 def clear_session_state(keep_keys=[]):
@@ -163,7 +166,7 @@ def main():
 
     # Set page settings
     st.set_page_config(layout='wide', page_title='Multiaxial Gating')
-    st.title('Multiaxial Gating')
+    st.title('Multi-axial Gating')
 
     # Apply pages order and indentation
     add_indentation()
@@ -287,7 +290,8 @@ def main():
                 fig.add_trace(go.Scatter(x=kde_or_hist_to_plot_full['Value'], y=kde_or_hist_to_plot_full['Density'], fill='tozeroy', mode='none', fillcolor='yellow', name='Full dataset', hovertemplate=' '))
                 fig.add_trace(go.Scatter(x=df_to_plot_selected['Value'], y=df_to_plot_selected['Density'], fill='tozeroy', mode='none', fillcolor='red', name='Selection', hoverinfo='skip'))
                 fig.update_layout(hovermode='x unified', xaxis_title='Column value', yaxis_title='Density')
-                st.plotly_chart(fig)
+                fig.update_layout(legend=dict(yanchor="top", y=1.2, xanchor="left", x=0.01))
+                st.plotly_chart(fig, use_container_width=True)
 
                 # Set the selection dictionary for the current filter to pass on to the current phenotype definition
                 selection_dict = {'column_for_filtering': column_for_filtering, 'selected_min_val': selected_min_val, 'selected_max_val': selected_max_val, 'selected_column_values': None}
@@ -345,7 +349,9 @@ def main():
             st.text_input(label='Phenotype name:', key='mg__current_phenotype_name')
 
             # Add the current phenotype to the phenotype assignments table
-            st.button(label=':star2: Add phenotype to assignments table :star2:', use_container_width=True, on_click=update_dependencies_of_button_for_adding_phenotype_to_new_dataset)
+            st.button(label=':star2: Add phenotype to assignments table :star2:', 
+                      use_container_width=True, 
+                      on_click=update_dependencies_of_button_for_adding_phenotype_to_new_dataset)
 
             # Column header
             st.header(':three: Phenotype assignments', help='Note you can refine non-list values in the following table by editing them directly or even deleting whole rows.')
@@ -354,7 +360,9 @@ def main():
             st.session_state['mg__de_phenotype_assignments'].dataframe_editor()
 
             # Generate the new dataset
-            st.button(label=':star2: Generate the new dataset from the phenotype assignments :star2:', use_container_width=True, on_click=add_new_phenotypes_to_main_df, args=(df,))
+            st.button(label=':star2: Generate the new dataset from the phenotype assignments :star2:', 
+                      use_container_width=True, 
+                      on_click=add_new_phenotypes_to_main_df, args=(df,))
 
         # New dataset
         with main_columns[2]:
