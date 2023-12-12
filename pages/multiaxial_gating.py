@@ -330,6 +330,7 @@ def main():
 
                 # If there are too many unique values in the column, do nothing
                 else:
+                    st.info('There are too many unique values (more than {}) in the selected categorical column. Filtering not currently allowed.'.format(num_categorical_values_cutoff), icon="ℹ️")
                     selection_dict = dict()
                     add_column_button_disabled = True
 
