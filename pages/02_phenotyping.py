@@ -23,7 +23,10 @@ def data_editor_change_callback():
     when the user navigates to a different page.
     '''
 
-    st.session_state.df = bpl.assign_phenotype_custom(st.session_state.df, st.session_state['pheno__de_phenotype_assignments'].reconstruct_edited_dataframe())
+    curr_phenotype_assignments = st.session_state['pheno__de_phenotype_assignments'].reconstruct_edited_dataframe()
+    st.session_state.pheno__curr_phenotype_assignments = curr_phenotype_assignments
+
+    st.session_state.df = bpl.assign_phenotype_custom(st.session_state.df, curr_phenotype_assignments)
 
     # Create Phenotypes Summary Table based on 'phenotype' column in df
     st.session_state.pheno_summ = bpl.init_pheno_summ(st.session_state.df)
