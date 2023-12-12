@@ -10,6 +10,7 @@ import utils
 import app_top_of_page as top
 import streamlit_dataframe_editor as sde
 import dataset_formats
+import pandas as pd
 
 def main():
 
@@ -148,17 +149,18 @@ def main():
         # Return the filename of the written file
         return filename
 
-    def write_datafile_from_gater(df):
+    def write_datafile_from_gater(df, prefix='phenotyped_datafile_from_gater'):
 
         # Import relevant library
         from datetime import datetime
 
         # Set the filename of the phenotype assignments file to write
-        filename = 'phenotyped_datafile_from_gater-{}.csv'.format(datetime.now().strftime("%Y%m%d_%H%M%S"))
+        filename = '{}-{}.csv'.format(prefix, datetime.now().strftime("%Y%m%d_%H%M%S"))
 
         # Trim the dataframe to only the required columns and write to disk
         # Note it's inefficient to write a big file to multiple locations, but it's faster to implement as I'm doing now on 12/12/23
-        df_trimmed = dataset_formats.trim_dataframe_basic(df)
+        # df_trimmed = dataset_formats.trim_dataframe_basic(df)
+        df_trimmed = df
         df_trimmed.to_csv(path_or_buf=os.path.join(output_directory, filename), index=False)
         df_trimmed.to_csv(path_or_buf=os.path.join(input_directory, filename), index=False)
 
@@ -167,13 +169,29 @@ def main():
 
     def load_relevant_settings_from_phenotyper():
 
-        # If the main data dataframe in the Phenotyper contains "Phenotype_orig " columns, then the Phenotyper must have loaded the dataframe from the Gater, which means there is no datafile, so we must create one, and set its filename as the input datafile
-        if len([column for column in st.session_state.df.columns if column.startswith('Phenotype_orig ')]) > 0:
-            st.session_state['settings__input_datafile__filename'] = write_datafile_from_gater(st.session_state.df)
 
+        new_df = st.session_state.df
+        new_df_columns = new_df.columns
+        if len([column for column in new_df_columns if column.startswith('Phenotype_orig ')]) > 0:
+            orig_filename = st.session_state['mg__input_datafile_filename']
+            sep = (',' if orig_filename.endswith('.csv') else '\t')
+            orig_df = pd.read_csv(os.path.join(input_directory, orig_filename), sep=sep)
+            new_df_to_add = new_df[[column for column in new_df_columns if column.startswith('Phenotype ')]]
+            st.session_state['settings__input_datafile__filename'] = write_datafile_from_gater(pd.concat([orig_df, new_df_to_add], axis='columns'), prefix='orig_datafile_plus_gated_phenotypes')
+            st.session_state['sit__using_gated_phenotypes'] = True
         # Otherwise, the datafile was likely read in from disk (as opposed to from memory via Streamlit), so set that filename as the input datafile
         else:
             st.session_state['settings__input_datafile__filename'] = st.session_state['datafileU']
+            st.session_state['sit__using_gated_phenotypes'] = False
+
+
+        # # If the main data dataframe in the Phenotyper contains "Phenotype_orig " columns, then the Phenotyper must have loaded the dataframe from the Gater, which means there is no datafile, so we must create one, and set its filename as the input datafile
+        # if len([column for column in st.session_state.df.columns if column.startswith('Phenotype_orig ')]) > 0:
+        #     st.session_state['settings__input_datafile__filename'] = write_datafile_from_gater(st.session_state.df)
+
+        # # Otherwise, the datafile was likely read in from disk (as opposed to from memory via Streamlit), so set that filename as the input datafile
+        # else:
+        #     st.session_state['settings__input_datafile__filename'] = st.session_state['datafileU']
 
         # Update the dependencies of the input datafile filename since it has likely changed
         update_dependencies_of_input_datafile_filename()

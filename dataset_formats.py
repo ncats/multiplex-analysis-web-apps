@@ -218,7 +218,7 @@ class Native:
         self.data['Cell Y Position'] = srs_y_new
         self.coord_units_in_microns = 1  # implying 1 micron per coordinate unit
 
-    def adhere_to_phenotype_format(self):
+    def adhere_to_phenotype_format(self, use_gated_phenotypes=False):
         """Ensure the "Phenotype XXXX" columns of the data conform to the required format
         """
         pass
@@ -320,7 +320,7 @@ class Native:
         """
         pass
 
-    def process_dataset(self, write_new_datafile=False, new_datafile_suffix='-converted', do_calculate_minimum_coordinate_spacing_per_roi=True, do_trimming=True):
+    def process_dataset(self, write_new_datafile=False, new_datafile_suffix='-converted', do_calculate_minimum_coordinate_spacing_per_roi=True, do_trimming=True, use_gated_phenotypes=False):
         """Convert dataset to the format required for the SIP library
 
         Args:
@@ -338,7 +338,7 @@ class Native:
         self.adhere_to_slide_id_format()
         self.adhere_to_tag_format()
         self.adhere_to_cell_position_format()
-        self.adhere_to_phenotype_format()
+        self.adhere_to_phenotype_format(use_gated_phenotypes=use_gated_phenotypes)
 
         # Retain just the necessary columns of data
         if do_trimming:
@@ -539,7 +539,7 @@ class OMAL(Native):
         self.data = df
         self.coord_units_in_microns = 1  # implying 1 micron per coordinate unit (since now the coordinates are in microns)
 
-    def adhere_to_phenotype_format(self):
+    def adhere_to_phenotype_format(self, use_gated_phenotypes=False):
         """Ensure the "Phenotype XXXX" columns of the data conform to the required format
         """
 
@@ -646,7 +646,7 @@ class REEC(Native):
         # Attribute assignments from variables
         self.data = df
 
-    def adhere_to_phenotype_format(self):
+    def adhere_to_phenotype_format(self, use_gated_phenotypes=False):
         """Ensure the "Phenotype XXXX" columns of the data conform to the required format
         """
 
@@ -772,7 +772,7 @@ class QuPath(Native):
         # Attribute assignments from variables
         self.data = df
 
-    def adhere_to_phenotype_format(self):
+    def adhere_to_phenotype_format(self, use_gated_phenotypes=False):
         """Ensure the "Phenotype XXXX" columns of the data conform to the required format
         """
 
@@ -783,14 +783,16 @@ class QuPath(Native):
         # Variable definition from attributes
         df = self.data
 
-        # Add "Phenotype XXXX" columns to the dataframe from the "Class" column entries
-        df = pd.concat([df, pd.DataFrame(df['Class'].apply(lambda x: dict([(y, 1) for y in ['Phenotype ' + marker.strip() for marker in x.split(': ')]])).to_list()).replace({np.nan: 0}).astype(int)], axis='columns')
-        if 'Phenotype Other' in df.columns:
-            df = df.drop('Phenotype Other', axis='columns')
+        if not use_gated_phenotypes:
 
-        # For each phenotype column, convert zeros and ones to -'s and +'s
-        for col in df.filter(regex='^Phenotype\ '):
-            df[col] = df[col].map({0: '-', 1: '+'})
+            # Add "Phenotype XXXX" columns to the dataframe from the "Class" column entries
+            df = pd.concat([df, pd.DataFrame(df['Class'].apply(lambda x: dict([(y, 1) for y in ['Phenotype ' + marker.strip() for marker in x.split(': ')]])).to_list()).replace({np.nan: 0}).astype(int)], axis='columns')
+            if 'Phenotype Other' in df.columns:
+                df = df.drop('Phenotype Other', axis='columns')
+
+            # For each phenotype column, convert zeros and ones to -'s and +'s
+            for col in df.filter(regex='^Phenotype\ '):
+                df[col] = df[col].map({0: '-', 1: '+'})
 
         # Attribute assignments from variables
         self.data = df

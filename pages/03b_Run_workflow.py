@@ -134,7 +134,7 @@ def main():
             orig_settings = dict()
             orig_settings['dataset'], orig_settings['analysis'], orig_settings['plotting'], orig_settings['annotation'] = dict(), dict(), dict(), dict()
             orig_settings['dataset']['input_datafile'] = os.path.join('.', 'input', st.session_state['settings__input_datafile__filename'])
-            orig_settings['dataset']['format'] = dict(zip(['HALO', 'Native', 'GMBSecondGeneration'], ['OMAL', 'Native', 'GMBSecondGeneration']))[st.session_state['settings__input_datafile__format']]
+            orig_settings['dataset']['format'] = dict(zip(['HALO', 'Native', 'GMBSecondGeneration', 'QuPath'], ['OMAL', 'Native', 'GMBSecondGeneration', 'QuPath']))[st.session_state['settings__input_datafile__format']]
             orig_settings['dataset']['coord_units_in_microns'] = st.session_state['settings__input_datafile__coordinate_units']
             orig_settings['dataset']['sep'] = (',' if orig_settings['dataset']['input_datafile'].endswith('.csv') else '\t')
             orig_settings['analysis']['allow_compound_species'] = (False if st.session_state['settings__phenotyping__method'] == 'Marker' else True)
@@ -175,6 +175,10 @@ def main():
 
             # Load the dataset into a dataset object defined in dataset_formats.py if the button was pressed
             if dataset_just_loaded:
+                if 'sit__using_gated_phenotypes' in st.session_state:
+                    use_gated_phenotypes = st.session_state['sit__using_gated_phenotypes']
+                else:
+                    use_gated_phenotypes = False
                 dataset_obj = tci.preprocess_dataset(
                     format=orig_settings['dataset']['format'],
                     input_datafile=orig_settings['dataset']['input_datafile'],
@@ -183,7 +187,8 @@ def main():
                     sep=orig_settings['dataset']['sep'],
                     roi_width=orig_settings['dataset']['roi_width'],
                     overlap=orig_settings['dataset']['overlap'],
-                    images_to_analyze=orig_settings['analysis']['images_to_analyze']
+                    images_to_analyze=orig_settings['analysis']['images_to_analyze'],
+                    use_gated_phenotypes=use_gated_phenotypes
                     )
                 st.session_state['dataset_obj'] = dataset_obj
                 
