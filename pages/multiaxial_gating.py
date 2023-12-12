@@ -288,7 +288,8 @@ def main():
                 fig.add_trace(go.Scatter(x=kde_or_hist_to_plot_full['Value'], y=kde_or_hist_to_plot_full['Density'], fill='tozeroy', mode='none', fillcolor='yellow', name='Full dataset', hovertemplate=' '))
                 fig.add_trace(go.Scatter(x=df_to_plot_selected['Value'], y=df_to_plot_selected['Density'], fill='tozeroy', mode='none', fillcolor='red', name='Selection', hoverinfo='skip'))
                 fig.update_layout(hovermode='x unified', xaxis_title='Column value', yaxis_title='Density')
-                st.plotly_chart(fig)
+                fig.update_layout(legend=dict(yanchor="top", y=1.2, xanchor="left", x=0.01))
+                st.plotly_chart(fig, use_container_width=True)
 
                 # Set the selection dictionary for the current filter to pass on to the current phenotype definition
                 selection_dict = {'column_for_filtering': column_for_filtering, 'selected_min_val': selected_min_val, 'selected_max_val': selected_max_val, 'selected_column_values': None}
