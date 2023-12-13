@@ -1,3 +1,5 @@
+import numpy as np
+
 def set_filename_corresp_to_roi(df_paths, roi_name, curr_colname, curr_dir, curr_dir_listing):
     """Update the path in a main paths-holding dataframe corresponding to a particular ROI in a particular directory.
 
@@ -560,3 +562,62 @@ def execute_data_parallelism_potentially(function=(lambda x: x), list_of_tuple_a
     if do_benchmarking:
         elapsed_time = time.time() - start_time
         print('BENCHMARKING: The task took {} seconds using {} CPU(s) {} hyperthreading'.format(elapsed_time, (nworkers if use_multiprocessing else 1), ('WITH' if use_multiprocessing else 'WITHOUT')))
+
+def number_of_neighbors(center_coords, neighbor_coords, single_dist_mat_cutoff_in_mb=200):
+
+    # Constant
+    element_size_in_bytes = 8  # as is the case for np.float64, the default float size. "element" refers to matrix element
+    bytes_per_mb = 1024 ** 2
+
+    # Get the total inputted numbers of centers and neighbors
+    tot_num_centers = center_coords.shape[0]
+    tot_num_neighbors = neighbor_coords.shape[0]
+
+    # If we were to calculate a single distance matrix for all input data, get its size in megabytes
+    full_dataset_dist_mat_size_in_mb = tot_num_centers * tot_num_neighbors * element_size_in_bytes / bytes_per_mb
+
+    # Get the ratio of the cutoff size to the full size
+    size_ratio = single_dist_mat_cutoff_in_mb / full_dataset_dist_mat_size_in_mb
+
+    # If we should do chunking, i.e., a full dataset distance matrix is larger in size than our cutoff size...
+    if size_ratio < 1:
+
+        print('Doing chunking')
+
+        # Get the number of centers to include in each (but potentially the last) chunk. Could possibly be made more efficient by calculating the number of chunks as below, and then resetting num_centers_per_chunk so that it's as constant as possible (i.e., for 11 total centers and three corresponding chunks calculated below, instead of 5, 5, 1 centers per chunk, rebalancing to 4, 4, 3). The former allows the largest chunk size to equal single_dist_mat_cutoff_in_mb, whereas the latter does not. Not clear which is actually more efficient
+        num_centers_per_chunk = max(int(np.floor(size_ratio * tot_num_centers)), 1)  # this is a proxy for the chunk data size and is what the number of chunks should depend on
+
+        # Get the calculated chunk size and whether it's smaller than the cutoff (it should be per the setting of num_centers_per_chunk above)
+        chunk_size_in_mb = num_centers_per_chunk * tot_num_neighbors * element_size_in_bytes / bytes_per_mb
+        chunk_size_smaller_than_cutoff = chunk_size_in_mb <= single_dist_mat_cutoff_in_mb
+
+        print('  Number of centers per chunk: {}'.format(num_centers_per_chunk))
+        print('  Chunk size smaller than cutoff? {}'.format(chunk_size_smaller_than_cutoff))
+
+        # Get the number of chunks to use. This is the right calculation but is unneeded
+        # num_chunks = int(np.ceil(tot_num_centers / num_centers_per_chunk))
+
+        # Get the start (inclusive) and stop (exclusive) indices for each chunk
+        center_start_indices = np.arange(0, tot_num_centers, num_centers_per_chunk)
+        center_stop_indices = center_start_indices + num_centers_per_chunk
+        center_stop_indices[-1] = tot_num_centers
+
+        print('  Number of chunks: {}'.format(len(center_start_indices)))
+
+        # Print a warning if the chunk size is larger than the cutoff which is quite unlikely as long as the cutoff is large enough. E.g., as long as the cutoff size is at least 76 MB, this won't be triggered unless there are more than 10M neighbors inputted to the function. The default cutoff value of 200 MB would only trigger if there were more than 26M inputted neighbors
+        if not chunk_size_smaller_than_cutoff:
+            print('  WARNING: The chunk size ({} MB) is not smaller than the cutoff size ({} MB) because the number of neighbors alone ({}), which is not chunked in any way (only the centers are chunked), is too large. The number of neighbors cannot be greater than {} given the specified cutoff size'.format(chunk_size_in_mb, single_dist_mat_cutoff_in_mb, tot_num_neighbors, int(np.floor(single_dist_mat_cutoff_in_mb * bytes_per_mb / element_size_in_bytes))))
+
+        # Print out the indices to use for each chunk. This "for" loop can be parallelized though that's probably never necessary
+        num_centers_holder = 0
+        for curr_start_index, curr_stop_index in zip(center_start_indices, center_stop_indices):
+            # curr_start_index = center_start_indices[ichunk]
+            # curr_stop_index = center_stop_indices[ichunk]
+            print(np.arange(curr_start_index, curr_stop_index))
+            num_centers_holder = num_centers_holder + curr_stop_index - curr_start_index
+
+        return num_centers_holder
+
+    else:
+
+        print('Not doing chunking')
