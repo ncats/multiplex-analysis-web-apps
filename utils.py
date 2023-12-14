@@ -561,18 +561,17 @@ def execute_data_parallelism_potentially(function=(lambda x: x), list_of_tuple_a
         elapsed_time = time.time() - start_time
         print('BENCHMARKING: The task took {} seconds using {} CPU(s) {} hyperthreading'.format(elapsed_time, (nworkers if use_multiprocessing else 1), ('WITH' if use_multiprocessing else 'WITHOUT')))
 
+# Only used for the not-yet-used multiprocessing functionality in calculate_neighbor_counts_with_possible_chunking
 def wrap_calculate_neighbor_counts(args):
     center_coords, neighbor_coords, radii = args
     calculate_neighbor_counts(center_coords=center_coords, neighbor_coords=neighbor_coords, radii=radii, test=False)
 
 # Efficiently count neighbors around centers for an arbitrary number of radius ranges
 def calculate_neighbor_counts(center_coords=None, neighbor_coords=None, radii=None, test=False):
-# def calculate_neighbor_counts(center_coords, neighbor_coords, radii, test=False):
 
     # Import relevant libraries
     import numpy as np
     import scipy.spatial
-    import sys
 
     # If using test data
     if test:
@@ -584,9 +583,7 @@ def calculate_neighbor_counts(center_coords=None, neighbor_coords=None, radii=No
     # Otherwise, check the input data just a bit
     else:
         if (center_coords is None) or (neighbor_coords is None) or (radii is None):
-            print('ERROR 1: None of center_coords, neighbor_coords, or radii can be None')
-            sys.exit()
-            return None
+            print('ERROR: None of center_coords, neighbor_coords, or radii can be None')
 
     # Quickly calculate the squared distance matrix
     # dist_mat_sq = (rng.random((15, 5)) ** 2)[:, :, np.newaxis]
@@ -625,7 +622,7 @@ def calculate_neighbor_counts_with_possible_chunking(center_coords=None, neighbo
     # Otherwise, check the input data just a bit
     else:
         if (center_coords is None) or (neighbor_coords is None) or (radii is None):
-            print('ERROR 2: None of center_coords, neighbor_coords, or radii can be None')
+            print('ERROR: None of center_coords, neighbor_coords, or radii can be None')
             return None
 
     # Get the sizes of the input arrays
@@ -678,27 +675,23 @@ def calculate_neighbor_counts_with_possible_chunking(center_coords=None, neighbo
         neighbor_counts = np.ones(shape=((tot_num_centers, num_ranges)), dtype=int) * -1
 
         # Calculate the neighbor counts for each chunk
-        list_of_tuple_arguments = []
+        # list_of_tuple_arguments = []  # only needed for the not-yet-used multiprocessing functionality below
         for ichunk, (curr_start_index, curr_stop_index) in enumerate(zip(center_start_indices, center_stop_indices)):
 
-            # print('On chunk {} ({} centers) of {}...'.format(ichunk + 1, curr_stop_index - curr_start_index, num_chunks))
-
-            # # Debugging output
-            # if verbose:
-            #     print(np.arange(curr_start_index, curr_stop_index))
+            # Debugging output
+            if verbose:
+                print('On chunk {} ({} centers) of {}...'.format(ichunk + 1, curr_stop_index - curr_start_index, num_chunks))
+                print(np.arange(curr_start_index, curr_stop_index))
 
             # Calculate the neighbor counts for the current chunk
-            # neighbor_counts[curr_start_index:curr_stop_index, :] = calculate_neighbor_counts(center_coords=center_coords[curr_start_index:curr_stop_index, :], neighbor_coords=neighbor_coords, radii=radii)
-            list_of_tuple_arguments.append((center_coords[curr_start_index:curr_stop_index, :], neighbor_coords, radii))
+            neighbor_counts[curr_start_index:curr_stop_index, :] = calculate_neighbor_counts(center_coords=center_coords[curr_start_index:curr_stop_index, :], neighbor_coords=neighbor_coords, radii=radii)
+            # list_of_tuple_arguments.append((center_coords[curr_start_index:curr_stop_index, :], neighbor_coords, radii))  # works using the multiprocessing function below, though never implemented the saving of the results
 
-        # print(len(list_of_tuple_arguments))
-        # print(list_of_tuple_arguments[0])
-        # print(list_of_tuple_arguments)
-        
-        execute_data_parallelism_potentially(function=wrap_calculate_neighbor_counts, list_of_tuple_arguments=list_of_tuple_arguments, nworkers=7)
+        # # Used for testing implementation of parallelism, which is incomplete per the comment above and am not using it in production
+        # execute_data_parallelism_potentially(function=wrap_calculate_neighbor_counts, list_of_tuple_arguments=list_of_tuple_arguments, nworkers=7)
 
         # Confirm there are no negative neighbor counts
-        # assert (neighbor_counts < 0).sum() == 0, 'ERROR: The neighbor counts for at least some centers did not get populated'
+        assert (neighbor_counts < 0).sum() == 0, 'ERROR: The neighbor counts for at least some centers did not get populated'
 
     # If the input arrays are too small to need to do chunking based on the value of single_dist_mat_cutoff_in_mb...
     else:
