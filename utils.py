@@ -560,3 +560,148 @@ def execute_data_parallelism_potentially(function=(lambda x: x), list_of_tuple_a
     if do_benchmarking:
         elapsed_time = time.time() - start_time
         print('BENCHMARKING: The task took {} seconds using {} CPU(s) {} hyperthreading'.format(elapsed_time, (nworkers if use_multiprocessing else 1), ('WITH' if use_multiprocessing else 'WITHOUT')))
+
+# Only used for the not-yet-used multiprocessing functionality in calculate_neighbor_counts_with_possible_chunking
+def wrap_calculate_neighbor_counts(args):
+    center_coords, neighbor_coords, radii = args
+    calculate_neighbor_counts(center_coords=center_coords, neighbor_coords=neighbor_coords, radii=radii, test=False)
+
+# Efficiently count neighbors around centers for an arbitrary number of radius ranges
+def calculate_neighbor_counts(center_coords=None, neighbor_coords=None, radii=None, test=False):
+
+    # Import relevant libraries
+    import numpy as np
+    import scipy.spatial
+
+    # If using test data
+    if test:
+        rng = np.random.default_rng()
+        center_coords = rng.random(size=(15, 2))  # (num_centers, 2)
+        neighbor_coords = rng.random(size=(5, 2))  # (num_neighbors, 2)
+        radii = np.arange(0, 1.1, 0.1)  # (num_ranges + 1,) = (num_radii,)
+
+    # Otherwise, check the input data just a bit
+    else:
+        if (center_coords is None) or (neighbor_coords is None) or (radii is None):
+            print('ERROR: None of center_coords, neighbor_coords, or radii can be None')
+
+    # Quickly calculate the squared distance matrix
+    # dist_mat_sq = (rng.random((15, 5)) ** 2)[:, :, np.newaxis]
+    dist_mat_sq = scipy.spatial.distance.cdist(center_coords, neighbor_coords, 'sqeuclidean')[:, :, np.newaxis]  # (num_centers, num_neighbors, 1)
+
+    # Calculate the squared radii
+    radii_sq = (radii ** 2)[np.newaxis, np.newaxis, :]  # (1, 1, num_radii)
+
+    # Boolean matrix of whether the centers and neighbors are within the ranges
+    in_ranges = (radii_sq[:, :, :-1] <= dist_mat_sq) & (dist_mat_sq < radii_sq[:, :, 1:])  # (num_centers, num_neighbors, num_radii - 1) = (num_centers, num_neighbors, num_ranges)
+
+    # Get the counts of the neighbors for each center and radius range
+    neighbor_counts = in_ranges.sum(axis=1)  # (num_centers, num_ranges)
+
+    # Return the neighbor counts
+    return neighbor_counts
+
+# Efficiently count neighbors around centers for an arbitrary number of radius ranges, while ensuring that no intermediate matrices (i.e., the distance matrices) are too large in memory, with the maximum cutoff in MB corresponding to single_dist_mat_cutoff_in_mb
+def calculate_neighbor_counts_with_possible_chunking(center_coords=None, neighbor_coords=None, radii=None, single_dist_mat_cutoff_in_mb=200, test=False, verbose=False):
+
+    # Import relevant library
+    import numpy as np
+
+    # Constants
+    element_size_in_bytes = 8  # as is the case for np.float64, the default float size. "element" refers to matrix element
+    bytes_per_mb = 1024 ** 2
+
+    # If using test data, which should produce four chunks
+    if test:
+        rng = np.random.default_rng()
+        center_coords = rng.random(size=(15, 2))  # (num_centers, 2)
+        neighbor_coords = rng.random(size=(5, 2))  # (num_neighbors, 2)
+        radii = np.arange(0, 1.1, 0.1)  # (num_ranges + 1,) = (num_radii,)
+        single_dist_mat_cutoff_in_mb = 20 * element_size_in_bytes  / bytes_per_mb
+
+    # Otherwise, check the input data just a bit
+    else:
+        if (center_coords is None) or (neighbor_coords is None) or (radii is None):
+            print('ERROR: None of center_coords, neighbor_coords, or radii can be None')
+            return None
+
+    # Get the sizes of the input arrays
+    tot_num_centers = center_coords.shape[0]
+    tot_num_neighbors = neighbor_coords.shape[0]
+    num_ranges = len(radii) - 1
+
+    # If we were to calculate a single distance matrix for all input data, get its size in megabytes
+    full_dataset_dist_mat_size_in_mb = tot_num_centers * tot_num_neighbors * element_size_in_bytes / bytes_per_mb
+
+    # Get the ratio of the cutoff size to the full size
+    size_ratio = single_dist_mat_cutoff_in_mb / full_dataset_dist_mat_size_in_mb
+
+    # If we should do chunking, i.e., a full dataset distance matrix is larger in size than our cutoff size...
+    if size_ratio < 1:
+
+        # Debugging output
+        if verbose:
+            print('Doing chunking')
+
+        # Get the number of centers to include in each (but potentially the last) chunk. Could possibly be made more efficient by calculating the number of chunks as below, and then resetting num_centers_per_chunk so that it's as constant as possible (i.e., for 11 total centers and three corresponding chunks calculated below, instead of 5, 5, 1 centers per chunk, rebalancing to 4, 4, 3). The former allows the largest chunk size to equal single_dist_mat_cutoff_in_mb, whereas the latter does not. Not clear which is actually more efficient
+        num_centers_per_chunk = max(int(np.floor(size_ratio * tot_num_centers)), 1)  # this is a proxy for the chunk data size and is what the number of chunks should depend on
+
+        # Get the calculated chunk size and whether it's smaller than the cutoff (it should be per the setting of num_centers_per_chunk above)
+        chunk_size_in_mb = num_centers_per_chunk * tot_num_neighbors * element_size_in_bytes / bytes_per_mb
+        chunk_size_smaller_than_cutoff = chunk_size_in_mb <= single_dist_mat_cutoff_in_mb
+
+        # Debugging output
+        if verbose:
+            print('  Number of centers per chunk: {}'.format(num_centers_per_chunk))
+            print('  Chunk size smaller than cutoff? {}'.format(chunk_size_smaller_than_cutoff))
+
+        # Get the number of chunks to use
+        num_chunks = int(np.ceil(tot_num_centers / num_centers_per_chunk))
+
+        # Get the start (inclusive) and stop (exclusive) indices for each chunk
+        center_start_indices = np.arange(0, tot_num_centers, num_centers_per_chunk)
+        center_stop_indices = center_start_indices + num_centers_per_chunk
+        center_stop_indices[-1] = tot_num_centers
+
+        # Debugging output
+        if verbose:
+            print('  Number of chunks: {}'.format(len(center_start_indices)))
+
+        # Print a warning if the chunk size is larger than the cutoff which is quite unlikely as long as the cutoff is large enough. E.g., as long as the cutoff size is at least 76 MB, this won't be triggered unless there are more than 10M neighbors inputted to the function. The default cutoff value of 200 MB would only trigger if there were more than 26M inputted neighbors
+        if not chunk_size_smaller_than_cutoff:
+            print('  WARNING: The chunk size ({} MB) is not smaller than the cutoff size ({} MB) because the number of neighbors alone ({}), which is not chunked in any way (only the centers are chunked), is too large. The number of neighbors cannot be greater than {} given the specified cutoff size'.format(chunk_size_in_mb, single_dist_mat_cutoff_in_mb, tot_num_neighbors, int(np.floor(single_dist_mat_cutoff_in_mb * bytes_per_mb / element_size_in_bytes))))
+
+        # Initialize the neighbor_counts array to an impossible number of counts
+        neighbor_counts = np.ones(shape=((tot_num_centers, num_ranges)), dtype=int) * -1
+
+        # Calculate the neighbor counts for each chunk
+        # list_of_tuple_arguments = []  # only needed for the not-yet-used multiprocessing functionality below
+        for ichunk, (curr_start_index, curr_stop_index) in enumerate(zip(center_start_indices, center_stop_indices)):
+
+            # Debugging output
+            if verbose:
+                print('On chunk {} ({} centers) of {}...'.format(ichunk + 1, curr_stop_index - curr_start_index, num_chunks))
+                print(np.arange(curr_start_index, curr_stop_index))
+
+            # Calculate the neighbor counts for the current chunk
+            neighbor_counts[curr_start_index:curr_stop_index, :] = calculate_neighbor_counts(center_coords=center_coords[curr_start_index:curr_stop_index, :], neighbor_coords=neighbor_coords, radii=radii)
+            # list_of_tuple_arguments.append((center_coords[curr_start_index:curr_stop_index, :], neighbor_coords, radii))  # works using the multiprocessing function below, though never implemented the saving of the results
+
+        # # Used for testing implementation of parallelism, which is incomplete per the comment above and am not using it in production
+        # execute_data_parallelism_potentially(function=wrap_calculate_neighbor_counts, list_of_tuple_arguments=list_of_tuple_arguments, nworkers=7)
+
+        # Confirm there are no negative neighbor counts
+        assert (neighbor_counts < 0).sum() == 0, 'ERROR: The neighbor counts for at least some centers did not get populated'
+
+    # If the input arrays are too small to need to do chunking based on the value of single_dist_mat_cutoff_in_mb...
+    else:
+
+        # Debugging output
+        if verbose:
+            print('Not doing chunking')
+
+        # Calculate the neighbor counts
+        neighbor_counts = calculate_neighbor_counts(center_coords=center_coords, neighbor_coords=neighbor_coords, radii=radii)
+
+    # Return the neighbor counts
+    return neighbor_counts

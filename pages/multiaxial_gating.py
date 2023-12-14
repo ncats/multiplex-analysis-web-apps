@@ -360,7 +360,7 @@ def main():
             st.header(':two: Current phenotype', help='Note you can refine non-list values in the following table by editing them directly or even deleting (or adding) whole rows.')
 
             # Output the dataframe holding the phenotype that's currently being built
-            st.session_state['mg__de_current_phenotype'].dataframe_editor()
+            st.session_state['mg__de_current_phenotype'].dataframe_editor(reset_data_editor_button_text='Reset current phenotype definition')
 
             # Choose a phenotype name
             st.text_input(label='Phenotype name:', key='mg__current_phenotype_name')
@@ -374,7 +374,7 @@ def main():
             st.header(':three: Phenotype assignments', help='Note you can refine non-list values in the following table by editing them directly or even deleting whole rows.')
 
             # Output the dataframe holding the specifications for all phenotypes
-            st.session_state['mg__de_phenotype_assignments'].dataframe_editor()
+            st.session_state['mg__de_phenotype_assignments'].dataframe_editor(reset_data_editor_button_text='Reset all phenotype definitions')
 
             # Generate the new dataset
             st.button(label=':star2: Generate the new dataset from the phenotype assignments :star2:', 
@@ -414,22 +414,22 @@ def main():
                     fig.update_xaxes(scaleanchor='y')
                     st.plotly_chart(fig)
 
-                # Optionally run some checks --> specific to measurementsEpCAMLy51MHCII-exported.csv
-                if st.toggle(label='Do checks'):
+                # # Optionally run some checks --> specific to measurementsEpCAMLy51MHCII-exported.csv
+                # if st.toggle(label='Do checks'):
 
-                    # Write out the detected cutoffs to use for basic validation
-                    phenotypes_orig = ['Phenotype_orig MHCII', 'Phenotype_orig Ly51', 'Phenotype_orig EpCAM']
-                    intensities = ['MHC II (CH3 Fluor Cy3): Membrane: Mean', 'Ly51 (CH4 Fluor Cy5): Membrane: Mean', 'EpCAM (CH2 Fluor GFP): Membrane: Mean']
-                    for ipheno in range(len(phenotypes_orig)):
-                        tmp = st.session_state['mg__df'][phenotypes_orig[ipheno]]
-                        tmp.index = st.session_state['mg__df'][intensities[ipheno]]
-                        tmp = tmp.sort_index()
-                        st.write('Intensity cutoff for {}: {}'.format(phenotypes_orig[ipheno], tmp[tmp == '+'].index[0]))
+                #     # Write out the detected cutoffs to use for basic validation
+                #     phenotypes_orig = ['Phenotype_orig MHCII', 'Phenotype_orig Ly51', 'Phenotype_orig EpCAM']
+                #     intensities = ['MHC II (CH3 Fluor Cy3): Membrane: Mean', 'Ly51 (CH4 Fluor Cy5): Membrane: Mean', 'EpCAM (CH2 Fluor GFP): Membrane: Mean']
+                #     for ipheno in range(len(phenotypes_orig)):
+                #         tmp = st.session_state['mg__df'][phenotypes_orig[ipheno]]
+                #         tmp.index = st.session_state['mg__df'][intensities[ipheno]]
+                #         tmp = tmp.sort_index()
+                #         st.write('Intensity cutoff for {}: {}'.format(phenotypes_orig[ipheno], tmp[tmp == '+'].index[0]))
 
-                    # Write the numbers of positive markers to compare the new phenotypes with the original phenotypes
-                    for phenotype_orig in phenotypes_orig:
-                        st.write(st.session_state['mg__df'][phenotype_orig].value_counts())
-                        st.write(st.session_state['mg__df'][phenotype_orig.replace('_orig', '').replace('MHCII', 'MHC II') + ' new'].value_counts())
+                #     # Write the numbers of positive markers to compare the new phenotypes with the original phenotypes
+                #     for phenotype_orig in phenotypes_orig:
+                #         st.write(st.session_state['mg__df'][phenotype_orig].value_counts())
+                #         st.write(st.session_state['mg__df'][phenotype_orig.replace('_orig', '').replace('MHCII', 'MHC II') + ' new'].value_counts())
 
     # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
     st.session_state = sde.finalize_session_state(st.session_state)
