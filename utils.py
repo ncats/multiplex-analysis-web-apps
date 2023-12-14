@@ -651,8 +651,8 @@ def calculate_neighbor_counts_with_possible_chunking(center_coords=None, neighbo
             print('  Number of centers per chunk: {}'.format(num_centers_per_chunk))
             print('  Chunk size smaller than cutoff? {}'.format(chunk_size_smaller_than_cutoff))
 
-        # Get the number of chunks to use. This is the right calculation but is unneeded
-        # num_chunks = int(np.ceil(tot_num_centers / num_centers_per_chunk))
+        # Get the number of chunks to use
+        num_chunks = int(np.ceil(tot_num_centers / num_centers_per_chunk))
 
         # Get the start (inclusive) and stop (exclusive) indices for each chunk
         center_start_indices = np.arange(0, tot_num_centers, num_centers_per_chunk)
@@ -671,11 +671,13 @@ def calculate_neighbor_counts_with_possible_chunking(center_coords=None, neighbo
         neighbor_counts = np.ones(shape=((tot_num_centers, num_ranges)), dtype=int) * -1
 
         # Calculate the neighbor counts for each chunk
-        for curr_start_index, curr_stop_index in zip(center_start_indices, center_stop_indices):
+        for ichunk, (curr_start_index, curr_stop_index) in enumerate(zip(center_start_indices, center_stop_indices)):
 
-            # Debugging output
-            if verbose:
-                print(np.arange(curr_start_index, curr_stop_index))
+            print('On chunk {} ({} centers) of {}...'.format(ichunk + 1, curr_stop_index - curr_start_index, num_chunks))
+
+            # # Debugging output
+            # if verbose:
+            #     print(np.arange(curr_start_index, curr_stop_index))
 
             # Calculate the neighbor counts for the current chunk
             neighbor_counts[curr_start_index:curr_stop_index, :] = calculate_neighbor_counts(center_coords=center_coords[curr_start_index:curr_stop_index, :], neighbor_coords=neighbor_coords, radii=radii)
