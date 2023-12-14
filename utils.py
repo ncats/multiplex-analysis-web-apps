@@ -1,5 +1,3 @@
-import numpy as np
-
 def set_filename_corresp_to_roi(df_paths, roi_name, curr_colname, curr_dir, curr_dir_listing):
     """Update the path in a main paths-holding dataframe corresponding to a particular ROI in a particular directory.
 
@@ -563,7 +561,46 @@ def execute_data_parallelism_potentially(function=(lambda x: x), list_of_tuple_a
         elapsed_time = time.time() - start_time
         print('BENCHMARKING: The task took {} seconds using {} CPU(s) {} hyperthreading'.format(elapsed_time, (nworkers if use_multiprocessing else 1), ('WITH' if use_multiprocessing else 'WITHOUT')))
 
+# Efficiently count neighbors around centers for an arbitrary number of radius ranges
+def calculate_neighbor_counts(center_coords=None, neighbor_coords=None, radii=None, test=False):
+
+    # Import relevant libraries
+    import numpy as np
+    import scipy.spatial
+
+    # If using test data
+    if test:
+        rng = np.random.default_rng()
+        center_coords = rng.random(size=(5, 2))  # (num_centers, 2)
+        neighbor_coords = rng.random(size=(15, 2))  # (num_neighbors, 2)
+        radii = np.arange(0, 1.1, 0.1)  # (num_ranges + 1,) = (num_radii,)
+
+    # Otherwise, check the input data just a bit
+    else:
+        if (center_coords is None) or (neighbor_coords is None) or (radii is None):
+            print('ERROR: None of center_coords, neighbor_coords, or radii can be None')
+            return None
+
+    # Quickly calculate the squared distance matrix
+    # dist_mat_sq = (rng.random((5, 15)) ** 2)[:, :, np.newaxis]
+    dist_mat_sq = scipy.spatial.distance.cdist(center_coords, neighbor_coords, 'sqeuclidean')[:, :, np.newaxis]  # (num_centers, num_neighbors, 1)
+
+    # Calculate the squared radii
+    radii_sq = (radii ** 2)[np.newaxis, np.newaxis, :]  # (1, 1, num_radii)
+
+    # Boolean matrix of whether the centers and neighbors are within the ranges
+    in_ranges = (radii_sq[:, :, :-1] <= dist_mat_sq) & (dist_mat_sq < radii_sq[:, :, 1:])  # (num_centers, num_neighbors, num_radii - 1) = (num_centers, num_neighbors, num_ranges)
+
+    # Get the counts of the neighbors for each center and radius range
+    neighbor_counts = in_ranges.sum(axis=1)  # (num_centers, num_ranges)
+
+    # Return the neighbor counts
+    return neighbor_counts
+
 def number_of_neighbors(center_coords, neighbor_coords, single_dist_mat_cutoff_in_mb=200):
+
+    # Import relevant library
+    import numpy as np
 
     # Constant
     element_size_in_bytes = 8  # as is the case for np.float64, the default float size. "element" refers to matrix element
