@@ -360,7 +360,7 @@ def main():
             st.header(':two: Current phenotype', help='Note you can refine non-list values in the following table by editing them directly or even deleting (or adding) whole rows.')
 
             # Output the dataframe holding the phenotype that's currently being built
-            st.session_state['mg__de_current_phenotype'].dataframe_editor()
+            st.session_state['mg__de_current_phenotype'].dataframe_editor(reset_data_editor_button_text='Reset phenotype definition')
 
             # Choose a phenotype name
             st.text_input(label='Phenotype name:', key='mg__current_phenotype_name')
