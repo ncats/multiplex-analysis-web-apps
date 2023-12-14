@@ -2940,10 +2940,15 @@ def calculate_metrics_from_coords(min_coord_spacing, input_coords=None, neighbor
                 print('NOTE: Using artificial distribution')
             nneighbors = scipy.stats.poisson.rvs(nexpected, size=(nvalid_centers,))
         else:
+            print('AAAAAAAAAAAAAAAAAAAAAAAA')
+            print(coords_centers.shape, valid_centers.shape, coords_neighbors.shape, nvalid_centers, set(valid_centers))
             dist_mat = scipy.spatial.distance.cdist(coords_centers[valid_centers, :], coords_neighbors, 'euclidean')  # calculate the distances between the valid centers and all the neighbors
+            print('BBBBBBBBBBBBBBBBBBBBBBBB')
             nneighbors = ((dist_mat >= rad_range[0]) & (dist_mat < rad_range[1])).sum(axis=1)  # count the number of neighbors in the slice around every valid center
+            print('CCCCCCCCCCCCCCCCCCCCCCCC')
             if (neighbors_eq_centers) and (rad_range[0] < tol):
                 nneighbors = nneighbors - 1  # we're always going to count the center as a neighbor of itself in this case, so account for this; see also physical notebook notes on 1/7/21
+            print('DDDDDDDDDDDDDDDDDDDDDDDD')
 
         # From all possible numbers of neighbors calculate the bin edges
         if keep_unnecessary_calculations:
