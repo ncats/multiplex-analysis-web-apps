@@ -34,20 +34,6 @@ def data_editor_change_callback():
     # Set Figure Objects based on updated df
     st.session_state = ndl.setFigureObjs(st.session_state, st.session_state.pointstSliderVal_Sel)
 
-def update_input_data_editor():
-    '''
-    update_input_data_editor is a function that remakes the input dataframe to the streamlit
-    data_editor and still allows for the changes to persist when the user navigates to a 
-    different page. Take note that there are global variables used here and may need to be 
-    adjusted for your specific use case.
-    '''
-    for key, value in st.session_state['saved_dataeditor_values']['edited_rows'].items():
-        for key2, value2 in value.items():
-            st.session_state.spec_summ_dataeditor.loc[key, key2] = value2
-
-    # uniqueVals = st.session_state.spec_summ_dataeditor['phenotype'].unique()
-    # st.session_state.spec_summ_dataeditor['phenotype'] = st.session_state.spec_summ_dataeditor['phenotype'].astype(pd.CategoricalDtype(uniqueVals))
-
 def slide_id_prog_left_callback():
     '''
     callback function when the left Cell_ID progression button is clicked
@@ -251,9 +237,6 @@ def main():
         st.markdown('## Phenotype Assignments')
         if st.session_state.selected_phenoMeth == 'Custom':
 
-            if 'saved_dataeditor_values' in st.session_state:
-                update_input_data_editor()
-
             # Allow the user to edit the value counts dataframe
             st.write('Replace the "unassigned" values in the "phenotype_name" column below with a descriptive name, such as "M2 macrophage". Don\'t change the values in any other column!')
             if 'pheno__de_phenotype_assignments' not in st.session_state:
@@ -276,7 +259,10 @@ def main():
         with phen_summ_cols[1]:
             add_vertical_space(2)
             if st.button('Append Export List', key = 'appendexportbutton_phenotypesummary__do_not_persist'):
-                ndl.save_csv(st.session_state.spec_summ, st.session_state.pheno_assign_filename_U)
+                if st.session_state.selected_phenoMeth == 'Custom':
+                    ndl.save_csv(st.session_state['pheno__de_phenotype_assignments'].reconstruct_edited_dataframe(), st.session_state.pheno_assign_filename_U)  # use dataframe editor
+                else:
+                    ndl.save_csv(st.session_state.spec_summ, st.session_state.pheno_assign_filename_U)
                 st.toast(f'Added {st.session_state.pheno_assign_filename_U} to export list ')
 
         updated_df_cols = st.columns([2, 1])

@@ -379,8 +379,6 @@ def set_phenotyping_elements(session_state, df_orig):
 
     if 'dataeditor__do_not_persist' in session_state:
         del session_state.dataeditor__do_not_persist
-    if 'saved_dataeditor_values' in session_state:
-        del session_state.saved_dataeditor_values
 
     # Initalize Phenotyping Settings (Radio BUttons)
     session_state.noPhenoOpt = 'Not Selected'
@@ -421,8 +419,6 @@ def updatePhenotyping(session_state):
     
     if 'dataeditor__do_not_persist' in session_state:
         del session_state.dataeditor__do_not_persist
-    if 'saved_dataeditor_values' in session_state:
-        del session_state.saved_dataeditor_values
 
     # session_state.spec_summ_load       = session_state.spec_summ.copy()
     session_state.spec_summ_dataeditor = session_state.spec_summ.copy()
