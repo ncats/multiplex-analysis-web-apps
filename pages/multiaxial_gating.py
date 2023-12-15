@@ -16,7 +16,8 @@ import app_top_of_page as top
 
 # Function to load the data in a unified format
 def load_data(input_datafile_path, coord_units_in_microns, dataset_format):
-    dataset_class = getattr(dataset_formats, dataset_format)  # done this way so that the format (e.g., “REEC”) can be select programmatically
+    transform = {'HALO': 'OMAL'}
+    dataset_class = getattr(dataset_formats, (transform[dataset_format] if dataset_format in transform else dataset_format))  # done this way so that the format (e.g., “REEC”) can be select programmatically
     dataset_obj = dataset_class(input_datafile=input_datafile_path, coord_units_in_microns=coord_units_in_microns)
     dataset_obj.process_dataset(do_calculate_minimum_coordinate_spacing_per_roi=False, do_trimming=False)
     return dataset_obj.data
