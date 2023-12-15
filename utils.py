@@ -681,7 +681,7 @@ def calculate_neighbor_counts_with_possible_chunking(center_coords=None, neighbo
             # Debugging output
             if verbose:
                 print('On chunk {} ({} centers) of {}...'.format(ichunk + 1, curr_stop_index - curr_start_index, num_chunks))
-                print(np.arange(curr_start_index, curr_stop_index))
+                # print(np.arange(curr_start_index, curr_stop_index))
 
             # Calculate the neighbor counts for the current chunk
             neighbor_counts[curr_start_index:curr_stop_index, :] = calculate_neighbor_counts(center_coords=center_coords[curr_start_index:curr_stop_index, :], neighbor_coords=neighbor_coords, radii=radii)

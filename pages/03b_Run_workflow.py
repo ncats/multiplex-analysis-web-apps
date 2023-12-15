@@ -178,7 +178,10 @@ def main():
                 if 'sit__using_gated_phenotypes' in st.session_state:
                     use_gated_phenotypes = st.session_state['sit__using_gated_phenotypes']
                 else:
-                    use_gated_phenotypes = False
+                    if orig_settings['dataset']['input_datafile'].split('/')[-1].startswith('orig_datafile_plus_gated_phenotypes'):
+                        use_gated_phenotypes = True
+                    else:
+                        use_gated_phenotypes = False
                 dataset_obj = tci.preprocess_dataset(
                     format=orig_settings['dataset']['format'],
                     input_datafile=orig_settings['dataset']['input_datafile'],
