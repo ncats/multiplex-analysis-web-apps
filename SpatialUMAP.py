@@ -271,8 +271,8 @@ class SpatialUMAP:
                     smalldf_P['phenotype'] = pheno
                     smalldf_P['cluster'] = clust_label
 
-                    self.dens_df = pd.concat([self.dens_df, smalldf_D], 0).reset_index(drop=True)
-                    self.prop_df = pd.concat([self.prop_df, smalldf_P], 0).reset_index(drop=True)
+                    self.dens_df = pd.concat([self.dens_df, smalldf_D], axis = 0).reset_index(drop=True)
+                    self.prop_df = pd.concat([self.prop_df, smalldf_P], axis = 0).reset_index(drop=True)
 
         self.dens_df_mean = self.dens_df.groupby(['cluster', 'phenotype', 'dist_bin'], as_index=False).mean()
         self.dens_df_se   = self.dens_df.groupby(['cluster', 'phenotype', 'dist_bin'], as_index=False).sem()
