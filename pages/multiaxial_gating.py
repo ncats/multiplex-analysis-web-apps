@@ -170,7 +170,10 @@ def update_field_matching():
     curr_df = st.session_state['mg__de_field_matching'].reconstruct_edited_dataframe()
     new_df = pd.DataFrame({'Intensity field': selected_intensity_fields, 'Corresponding thresholded marker field': ['Select thresholded marker field 🔽' for _ in selected_intensity_fields]})
     for intensity_field in curr_df['Intensity field']:
-        pass
+        if intensity_field in new_df['Intensity field'].to_list():
+            curr_df_index = curr_df[curr_df['Intensity field'] == intensity_field].index
+            new_df_index = new_df[new_df['Intensity field'] == intensity_field].index
+            new_df.loc[new_df_index, 'Corresponding thresholded marker field'] = curr_df.loc[curr_df_index, 'Corresponding thresholded marker field']
     st.session_state['mg__de_field_matching'].update_editor_contents(new_df_contents=new_df)
 
 # Main function
@@ -253,7 +256,7 @@ def main():
             st.session_state['mg__df'] = st.session_state['mg__df'].rename(columns=dict(zip(phenotype_columns, [column.replace('Phenotype ', 'Phenotype_orig ') for column in phenotype_columns])))
             st.session_state['mg__all_numeric_columns'] = st.session_state['mg__df'].select_dtypes(include='number').columns
             st.session_state['mg__all_columns'] = st.session_state['mg__df'].columns
-            st.session_state['mg__column_config'] = {"Corresponding thresholded marker field": st.column_config.SelectboxColumn("Corresponding thresholded marker field", help="Tresholded marker field corresponding to the intensity at left", options=st.session_state['mg__all_columns'])}
+            st.session_state['mg__column_config'] = {"Corresponding thresholded marker field": st.column_config.SelectboxColumn("Corresponding thresholded marker field", help="Tresholded marker field corresponding to the intensity at left", options=st.session_state['mg__all_columns'], required=True)}
     
     # Warn the user that they need to load the data at least once
     if 'mg__df' not in st.session_state:
@@ -268,10 +271,13 @@ def main():
         unique_image_dict = st.session_state['mg__unique_image_dict']
 
 
-        with st.expander('Optional field matching:'):
+        with st.expander('Optional field matching:', expanded=True):
+            cols_field_matching = st.columns(2)
             all_columns = st.session_state['mg__all_columns']
-            st.multiselect('Select intensity fields:', all_columns, key='mg__selected_intensity_fields', on_change=update_field_matching)
-            st.session_state['mg__de_field_matching'].dataframe_editor(reset_data_editor_button_text='Reset field matching', column_config=st.session_state['mg__column_config'])
+            with cols_field_matching[0]:
+                st.multiselect('Select intensity fields:', all_columns, key='mg__selected_intensity_fields', on_change=update_field_matching)
+            with cols_field_matching[1]:
+                st.session_state['mg__de_field_matching'].dataframe_editor(reset_data_editor_button_text='Reset field matching', column_config=st.session_state['mg__column_config'], reset_data_editor_button=False)
 
 
         # Define the main columns
