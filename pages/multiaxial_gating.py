@@ -165,6 +165,14 @@ def clear_session_state(keep_keys=[]):
     for key in (set(st.session_state.keys()) - set(keep_keys)):
         del st.session_state[key]
 
+def update_field_matching():
+    selected_intensity_fields = st.session_state['mg__selected_intensity_fields']
+    curr_df = st.session_state['mg__de_field_matching'].reconstruct_edited_dataframe()
+    new_df = pd.DataFrame({'Intensity field': selected_intensity_fields, 'Corresponding thresholded marker field': ['Select thresholded marker field 🔽' for _ in selected_intensity_fields]})
+    for intensity_field in curr_df['Intensity field']:
+        pass
+    st.session_state['mg__de_field_matching'].update_editor_contents(new_df_contents=new_df)
+
 # Main function
 def main():
 
@@ -192,6 +200,7 @@ def main():
     # Set the default dataframes to be edited
     default_df_current_phenotype = pd.DataFrame(columns=['Column for filtering', 'Minimum value', 'Maximum value'])
     default_df_phenotype_assignments = pd.DataFrame()
+    default_df_field_matching = pd.DataFrame(columns=['Intensity field', 'Corresponding thresholded marker field'])
 
     # Constants
     input_directory = os.path.join('.', 'input')
@@ -210,10 +219,14 @@ def main():
         st.session_state['mg__de_current_phenotype'] = sde.DataframeEditor(df_name='mg__df_current_phenotype', default_df_contents=default_df_current_phenotype)
     if 'mg__de_phenotype_assignments' not in st.session_state:
         st.session_state['mg__de_phenotype_assignments'] = sde.DataframeEditor(df_name='mg__df_phenotype_assignments', default_df_contents=default_df_phenotype_assignments)
+    if 'mg__de_field_matching' not in st.session_state:
+        st.session_state['mg__de_field_matching'] = sde.DataframeEditor(df_name='mg__df_field_matching', default_df_contents=default_df_field_matching)
     if 'mg__input_datafile_filename' not in st.session_state:
         st.session_state['mg__input_datafile_filename'] = utils.get_first_element_or_none(options_for_input_datafiles)
     if 'mg__input_datafile_coordinate_units' not in st.session_state:
         st.session_state['mg__input_datafile_coordinate_units'] = 0.25
+    if 'mg__selected_intensity_fields' not in st.session_state:
+        st.session_state['mg__selected_intensity_fields'] = []
 
     # Create columns for the input datafile settings
     input_datafile_columns = st.columns(4)
@@ -240,6 +253,7 @@ def main():
             st.session_state['mg__df'] = st.session_state['mg__df'].rename(columns=dict(zip(phenotype_columns, [column.replace('Phenotype ', 'Phenotype_orig ') for column in phenotype_columns])))
             st.session_state['mg__all_numeric_columns'] = st.session_state['mg__df'].select_dtypes(include='number').columns
             st.session_state['mg__all_columns'] = st.session_state['mg__df'].columns
+            st.session_state['mg__column_config'] = {"Corresponding thresholded marker field": st.column_config.SelectboxColumn("Corresponding thresholded marker field", help="Tresholded marker field corresponding to the intensity at left", options=st.session_state['mg__all_columns'])}
     
     # Warn the user that they need to load the data at least once
     if 'mg__df' not in st.session_state:
@@ -252,6 +266,13 @@ def main():
         df = st.session_state['mg__df']
         unique_images_short = st.session_state['mg__unique_images_short']
         unique_image_dict = st.session_state['mg__unique_image_dict']
+
+
+        with st.expander('Optional field matching:'):
+            all_columns = st.session_state['mg__all_columns']
+            st.multiselect('Select intensity fields:', all_columns, key='mg__selected_intensity_fields', on_change=update_field_matching)
+            st.session_state['mg__de_field_matching'].dataframe_editor(reset_data_editor_button_text='Reset field matching', column_config=st.session_state['mg__column_config'])
+
 
         # Define the main columns
         main_columns = st.columns(3, gap='large')
