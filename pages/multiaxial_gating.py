@@ -135,7 +135,7 @@ def add_new_phenotypes_to_main_df(df, image_for_filtering):
             curr_df = curr_df.drop(['index'], axis='columns')
 
             # Initialize a Series of booleans to True
-            phenotype_bools = pd.Series([True] * len(df))
+            phenotype_bools = pd.Series([True] * len(df), index=df.index)
 
             # For each filtering column...
             object_count_holder = []
@@ -203,6 +203,16 @@ def update_field_matching():
 
     # Update the matching dataframe with the merged, "new" dataframe
     st.session_state['mg__de_field_matching'].update_editor_contents(new_df_contents=new_df)
+
+# Callback particularly for the current phenotype definition in case that dataframe is edited, in particular one of the filter column names
+# Note I can call this multiple places in this script because its contents are repeated many places
+def basic_filter_column_updates():
+
+    # Set the currently selected column as the first of the possible options
+    st.session_state['mg__column_for_filtering'] = update_column_options(key_for_column_list='mg__all_numeric_columns')[0]
+
+    # Since the column selection must have just changed, update its dependencies
+    update_dependencies_of_filtering_widgets()
 
 # Main function
 def main():
@@ -482,7 +492,7 @@ def main():
             st.header(':two: Current phenotype', help='Note you can refine non-list values in the following table by editing them directly or even deleting (or adding) whole rows.')
 
             # Output the dataframe holding the phenotype that's currently being built
-            st.session_state['mg__de_current_phenotype'].dataframe_editor(reset_data_editor_button_text='Reset current phenotype definition')
+            st.session_state['mg__de_current_phenotype'].dataframe_editor(reset_data_editor_button_text='Reset current phenotype definition', on_change=basic_filter_column_updates)
 
             # Choose a phenotype name
             st.text_input(label='Phenotype name:', key='mg__current_phenotype_name')
