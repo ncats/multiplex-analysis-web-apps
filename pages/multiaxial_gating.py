@@ -400,7 +400,7 @@ def main():
                     # Initialize the raw intensity cutoff number to None
                     intensity_cutoff = None
 
-                    # Get the current field matching dataframe (mapping intensity column to thresholded marker column)
+                    # Get the current field-matching dataframe (mapping intensity column to thresholded marker column)
                     srs_matched_marker_fields = st.session_state['mg__de_field_matching'].reconstruct_edited_dataframe().set_index('Intensity field').iloc[:, 0]
 
                     # If the selected column for performing filtering has a corresponding thresholded marker column identified...
