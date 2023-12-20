@@ -343,10 +343,42 @@ def main():
                     # Create a view of the full dataframe that is the selected subset
                     df_to_plot_selected = kde_or_hist_to_plot_full[(kde_or_hist_to_plot_full['Value'] >= selected_min_val) & (kde_or_hist_to_plot_full['Value'] <= selected_max_val)]
 
+                    # Initialize the raw intensity cutoff number to None
+                    intensity_cutoff = None
+
+                    # Get the current field matching dataframe (mapping intensity column to thresholded marker column)
+                    srs_matched_marker_fields = st.session_state['mg__de_field_matching'].reconstruct_edited_dataframe().set_index('Intensity field').iloc[:, 0]
+
+                    # If the selected column for performing filtering has a corresponding thresholded marker column identified...
+                    if column_for_filtering in srs_matched_marker_fields.index.to_list():
+
+                        # Read in the corresponding marker column name
+                        marker_column = srs_matched_marker_fields.loc[column_for_filtering]  # string
+
+                        # If the marker threshold column was actually set...
+                        if marker_column != 'Select thresholded marker field 🔽':
+
+                            # Get the thresholded marker column values
+                            srs_marker_column_values = st.session_state['mg__df'][marker_column]
+
+                            # Set the indices of that series to the corresponding intensities
+                            srs_marker_column_values.index = st.session_state['mg__df'][column_for_filtering]
+
+                            # Sort the series by increasing intensity
+                            srs_marker_column_values = srs_marker_column_values.sort_index()
+
+                            # Determine whether the intensity values were deemed "positive" presumably by looking at the original image
+                            positive_loc = srs_marker_column_values.apply(lambda x: x[-1] == '+')
+
+                            # Get the lowest-intensity "positive" intensity/marker
+                            intensity_cutoff = srs_marker_column_values[positive_loc].index[0]
+
                     # Plot the Plotly figure in Streamlit
                     fig = go.Figure()
                     fig.add_trace(go.Scatter(x=kde_or_hist_to_plot_full['Value'], y=kde_or_hist_to_plot_full['Density'], fill='tozeroy', mode='none', fillcolor='yellow', name='Full dataset', hovertemplate=' '))
                     fig.add_trace(go.Scatter(x=df_to_plot_selected['Value'], y=df_to_plot_selected['Density'], fill='tozeroy', mode='none', fillcolor='red', name='Selection', hoverinfo='skip'))
+                    if intensity_cutoff is not None:
+                        fig.add_vline(x=intensity_cutoff, line_color='green', line_width=3, line_dash="dash", annotation_text="Previous threshold: ~{}".format((intensity_cutoff)), annotation_font_size=18, annotation_font_color="green")
                     fig.update_layout(hovermode='x unified', xaxis_title='Column value', yaxis_title='Density')
                     fig.update_layout(legend=dict(yanchor="top", y=1.2, xanchor="left", x=0.01))
                     st.plotly_chart(fig, use_container_width=True)
