@@ -165,15 +165,30 @@ def clear_session_state(keep_keys=[]):
     for key in (set(st.session_state.keys()) - set(keep_keys)):
         del st.session_state[key]
 
+# Callback to run every time the intensity column multiselect is modified
 def update_field_matching():
+
+    # Get the current state of the multiselect
     selected_intensity_fields = st.session_state['mg__selected_intensity_fields']
+
+    # Get the current state of the intensity-marker-matching dataframe
     curr_df = st.session_state['mg__de_field_matching'].reconstruct_edited_dataframe()
+
+    # Create a new "blank" dataframe corresponding to the currently selected intensity columns in the multiselect
     new_df = pd.DataFrame({'Intensity field': selected_intensity_fields, 'Corresponding thresholded marker field': ['Select thresholded marker field 🔽' for _ in selected_intensity_fields]})
+
+    # For every intensity field in the current matching dataframe...
     for intensity_field in curr_df['Intensity field']:
+
+        # If the current intensity field is present in the new, multiselect-based dataframe...
         if intensity_field in new_df['Intensity field'].to_list():
+
+            # Update the new dataframe with the corresponding existing value in the current dataframe
             curr_df_index = curr_df[curr_df['Intensity field'] == intensity_field].index
             new_df_index = new_df[new_df['Intensity field'] == intensity_field].index
             new_df.loc[new_df_index, 'Corresponding thresholded marker field'] = curr_df.loc[curr_df_index, 'Corresponding thresholded marker field']
+
+    # Update the matching dataframe with the merged, "new" dataframe
     st.session_state['mg__de_field_matching'].update_editor_contents(new_df_contents=new_df)
 
 # Main function
@@ -270,15 +285,19 @@ def main():
         unique_images_short = st.session_state['mg__unique_images_short']
         unique_image_dict = st.session_state['mg__unique_image_dict']
 
-
+        # Add expander, expanded by default just for the time being as sometimes otherwise it collapses unexpectedly
         with st.expander('Optional field matching:', expanded=True):
-            cols_field_matching = st.columns(2)
-            all_columns = st.session_state['mg__all_columns']
-            with cols_field_matching[0]:
-                st.multiselect('Select intensity fields:', all_columns, key='mg__selected_intensity_fields', on_change=update_field_matching)
-            with cols_field_matching[1]:
-                st.session_state['mg__de_field_matching'].dataframe_editor(reset_data_editor_button_text='Reset field matching', column_config=st.session_state['mg__column_config'], reset_data_editor_button=False)
 
+            # Create two columns on the page
+            cols_field_matching = st.columns(2)
+
+            # In the first column, have a multiselect for the user to select raw intensity columns
+            with cols_field_matching[0]:
+                st.multiselect('Select intensity fields:', st.session_state['mg__all_columns'], key='mg__selected_intensity_fields', on_change=update_field_matching)
+
+            # In the second column, have an editable dataframe to allow the user to match thresholded marker columns to the selected raw intensity columns
+            with cols_field_matching[1]:
+                st.session_state['mg__de_field_matching'].dataframe_editor(column_config=st.session_state['mg__column_config'], reset_data_editor_button=False)
 
         # Define the main columns
         main_columns = st.columns(3, gap='large')
