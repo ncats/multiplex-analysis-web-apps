@@ -68,9 +68,9 @@ def extract_datafile_metadata(datafile_path):
         coord_cols = ['Centroid X µm', 'Centroid Y µm']
         markers = list(set([item for row in [x.split(': ') for x in pd.read_csv(datafile_path, usecols=['Class'])['Class'].unique()] for item in row]) - {'Other'})
 
-    # If the file is in the Windhager format...
+    # If the file is in the Steinbock format...
     elif 'centroid-1' in columns_list:
-        file_format = 'Windhager'
+        file_format = 'Steinbock'
         image_column_str = 'Image'
         marker_prefix = 'Phenotype '
         marker_cols = [x for x in columns_list if x.startswith(marker_prefix)]
@@ -840,7 +840,7 @@ class QuPath(Native):
         self.data = df
 
 
-class Windhager(Native):
+class Steinbock(Native):
     """cells.csv from https://www.nature.com/articles/s41596-023-00881-0 (https://zenodo.org/records/7624451)
     """
 

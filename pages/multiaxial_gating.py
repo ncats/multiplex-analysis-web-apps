@@ -23,16 +23,22 @@ def load_data(input_datafile_path, coord_units_in_microns, dataset_format):
     return dataset_obj.data
 
 # Update the dependencies of the selectbox for the current analysis column
-def update_dependencies_of_column_for_filtering():
+def update_dependencies_of_filtering_widgets():
     df = st.session_state['mg__df']
     column_for_filtering = st.session_state['mg__column_for_filtering']
+    image_for_filtering = st.session_state['mg__selected_image']
+    if image_for_filtering == 'All images':
+        image_loc = df.index
+    else:
+        image_loc = df[df['Slide ID'] == image_for_filtering].index
+    curr_series = df.loc[image_loc, column_for_filtering]
     if column_for_filtering in st.session_state['mg__all_numeric_columns']:
         st.session_state['mg__selected_column_type'] = 'numeric'
-        st.session_state['mg__curr_column_range'] = (df[column_for_filtering].min(), df[column_for_filtering].max())
+        st.session_state['mg__curr_column_range'] = (curr_series.min(), curr_series.max())
         st.session_state['mg__selected_value_range'] = st.session_state['mg__curr_column_range']  # initialize the selected range to the entire range
     else:
         st.session_state['mg__selected_column_type'] = 'categorical'
-        st.session_state['mg__curr_column_unique_values'] = df[column_for_filtering].unique()
+        st.session_state['mg__curr_column_unique_values'] = curr_series.unique()
         st.session_state['mg__selected_column_values'] = []  # initialize the selected values to nothing
 
 # Set the column options to all columns of the desired type less columns that have already been used for filtering for the current phenotype
@@ -55,7 +61,7 @@ def update_dependencies_of_button_for_adding_column_filter_to_current_phenotype(
     st.session_state['mg__column_for_filtering'] = update_column_options(key_for_column_list='mg__all_numeric_columns')[0]
 
     # Since the column selection must have just changed, update its dependencies
-    update_dependencies_of_column_for_filtering()
+    update_dependencies_of_filtering_widgets()
 
 # Add to the phenotype assignments for the new dataset and update the previous parts of the app
 def update_dependencies_of_button_for_adding_phenotype_to_new_dataset():
@@ -89,12 +95,19 @@ def update_dependencies_of_button_for_adding_phenotype_to_new_dataset():
         st.session_state['mg__column_for_filtering'] = update_column_options(key_for_column_list='mg__all_numeric_columns')[0]
 
         # Since the column selection must have just changed, update its dependencies
-        update_dependencies_of_column_for_filtering()
+        update_dependencies_of_filtering_widgets()
 
 # From the phenotype assignments, add one column per phenotype to the original dataframe containing pluses where all the phenotype criteria are met
-def add_new_phenotypes_to_main_df(df):
+def add_new_phenotypes_to_main_df(df, image_for_filtering):
 
     if not st.session_state['mg__df_phenotype_assignments'].empty:
+
+        # Reassign the *input* dataframe
+        if image_for_filtering == 'All images':
+            image_loc = df.index
+        else:
+            image_loc = df[df['Slide ID'] == image_for_filtering].index
+        df = df.loc[image_loc, :]
 
         # Get the current values of the phenotype assignments data editor
         df_phenotype_assignments = st.session_state['mg__de_phenotype_assignments'].reconstruct_edited_dataframe().set_index('Phenotype')
@@ -155,7 +168,7 @@ def add_new_phenotypes_to_main_df(df):
             print('  Phenotype object count: {}'.format(curr_phenotype_count))
 
             # Add a column to the original dataframe with the new phenotype satisfying all of its filtering criteria
-            st.session_state['mg__df']['Phenotype {}'.format(phenotype)] = phenotype_bools.apply(lambda x: ('+' if x else '-'))
+            st.session_state['mg__df'].loc[image_loc, 'Phenotype {}'.format(phenotype)] = phenotype_bools.apply(lambda x: ('+' if x else '-'))
 
         # Debugging output
         print('------------------------')
@@ -229,8 +242,6 @@ def main():
     options_for_input_datafiles = [x for x in os.listdir(input_directory) if x.endswith(('.csv', '.tsv'))]
 
     # Initialize some things in the session state
-    if 'mg__kdes_or_hists_to_plot' not in st.session_state:
-        st.session_state['mg__kdes_or_hists_to_plot'] = dict()
     if 'mg__current_phenotype_name' not in st.session_state:
         st.session_state['mg__current_phenotype_name'] = ''
     if 'mg__de_current_phenotype' not in st.session_state:
@@ -245,6 +256,8 @@ def main():
         st.session_state['mg__input_datafile_coordinate_units'] = 0.25
     if 'mg__selected_intensity_fields' not in st.session_state:
         st.session_state['mg__selected_intensity_fields'] = []
+    if 'mg__selected_image' not in st.session_state:
+        st.session_state['mg__selected_image'] = 'All images'
 
     # Create columns for the input datafile settings
     input_datafile_columns = st.columns(4)
@@ -286,7 +299,7 @@ def main():
         unique_image_dict = st.session_state['mg__unique_image_dict']
 
         # Add expander, expanded by default just for the time being as sometimes otherwise it collapses unexpectedly
-        with st.expander('Optional field matching:', expanded=True):
+        with st.expander('Optional field matching (collapse this panel for more space!):', expanded=True):
 
             # Create two columns on the page
             cols_field_matching = st.columns(2)
@@ -308,15 +321,21 @@ def main():
             # Column header
             st.header(':one: Column filter')
 
-            # Have a dropdown for the column on which to perform a kernel density estimate
+            # Initialize the filtering column selection
             if 'mg__column_for_filtering' not in st.session_state:
                 st.session_state['mg__column_for_filtering'] = update_column_options(key_for_column_list='mg__all_numeric_columns')[0]
-            st.selectbox(label='Column for filtering:', options=update_column_options(), key='mg__column_for_filtering', on_change=update_dependencies_of_column_for_filtering)
+
+            # Allow the user to select either all images or just a single image
+            st.selectbox('Image selection:', ['All images'] + df['Slide ID'].unique().tolist(), key='mg__selected_image', on_change=update_dependencies_of_filtering_widgets)
+
+            # Have a dropdown for the column on which to perform a kernel density estimate
+            st.selectbox(label='Column for filtering:', options=update_column_options(), key='mg__column_for_filtering', on_change=update_dependencies_of_filtering_widgets)
             column_for_filtering = st.session_state['mg__column_for_filtering']
+            image_for_filtering = st.session_state['mg__selected_image']
 
             # Output information on the column
             if 'mg__selected_column_type' not in st.session_state:
-                update_dependencies_of_column_for_filtering()
+                update_dependencies_of_filtering_widgets()
             if st.session_state['mg__selected_column_type'] == 'numeric':
                 column_range = st.session_state['mg__curr_column_range']
                 st.write('Column\'s range: {}'.format(column_range))
@@ -340,17 +359,23 @@ def main():
             # If the selected column contains more than one value...
             else:
 
-                # Determine the x-y data to plot for the selected column, calculating the KDE for each column only once ever
-                if column_for_filtering not in list(st.session_state['mg__kdes_or_hists_to_plot']):
-                    if st.session_state['mg__selected_column_type'] == 'numeric':
-                        line2d = sns.kdeplot(data=df, x=column_for_filtering).get_lines()[0]
-                        curr_df = pd.DataFrame({'Value': line2d.get_xdata(), 'Density': line2d.get_ydata()})
-                        st.session_state['mg__kdes_or_hists_to_plot'][column_for_filtering] = curr_df[(curr_df['Value'] >= column_range[0]) & (curr_df['Value'] <= column_range[1])]  # needed because the KDE can extend outside the possible value range
+                # Determine the x-y data to plot for the selected column, calculating the KDE for each column (and each image) only once ever
+                if 'mg__kdes_or_hists_to_plot' not in st.session_state:
+                    st.session_state['mg__kdes_or_hists_to_plot'] = pd.DataFrame(columns=st.session_state['mg__all_columns'], index=(['All images'] + df['Slide ID'].unique().tolist()), dtype='object')
+                if st.session_state['mg__kdes_or_hists_to_plot'].loc[image_for_filtering, column_for_filtering] is np.nan:
+                    if image_for_filtering == 'All images':
+                        image_loc = df.index
                     else:
-                        vc = df[column_for_filtering].value_counts(sort=False)
+                        image_loc = df[df['Slide ID'] == image_for_filtering].index
+                    if st.session_state['mg__selected_column_type'] == 'numeric':
+                        line2d = sns.kdeplot(data=df.loc[image_loc, :], x=column_for_filtering).get_lines()[0]
+                        curr_df = pd.DataFrame({'Value': line2d.get_xdata(), 'Density': line2d.get_ydata()})
+                        st.session_state['mg__kdes_or_hists_to_plot'].loc[image_for_filtering, column_for_filtering] = [curr_df[(curr_df['Value'] >= column_range[0]) & (curr_df['Value'] <= column_range[1])]]  # needed because the KDE can extend outside the possible value range
+                    else:
+                        vc = df.loc[image_loc, column_for_filtering].value_counts(sort=False)
                         curr_df = pd.DataFrame({'Values': vc.index.to_list(), 'Counts': vc.to_list()})
-                        st.session_state['mg__kdes_or_hists_to_plot'][column_for_filtering] = curr_df
-                kde_or_hist_to_plot_full = st.session_state['mg__kdes_or_hists_to_plot'][column_for_filtering]
+                        st.session_state['mg__kdes_or_hists_to_plot'].loc[image_for_filtering, column_for_filtering] = [curr_df]
+                kde_or_hist_to_plot_full = st.session_state['mg__kdes_or_hists_to_plot'].loc[image_for_filtering, column_for_filtering][0]
 
                 # If the selected column is numeric...
                 if st.session_state['mg__selected_column_type'] == 'numeric':
@@ -377,11 +402,17 @@ def main():
                         # If the marker threshold column was actually set...
                         if marker_column != 'Select thresholded marker field 🔽':
 
+                            # Get the current image indices
+                            if image_for_filtering == 'All images':
+                                image_loc = df.index
+                            else:
+                                image_loc = df[df['Slide ID'] == image_for_filtering].index
+
                             # Get the thresholded marker column values
-                            srs_marker_column_values = st.session_state['mg__df'][marker_column]
+                            srs_marker_column_values = df.loc[image_loc, marker_column]
 
                             # Set the indices of that series to the corresponding intensities
-                            srs_marker_column_values.index = st.session_state['mg__df'][column_for_filtering]
+                            srs_marker_column_values.index = df.loc[image_loc, column_for_filtering]
 
                             # Sort the series by increasing intensity
                             srs_marker_column_values = srs_marker_column_values.sort_index()
@@ -470,7 +501,11 @@ def main():
             # Generate the new dataset
             st.button(label=':star2: Generate the new dataset from the phenotype assignments :star2:', 
                       use_container_width=True, 
-                      on_click=add_new_phenotypes_to_main_df, args=(df,))
+                      on_click=add_new_phenotypes_to_main_df, args=(df, image_for_filtering))
+            if image_for_filtering == 'All images':
+                st.write('Clicking this button will apply the phenotype assignments to all images in the dataset')
+            else:
+                st.write('Clicking this button will apply the phenotype assignments to just the image {}'.format(image_for_filtering))
 
         # New dataset
         with main_columns[2]:
@@ -504,23 +539,6 @@ def main():
                     fig = px.scatter(data_frame=df_for_scatterplot, x='Cell X Position', y='Cell Y Position', color=st.session_state['mg__phenotype_to_plot'])
                     fig.update_xaxes(scaleanchor='y')
                     st.plotly_chart(fig)
-
-                # # Optionally run some checks --> specific to measurementsEpCAMLy51MHCII-exported.csv
-                # if st.toggle(label='Do checks'):
-
-                #     # Write out the detected cutoffs to use for basic validation
-                #     phenotypes_orig = ['Phenotype_orig MHCII', 'Phenotype_orig Ly51', 'Phenotype_orig EpCAM']
-                #     intensities = ['MHC II (CH3 Fluor Cy3): Membrane: Mean', 'Ly51 (CH4 Fluor Cy5): Membrane: Mean', 'EpCAM (CH2 Fluor GFP): Membrane: Mean']
-                #     for ipheno in range(len(phenotypes_orig)):
-                #         tmp = st.session_state['mg__df'][phenotypes_orig[ipheno]]
-                #         tmp.index = st.session_state['mg__df'][intensities[ipheno]]
-                #         tmp = tmp.sort_index()
-                #         st.write('Intensity cutoff for {}: {}'.format(phenotypes_orig[ipheno], tmp[tmp == '+'].index[0]))
-
-                #     # Write the numbers of positive markers to compare the new phenotypes with the original phenotypes
-                #     for phenotype_orig in phenotypes_orig:
-                #         st.write(st.session_state['mg__df'][phenotype_orig].value_counts())
-                #         st.write(st.session_state['mg__df'][phenotype_orig.replace('_orig', '').replace('MHCII', 'MHC II') + ' new'].value_counts())
 
     # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
     st.session_state = sde.finalize_session_state(st.session_state)
