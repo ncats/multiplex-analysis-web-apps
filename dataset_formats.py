@@ -68,6 +68,17 @@ def extract_datafile_metadata(datafile_path):
         coord_cols = ['Centroid X µm', 'Centroid Y µm']
         markers = list(set([item for row in [x.split(': ') for x in pd.read_csv(datafile_path, usecols=['Class'])['Class'].unique()] for item in row]) - {'Other'})
 
+    # If the file is in the Windhager format...
+    elif 'centroid-1' in columns_list:
+        file_format = 'Windhager'
+        image_column_str = 'Image'
+        marker_prefix = 'Phenotype '
+        marker_cols = [x for x in columns_list if x.startswith(marker_prefix)]
+        coord_cols = ['centroid-0', 'centroid-1']
+        image_string_processing_func = lambda x: x.removesuffix('.tiff').lower()
+        marker_suffix = None
+        markers = None
+
     # If the file is of unknown format...
     else:
         print('WARNING: Unregistered datafile format')
@@ -816,6 +827,97 @@ class QuPath(Native):
 
         # Attribute assignments from variables
         self.data = df.loc[:, cols_to_keep]
+
+    def extra_processing(self):
+
+        # Variable definitions from attributes
+        df = self.data
+
+        # Here just delete ROIs containing a single coordinate since we may have performed patching and that resulted in such situations
+        df = delete_rois_with_single_coord(df)
+
+        # Attribute assignments from variables
+        self.data = df
+
+
+class Windhager(Native):
+    """cells.csv from https://www.nature.com/articles/s41596-023-00881-0 (https://zenodo.org/records/7624451)
+    """
+
+    def adhere_to_slide_id_format(self):
+        """Ensure the "Slide ID" column of the data conforms to the required format
+        """
+
+        # Determine the image "numbers"
+        srs_imagenum = self.data['Image'].apply(lambda x: x.removesuffix('.tiff').lower())
+
+        # Get the unique image numbers
+        unique_images = srs_imagenum.unique()
+
+        # Calculate a dictionary mapper that maps the unique images to integers
+        mapper = dict(zip(unique_images, [x + 1 for x in range(len(unique_images))]))
+
+        # Attribute assignments
+        self.data['Slide ID'] = srs_imagenum.apply(lambda x: '{}A-imagenum_{}'.format(mapper[x], x))
+
+    def adhere_to_tag_format(self):
+        """Ensure the "tag" column of the data conforms to the required format
+        """
+
+        # Variable definitions from attributes
+        df = self.data
+        roi_width = self.roi_width
+        overlap = self.overlap
+        input_datafile = self.input_datafile
+
+        dummy_micron_per_px = 0.15  # roughly 63X I think
+        print('WARNING: Dummy conversion between microns and pixels is being used. Tag/ROI names do not actually correspond to pixels; instead of pixels we\'re using arbitrary integer units!')
+
+        # Define the function to convert the coordinate descriptors to pixels, if not already in pixels
+        func_coords_to_pixels = lambda x: (x / dummy_micron_per_px).astype(int)
+        func_microns_to_pixels = lambda x: int(x / dummy_micron_per_px)
+
+        # Either patch up the dataset into ROIs and assign the ROI ("tag") column accordingly, or don't and assign the ROI column accordingly
+        df = potentially_apply_patching(df, input_datafile, roi_width, overlap, func_coords_to_pixels, func_microns_to_pixels)
+
+        # Overwrite the original dataframe with the one having the appended ROI column (I'd imagine this line is unnecessary)
+        self.data = df
+
+    def adhere_to_cell_position_format(self):
+        """Ensure the "Cell X Position" and "Cell Y Position" columns of the data conform to the required format.
+        """
+
+        # Variable definitions from attributes
+        df = self.data
+
+        # Convert coordinates to microns by multiplying by coord_units_in_microns, creating the new columns for the x- and y-coordinates
+        df['Cell X Position'] = df['centroid-0']
+        df['Cell Y Position'] = df['centroid-1']
+
+        # In case the spacings/precisions of the cells in these datasets are not good (e.g., very small or arbitrary spacings), make them as good as possible
+        dummy_micron_per_px = 0.15  # roughly 63X I think
+        print('WARNING: Dummy conversion between microns and pixels is being used. Minimum coordinate spacing does not actually essentially correspond to the correct conversion between microns and pixels; instead of pixels we\'re using arbitrary integer units!')
+        microns_per_pixel = dummy_micron_per_px
+        df[['Cell X Position', 'Cell Y Position']] = (df[['Cell X Position', 'Cell Y Position']] / microns_per_pixel).astype(int) * microns_per_pixel
+
+        # Attribute assignments from variables
+        self.data = df
+
+    def adhere_to_phenotype_format(self, use_gated_phenotypes=False):
+        """Ensure the "Phenotype XXXX" columns of the data conform to the required format
+        """
+
+        # Variable definitions from attributes
+        df = self.data
+
+        print(df.filter(regex='^Phenotype\ ').columns)
+
+        # For each phenotype column, convert zeros and ones to -'s and +'s
+        for col in df.filter(regex='^Phenotype\ '):
+            df[col] = df[col].map({0: '-', 1: '+'})
+
+        # Attribute assignments from variables
+        self.data = df
 
     def extra_processing(self):
 
