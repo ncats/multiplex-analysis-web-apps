@@ -134,7 +134,7 @@ def main():
             orig_settings = dict()
             orig_settings['dataset'], orig_settings['analysis'], orig_settings['plotting'], orig_settings['annotation'] = dict(), dict(), dict(), dict()
             orig_settings['dataset']['input_datafile'] = os.path.join('.', 'input', st.session_state['settings__input_datafile__filename'])
-            orig_settings['dataset']['format'] = dict(zip(['HALO', 'Native', 'GMBSecondGeneration', 'QuPath'], ['OMAL', 'Native', 'GMBSecondGeneration', 'QuPath']))[st.session_state['settings__input_datafile__format']]
+            orig_settings['dataset']['format'] = dict(zip(['HALO', 'Native', 'GMBSecondGeneration', 'QuPath', 'Steinbock'], ['OMAL', 'Native', 'GMBSecondGeneration', 'QuPath', 'Steinbock']))[st.session_state['settings__input_datafile__format']]
             orig_settings['dataset']['coord_units_in_microns'] = st.session_state['settings__input_datafile__coordinate_units']
             orig_settings['dataset']['sep'] = (',' if orig_settings['dataset']['input_datafile'].endswith('.csv') else '\t')
             orig_settings['analysis']['allow_compound_species'] = (False if st.session_state['settings__phenotyping__method'] == 'Marker' else True)
