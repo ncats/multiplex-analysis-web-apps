@@ -428,7 +428,10 @@ def main():
                             srs_marker_column_values = srs_marker_column_values.sort_index()
 
                             # Determine whether the intensity values were deemed "positive" presumably by looking at the original image
-                            positive_loc = srs_marker_column_values.apply(lambda x: x[-1] == '+')
+                            if srs_marker_column_values.dtype == 'object':
+                                positive_loc = srs_marker_column_values.apply(lambda x: x[-1] == '+')
+                            else:
+                                positive_loc = srs_marker_column_values == 1
 
                             # Get the lowest-intensity "positive" intensity/marker
                             intensity_cutoff = srs_marker_column_values[positive_loc].index[0]
