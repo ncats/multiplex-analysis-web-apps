@@ -191,7 +191,7 @@ def main():
             st.write(f'Image {st.session_state["idxSlide ID"]+1} of {st.session_state["numSlide ID"]}')
 
         if st.session_state.umapCompleted:
-            st.session_state.df_umap_filt = st.session_state.df_umap.loc[st.session_state.df_umap['Slide ID'] == st.session_state['selSlide ID'], :]
+            st.session_state.df_umap_filt = st.session_state.spatial_umap.cells.loc[st.session_state.spatial_umap.cells['Slide ID'] == st.session_state['selSlide ID'], :]
             st.session_state = ndl.setFigureObjs_UMAP(st.session_state)
 
             if clustOPheno == 'Clusters':
