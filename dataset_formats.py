@@ -331,7 +331,7 @@ class Native:
         """
         pass
 
-    def process_dataset(self, write_new_datafile=False, new_datafile_suffix='-converted', do_calculate_minimum_coordinate_spacing_per_roi=True, do_trimming=True, use_gated_phenotypes=False):
+    def process_dataset(self, write_new_datafile=False, new_datafile_suffix='-converted', do_calculate_minimum_coordinate_spacing_per_roi=True, do_trimming=True, use_gated_phenotypes=False, do_extra_processing=True):
         """Convert dataset to the format required for the SIP library
 
         Args:
@@ -360,7 +360,8 @@ class Native:
             self.calculate_minimum_coordinate_spacing_per_roi()
 
         # Perform any additional processing for the dataset
-        self.extra_processing()
+        if do_extra_processing:
+            self.extra_processing()
 
         # Write the new dataframe to disk if desired
         if write_new_datafile:
@@ -794,6 +795,7 @@ class QuPath(Native):
         # Variable definition from attributes
         df = self.data
 
+        # If it's not requested that we use the phenotypes defined in the multiaxial gater, convert the Class column to the appropriate Phenotype columns
         if not use_gated_phenotypes:
 
             # Add "Phenotype XXXX" columns to the dataframe from the "Class" column entries

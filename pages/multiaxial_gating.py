@@ -19,7 +19,7 @@ def load_data(input_datafile_path, coord_units_in_microns, dataset_format):
     transform = {'HALO': 'OMAL'}
     dataset_class = getattr(dataset_formats, (transform[dataset_format] if dataset_format in transform else dataset_format))  # done this way so that the format (e.g., “REEC”) can be select programmatically
     dataset_obj = dataset_class(input_datafile=input_datafile_path, coord_units_in_microns=coord_units_in_microns)
-    dataset_obj.process_dataset(do_calculate_minimum_coordinate_spacing_per_roi=False, do_trimming=False)
+    dataset_obj.process_dataset(do_calculate_minimum_coordinate_spacing_per_roi=False, do_trimming=False, do_extra_processing=False)
     return dataset_obj.data
 
 # Update the dependencies of the selectbox for the current analysis column

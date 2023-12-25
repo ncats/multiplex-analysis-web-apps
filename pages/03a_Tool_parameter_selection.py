@@ -167,12 +167,14 @@ def main():
 
     def load_relevant_settings_from_phenotyper():
 
-        # Point to the new, updated datafile from the custom phenotype assignments and save its columns
+        # Get the datafile from the phenotyper, which may have old phenotype columns as "Phenotype_orig " and gated phenotypes as "Phenotype " if the gater were used first
         new_df = st.session_state.df
         new_df_columns = new_df.columns
 
-        # If the main data dataframe in the Phenotyper contains "Phenotype_orig " columns, then the Phenotyper must have loaded the dataframe from the Gater, which means there is no datafile, so we must create one, and set its filename as the input datafile...
-        if len([column for column in new_df_columns if column.startswith('Phenotype_orig ')]) > 0:
+        # If the main data dataframe contains both "Phenotype_orig " and "Phenotype " columns, then the Phenotyper must have loaded the dataframe from the Gater, which means there is no datafile, so we must create one, and set its filename as the input datafile...
+        phenotype_orig_columns_exist = len([column for column in new_df_columns if column.startswith('Phenotype_orig ')]) > 0
+        phenotype_columns_exist = len([column for column in new_df_columns if column.startswith('Phenotype ')]) > 0
+        if phenotype_orig_columns_exist and phenotype_columns_exist:
 
             # Grab the original datafile on which the multiaxial gating was based from the multiaxial gater
             orig_filename = st.session_state['mg__input_datafile_filename']
@@ -186,11 +188,19 @@ def main():
             # Obtain the columns from the new datafile to paste on to the end of the original one
             new_df_to_add = new_df[[column for column in new_df_columns if column.startswith('Phenotype ')]]
 
+            # Change the new phenotype columns to something uniquely identifiable
+            columns_to_add = new_df_to_add.columns
+            transform = dict(zip(columns_to_add, [column.replace('Phenotype ', 'Phenotype-from-multiaxial-gater ', count=1) for column in columns_to_add]))
+            new_df_to_add = new_df_to_add.rename(columns=transform)
+
             # Append these columns to the original dataframe and write the result to disk, storing the filename in the settings for the SIT
             st.session_state['settings__input_datafile__filename'] = write_dataframe_to_disk(pd.concat([orig_df, new_df_to_add], axis='columns'), prefix='orig_datafile_plus_gated_phenotypes')
 
-            # Note for later that the input datafile will be using these gated phenotypes
-            st.session_state['sit__using_gated_phenotypes'] = True
+            # Save the input datafile coordinate units in microns from the Phenotyper (since Dante hasn't ported it yet [phenotyping_micron_coordinate_units key], load from the Gater for now)
+            st.session_state['settings__input_datafile__coordinate_units'] = st.session_state['mg__input_datafile_coordinate_units']
+
+            # # Note for later that the input datafile will be using these gated phenotypes
+            # st.session_state['sit__using_gated_phenotypes'] = True
 
         # Otherwise, the datafile was likely read in from disk (as opposed to from memory via Streamlit), so set that filename as the input datafile
         else:
@@ -198,14 +208,14 @@ def main():
             # Set the filename for the SIT as that in the Phenotyper's widget
             st.session_state['settings__input_datafile__filename'] = st.session_state['datafileU']
 
-            # Note for later that the input datafile is not a result of the multiaxial gater
-            st.session_state['sit__using_gated_phenotypes'] = False
+            # Save the input datafile coordinate units in microns from the Phenotyper (since Dante hasn't ported it yet [phenotyping_micron_coordinate_units key], load from the Gater for now)
+            st.session_state['settings__input_datafile__coordinate_units'] = st.session_state['phenotyping_micron_coordinate_units']
+
+            # # Note for later that the input datafile is not a result of the multiaxial gater
+            # st.session_state['sit__using_gated_phenotypes'] = False
 
         # Update the dependencies of the input datafile filename since it has likely changed
         update_dependencies_of_input_datafile_filename()
-
-        # Save the input datafile coordinate units in microns from the Phenotyper (since Dante hasn't ported it yet [phenotyping_micron_coordinate_units key], load from the Gater for now)
-        st.session_state['settings__input_datafile__coordinate_units'] = st.session_state['mg__input_datafile_coordinate_units']
 
         # If the Phenotyper's phenotyping method is "Custom", create a phenotype assignments file (and assign the corresponding setting) from its phenotype assignment table
         if st.session_state['phenoMeth'] == 'Custom':
