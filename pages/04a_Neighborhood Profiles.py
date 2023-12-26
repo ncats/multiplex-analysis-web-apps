@@ -76,10 +76,48 @@ def set_clusters():
 
     st.session_state.clustering_completed = True
 
+def slide_id_prog_left_callback():
+    '''
+    callback function when the left Cell_ID progression button is clicked
+    '''
+    if st.session_state['idxSlide ID'] > 0:
+        st.session_state['idxSlide ID'] -=1
+        st.session_state['selSlide ID'] = st.session_state['uniSlide ID'][st.session_state['idxSlide ID']]
+        st.session_state['selSlide ID_short'] = st.session_state['uniSlide ID_short'][st.session_state['idxSlide ID']]
+        filter_and_plot()
+
+def slide_id_prog_right_callback():
+    '''
+    callback function when the right Cell_ID progression button is clicked
+    '''
+    if st.session_state['idxSlide ID'] < st.session_state['numSlide ID']-1:
+        st.session_state['idxSlide ID'] +=1
+        st.session_state['selSlide ID'] = st.session_state['uniSlide ID'][st.session_state['idxSlide ID']]
+        st.session_state['selSlide ID_short'] = st.session_state['uniSlide ID_short'][st.session_state['idxSlide ID']]
+        filter_and_plot()
+
 def slide_id_callback():
     # st.session_state['idxSlide ID'] = st.session_state['uniSlide ID_short'].index(st.session_state['selSlide ID_short'])
     idx =  st.session_state['idxSlide ID'] = st.session_state['uniSlide ID_short'].index(st.session_state['selSlide ID_short'])
     st.session_state['selSlide ID'] = st.session_state['uniSlide ID'][idx]
+    filter_and_plot()
+
+def filter_and_plot():
+    '''
+    function to update the filtering and the figure plotting
+    '''
+    st.session_state.prog_left_disabeled  = False
+    st.session_state.prog_right_disabeled = False
+
+    if st.session_state['idxSlide ID'] == 0:
+        st.session_state.prog_left_disabeled = True
+
+    if st.session_state['idxSlide ID'] == st.session_state['numSlide ID']-1:
+        st.session_state.prog_right_disabeled = True
+
+    if st.session_state.umapCompleted:
+        st.session_state.df_umap_filt = st.session_state.spatial_umap.cells.loc[st.session_state.spatial_umap.cells['Slide ID'] == st.session_state['selSlide ID'], :]
+        st.session_state = ndl.setFigureObjs_UMAP(st.session_state)
 
 def main():
     '''
@@ -182,18 +220,15 @@ def main():
                          on_change=slide_id_callback)
         with imageProgCol[1]:
             add_vertical_space(2)
-            # st.button('←', on_click=slide_id_prog_left_callback, disabled=st.session_state.prog_left_disabeled)
+            st.button('←', on_click=slide_id_prog_left_callback, disabled=st.session_state.prog_left_disabeled)
         with imageProgCol[2]:
             add_vertical_space(2)
-            # st.button('→', on_click=slide_id_prog_right_callback, disabled=st.session_state.prog_right_disabeled)
+            st.button('→', on_click=slide_id_prog_right_callback, disabled=st.session_state.prog_right_disabeled)
         with imageProgCol[3]:
             add_vertical_space(2)
             st.write(f'Image {st.session_state["idxSlide ID"]+1} of {st.session_state["numSlide ID"]}')
 
         if st.session_state.umapCompleted:
-            st.session_state.df_umap_filt = st.session_state.spatial_umap.cells.loc[st.session_state.spatial_umap.cells['Slide ID'] == st.session_state['selSlide ID'], :]
-            st.session_state = ndl.setFigureObjs_UMAP(st.session_state)
-
             if clustOPheno == 'Clusters':
                 st.pyplot(st.session_state.seabornFig_clust)
             else:
