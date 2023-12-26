@@ -20,6 +20,7 @@ def make_complex_dataframe_from_file_listing(dirpath, item_names, df_session_sta
     selecteds = [False for _ in item_names]
     df = pd.DataFrame({'Selected': selecteds, 'File or directory name': item_names, '# of files within': num_contents, 'Modification time': [time.ctime(x) for x in modification_times], 'mod_time_sec': modification_times}).sort_values('mod_time_sec', ascending=False).reset_index(drop=True)
     if editable:
+        # TODO: Replace with streamlit-dataframe-editor
         st.session_state[df_session_state_key] = st.data_editor(df.iloc[:, :-1], key=(df_session_state_key + '_input__do_not_persist'))
     else:
         st.dataframe(df.iloc[:, 1:-1])
@@ -41,6 +42,7 @@ def make_simple_dataframe_from_file_listing(available_files, streamlit_key_for_a
 
     # Display an editable dataframe version of this
     if editable:
+        # TODO: Replace with streamlit-dataframe-editor
         st.session_state[streamlit_key_for_available_files_df] = st.data_editor(df, key=(streamlit_key_for_available_files_df + '_input__do_not_persist'))
     else:
         st.dataframe(df)
@@ -64,7 +66,7 @@ def write_current_tool_parameters_to_disk(output_dir):
     import yaml
     import streamlit_utils
     import sys
-    settings_yaml_filename = 'settings_as_of_{}.yml'.format(datetime.now().strftime("%Y%m%d_%H%M%S"))
+    settings_yaml_filename = 'settings_as_of_{}.yml'.format(datetime.now().strftime("date%Y_%m_%d_time%H_%M_%S"))
     pathname = os.path.join(output_dir, settings_yaml_filename)
     if not os.path.exists(pathname):
         with open(pathname, mode='wt') as file:
@@ -83,7 +85,7 @@ def write_current_environment_to_disk(output_dir):
     from datetime import datetime
     import subprocess
     import os
-    environment_yaml_filename = 'environment_as_of_{}.yml'.format(datetime.now().strftime("%Y%m%d_%H%M%S"))
+    environment_yaml_filename = 'environment_as_of_{}.yml'.format(datetime.now().strftime("date%Y_%m_%d_time%H_%M_%S"))
     pathname = os.path.join(output_dir, environment_yaml_filename)
     if not os.path.exists(pathname):
         subprocess.run('conda env export > {}'.format(pathname), shell=True, capture_output=True)
@@ -93,7 +95,7 @@ def write_current_environment_to_disk(output_dir):
 # Create an empty output archive directory
 def create_empty_output_archive(new_output_archive_name, output_dir):
     from datetime import datetime
-    archive_dirname = 'output_archive-{}-{}'.format(datetime.now().strftime("%Y%m%d_%H%M%S"), new_output_archive_name)
+    archive_dirname = 'output_archive-{}-{}'.format(datetime.now().strftime("date%Y_%m_%d_time%H_%M_%S"), new_output_archive_name)
     archive_path = os.path.join(output_dir, archive_dirname)
     if not os.path.exists(archive_path):
         os.mkdir(archive_path)
@@ -106,7 +108,7 @@ def create_empty_output_archive(new_output_archive_name, output_dir):
 # Currently only applies to local
 def copy_output_dir_contents_to_output_archive(new_output_archive_name, output_dir):
     from datetime import datetime
-    archive_dirname = 'output_archive-{}-{}'.format(datetime.now().strftime("%Y%m%d_%H%M%S"), new_output_archive_name)
+    archive_dirname = 'output_archive-{}-{}'.format(datetime.now().strftime("date%Y_%m_%d_time%H_%M_%S"), new_output_archive_name)
     archive_path = os.path.join(output_dir, archive_dirname)
     if not os.path.exists(archive_path):
         shutil.copytree(output_dir, archive_path, ignore=shutil.ignore_patterns('output_archive-*'))
@@ -122,7 +124,7 @@ def create_zipfile_with_ignores(zipfile_dirpath, basename_suffix_for_zipfile, pr
     import subprocess
 
     # Ultimate zipfile path without the .zip extension
-    zipfile_basename = os.path.join(zipfile_dirpath, 'output_archive-{}-{}'.format(datetime.now().strftime("%Y%m%d_%H%M%S"), basename_suffix_for_zipfile))
+    zipfile_basename = os.path.join(zipfile_dirpath, 'output_archive-{}-{}'.format(datetime.now().strftime("date%Y_%m_%d_time%H_%M_%S"), basename_suffix_for_zipfile))
 
     # Determine if items exist in the local output directory that we want to ignore; otherwise, don't jump through any hoops!
     items_to_ignore_exist = len([x for x in os.listdir(local_output_dir) if x.startswith(prefix_to_ignore)]) > 0
@@ -531,7 +533,7 @@ class Platform:
                 os.makedirs(local_transfer_dir, exist_ok=True)
 
                 # Get the file like ../transfer/myfile.zip for which parts will be created like ../transfer/myfile.zip.000_of_007 etc.
-                zipfile_part_prefix = os.path.join(local_transfer_dir, 'output_archive-{}-{}.zip'.format(datetime.now().strftime("%Y%m%d_%H%M%S"), st.session_state['basename_suffix_for_new_results_archive']))
+                zipfile_part_prefix = os.path.join(local_transfer_dir, 'output_archive-{}-{}.zip'.format(datetime.now().strftime("date%Y_%m_%d_time%H_%M_%S"), st.session_state['basename_suffix_for_new_results_archive']))
 
                 # Zip all loaded results to a temporary directory
                 create_zipfile_from_files_in_dir(

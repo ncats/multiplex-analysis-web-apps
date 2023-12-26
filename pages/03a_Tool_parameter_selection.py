@@ -126,7 +126,7 @@ def main():
             os.makedirs(phenotypes_path)
 
         # Set the filename of the phenotype assignments file to write
-        filename = 'phenotype_assignments_from_phenotyper-{}.tsv'.format(datetime.now().strftime("%Y%m%d_%H%M%S"))
+        filename = 'phenotype_assignments_from_phenotyper-{}.tsv'.format(datetime.now().strftime("date%Y_%m_%d_time%H_%M_%S"))
 
         # Assign a new dataframe as a subset of the one containing the phenotype assignments
         df_phenotype_assignments_to_write = df_phenotype_assignments[['species_count', 'species_percent', 'species_name_short', 'phenotype', 'species_name_long']]
@@ -153,21 +153,22 @@ def main():
 
         # Import relevant library
         from datetime import datetime
+        import shutil
 
         # Set the filename of the phenotype assignments file to write
-        filename = '{}-{}.csv'.format(prefix, datetime.now().strftime("%Y%m%d_%H%M%S"))
+        filename = '{}-{}.csv'.format(prefix, datetime.now().strftime("date%Y_%m_%d_time%H_%M_%S"))
 
-        # Save the dataframe to disk
-        # Note it's inefficient to write a big file to multiple locations, but it's faster to implement as I'm doing now on 12/12/23
-        df.to_csv(path_or_buf=os.path.join(output_directory, filename), index=False)
-        df.to_csv(path_or_buf=os.path.join(input_directory, filename), index=False)
+        # Save the dataframe to disk in both the output and input directories (the former for posterity, the latter so that it can be read in later)
+        filepath_to_write = os.path.join(output_directory, filename)
+        df.to_csv(path_or_buf=filepath_to_write, index=False)
+        shutil.copy(filepath_to_write, input_directory)
 
         # Return the filename of the written file
         return filename
 
     def load_relevant_settings_from_phenotyper():
 
-        # Get the datafile from the phenotyper, which may have old phenotype columns as "Phenotype_orig " and gated phenotypes as "Phenotype " if the gater were used first
+        # Get the datafile from the phenotyper, which may have old phenotype columns as "Phenotype_orig " and gated phenotypes as "Phenotype " if the Gater were used first
         new_df = st.session_state.df
         new_df_columns = new_df.columns
 
@@ -196,11 +197,8 @@ def main():
             # Append these columns to the original dataframe and write the result to disk, storing the filename in the settings for the SIT
             st.session_state['settings__input_datafile__filename'] = write_dataframe_to_disk(pd.concat([orig_df, new_df_to_add], axis='columns'), prefix='orig_datafile_plus_gated_phenotypes')
 
-            # Save the input datafile coordinate units in microns from the Phenotyper (since Dante hasn't ported it yet [phenotyping_micron_coordinate_units key], load from the Gater for now)
+            # Save the input datafile coordinate units in microns from the Gater (since Dante hasn't ported it yet [phenotyping_micron_coordinate_units key], load from the Gater for now instead of the Phenotyper)
             st.session_state['settings__input_datafile__coordinate_units'] = st.session_state['mg__input_datafile_coordinate_units']
-
-            # # Note for later that the input datafile will be using these gated phenotypes
-            # st.session_state['sit__using_gated_phenotypes'] = True
 
         # Otherwise, the datafile was likely read in from disk (as opposed to from memory via Streamlit), so set that filename as the input datafile
         else:
@@ -208,11 +206,8 @@ def main():
             # Set the filename for the SIT as that in the Phenotyper's widget
             st.session_state['settings__input_datafile__filename'] = st.session_state['datafileU']
 
-            # Save the input datafile coordinate units in microns from the Phenotyper (since Dante hasn't ported it yet [phenotyping_micron_coordinate_units key], load from the Gater for now)
+            # Save the input datafile coordinate units in microns from the Phenotyper
             st.session_state['settings__input_datafile__coordinate_units'] = st.session_state['phenotyping_micron_coordinate_units']
-
-            # # Note for later that the input datafile is not a result of the multiaxial gater
-            # st.session_state['sit__using_gated_phenotypes'] = False
 
         # Update the dependencies of the input datafile filename since it has likely changed
         update_dependencies_of_input_datafile_filename()

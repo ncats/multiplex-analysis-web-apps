@@ -175,13 +175,6 @@ def main():
 
             # Load the dataset into a dataset object defined in dataset_formats.py if the button was pressed
             if dataset_just_loaded:
-                if 'sit__using_gated_phenotypes' in st.session_state:
-                    use_gated_phenotypes = st.session_state['sit__using_gated_phenotypes']
-                else:
-                    if orig_settings['dataset']['input_datafile'].split('/')[-1].startswith('orig_datafile_plus_gated_phenotypes'):
-                        use_gated_phenotypes = True
-                    else:
-                        use_gated_phenotypes = False
                 dataset_obj = tci.preprocess_dataset(
                     format=orig_settings['dataset']['format'],
                     input_datafile=orig_settings['dataset']['input_datafile'],
@@ -190,8 +183,7 @@ def main():
                     sep=orig_settings['dataset']['sep'],
                     roi_width=orig_settings['dataset']['roi_width'],
                     overlap=orig_settings['dataset']['overlap'],
-                    images_to_analyze=orig_settings['analysis']['images_to_analyze'],
-                    use_gated_phenotypes=use_gated_phenotypes
+                    images_to_analyze=orig_settings['analysis']['images_to_analyze']
                     )
                 st.session_state['dataset_obj'] = dataset_obj
                 

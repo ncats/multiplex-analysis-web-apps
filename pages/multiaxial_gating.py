@@ -100,13 +100,18 @@ def update_dependencies_of_button_for_adding_phenotype_to_new_dataset():
 # From the phenotype assignments, add one column per phenotype to the original dataframe containing pluses where all the phenotype criteria are met
 def add_new_phenotypes_to_main_df(df, image_for_filtering):
 
+    # Import relevant library
+    import datetime
+
     if not st.session_state['mg__df_phenotype_assignments'].empty:
 
         # Reassign the *input* dataframe
         if image_for_filtering == 'All images':
             image_loc = df.index
+            filtering_section_name = 'all_images'
         else:
             image_loc = df[df['Slide ID'] == image_for_filtering].index
+            filtering_section_name = 'image_{}'.format(image_for_filtering)
         df = df.loc[image_loc, :]
 
         # Get the current values of the phenotype assignments data editor
@@ -172,6 +177,12 @@ def add_new_phenotypes_to_main_df(df, image_for_filtering):
 
         # Debugging output
         print('------------------------')
+
+        # Save the gating table to disk
+        gating_filename = 'gating_table_for_{}_for_datafile_{}-{}.csv'.format(filtering_section_name, st.session_state['mg__input_datafile_filename'], datetime.now().strftime("date%Y_%m_%d_time%H_%M_%S"))
+        df_phenotype_assignments.to_csv(path_or_buf=os.path.join(os.path.join('.', 'output'), gating_filename), index=False)
+        st.write('File {} written to disk'.format(gating_filename))
+
 
 # Function to clear the session state as would be desired when loading a new dataset
 def clear_session_state(keep_keys=[]):
@@ -501,7 +512,7 @@ def main():
             st.text_input(label='Phenotype name:', key='mg__current_phenotype_name')
 
             # Add the current phenotype to the phenotype assignments table
-            st.button(label=':star2: Add phenotype to assignments table :star2:', 
+            st.button(label=':star2: Add phenotype to assignments table :star2:',
                       use_container_width=True, 
                       on_click=update_dependencies_of_button_for_adding_phenotype_to_new_dataset)
 
@@ -512,8 +523,8 @@ def main():
             st.session_state['mg__de_phenotype_assignments'].dataframe_editor(reset_data_editor_button_text='Reset all phenotype definitions')
 
             # Generate the new dataset
-            st.button(label=':star2: Generate the new dataset from the phenotype assignments :star2:', 
-                      use_container_width=True, 
+            st.button(label=':star2: Append phenotype assignments to the dataset :star2:',
+                      use_container_width=True,
                       on_click=add_new_phenotypes_to_main_df, args=(df, image_for_filtering))
             if image_for_filtering == 'All images':
                 st.write('Clicking this button will apply the phenotype assignments to all images in the dataset')
@@ -526,15 +537,22 @@ def main():
             # Column header
             st.header(':four: New dataset')
 
-            # Print out the first rows of the main dataframe
-            st.write('Augmented dataset head:')
-            st.dataframe(st.session_state['mg__df'].head(5))
+            # Print out a five-row sample of the main dataframe
+            st.write('Augmented dataset sample:')
+            st.dataframe(st.session_state['mg__df'].sample(5))
 
             # Get a list of all new phenotypes
             new_phenotypes = [column for column in st.session_state['mg__df'].columns if column.startswith('Phenotype ')]
 
+            # Print out the new phenotypes present
+            st.write('There are {} gated phenotypes present in the augmented dataset: {}'.format(len(new_phenotypes), new_phenotypes))
+
             # If at least one phenotype has been assigned...
             if len(new_phenotypes) > 0:
+
+                # Add an option to delete all generated phenotypes so far
+                if st.button('Delete all gated phenotypes', use_container_width=True):
+                    st.session_state['mg__df'] = st.session_state['mg__df'].drop(columns=new_phenotypes)
 
                 # Initialize the plot of an optional cell scatter plot to the first image in the dataset
                 if 'mg__image_to_plot' not in st.session_state:

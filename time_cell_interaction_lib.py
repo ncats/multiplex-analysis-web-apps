@@ -3183,7 +3183,7 @@ def get_max_nbins_for_center_neighbor_pair(data_by_slice, max_nbins_over_slices)
     return(max_nbins_over_slices)
 
 
-def preprocess_dataset(format, input_datafile, coord_units_in_microns, images_to_analyze, min_coord_spacing=None, species_equivalents={}, mapping_dict={}, sep='\t', roi_width=None, overlap=0, phenotype_identification_tsv_file=None, use_gated_phenotypes=False):
+def preprocess_dataset(format, input_datafile, coord_units_in_microns, images_to_analyze, min_coord_spacing=None, species_equivalents={}, mapping_dict={}, sep='\t', roi_width=None, overlap=0, phenotype_identification_tsv_file=None):
     """Given dataset-specific attributes, adhere to the format of the dataset required for processing in the SIP library time_cell_interaction_lib.py
 
     I should probably do away with species_equivalents and mapping_dict in favor of phenotype_identification_tsv_file.
@@ -3227,7 +3227,7 @@ def preprocess_dataset(format, input_datafile, coord_units_in_microns, images_to
         dataset_obj = dataset_class(input_datafile, coord_units_in_microns, images_to_analyze, min_coord_spacing=min_coord_spacing, species_equivalents=species_equivalents, mapping_dict=mapping_dict, sep=sep, roi_width=roi_width, overlap=overlap, phenotype_identification_tsv_file=phenotype_identification_tsv_file)
 
         # Perform the actual format conversion/adherence
-        dataset_obj.process_dataset(use_gated_phenotypes=use_gated_phenotypes)
+        dataset_obj.process_dataset()
 
         # Create a pickle file containing the dataset object
         make_pickle(dataset_obj, pickle_dir, pickle_file)

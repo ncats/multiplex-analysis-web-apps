@@ -99,6 +99,36 @@ def trim_dataframe_basic(df):
     cols_to_keep = ['Slide ID', 'tag', 'Cell X Position', 'Cell Y Position'] + df.loc[0, :].filter(regex='^Phenotype ').index.tolist()
     return df.loc[:, cols_to_keep]
 
+# Replace columns starting with "Phenotype " with a different prefix if any columns with that prefix are present in the dataframe
+def potentially_apply_phenotype_override(df, phenotype_prefix_override):
+
+    # Store the columns of the input dataframe
+    current_columns = df.columns
+
+    # Get the columns that start with the override prefix
+    phenotype_override_columns = [column for column in current_columns if column.startswith(phenotype_prefix_override)]
+
+    # If there are any such columns present...
+    if len(phenotype_override_columns) > 0:
+
+        # Store the columns that start with the standard "Phenotype " prefix
+        phenotype_columns = [column for column in current_columns if column.startswith('Phenotype ')]
+
+        # Create a dictionary transforming these column names to ones subscripted with "_standard"
+        transform = dict(zip(phenotype_columns, [column.replace('Phenotype ', 'Phenotype_standard ', count=1) for column in phenotype_columns]))
+
+        # Transform the dataframe column names accordingly
+        df = df.rename(columns=transform)
+
+        # Create a dictionary transforming the override column names to "Phenotype "
+        transform = dict(zip(phenotype_override_columns, [column.replace(phenotype_prefix_override, 'Phenotype ', count=1) for column in phenotype_override_columns]))
+
+        # Transform the dataframe column names accordingly
+        df = df.rename(columns=transform)
+
+    # Return the dataframe with potentially renamed columns
+    return df
+
 class Native:
     """Class representing format of original Consolidated_data.txt file that Houssein sent us around 2017-2018
 
@@ -229,7 +259,7 @@ class Native:
         self.data['Cell Y Position'] = srs_y_new
         self.coord_units_in_microns = 1  # implying 1 micron per coordinate unit
 
-    def adhere_to_phenotype_format(self, use_gated_phenotypes=False):
+    def adhere_to_phenotype_format(self):
         """Ensure the "Phenotype XXXX" columns of the data conform to the required format
         """
         pass
@@ -331,7 +361,7 @@ class Native:
         """
         pass
 
-    def process_dataset(self, write_new_datafile=False, new_datafile_suffix='-converted', do_calculate_minimum_coordinate_spacing_per_roi=True, do_trimming=True, use_gated_phenotypes=False, do_extra_processing=True):
+    def process_dataset(self, write_new_datafile=False, new_datafile_suffix='-converted', do_calculate_minimum_coordinate_spacing_per_roi=True, do_trimming=True, do_extra_processing=True, phenotype_prefix_override='Phenotype-from-multiaxial-gater '):
         """Convert dataset to the format required for the SIP library
 
         Args:
@@ -349,7 +379,10 @@ class Native:
         self.adhere_to_slide_id_format()
         self.adhere_to_tag_format()
         self.adhere_to_cell_position_format()
-        self.adhere_to_phenotype_format(use_gated_phenotypes=use_gated_phenotypes)
+        self.adhere_to_phenotype_format()
+
+        # If columns exist that we want to use as the phenotypes instead of the standard ones for the dataset, then indeed use those and rename the standard ones
+        self.data = potentially_apply_phenotype_override(self.data, phenotype_prefix_override)
 
         # Retain just the necessary columns of data
         if do_trimming:
@@ -551,7 +584,7 @@ class OMAL(Native):
         self.data = df
         self.coord_units_in_microns = 1  # implying 1 micron per coordinate unit (since now the coordinates are in microns)
 
-    def adhere_to_phenotype_format(self, use_gated_phenotypes=False):
+    def adhere_to_phenotype_format(self):
         """Ensure the "Phenotype XXXX" columns of the data conform to the required format
         """
 
@@ -658,7 +691,7 @@ class REEC(Native):
         # Attribute assignments from variables
         self.data = df
 
-    def adhere_to_phenotype_format(self, use_gated_phenotypes=False):
+    def adhere_to_phenotype_format(self):
         """Ensure the "Phenotype XXXX" columns of the data conform to the required format
         """
 
@@ -784,7 +817,7 @@ class QuPath(Native):
         # Attribute assignments from variables
         self.data = df
 
-    def adhere_to_phenotype_format(self, use_gated_phenotypes=False):
+    def adhere_to_phenotype_format(self):
         """Ensure the "Phenotype XXXX" columns of the data conform to the required format
         """
 
@@ -795,17 +828,14 @@ class QuPath(Native):
         # Variable definition from attributes
         df = self.data
 
-        # If it's not requested that we use the phenotypes defined in the multiaxial gater, convert the Class column to the appropriate Phenotype columns
-        if not use_gated_phenotypes:
+        # Add "Phenotype XXXX" columns to the dataframe from the "Class" column entries
+        df = pd.concat([df, pd.DataFrame(df['Class'].apply(lambda x: dict([(y, 1) for y in ['Phenotype ' + marker.strip() for marker in x.split(': ')]])).to_list()).replace({np.nan: 0}).astype(int)], axis='columns')
+        if 'Phenotype Other' in df.columns:
+            df = df.drop('Phenotype Other', axis='columns')
 
-            # Add "Phenotype XXXX" columns to the dataframe from the "Class" column entries
-            df = pd.concat([df, pd.DataFrame(df['Class'].apply(lambda x: dict([(y, 1) for y in ['Phenotype ' + marker.strip() for marker in x.split(': ')]])).to_list()).replace({np.nan: 0}).astype(int)], axis='columns')
-            if 'Phenotype Other' in df.columns:
-                df = df.drop('Phenotype Other', axis='columns')
-
-            # For each phenotype column, convert zeros and ones to -'s and +'s
-            for col in df.filter(regex='^Phenotype\ '):
-                df[col] = df[col].map({0: '-', 1: '+'})
+        # For each phenotype column, convert zeros and ones to -'s and +'s
+        for col in df.filter(regex='^Phenotype\ '):
+            df[col] = df[col].map({0: '-', 1: '+'})
 
         # Attribute assignments from variables
         self.data = df
@@ -905,7 +935,7 @@ class Steinbock(Native):
         # Attribute assignments from variables
         self.data = df
 
-    def adhere_to_phenotype_format(self, use_gated_phenotypes=False):
+    def adhere_to_phenotype_format(self):
         """Ensure the "Phenotype XXXX" columns of the data conform to the required format
         """
 
