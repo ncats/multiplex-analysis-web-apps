@@ -101,7 +101,7 @@ def update_dependencies_of_button_for_adding_phenotype_to_new_dataset():
 def add_new_phenotypes_to_main_df(df, image_for_filtering):
 
     # Import relevant library
-    import datetime
+    from datetime import datetime
 
     if not st.session_state['mg__df_phenotype_assignments'].empty:
 
@@ -180,7 +180,7 @@ def add_new_phenotypes_to_main_df(df, image_for_filtering):
 
         # Save the gating table to disk
         gating_filename = 'gating_table_for_{}_for_datafile_{}-{}.csv'.format(filtering_section_name, st.session_state['mg__input_datafile_filename'], datetime.now().strftime("date%Y_%m_%d_time%H_%M_%S"))
-        df_phenotype_assignments.to_csv(path_or_buf=os.path.join(os.path.join('.', 'output'), gating_filename), index=False)
+        df_phenotype_assignments.to_csv(path_or_buf=os.path.join(os.path.join('.', 'output'), gating_filename), index=True)
         st.write('File {} written to disk'.format(gating_filename))
 
 
@@ -224,6 +224,9 @@ def basic_filter_column_updates():
 
     # Since the column selection must have just changed, update its dependencies
     update_dependencies_of_filtering_widgets()
+
+def delete_all_gated_phenotypes(new_phenotypes=[]):
+    st.session_state['mg__df'] = st.session_state['mg__df'].drop(columns=new_phenotypes)
 
 # Main function
 def main():
@@ -527,9 +530,9 @@ def main():
                       use_container_width=True,
                       on_click=add_new_phenotypes_to_main_df, args=(df, image_for_filtering))
             if image_for_filtering == 'All images':
-                st.write('Clicking this button will apply the phenotype assignments to all images in the dataset')
+                st.write('Clicking this button will apply the phenotype assignments to **all images in the dataset**')
             else:
-                st.write('Clicking this button will apply the phenotype assignments to just the image {}'.format(image_for_filtering))
+                st.write('Clicking this button will apply the phenotype assignments to **just the image {}**'.format(image_for_filtering))
 
         # New dataset
         with main_columns[2]:
@@ -551,8 +554,7 @@ def main():
             if len(new_phenotypes) > 0:
 
                 # Add an option to delete all generated phenotypes so far
-                if st.button('Delete all gated phenotypes', use_container_width=True):
-                    st.session_state['mg__df'] = st.session_state['mg__df'].drop(columns=new_phenotypes)
+                st.button('Delete all gated phenotypes', use_container_width=True, on_click=delete_all_gated_phenotypes, kwargs={'new_phenotypes': new_phenotypes})
 
                 # Initialize the plot of an optional cell scatter plot to the first image in the dataset
                 if 'mg__image_to_plot' not in st.session_state:

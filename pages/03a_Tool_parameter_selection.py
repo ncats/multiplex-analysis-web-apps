@@ -191,7 +191,7 @@ def main():
 
             # Change the new phenotype columns to something uniquely identifiable
             columns_to_add = new_df_to_add.columns
-            transform = dict(zip(columns_to_add, [column.replace('Phenotype ', 'Phenotype-from-multiaxial-gater ', count=1) for column in columns_to_add]))
+            transform = dict(zip(columns_to_add, [column.replace('Phenotype ', 'Phenotype-from-multiaxial-gater ', 1) for column in columns_to_add]))
             new_df_to_add = new_df_to_add.rename(columns=transform)
 
             # Append these columns to the original dataframe and write the result to disk, storing the filename in the settings for the SIT
@@ -214,7 +214,10 @@ def main():
 
         # If the Phenotyper's phenotyping method is "Custom", create a phenotype assignments file (and assign the corresponding setting) from its phenotype assignment table
         if st.session_state['phenoMeth'] == 'Custom':
-            st.session_state['settings__phenotyping__phenotype_identification_file'] = create_phenotype_assignments_file_from_phenotyper(st.session_state['pheno__de_phenotype_assignments'].reconstruct_edited_dataframe())
+            df_pheno_assignments = st.session_state['pheno__de_phenotype_assignments'].reconstruct_edited_dataframe()
+            df_pheno_assignments = df_pheno_assignments[df_pheno_assignments['phenotype'] != 'unassigned']
+            df_pheno_assignments['species_percent'] = df_pheno_assignments['species_count'] / df_pheno_assignments['species_count'].sum() * 100
+            st.session_state['settings__phenotyping__phenotype_identification_file'] = create_phenotype_assignments_file_from_phenotyper(df_pheno_assignments)
 
         # Set the phenotyping method from the Phenotyper and update its dependencies
         st.session_state['settings__phenotyping__method'] = st.session_state['phenoMeth']

@@ -115,13 +115,13 @@ def potentially_apply_phenotype_override(df, phenotype_prefix_override):
         phenotype_columns = [column for column in current_columns if column.startswith('Phenotype ')]
 
         # Create a dictionary transforming these column names to ones subscripted with "_standard"
-        transform = dict(zip(phenotype_columns, [column.replace('Phenotype ', 'Phenotype_standard ', count=1) for column in phenotype_columns]))
+        transform = dict(zip(phenotype_columns, [column.replace('Phenotype ', 'Phenotype_standard ', 1) for column in phenotype_columns]))
 
         # Transform the dataframe column names accordingly
         df = df.rename(columns=transform)
 
         # Create a dictionary transforming the override column names to "Phenotype "
-        transform = dict(zip(phenotype_override_columns, [column.replace(phenotype_prefix_override, 'Phenotype ', count=1) for column in phenotype_override_columns]))
+        transform = dict(zip(phenotype_override_columns, [column.replace(phenotype_prefix_override, 'Phenotype ', 1) for column in phenotype_override_columns]))
 
         # Transform the dataframe column names accordingly
         df = df.rename(columns=transform)

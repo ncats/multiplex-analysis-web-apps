@@ -1809,21 +1809,24 @@ class TIMECellInteraction:
 
             # Plot the averaged P values for every slide
             for slide_name, srs_slide_data in df_log_dens_pvals_arr_per_slide.iterrows():
-                print('Plotting P values for slide {} averaged over all its ROIs with valid P value data'.format(slide_name))
-                plot_density_pvals_simple(
-                    log_dens_pvals_arr=srs_slide_data['log_dens_pvals_arr'],
-                    log_pval_range=log_pval_range,
-                    figsize=figsize,
-                    dpi=dpi,
-                    plots_dir=savedir,
-                    plot_real_data=plot_real_data,
-                    entity_name=slide_name,
-                    img_file_suffix=img_file_suffix,
-                    entity=entity,
-                    entity_index=-1,
-                    all_species_names=all_species_names,
-                    title_suffix=title_suffix
-                )
+                if srs_slide_data['log_dens_pvals_arr'] is not None:
+                    print('Plotting P values for slide {} averaged over all its ROIs with valid P value data'.format(slide_name))
+                    plot_density_pvals_simple(
+                        log_dens_pvals_arr=srs_slide_data['log_dens_pvals_arr'],
+                        log_pval_range=log_pval_range,
+                        figsize=figsize,
+                        dpi=dpi,
+                        plots_dir=savedir,
+                        plot_real_data=plot_real_data,
+                        entity_name=slide_name,
+                        img_file_suffix=img_file_suffix,
+                        entity=entity,
+                        entity_index=-1,
+                        all_species_names=all_species_names,
+                        title_suffix=title_suffix
+                    )
+                else:
+                    print('Not plotting P values for slide {} averaged over all its ROIs with valid P value data, because there are no ROIs with valid P value data'.format(slide_name))
 
         # Print that we're not running the plotting part of this component
         else:
