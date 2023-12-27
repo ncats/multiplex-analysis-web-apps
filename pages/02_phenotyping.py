@@ -241,7 +241,7 @@ def main():
             st.write('Replace the "unassigned" values in the "phenotype_name" column below with a descriptive name, such as "M2 macrophage". Don\'t change the values in any other column!')
             if 'pheno__de_phenotype_assignments' not in st.session_state:
                 st.session_state['pheno__de_phenotype_assignments'] = sde.DataframeEditor(df_name='pheno__df_phenotype_assignments', default_df_contents=bpl.init_pheno_assign(st.session_state.df))
-            st.session_state['pheno__de_phenotype_assignments'].dataframe_editor(on_change=data_editor_change_callback)  # note there is no return variable
+            st.session_state['pheno__de_phenotype_assignments'].dataframe_editor(on_change=data_editor_change_callback, reset_data_editor_button_text='Reset phenotype assignments')  # note there is no return variable
         else:
             st.dataframe(st.session_state.spec_summ, use_container_width=True)
 

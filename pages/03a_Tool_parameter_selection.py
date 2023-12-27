@@ -217,6 +217,7 @@ def main():
             df_pheno_assignments = st.session_state['pheno__de_phenotype_assignments'].reconstruct_edited_dataframe()
             df_pheno_assignments = df_pheno_assignments[df_pheno_assignments['phenotype'] != 'unassigned']
             df_pheno_assignments['species_percent'] = df_pheno_assignments['species_count'] / df_pheno_assignments['species_count'].sum() * 100
+            df_pheno_assignments = df_pheno_assignments.reset_index(drop=True)
             st.session_state['settings__phenotyping__phenotype_identification_file'] = create_phenotype_assignments_file_from_phenotyper(df_pheno_assignments)
 
         # Set the phenotyping method from the Phenotyper and update its dependencies
