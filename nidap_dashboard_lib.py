@@ -505,9 +505,8 @@ def setFigureObjs_UMAP(session_state):
              f'PHENO METHOD: {session_state.selected_phenoMeth}',
              f'SLIDE ID: {session_state["selSlide ID_short"]}']
 
-
     session_state.df_umap_filt = session_state.df_umap_filt.loc[session_state.df_umap_filt['umap_test'] == True, :]
-    clustOrder = sorted(session_state.df_umap_filt['clust_label'].unique())
+    clustOrder = sorted(session_state.spatial_umap.cells['clust_label'].unique())[1:]
     # Seaborn
     session_state.seabornFig_clust, session_state.ax = bpl.draw_scatter_fig(figsize=session_state.figsize)
     session_state.seabornFig_clust = bpl.scatter_plot(session_state.df_umap_filt, session_state.seabornFig_clust, session_state.ax, title,

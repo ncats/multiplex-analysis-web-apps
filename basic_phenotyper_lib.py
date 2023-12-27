@@ -385,7 +385,7 @@ def scatter_plot(df, fig, ax, figTitle, xVar, yVar, hueVar, hueOrder, xLim = Non
     sns.scatterplot(df,
                     x = xVar,
                     y = yVar,
-                    s = 4,
+                    s = 15,
                     hue = hueVar,
                     hue_order = hueOrder,
                     palette = 'tab20',
