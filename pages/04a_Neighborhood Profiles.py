@@ -64,6 +64,8 @@ def apply_umap(UMAPStyle):
     st.session_state.wcss_calc_completed = True
     st.session_state.umapCompleted = True
 
+    filter_and_plot()
+
 def set_clusters():
     st.session_state.bc.startTimer()
     st.session_state.spatial_umap = bpl.perform_clusteringUMAP(st.session_state.spatial_umap, st.session_state.slider_clus_val)
@@ -75,6 +77,8 @@ def set_clusters():
     st.session_state.bc.set_value_df('time_to_run_cluster', st.session_state.bc.elapsedTime())
 
     st.session_state.clustering_completed = True
+
+    filter_and_plot()
 
 def slide_id_prog_left_callback():
     '''
