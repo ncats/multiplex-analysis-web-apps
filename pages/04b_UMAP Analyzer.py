@@ -1,6 +1,4 @@
 import streamlit as st
-from st_pages import show_pages_from_config, add_indentation
-from streamlit_extras.app_logo import add_logo
 
 # Import relevant libraries
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
@@ -25,19 +23,8 @@ def main():
     # Run streamlit-dataframe-editor library initialization tasks at the top of the page
     st.session_state = sde.initialize_session_state(st.session_state)
 
-    # Apply pages order and indentation
-    add_indentation()
-    show_pages_from_config()
-
-    # Sidebar organization
-    with st.sidebar:
-        st.write('**:book: [Documentation](https://ncats.github.io/multiplex-analysis-web-apps)**')
-
-    # Add logo to page
-    add_logo('app_images/mawa_logo-width315.png', height=150)
-
     # Run Top of Page (TOP) functions
-    st.session_state = top.check_for_platform(st.session_state)
+    st.session_state = top.top_of_page_reqs(st.session_state)
 
     if 'init' not in st.session_state:
         settings_yaml_file = 'config_files/OMAL_REEC.yml'
