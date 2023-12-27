@@ -2,11 +2,8 @@
 This is the python script which produces the PHENOTYPING PAGE
 '''
 import os
-import time
 import streamlit as st
-from st_pages import show_pages_from_config, add_indentation
-from streamlit_extras.add_vertical_space import add_vertical_space 
-from streamlit_extras.app_logo import add_logo
+from streamlit_extras.add_vertical_space import add_vertical_space
 import dataset_formats
 
 # Import relevant libraries
@@ -97,26 +94,13 @@ def main():
     # Run streamlit-dataframe-editor library initialization tasks at the top of the page
     st.session_state = sde.initialize_session_state(st.session_state)
 
-    # Apply pages order and indentation
-    add_indentation()
-    show_pages_from_config()
+    # Run Top of Page (TOP) functions
+    st.session_state = top.top_of_page_reqs(st.session_state)
 
     if 'init' not in st.session_state:
         settings_yaml_file = 'config_files/OMAL_REEC.yml'
         # Initialize session_state values for streamlit processing
         st.session_state = ndl.init_session_state(st.session_state, settings_yaml_file)
-
-    # Sidebar organization
-    with st.sidebar:
-        st.write('**:book: [Documentation](https://ncats.github.io/multiplex-analysis-web-apps)**')
-
-        # st.button('Record Benchmarking', on_click=st.session_state.bc.save_run_to_csv)
-
-    # Add logo to page
-    add_logo('app_images/mawa_logo-width315.png', height=150)
-
-    # Run Top of Page (TOP) functions
-    st.session_state = top.check_for_platform(st.session_state)
 
     st.header('Phenotyper\nNCATS-NCI-DMAP')
 
