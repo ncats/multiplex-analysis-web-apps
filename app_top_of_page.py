@@ -26,7 +26,7 @@ def top_of_page_reqs(session_state, newtab_flag = False):
 
     # Sidebar organization
     with st.sidebar:
-        st.write('**:book: [Documentation](https://ncats.github.io/multiplex-analysis-web-apps)**')
+        st.write('**:book: [Documentation](https://nidap.nih.gov/workspace/module/view/latest/ri.workshop.main.module.6b54d691-4d02-4f77-8acd-734f42e3eee0)**')
         if newtab_flag:
             # Get link for app to be opened in new tab and add link to docs
             # This line is causing a repeatable "KeyError: 'platform'" that seems 
