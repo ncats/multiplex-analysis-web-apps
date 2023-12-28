@@ -2,17 +2,17 @@
 import pandas as pd
 import seaborn as sns
 import streamlit as st
-from st_pages import show_pages_from_config, add_indentation
 import plotly.graph_objects as go
 import os
 import dataset_formats
 import plotly.express as px
-import streamlit_dataframe_editor as sde
 import utils
 import matplotlib.pyplot as plt
 import numpy as np
-from streamlit_extras.app_logo import add_logo
+
+# Import relevant libraries
 import app_top_of_page as top
+import streamlit_dataframe_editor as sde
 
 # Function to load the data in a unified format
 def load_data(input_datafile_path, coord_units_in_microns, dataset_format):
@@ -238,19 +238,8 @@ def main():
     # Run streamlit-dataframe-editor library initialization tasks at the top of the page
     st.session_state = sde.initialize_session_state(st.session_state)
 
-    # Apply pages order and indentation
-    add_indentation()
-    show_pages_from_config()
-
-    # Sidebar organization
-    with st.sidebar:
-        st.write('**:book: [Documentation](https://ncats.github.io/multiplex-analysis-web-apps)**')
-
-    # Add logo to page
-    add_logo('app_images/mawa_logo-width315.png', height=150)
-
     # Run Top of Page (TOP) functions
-    st.session_state = top.check_for_platform(st.session_state)
+    st.session_state = top.top_of_page_reqs(st.session_state)
 
     # Set the default dataframes to be edited
     default_df_current_phenotype = pd.DataFrame(columns=['Column for filtering', 'Minimum value', 'Maximum value'])
