@@ -53,7 +53,7 @@ def load_annotation_data(annotations_dir, csv_files, phenotyping_method, phenoty
         _, _, _, marker_prefix, _, markers = dataset_formats.extract_datafile_metadata(csv_file_path)
         marker_column_names_list = [marker_prefix + x for x in markers]
         # df = pd.read_csv(csv_file_path)
-        df = new_phenotyping_lib.apply_phenotyping(csv_file_path=csv_file_path, method=phenotyping_method, phenotype_identification_file=phenotype_identification_file)
+        df = new_phenotyping_lib.apply_phenotyping(csv_file_path=csv_file_path, method=phenotyping_method, phenotype_identification_file=phenotype_identification_file)[0]
         if marker_column_names_list != []:
             # marker_column_names_list = ast.literal_eval(marker_column_names_str)
             df = df[df[marker_column_names_list].apply(sum, axis='columns') != 0]

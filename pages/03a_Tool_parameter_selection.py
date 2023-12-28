@@ -131,10 +131,8 @@ def main():
         # Assign a new dataframe as a subset of the one containing the phenotype assignments
         df_phenotype_assignments_to_write = df_phenotype_assignments[['species_count', 'species_percent', 'species_name_short', 'phenotype', 'species_name_long']]
 
-        # Set the index to the "Species int" value in time_cell_interaction_lib.py
-        full_marker_list = [x.removeprefix('Phenotype ') for x in st.session_state['df'].columns if x.startswith('Phenotype ')]
-        num_all_markers = len(full_marker_list)
-        df_phenotype_assignments_to_write.index = df_phenotype_assignments_to_write['species_name_short'].apply(lambda species_name_short: (sum([2 ** (num_all_markers - full_marker_list.index(positive_marker) - 1) for positive_marker in species_name_short[:-1].split('+ ')]) if species_name_short != 'Other' else 0))
+        # Set a dummy index; hopefully this should have no effect on anything
+        df_phenotype_assignments_to_write.index = [-1] * len(df_phenotype_assignments_to_write)
 
         # Modify the columns to spec
         df_phenotype_assignments_to_write = df_phenotype_assignments_to_write[df_phenotype_assignments_to_write['species_name_long'].apply(lambda species_name_long: sum([0 if x[-1] == '-' else 1 for x in species_name_long.split(' ')]) != 0)]
@@ -216,8 +214,6 @@ def main():
         if st.session_state['phenoMeth'] == 'Custom':
             df_pheno_assignments = st.session_state['pheno__de_phenotype_assignments'].reconstruct_edited_dataframe()
             df_pheno_assignments = df_pheno_assignments[df_pheno_assignments['phenotype'] != 'unassigned']
-            df_pheno_assignments['species_percent'] = df_pheno_assignments['species_count'] / df_pheno_assignments['species_count'].sum() * 100
-            df_pheno_assignments = df_pheno_assignments.reset_index(drop=True)
             st.session_state['settings__phenotyping__phenotype_identification_file'] = create_phenotype_assignments_file_from_phenotyper(df_pheno_assignments)
 
         # Set the phenotyping method from the Phenotyper and update its dependencies

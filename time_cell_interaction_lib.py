@@ -1,4 +1,5 @@
 import utils
+import new_phenotyping_lib
 
 class TIMECellInteraction:
     '''
@@ -13,7 +14,7 @@ class TIMECellInteraction:
         import os
 
         # Extract attributes, some not actually needed, for compatibility with original way the SIP library worked before there was a dataset object
-        coord_units_in_microns, min_coord_spacing, input_data_filename, species_equivalents, mapping_dict, phenotype_identification_tsv_file = dataset_obj.extract_original_parameters()
+        coord_units_in_microns, min_coord_spacing, input_data_filename, _, mapping_dict, phenotype_identification_tsv_file = dataset_obj.extract_original_parameters()
 
         # Set local variables
         thickness = thickness_new / coord_units_in_microns  # we want "thickness" to be in the same units as the coordinates in the input file. Essentially, we're just making sure the units match from the get-go
@@ -83,39 +84,34 @@ class TIMECellInteraction:
                 doubling_type = None
                 self.data = dataset_obj.data
 
-            # Preprocess the data, i.e., the pandas dataframe
-            self.phenotypes = self.preprocess_dataframe(allow_compound_species)
+            # Phenotype as desired            
+            if phenotype_identification_tsv_file is not None:
+                pheno_method = 'Custom'
+            else:
+                if allow_compound_species:
+                    pheno_method = 'Species'
+                else:
+                    pheno_method = 'Marker'
+            self.data, self.phenotypes, species_int_to_pheno_name = new_phenotyping_lib.apply_phenotyping(self.data, pheno_method, phenotype_identification_tsv_file, species_int_colname='Species int')
+
+            #### ADD IN species_int_to_pheno_name TO THE FUNCTION BELOW!!!!
 
             # Get the plotting map, number of colors, unique species, and the unique slides
-            plotting_map, _, _, unique_slides = get_dataframe_info(self.data, self.phenotypes, mapping_dict)
-
-            # Combine marker combinations into the actual species they represent
-            if not refine_plotting_map_using_mapping_dict:
-                plotting_map, data, num_colors, unique_species = incorporate_species_equivalents(species_equivalents, plotting_map, self.data, mapping_dict=None)
-            else:
-                plotting_map, data, num_colors, unique_species = incorporate_species_equivalents(species_equivalents, plotting_map, self.data, mapping_dict=mapping_dict)
-            self.data = data
+            plotting_map, num_colors, unique_species, unique_slides, self.data = get_dataframe_info(self.data, self.phenotypes, species_int_to_pheno_name=species_int_to_pheno_name)
 
             # Save the case/slide/ROI "table of contents", including the ROI widths and heights
-            df_data_by_roi = generate_case_slide_roi_contents(data)
-            self.df_data_by_roi = df_data_by_roi
+            self.df_data_by_roi = generate_case_slide_roi_contents(self.data)
 
             # Print and save the recommended radius as 10% of the minimum average ROI size
-            self.recommended_radius_ = calculate_recommended_radius(df_data_by_roi)
+            self.recommended_radius_ = calculate_recommended_radius(self.df_data_by_roi)
 
-            # Incorporate phenotype identifications from the sets of surface markers from a TSV file filled out by biologists in Excel
-            if phenotype_identification_tsv_file is not None:
-                data, num_colors, plotting_map, unique_species = self.incorporate_phenotype_identifications(phenotype_identification_tsv_file)
-                self.data = data
-
-            ### Reduce dataset here in order to test independence of significance methodology of non-involved species
+            # Reduce dataset here in order to test independence of significance methodology of non-involved species
             if decimate_top_species:
                 print('WARNING: Decimating top species by 90%!!')
                 top_species = plotting_map[0][0]
-                data_sample = data[data['Species int'] == top_species].sample(frac=0.9, random_state=42)  # didn't yet test addition of ", random_state=42"
-                data = data.drop(data_sample.index).reset_index()
+                data_sample = self.data[self.data['Species int'] == top_species].sample(frac=0.9, random_state=42)  # didn't yet test addition of ", random_state=42"
+                self.data = self.data.drop(data_sample.index).reset_index()
                 plotting_map[0][2] = plotting_map[0][2] - len(data_sample)
-                self.data = data
 
             # Set some properties that haven't already been defined
             self.num_colors = num_colors
@@ -125,9 +121,9 @@ class TIMECellInteraction:
             # Add to the used-to-be-called-contents dataframe the rest of the ROI-specific data
             if flatten:
                 df_data_by_roi = self.flatten_roi_plotting_data()
-                self.df_data_by_roi = df_data_by_roi
 
             # Save the data to a pickle file
+            data = self.data
             self.make_pickle_dict(['pickle_dir', 'is_real_data', 'compound_species_allowed', 'doubling_type', 'data', 'phenotypes', 'plotting_map', 'num_colors', 'unique_species', 'unique_slides', 'df_data_by_roi'], locals(), pickle_file)
 
         else:
@@ -2383,37 +2379,11 @@ def incorporate_species_equivalents(species_equivalents, plotting_map, data, map
     # Get a dataframe version of the plotting map
     df_plotting_map = pd.DataFrame(data=plotting_map, columns=['species_id', 'positive_markers', 'species_count', 'marker_ids', 'circle_sizes']).set_index('species_id', drop=False)
 
-    # For each key in the species mappings...
-    for curr_key in species_equivalents.keys():
-
-        # Determine the corresponding value
-        curr_val = species_equivalents.get(curr_key)
-
-        # Note that the point of species_equivalents is to map from a "bad" species to a "good" species, and not only is it pointless to map from a "good" to "good", but the code block below is actually harmful and produces silly results. Thus, as a failsafe I am putting the condition "(curr_key != curr_val)" in the line below so that it is perfectly harmless to include "good to good" mappings.
-        if (curr_key != curr_val) and (curr_key in df_plotting_map['species_id']) and (curr_val in df_plotting_map['species_id']):
-
-            # Print out the species equivalencies that we're asserting
-            curr_key_markers = df_plotting_map.loc[curr_key, 'positive_markers']
-            curr_val_markers = df_plotting_map.loc[curr_val, 'positive_markers']
-            print('Now identifying {} as {}'.format(curr_key_markers, curr_val_markers))
-
-            # Incoporate the key species into the value species and drop the key row
-            df_plotting_map.loc[curr_val, 'species_count'] = df_plotting_map.loc[curr_val, 'species_count'] + df_plotting_map.loc[curr_key, 'species_count']
-            df_plotting_map = df_plotting_map.drop(labels=curr_key)
-
-            # Redefine the key species labels as the value species labels
-            data.loc[data['Species int'] == curr_key, 'Species int'] = curr_val
-
     # Sort by species prevalence
     df_plotting_map = df_plotting_map.sort_values('species_count', ascending=False)
 
-    # Optionally use the mapping dictionary (e.g., if the labels/phenotypes contain hyphen-separated single entities) to accordingly calculate the markers and circle sizes
-    if mapping_dict is not None:
-        df_plotting_map = refine_plotting_map_from_mapping_dict(df_plotting_map, mapping_dict)
-
     # Ensure the attributes of the object are overwritten
     plotting_map = df_plotting_map.to_numpy()
-    # self.data = data
     num_colors = (df_plotting_map['circle_sizes'] == 1).sum()
     unique_species = df_plotting_map['species_id'].to_numpy(dtype=np.int64)
 
@@ -2439,34 +2409,25 @@ def get_consolidated_data(csv_file):
 
 # Given a list of phenotypes in a species, return the A+/B+ etc. string version
 def phenotypes_to_string(phenotype_list):
-    phenotype_list.sort()
-    return('/'.join(phenotype_list))
+    return '/'.join(sorted(phenotype_list))
 
 
 # Given a list of phenotypes in a species, return the nicely formatted version, if there's a known cell type corresponding to the species
 # Note these are purely labels; the species themselves are determined by allow_compound_species as usual
 def get_descriptive_cell_label(phenotype_list, mapping_dict):
     # Note: CD163+/CD4+ REALLY ISN'T ANYTHING COMPOUND --> MAKE IT OVERLAPPING SPECIES (i.e., it shouldn't be in the dictionary below)!!!!
-    phenotype_string = phenotypes_to_string(phenotype_list)
-    descriptive_name = mapping_dict.get(phenotype_string)
-    if descriptive_name is None:
-        pretty_name = phenotype_string
-        is_known = False
-    else:
-        # pretty_name = phenotype_string + ' (' + descriptive_name + ')'
-        pretty_name = descriptive_name
-        is_known = True
-    return(pretty_name, is_known)
+    return phenotypes_to_string(phenotype_list), False
 
 
 # Obtain the plotting map, total number of unique colors needed for plotting, the list of unique species (in the same order as in plotting_map), and a correctly sorted list of slides (e.g., 1,2,15 instead of 1,15,2)
 # Note that individual unique species are specified by the allow_compound_species keyword, which in turn affects which of the 'Species int' columns of the Pandas dataframe are actually unique
 # Don't get confused by the mapping_dict variable, which only affects plotting of the species... it doesn't affect what is actually considered a unique species or not!
-def get_dataframe_info(data, phenotypes, mapping_dict):
+def get_dataframe_info(data, phenotypes, species_int_to_pheno_name=None):
 
     # Import relevant modules
     import numpy as np
     from operator import itemgetter
+    import pandas as pd
 
     # Create an ndarray containing all the unique species in the dataset in descending order of frequency with columns: integer label, string list, frequency, color(s), circle size(s)
     plotting_map = [[-(list(data['Species int']).count(x)), list(int2list(phenotypes, x)), x] for x in np.unique(data['Species int'])]  # create a list of the unique species in the dataset with columns: -frequency, string list, integer label
@@ -2482,18 +2443,9 @@ def get_dataframe_info(data, phenotypes, mapping_dict):
     icolor = 0
     for item in plotting_map:
         phenotype_list = item[1]
-        is_known = get_descriptive_cell_label(phenotype_list, mapping_dict)[1]
-
         # If the species (each row of plotting_map) is known to us (i.e., in the inputted mapping_dict variable, which simply assigns a cell label to any single or compound species)...
         # ...give that species its own color, and make a note if the species is also a single, non-compound species (i.e., a single phenotype)
-        if is_known:
-            colors.append(icolor)
-            if len(phenotype_list) == 1:
-                known_phenotypes.append(phenotype_list[0])
-                known_colors.append(icolor)
-            icolor = icolor + 1
-        else:
-            colors.append(-1)
+        colors.append(-1)
 
     # Get the colors of the rest of the species using the colors of the already-known single-phenotype species
     # I.e., if the species is not known to us (i.e., not in mapping_dict), do not give the species its own color (unless it contains a phenotype that's not in known_phenotypes)
@@ -2528,7 +2480,6 @@ def get_dataframe_info(data, phenotypes, mapping_dict):
     num_colors = icolor
 
     # Finalize the plotting map
-    # plotting_map = np.array([ [item[2], item[1], item[0], (color if len(color)!=1 else color[0]), (circle_size if len(circle_size)!=1 else circle_size[0])] for item, color, circle_size in zip(plotting_map, colors, circle_sizes) ])
     plotting_map = np.array([[item[2], item[1], item[0], (color if (len(color) != 1) else color[0]), (circle_size if (len(circle_size) != 1) else circle_size[0])] for item, color, circle_size in zip(plotting_map, colors, circle_sizes)], dtype=object)
 
     # Use the plotting map to extract just the unique species in the data
@@ -2539,7 +2490,24 @@ def get_dataframe_info(data, phenotypes, mapping_dict):
     tmp.sort(key=(lambda x: x[0]))
     unique_slides = [x[1] for x in tmp]
 
-    return(plotting_map, num_colors, unique_species, unique_slides)
+    # Get a dataframe version of the plotting map
+    df_plotting_map = pd.DataFrame(data=plotting_map, columns=['species_id', 'positive_markers', 'species_count', 'marker_ids', 'circle_sizes']).set_index('species_id', drop=False)
+
+    # Sort by species prevalence
+    df_plotting_map = df_plotting_map.sort_values('species_count', ascending=False)
+
+    # Overwrite the positive marker list with the assigned phenotype name from new_phenotyping_lib.apply_phenotyping()
+    if species_int_to_pheno_name is not None:
+        df_plotting_map['positive_markers'] = df_plotting_map['species_id'].apply(lambda x: [species_int_to_pheno_name[x]])
+        df_plotting_map['marker_ids'] = range(len(df_plotting_map))
+        df_plotting_map['circle_sizes'] = 1
+
+    # Ensure the attributes of the object are overwritten
+    plotting_map = df_plotting_map.to_numpy()
+    num_colors = (df_plotting_map['circle_sizes'] == 1).sum()
+    unique_species = df_plotting_map['species_id'].to_numpy(dtype=np.int64)
+
+    return(plotting_map, num_colors, unique_species, unique_slides, data)
 
 
 # Given an array of densities, for each of which we will generate a different ROI of the corresponding density, return a Pandas dataframe of the simulated data

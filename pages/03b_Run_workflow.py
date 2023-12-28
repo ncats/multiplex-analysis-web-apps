@@ -186,7 +186,7 @@ def main():
                     images_to_analyze=orig_settings['analysis']['images_to_analyze']
                     )
                 st.session_state['dataset_obj'] = dataset_obj
-                
+
             # If the button was pressed and therefore the data was loaded, then say so
             with dataset_loading_col2:
                 if dataset_just_loaded:

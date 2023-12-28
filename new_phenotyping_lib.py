@@ -54,7 +54,7 @@ def decompound_integer_field(df, integer_field_name, component_columns):
     # Return the resulting dataframe
     return df
 
-def map_species_to_possibly_compound_phenotypes(df, phenotype_identification_file, full_marker_list):
+def map_species_to_possibly_compound_phenotypes(df, phenotype_identification_file, full_marker_list, species_int_colname='species_int'):
 
     # Import relevant library
     import ast
@@ -94,7 +94,7 @@ def map_species_to_possibly_compound_phenotypes(df, phenotype_identification_fil
         curr_phenotype_int = int(''.join(phenotype_str_list), base=2)
 
         # Add individual component phenotype columns as well as the phenotype integer column to the dataframe
-        curr_df_indexes = df[df['species_int'] == curr_species_int].index
+        curr_df_indexes = df[df[species_int_colname] == curr_species_int].index
         df.loc[curr_df_indexes, phenotype_colnames] = [int(x) for x in phenotype_str_list]  # new line
         df.loc[curr_df_indexes, 'phenotype_int'] = curr_phenotype_int
         num_updated_rows = num_updated_rows + len(curr_df_indexes)
@@ -110,7 +110,98 @@ def map_species_to_possibly_compound_phenotypes(df, phenotype_identification_fil
     # Return the final dataframe
     return df, phenotype_colnames
 
-def apply_phenotyping(csv_file_path, method, phenotype_identification_file):
+def map_to_common_species_id_and_get_pheno_name_mapping(df):
+
+    # Extract the final phenotype columns (note the lowercase "p")
+    phenotype_columns = [column for column in df.columns if column.startswith('phenotype ')]
+
+    # Check that every row corresponds to one and only one phenotype
+    assert df[phenotype_columns].sum(axis='columns').unique().tolist() == [1], 'ERROR: Non-one-to-one mapping from row to phenotype (#1)'
+
+    # Get the unique combinations of species and phenotype IDs
+    df_duplicates_dropped = df[['Species int', 'phenotype_int']].drop_duplicates(ignore_index=False)
+
+    # Since a phenotype may correspond to more than one species, group by phenotype and get the corresponding list of species
+    srs_agg = df_duplicates_dropped.groupby(by='phenotype_int')['Species int'].agg(list)
+
+    # Initialize mapping dictionaries
+    species_int_to_species_int = {}
+    species_int_to_pheno_int = {}
+    pheno_int_to_pheno_name = dict(zip(sorted(df['phenotype_int'].unique()), [column.removeprefix('phenotype ') for column in phenotype_columns[-1::-1]]))
+    species_int_to_pheno_name = {}
+    pheno_int_to_pheno_name = get_entity_id_to_list_mapper(df, entity_colname='phenotype_int', entity_column_prefix='phenotype ')
+    assert set([len(x) for x in pheno_int_to_pheno_name.values()]) == {1}, 'ERROR: Non-one-to-one mapping from row to phenotype (#2)'
+    pheno_int_to_pheno_name = dict(zip(pheno_int_to_pheno_name.keys(), [x[0] for x in pheno_int_to_pheno_name.values()]))
+
+    # For each unique phenotype...
+    for phenotype_int, species_list in srs_agg.items():
+
+        # If the phenotype corresponds to more than one species...
+        if len(species_list) > 1:
+
+            # Choose as the "common" species identifier the one with the lowest identifier
+            common_species_int = min(species_list)
+
+            # For every species for the current phenotype, map to the common species
+            for species_int in species_list:
+                species_int_to_species_int[species_int] = common_species_int
+
+        # If the phenotype corresponds to only a single species...
+        else:
+
+            # Choose the one species as the "common" species
+            common_species_int = species_list[0]
+
+            # Perform the corresponding trivial mapping definition
+            species_int_to_species_int[common_species_int] = common_species_int
+
+        # Map the common species corresponding to the current phenotype to that phenotype
+        species_int_to_pheno_int[common_species_int] = phenotype_int
+
+        # Map the common species corresponding to the current phenotype to the corresponding phenotype name
+        species_int_to_pheno_name[common_species_int] = pheno_int_to_pheno_name[phenotype_int]
+
+    # Map the species IDs to the common species ID for each phenotype
+    df['Species int'] = df['Species int'].apply(lambda x: species_int_to_species_int[x])
+
+    # Return the species-mapped dataframe and the phenotype name corresponding to each common species ID
+    return df, species_int_to_pheno_name
+
+def get_entity_id_to_list_mapper(df, entity_colname='Species int', entity_column_prefix='Phenotype '):
+    # "Entity" can e.g. refer to phenotypes or markers
+    # Another sample call: get_entity_id_to_list_mapper(df, entity_colname='phenotype_int', entity_column_prefix='phenotype ')
+
+    # Get a list of unique entity IDs
+    unique_entity_ids = df[entity_colname].unique()
+
+    # Get the full list of possible entity units
+    full_entity_list = [column.removeprefix(entity_column_prefix) for column in df.columns if column.startswith(entity_column_prefix)]
+
+    # Get the number of possible entity units
+    num_entities = len(full_entity_list)
+
+    # Initialize the ID to list mapper
+    entity_id_to_list_mapper = {}
+
+    # For every unique entity ID...
+    for entity_int in unique_entity_ids:
+
+        # Get a binary string corresponding to the current entity ID of the full zero-padded length
+        curr_id_str = format(entity_int, '0' + str(num_entities) + 'b')
+
+        # Determine the locations within the string where the bits are "on"
+        on_loc = [ix for ix, x in enumerate(curr_id_str) if x == '1']
+
+        # Get the unit corresponding to each bit that is on
+        positive_entity_list = [full_entity_list[curr_on_loc] for curr_on_loc in on_loc]
+
+        # Add to the mapper the positive entity list corresponding to the current unique ID
+        entity_id_to_list_mapper[entity_int] = positive_entity_list
+
+    # Return the mapper
+    return entity_id_to_list_mapper
+
+def apply_phenotyping(csv_file_path, method, phenotype_identification_file, species_int_colname='species_int'):
     """Load a datafile and apply one of three phenotyping methods: Species, Marker, or Custom.
     """
 
@@ -118,22 +209,33 @@ def apply_phenotyping(csv_file_path, method, phenotype_identification_file):
     if phenotype_identification_file is not None:
         assert method == 'Custom', 'ERROR: The phenotype identification file is not None but it will not be used'
     if phenotype_identification_file is None:
-        assert method in ['Species', 'Marker'], 'ERROR: The phenotype identification file is not specified but someone other than the Species or Marker phenotyping method (i.e., Custom) has been specified'
+        assert method in ['Species', 'Marker'], 'ERROR: The phenotype identification file is not specified but something other than the Species or Marker phenotyping method (i.e., Custom) has been specified'
 
-    # Determine the field seperator
-    sep = (',' if csv_file_path.split('.')[-1] == 'csv' else '\t')
+    # Print what we're doing
+    print('Applying "{}" phenotyping method'.format(method))
 
-    # Read in the datafile
-    df = pd.read_csv(csv_file_path, sep=sep)
+    if type(csv_file_path) == str:
 
-    # From the detected datafile format, determine the coordinate columns and the marker information
-    _, _, coord_cols, marker_prefix, _, markers_in_csv_file = dataset_formats.extract_datafile_metadata(csv_file_path)
+        # Determine the field seperator
+        sep = (',' if csv_file_path.split('.')[-1] == 'csv' else '\t')
 
-    # Determine the marker columns from the datafile
-    marker_cols = [marker_prefix + marker for marker in markers_in_csv_file]
+        # Read in the datafile
+        df = pd.read_csv(csv_file_path, sep=sep)
 
-    # Extract the relevant columns of the dataframe
-    df = df[coord_cols + marker_cols]
+        # From the detected datafile format, determine the coordinate columns and the marker information
+        _, _, coord_cols, marker_prefix, _, markers_in_csv_file = dataset_formats.extract_datafile_metadata(csv_file_path)
+
+        # Determine the marker columns from the datafile
+        marker_cols = [marker_prefix + marker for marker in markers_in_csv_file]
+
+        # Extract the relevant columns of the dataframe
+        df = df[coord_cols + marker_cols]
+
+    # Assume it's already a dataset_formats.py-transformed dataframe
+    else:
+        df = csv_file_path
+        marker_cols = [column for column in df.columns if column.startswith('Phenotype ')]
+        markers_in_csv_file = [column.removeprefix('Phenotype ') for column in marker_cols]
 
     # If the marker columns are not 1s and 0s, map their values to 1s and 0s
     marker_cols_first_row = df[marker_cols].iloc[0, :].to_list()  # get just the first row of marker values
@@ -141,13 +243,13 @@ def apply_phenotyping(csv_file_path, method, phenotype_identification_file):
         df[marker_cols] = df[marker_cols].map(lambda x: ({'+': 1, '-': 0}[x[-1]] if isinstance(x, str) else 0))
         
     # Get the integer conversion of the markers lined up a base-two bits
-    df['species_int'] = df[marker_cols].apply(lambda x: int(''.join([str(y) for y in list(x)]), base=2), axis='columns')
+    df[species_int_colname] = df[marker_cols].apply(lambda x: int(''.join([str(y) for y in list(x)]), base=2), axis='columns')
 
     # Drop objects that aren't positive for any markers of interest
-    df = df[df['species_int'] != 0]
+    df = df[df[species_int_colname] != 0]
 
     # Print the initial species makeup of the dataframe prior to phenotyping
-    value_counts = df['species_int'].value_counts()
+    value_counts = df[species_int_colname].value_counts()
     print('Dataframe makeup before {} phenotyping (species_int):'.format(method))
     print(value_counts)
     print('Total objects: {}'.format(value_counts.sum()))
@@ -155,37 +257,45 @@ def apply_phenotyping(csv_file_path, method, phenotype_identification_file):
     # If the user requests the Species phenotyping method...
     if method == 'Species':
         
-        pass
-        # # Set the best column names to those of the markers
-        # phenotype_colnames = marker_cols
+        # Get a dictionary taking the species ID to the phenotype name, which in this case is the combination of all positive markers
+        species_int_to_pheno_name0 = get_entity_id_to_list_mapper(df, entity_colname=species_int_colname, entity_column_prefix='Phenotype ')
+        species_int_to_pheno_name = {}
+        for species_int, positive_marker_list in zip(species_int_to_pheno_name0.keys(), species_int_to_pheno_name0.values()):
+            positive_marker_list[-1] = positive_marker_list[-1] + '+'
+            species_int_to_pheno_name[species_int] = '+ '.join(positive_marker_list)
     
     # If the user requests the Marker phenotyping method...
     elif method == 'Marker':
 
         # Decompound the species
-        df = decompound_integer_field(df, 'species_int', marker_cols)
+        df = decompound_integer_field(df, species_int_colname, marker_cols)
 
-        # # Set the best column names to those of the markers
-        # phenotype_colnames = marker_cols
+        # Get a dictionary taking the species ID to the phenotype name, which in this case is the corresponding marker
+        species_int_to_pheno_name = get_entity_id_to_list_mapper(df, entity_colname=species_int_colname, entity_column_prefix='Phenotype ')
+        assert set([len(x) for x in species_int_to_pheno_name.values()]) == {1}, 'ERROR: Non-one-to-one mapping from row to marker'
+        species_int_to_pheno_name = dict(zip(species_int_to_pheno_name.keys(), [x[0] for x in species_int_to_pheno_name.values()]))
     
     # If the user requests the Custom phenotyping method...
     elif method == 'Custom':
         
         # Use the TSV file to assign possibly more than one phenotype to each species
-        df, phenotype_colnames = map_species_to_possibly_compound_phenotypes(df, phenotype_identification_file, markers_in_csv_file)
+        df, phenotype_colnames = map_species_to_possibly_compound_phenotypes(df, phenotype_identification_file, markers_in_csv_file, species_int_colname=species_int_colname)
 
         # Decompound the possibly compound phenotypes so there is a single phenotype per row, likely duplicating coordinates in the process
         df = decompound_integer_field(df, 'phenotype_int', phenotype_colnames)
+
+        # Currently the species IDs are those corresponding to a species phenotyping method; change them to ones corresponding to the custom phenotype assignments file
+        df, species_int_to_pheno_name = map_to_common_species_id_and_get_pheno_name_mapping(df)
 
     # Print the phenotype makeup of the dataframe after phenotyping
     if 'phenotype_int' in df.columns:
         col_to_count = 'phenotype_int'
     else:
-        col_to_count = 'species_int'
+        col_to_count = species_int_colname
     value_counts = df[col_to_count].value_counts()
     print('Dataframe makeup after {} phenotyping ({}):'.format(method, col_to_count))
     print(value_counts)
     print('Total objects: {}'.format(value_counts.sum()))
 
     # Return the final dataframe
-    return df  #, phenotype_colnames
+    return df, np.array(markers_in_csv_file), species_int_to_pheno_name
