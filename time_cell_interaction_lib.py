@@ -3318,7 +3318,7 @@ def generate_case_slide_roi_contents(data, roi_colname='tag', num_last_chars_in_
             nslides = nslides + 1
 
             # Get the rows in the dataframe corresponding to the current slide in the current case
-            slide_rows = case_rows & (df.loc[case_rows, 'Slide ID'] == unique_slide)
+            slide_rows = case_rows & (df['Slide ID'] == unique_slide)
 
             # Determine the unique ROIs in the current slide in the current case and loop over them
             unique_rois = df.loc[slide_rows, roi_colname].unique()
