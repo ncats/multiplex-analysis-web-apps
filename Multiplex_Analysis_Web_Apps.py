@@ -19,6 +19,7 @@ def main():
     # Run Top of Page (TOP) functions
     st.session_state = top.top_of_page_reqs(st.session_state, newtab_flag=True)
 
+    # Markdown text 
     intro_markdown = ndl.read_markdown_file('markdown/MAWA_WelcomePage.md')
     st.markdown(intro_markdown, unsafe_allow_html=True)
 
