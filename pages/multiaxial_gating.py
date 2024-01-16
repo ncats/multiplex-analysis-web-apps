@@ -183,7 +183,6 @@ def add_new_phenotypes_to_main_df(df, image_for_filtering):
         df_phenotype_assignments.to_csv(path_or_buf=os.path.join(os.path.join('.', 'output'), gating_filename), index=True)
         st.write('File {} written to disk'.format(gating_filename))
 
-
 # Function to clear the session state as would be desired when loading a new dataset
 def clear_session_state(keep_keys=[]):
     for key in (set(st.session_state.keys()) - set(keep_keys)):
@@ -228,8 +227,10 @@ def basic_filter_column_updates():
 def delete_all_gated_phenotypes(new_phenotypes=[]):
     st.session_state['mg__df'] = st.session_state['mg__df'].drop(columns=new_phenotypes)
 
-# Main function
 def main():
+    '''
+    Main function for running the page
+    '''
 
     # Set page settings
     st.set_page_config(layout='wide', page_title='Multiaxial Gating')
@@ -242,9 +243,9 @@ def main():
     st.session_state = top.top_of_page_reqs(st.session_state)
 
     # Set the default dataframes to be edited
-    default_df_current_phenotype = pd.DataFrame(columns=['Column for filtering', 'Minimum value', 'Maximum value'])
+    default_df_current_phenotype     = pd.DataFrame(columns=['Column for filtering', 'Minimum value', 'Maximum value'])
     default_df_phenotype_assignments = pd.DataFrame()
-    default_df_field_matching = pd.DataFrame(columns=['Intensity field', 'Corresponding thresholded marker field'])
+    default_df_field_matching        = pd.DataFrame(columns=['Intensity field', 'Corresponding thresholded marker field'])
 
     # Constants
     input_directory = os.path.join('.', 'input')
@@ -273,57 +274,64 @@ def main():
         st.session_state['mg__selected_image'] = 'All images'
 
     # Create columns for the input datafile settings
-    input_datafile_columns = st.columns(4)
-
-    # Set the input datafile name
-    with input_datafile_columns[0]:
-        st.selectbox('Filename:', options_for_input_datafiles, key='mg__input_datafile_filename', help='An input datafile must be present in the "input" directory and have a .csv or .tsv extension.')
-        input_datafilename = st.session_state['mg__input_datafile_filename']
-
-    # Set the input datafile coordinate units in microns
-    with input_datafile_columns[1]:
-        st.number_input('x-y coordinate units (microns):', min_value=0.0, key='mg__input_datafile_coordinate_units', help='E.g., if the coordinates in the input datafile were pixels, this number would be a conversion to microns in units of microns/pixel.', format='%.4f', step=0.0001)
-        coord_units_in_microns = st.session_state['mg__input_datafile_coordinate_units']
-
-    # Load the data
     input_datafile_columns = st.columns(2)
     with input_datafile_columns[0]:
-        if st.button('Load data', use_container_width=True, on_click=clear_session_state, kwargs={'keep_keys': ['mg__input_datafile_filename', 'mg__input_datafile_coordinate_units']}):
-            st.session_state['mg__df'] = load_data(os.path.join(input_directory, input_datafilename), coord_units_in_microns, dataset_formats.extract_datafile_metadata(os.path.join(input_directory, input_datafilename))[4])
-            unique_images = st.session_state['mg__df']['Slide ID'].unique()
-            st.session_state['mg__unique_images_short'] = [x.split('-imagenum_')[1] for x in unique_images]
-            st.session_state['mg__unique_image_dict'] = dict(zip(st.session_state['mg__unique_images_short'], unique_images))
-            phenotype_columns = [column for column in st.session_state['mg__df'].columns if column.startswith('Phenotype ')]
-            st.session_state['mg__df'] = st.session_state['mg__df'].rename(columns=dict(zip(phenotype_columns, [column.replace('Phenotype ', 'Phenotype_orig ') for column in phenotype_columns])))
-            st.session_state['mg__all_numeric_columns'] = st.session_state['mg__df'].select_dtypes(include='number').columns
-            st.session_state['mg__all_columns'] = st.session_state['mg__df'].columns
-            st.session_state['mg__column_config'] = {"Corresponding thresholded marker field": st.column_config.SelectboxColumn("Corresponding thresholded marker field", help="Tresholded marker field corresponding to the intensity at left", options=st.session_state['mg__all_columns'], required=True)}
-    
-    # Warn the user that they need to load the data at least once
-    if 'mg__df' not in st.session_state:
-        st.warning('You must click the "Load data" button above before you can use this app!')
+        data_sel_cols = st.columns([3, 1])
+
+        # Set the input datafile name
+        with data_sel_cols[0]:
+            st.selectbox('Filename:', options_for_input_datafiles, key='mg__input_datafile_filename', help='Input datafiles must be present in the "input" directory and have a .csv or .tsv extension.')
+            input_datafilename = st.session_state['mg__input_datafile_filename']
+
+        # Set the input datafile coordinate units in microns
+        with data_sel_cols[1]:
+            st.number_input('x-y coordinate units (microns):', min_value=0.0, key='mg__input_datafile_coordinate_units', help='E.g., if the coordinates in the input datafile were pixels, this number would be a conversion to microns in units of microns/pixel.', format='%.4f', step=0.0001)
+            coord_units_in_microns = st.session_state['mg__input_datafile_coordinate_units']
+
+        data_butt_cols = st.columns([3, 1])
+        with data_butt_cols[0]:
+            MaG_load_hit = st.button('Load data', use_container_width=True, on_click=clear_session_state, kwargs={'keep_keys': ['mg__input_datafile_filename', 'mg__input_datafile_coordinate_units']})
+
+        with data_butt_cols[1]:
+            # Load the data
+            if MaG_load_hit:
+                with st.spinner('Loading Data'):
+                    st.session_state['mg__df'] = load_data(os.path.join(input_directory, input_datafilename), coord_units_in_microns, dataset_formats.extract_datafile_metadata(os.path.join(input_directory, input_datafilename))[4])
+                    unique_images = st.session_state['mg__df']['Slide ID'].unique()
+                    st.session_state['mg__unique_images_short'] = [x.split('-imagenum_')[1] for x in unique_images]
+                    st.session_state['mg__unique_image_dict'] = dict(zip(st.session_state['mg__unique_images_short'], unique_images))
+                    phenotype_columns = [column for column in st.session_state['mg__df'].columns if column.startswith('Phenotype ')]
+                    st.session_state['mg__df'] = st.session_state['mg__df'].rename(columns=dict(zip(phenotype_columns, [column.replace('Phenotype ', 'Phenotype_orig ') for column in phenotype_columns])))
+                    st.session_state['mg__all_numeric_columns'] = st.session_state['mg__df'].select_dtypes(include='number').columns
+                    st.session_state['mg__all_columns'] = st.session_state['mg__df'].columns
+                    st.session_state['mg__column_config'] = {"Corresponding thresholded marker field": st.column_config.SelectboxColumn("Corresponding thresholded marker field", help="Tresholded marker field corresponding to the intensity at left", options=st.session_state['mg__all_columns'], required=True)}
+                    
+        # Warn the user that they need to load the data at least once
+        if 'mg__df' not in st.session_state:
+            st.warning('Please load data from the selections above')
 
     # If the data have been loaded...
-    else:
+    if 'mg__df' in st.session_state:
     
         # Load the data and some resulting processed data
         df = st.session_state['mg__df']
         unique_images_short = st.session_state['mg__unique_images_short']
         unique_image_dict = st.session_state['mg__unique_image_dict']
 
-        # Add expander, expanded by default just for the time being as sometimes otherwise it collapses unexpectedly
-        with st.expander('Optional field matching (collapse this panel for more space!):', expanded=True):
+        with input_datafile_columns[1]:
+            # Add expander, expanded by default just for the time being as sometimes otherwise it collapses unexpectedly
+            with st.expander('Field matching (optional):', expanded=False):
 
-            # Create two columns on the page
-            cols_field_matching = st.columns(2)
+                # Create two columns on the page
+                cols_field_matching = st.columns(2)
 
-            # In the first column, have a multiselect for the user to select raw intensity columns
-            with cols_field_matching[0]:
-                st.multiselect('Select intensity fields:', st.session_state['mg__all_columns'], key='mg__selected_intensity_fields', on_change=update_field_matching)
+                # In the first column, have a multiselect for the user to select raw intensity columns
+                with cols_field_matching[0]:
+                    st.multiselect('Select intensity fields:', st.session_state['mg__all_columns'], key='mg__selected_intensity_fields', on_change=update_field_matching)
 
-            # In the second column, have an editable dataframe to allow the user to match thresholded marker columns to the selected raw intensity columns
-            with cols_field_matching[1]:
-                st.session_state['mg__de_field_matching'].dataframe_editor(column_config=st.session_state['mg__column_config'], reset_data_editor_button=False)
+                # In the second column, have an editable dataframe to allow the user to match thresholded marker columns to the selected raw intensity columns
+                with cols_field_matching[1]:
+                    st.session_state['mg__de_field_matching'].dataframe_editor(column_config=st.session_state['mg__column_config'], reset_data_editor_button=False)
 
         # Define the main columns
         main_columns = st.columns(3, gap='large')
@@ -351,7 +359,6 @@ def main():
                 update_dependencies_of_filtering_widgets()
             if st.session_state['mg__selected_column_type'] == 'numeric':
                 column_range = st.session_state['mg__curr_column_range']
-                st.write('Column\'s range: {}'.format(column_range))
                 if np.abs(column_range[1] - column_range[0]) < tol:
                     trivial_column = True
                 else:
@@ -446,7 +453,9 @@ def main():
                     if intensity_cutoff is not None:
                         fig.add_vline(x=intensity_cutoff, line_color='green', line_width=3, line_dash="dash", annotation_text="Previous threshold: ~{}".format((intensity_cutoff)), annotation_font_size=18, annotation_font_color="green")
                     fig.update_layout(hovermode='x unified', xaxis_title='Column value', yaxis_title='Density')
-                    fig.update_layout(legend=dict(yanchor="top", y=1.2, xanchor="left", x=0.01))
+                    fig.update_layout(legend=dict(yanchor="top", y=1.2, xanchor="left", x=0.01, orientation="h"))
+                    
+                    # Set Plotly chart in streamlit
                     st.plotly_chart(fig, use_container_width=True)
 
                     # Set the selection dictionary for the current filter to pass on to the current phenotype definition
@@ -531,7 +540,7 @@ def main():
 
             # Print out a five-row sample of the main dataframe
             st.write('Augmented dataset sample:')
-            st.dataframe(st.session_state['mg__df'].sample(5))
+            st.dataframe(st.session_state['mg__df'].sample(5), hide_index=True)
 
             # Get a list of all new phenotypes
             new_phenotypes = [column for column in st.session_state['mg__df'].columns if column.startswith('Phenotype ')]

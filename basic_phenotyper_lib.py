@@ -388,6 +388,7 @@ def scatter_plot(df, fig, ax, figTitle, xVar, yVar, hueVar, hueOrder, xLim = Non
                     s = 15,
                     hue = hueVar,
                     hue_order = hueOrder,
+                    linewidth = 0,
                     palette = 'tab20',
                     ax = ax)
     

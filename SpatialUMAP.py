@@ -326,7 +326,6 @@ class SpatialUMAP:
         
         return H
 
-    
     def define_phenotype_ordering():
         pass
 
