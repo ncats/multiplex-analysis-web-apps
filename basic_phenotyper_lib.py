@@ -453,7 +453,7 @@ def scatter_plot(df, fig, ax, figTitle, xVar, yVar, hueVar, hueOrder, xLim = Non
 
 # Helps with Wrapping text
 def wrapTitleText(title):
-    charLim =70
+    charLim =75
     wrapTitle = []
     for x in title:
         while len(x) > charLim:
