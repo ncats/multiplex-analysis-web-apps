@@ -8,4 +8,5 @@ set -e
 # Create custom conda environment with ipykernel so it can be used from Jupyter
 # mamba create -n my_env -y -q python==3.8 ipykernel palantir-sdk
 
-pip install streamlit-javascript streamlit-extras squidpy split-file-reader st-pages
+pip install scikit-learn streamlit-extras squidpy split-file-reader st-pages
+mamba install -y -q natsort

@@ -72,7 +72,7 @@ def write_current_tool_parameters_to_disk(output_dir):
         with open(pathname, mode='wt') as file:
             file.write('# Timestamp: {}\n'.format(datetime.now()))
             file.write('# Hostname: {}\n'.format(socket.gethostname()))
-            file.write('# Git commit: {}\n'.format(subprocess.run('git rev-parse HEAD', shell=True, capture_output=True).stdout.decode().split('\n')[:-1][0]))
+            # file.write('# Git commit: {}\n'.format(subprocess.run('git rev-parse HEAD', shell=True, capture_output=True).stdout.decode().split('\n')[:-1][0]))
             file.write('# Python version (may conflict with environment.yml, showing strange system setup): {}\n'.format(sys.version.split('\n')[0]))
             file.write('\n')
             yaml.dump(streamlit_utils.get_current_settings(), file, sort_keys=False)

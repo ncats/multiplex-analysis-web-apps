@@ -3,7 +3,6 @@ import platform_io
 import subprocess
 import streamlit as st
 from st_pages import show_pages_from_config, add_indentation
-from streamlit_javascript import st_javascript
 from streamlit_extras.app_logo import add_logo
 
 def top_of_page_reqs(session_state, newtab_flag = False):
@@ -31,9 +30,10 @@ def top_of_page_reqs(session_state, newtab_flag = False):
             # Get link for app to be opened in new tab and add link to docs
             # This line is causing a repeatable "KeyError: 'platform'" that seems 
             # not to have any ill effects. This is fixed by putting this line after the 
-            # "if 'platform' not in st.session_state:" block and "platform = st.session_state['platform']" line
-            url = st_javascript("await fetch('').then(r => window.parent.location.href)")  
-            st.write('*[Open app in new tab]({}) (may only work in Chrome or Edge, not Firefox)*'.format(url))
+            # "if 'platform' not in st.session_state:" block and "platform = #st.session_state['platform']" line
+            # url = st_javascript("await fetch('').then(r => window.parent.location.href)")  
+            # st.write('*[Open app in new tab]({}) (may only work in Chrome or Edge, not Firefox)*'.format(url))
+            pass
 
 
     # Check the platform

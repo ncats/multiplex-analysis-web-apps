@@ -1,0 +1,8 @@
+dependencies:
+  - pip:
+    - scikit-learn
+    - streamlit-extras
+    - squidpy
+    - split-file-reader
+    - st_pages
+    - natsort

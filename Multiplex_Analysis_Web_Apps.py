@@ -1,6 +1,6 @@
 # Import relevant libraries
 import streamlit as st
-from streamlit_javascript import st_javascript
+import os
 
 # Import relevant libraries
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
@@ -12,6 +12,14 @@ def main():
 
     # Set a wide layout
     st.set_page_config(layout="wide")
+
+    inputPath = './input'
+    if not os.path.exists(inputPath):
+        os.makedirs(inputPath)
+
+    outputPath = './output'
+    if not os.path.exists(outputPath):
+        os.makedirs(outputPath)
 
     # Run streamlit-dataframe-editor library initialization tasks at the top of the page
     st.session_state = sde.initialize_session_state(st.session_state)
