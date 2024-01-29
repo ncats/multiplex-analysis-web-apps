@@ -24,7 +24,7 @@ def load_data(input_datafile_path, coord_units_in_microns, dataset_format):
 
 # Update the dependencies of the selectbox for the current analysis column
 def update_dependencies_of_filtering_widgets():
-    df = st.session_state['mg__df']
+    df = st.session_state['mg__df_batch_normalized']
     column_for_filtering = st.session_state['mg__column_for_filtering']
     image_for_filtering = st.session_state['mg__selected_image']
     if image_for_filtering == 'All images':
@@ -262,7 +262,7 @@ def main():
 
     # Set page settings
     st.set_page_config(layout='wide', page_title='Multiaxial Gating')
-    st.title('Multi-axial Gating')
+    st.title('Multiaxial Gating')
 
     # Run streamlit-dataframe-editor library initialization tasks at the top of the page
     st.session_state = sde.initialize_session_state(st.session_state)
@@ -352,6 +352,7 @@ def main():
     
         # Load the data and some resulting processed data
         df = st.session_state['mg__df']
+        df_batch_normalized = st.session_state['mg__df_batch_normalized']
         unique_images_short = st.session_state['mg__unique_images_short']
         unique_image_dict = st.session_state['mg__unique_image_dict']
 
@@ -427,7 +428,7 @@ def main():
                     else:
                         image_loc = df[df['Slide ID'] == image_for_filtering].index
                     if st.session_state['mg__selected_column_type'] == 'numeric':
-                        line2d = sns.kdeplot(data=df.loc[image_loc, :], x=column_for_filtering).get_lines()[0]
+                        line2d = sns.kdeplot(data=df_batch_normalized.loc[image_loc, :], x=column_for_filtering).get_lines()[0]
                         curr_df = pd.DataFrame({'Value': line2d.get_xdata(), 'Density': line2d.get_ydata()})
                         st.session_state['mg__kdes_or_hists_to_plot'].loc[image_for_filtering, column_for_filtering] = [curr_df[(curr_df['Value'] >= column_range[0]) & (curr_df['Value'] <= column_range[1])]]  # needed because the KDE can extend outside the possible value range
                     else:
@@ -468,10 +469,10 @@ def main():
                                 image_loc = df[df['Slide ID'] == image_for_filtering].index
 
                             # Get the thresholded marker column values
-                            srs_marker_column_values = df.loc[image_loc, marker_column]
+                            srs_marker_column_values = df_batch_normalized.loc[image_loc, marker_column]
 
                             # Set the indices of that series to the corresponding intensities
-                            srs_marker_column_values.index = df.loc[image_loc, column_for_filtering]
+                            srs_marker_column_values.index = df_batch_normalized.loc[image_loc, column_for_filtering]
 
                             # Sort the series by increasing intensity
                             srs_marker_column_values = srs_marker_column_values.sort_index()
@@ -565,7 +566,7 @@ def main():
             # Generate the new dataset
             st.button(label=':star2: Append phenotype assignments to the dataset :star2:',
                       use_container_width=True,
-                      on_click=add_new_phenotypes_to_main_df, args=(df, image_for_filtering))
+                      on_click=add_new_phenotypes_to_main_df, args=(df_batch_normalized, image_for_filtering))
             if image_for_filtering == 'All images':
                 st.write('Clicking this button will apply the phenotype assignments to **all images in the dataset**')
             else:
