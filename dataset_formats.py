@@ -1,7 +1,15 @@
+def extract_image_name(input_path):
+    '''Extract the full image name from a HALO-formatted "Image Location" column.'''
+    sep_char = '\\' if '\\' in input_path else '/'
+    filename = input_path.split(sep_char)[-1]
+    basename = '.'.join(filename.split('.')[:-1])
+    return basename.replace(' ', '__').replace('.', '__')
+
 def extract_datafile_metadata(datafile_path):
 
-    # Import relevant library
+    # Import relevant libraries
     import pandas as pd
+    import re
 
     # Extract the field seperator using the filename
     sep = (',' if datafile_path.split('.')[-1] == 'csv' else '\t')
@@ -13,13 +21,13 @@ def extract_datafile_metadata(datafile_path):
     if 'Image Location' in columns_list:
         file_format = 'HALO'
         image_column_str = 'Image Location'
-        first_dapi_positive_col = [x for x in columns_list if 'DAPI Positive' in x][0]
+        first_dapi_positive_col = [column for column in columns_list if re.findall(r'DAPI.* Positive Classification', column)][0]
         index_start = columns_list.index('YMax') + 1
         index_end = columns_list.index(first_dapi_positive_col)
         marker_prefix = ''
         marker_cols = columns_list[index_start:index_end]
         coord_cols = ['XMin', 'XMax', 'YMin', 'YMax']
-        image_string_processing_func = lambda x: x.split('.tif')[0].split('_')[-1]
+        image_string_processing_func = extract_image_name
         marker_suffix = None
         markers = None
 
@@ -511,8 +519,8 @@ class GMBSecondGeneration(Native):
         self.data['tag'] = srs_tag
 
 
-class OMAL(Native):
-    """Class representing format of the data the OMAL group is using around Winter/Spring 2022. More generally, this is the HALO format!
+class HALO(Native):
+    """Class representing format of the data the OMAL group is using around Winter/Spring 2022. More generally, this is the HALO format! (Used to be called the "OMAL" format.)
 
     Sample instantiation:
 
@@ -531,8 +539,7 @@ class OMAL(Native):
         image_location = self.data['Image Location']
 
         # Determine the image numbers
-        # srs_imagenum = image_location.apply(lambda x: x.split('_')[-1].rstrip('.tif'))
-        srs_imagenum = image_location.apply(lambda x: x.split('_')[-1].split('.')[0])  # make it not have to be a .tif extension but rather any extension
+        srs_imagenum = image_location.apply(extract_image_name)
 
         # Get the unique image numbers
         unique_images = srs_imagenum.unique()
@@ -541,7 +548,7 @@ class OMAL(Native):
         mapper = dict(zip(unique_images, [x + 1 for x in range(len(unique_images))]))
 
         # Attribute assignments
-        self.data['Slide ID'] = srs_imagenum.apply(lambda x: '{}A-imagenum_{}'.format(mapper[x], x))
+        self.data['Slide ID'] = srs_imagenum.apply(lambda x: '{}A-{}'.format(mapper[x], x))
 
     def adhere_to_tag_format(self):
         """Ensure the "tag" column of the data conforms to the required format
@@ -647,7 +654,7 @@ class REEC(Native):
         mapper = dict(zip(unique_images, [x + 1 for x in range(len(unique_images))]))
 
         # Attribute assignments
-        df['Slide ID'] = srs_imagenum.apply(lambda x: '{}A-imagenum_{}'.format(mapper[x], x))
+        df['Slide ID'] = srs_imagenum.apply(lambda x: '{}A-{}'.format(mapper[x], x))
 
         self.data = df
 
@@ -770,7 +777,7 @@ class QuPath(Native):
         mapper = dict(zip(unique_images, [x + 1 for x in range(len(unique_images))]))
 
         # Attribute assignments
-        self.data['Slide ID'] = srs_imagenum.apply(lambda x: '{}A-imagenum_{}'.format(mapper[x], x))
+        self.data['Slide ID'] = srs_imagenum.apply(lambda x: '{}A-{}'.format(mapper[x], x))
 
     def adhere_to_tag_format(self):
         """Ensure the "tag" column of the data conforms to the required format
@@ -890,7 +897,7 @@ class Steinbock(Native):
         mapper = dict(zip(unique_images, [x + 1 for x in range(len(unique_images))]))
 
         # Attribute assignments
-        self.data['Slide ID'] = srs_imagenum.apply(lambda x: '{}A-imagenum_{}'.format(mapper[x], x))
+        self.data['Slide ID'] = srs_imagenum.apply(lambda x: '{}A-{}'.format(mapper[x], x))
 
     def adhere_to_tag_format(self):
         """Ensure the "tag" column of the data conforms to the required format
@@ -941,8 +948,6 @@ class Steinbock(Native):
 
         # Variable definitions from attributes
         df = self.data
-
-        print(df.filter(regex='^Phenotype\ ').columns)
 
         # For each phenotype column, convert zeros and ones to -'s and +'s
         for col in df.filter(regex='^Phenotype\ '):
