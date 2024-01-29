@@ -24,7 +24,7 @@ def load_data(input_datafile_path, coord_units_in_microns, dataset_format):
 
 # Update the dependencies of the selectbox for the current analysis column
 def update_dependencies_of_filtering_widgets():
-    df = st.session_state['mg__df']
+    df = st.session_state['mg__df_batch_normalized']
     column_for_filtering = st.session_state['mg__column_for_filtering']
     image_for_filtering = st.session_state['mg__selected_image']
     if image_for_filtering == 'All images':
@@ -179,7 +179,7 @@ def add_new_phenotypes_to_main_df(df, image_for_filtering):
         print('------------------------')
 
         # Save the gating table to disk
-        gating_filename = 'gating_table_for_{}_for_datafile_{}-{}.csv'.format(filtering_section_name, st.session_state['mg__input_datafile_filename'], datetime.now().strftime("date%Y_%m_%d_time%H_%M_%S"))
+        gating_filename = 'gating_table_for_{}_for_datafile_{}-{}.csv'.format(filtering_section_name, '.'.join(st.session_state['mg__input_datafile_filename'].split('.')[:-1]), datetime.now().strftime("date%Y_%m_%d_time%H_%M_%S"))
         df_phenotype_assignments.to_csv(path_or_buf=os.path.join(os.path.join('.', 'output'), gating_filename), index=True)
         st.write('File {} written to disk'.format(gating_filename))
 
@@ -224,8 +224,36 @@ def basic_filter_column_updates():
     # Since the column selection must have just changed, update its dependencies
     update_dependencies_of_filtering_widgets()
 
+# Delete specified columns in the main dataframe
 def delete_all_gated_phenotypes(new_phenotypes=[]):
     st.session_state['mg__df'] = st.session_state['mg__df'].drop(columns=new_phenotypes)
+
+# Perform simple Z score normalization
+def z_score_normalize(df, numeric_columns):
+
+    # Copy the input dataframe as the output dataframe; this would be the whole function if no batch normalization were selected; this is essentially the identity transformation
+    df_batch_normalized = df.copy()
+
+    # Get the unique images in the dataframe
+    unique_images = df['Slide ID'].unique()
+
+    # For each image in the dataframe...
+    for image_name in unique_images:
+
+        # Get the locations of the data for the current image (this results in a boolean series)
+        image_loc = df['Slide ID'] == image_name
+
+        # Print what we're doing
+        print('Z score normalizing image {} ({} rows)...'.format(image_name, image_loc.sum()))
+
+        # Get just the numeric data for the current image
+        curr_df_numeric = df.loc[image_loc, numeric_columns]
+
+        # Z score normalize these data column by column, assigning the results to the output dataframe at the corresponding locations
+        df_batch_normalized.loc[image_loc, numeric_columns] = (curr_df_numeric - curr_df_numeric.mean()) / curr_df_numeric.std()
+
+    # Return the transformed dataset
+    return df_batch_normalized
 
 def main():
     '''
@@ -234,7 +262,7 @@ def main():
 
     # Set page settings
     st.set_page_config(layout='wide', page_title='Multiaxial Gating')
-    st.title('Multi-axial Gating')
+    st.title('Multiaxial Gating')
 
     # Run streamlit-dataframe-editor library initialization tasks at the top of the page
     st.session_state = sde.initialize_session_state(st.session_state)
@@ -268,32 +296,40 @@ def main():
         st.session_state['mg__input_datafile_filename'] = utils.get_first_element_or_none(options_for_input_datafiles)
     if 'mg__input_datafile_coordinate_units' not in st.session_state:
         st.session_state['mg__input_datafile_coordinate_units'] = 0.25
+    if 'mg__do_batch_norm' not in st.session_state:
+        st.session_state['mg__do_batch_norm'] = False
     if 'mg__selected_intensity_fields' not in st.session_state:
         st.session_state['mg__selected_intensity_fields'] = []
     if 'mg__selected_image' not in st.session_state:
         st.session_state['mg__selected_image'] = 'All images'
 
-    # Create columns for the input datafile settings
-    input_datafile_columns = st.columns(2)
-    with input_datafile_columns[0]:
-        data_sel_cols = st.columns([3, 1])
+    # Create columns for the selections in the top part of the app
+    topmost_input_columns = st.columns(2)
 
-        # Set the input datafile name
-        with data_sel_cols[0]:
+    # In the left half, create the data loading options and spinner
+    with topmost_input_columns[0]:
+
+        # Create columns for the data loading options (just one column is used)
+        load_data_columns = st.columns([3, 1])
+
+        # Set the load data options
+        with load_data_columns[0]:
             st.selectbox('Filename:', options_for_input_datafiles, key='mg__input_datafile_filename', help='Input datafiles must be present in the "input" directory and have a .csv or .tsv extension.')
             input_datafilename = st.session_state['mg__input_datafile_filename']
-
-        # Set the input datafile coordinate units in microns
-        with data_sel_cols[1]:
-            st.number_input('x-y coordinate units (microns):', min_value=0.0, key='mg__input_datafile_coordinate_units', help='E.g., if the coordinates in the input datafile were pixels, this number would be a conversion to microns in units of microns/pixel.', format='%.4f', step=0.0001)
+            st.number_input('x-y coordinate units (microns):', min_value=0.0, key='mg__input_datafile_coordinate_units', help='E.g., if the coordinates in the input datafile were pixels, this number would be a conversion to microns in units of microns/pixel.', format='%.4f', step=0.0001)  # set the input datafile coordinate units in microns
             coord_units_in_microns = st.session_state['mg__input_datafile_coordinate_units']
+            st.toggle(label='Perform batch normalization', key='mg__do_batch_norm')
+            batch_normalization_func = (z_score_normalize if st.session_state['mg__do_batch_norm'] else lambda df, _: df)  # initially, create a very simple batch normalization option using the Z score, which appears to be justified in literature
 
+        # Create columns for the data loading button and spinner
         data_butt_cols = st.columns([3, 1])
-        with data_butt_cols[0]:
-            MaG_load_hit = st.button('Load data', use_container_width=True, on_click=clear_session_state, kwargs={'keep_keys': ['mg__input_datafile_filename', 'mg__input_datafile_coordinate_units']})
 
+        # In the first column, create the data loading button
+        with data_butt_cols[0]:
+            MaG_load_hit = st.button('Load data', use_container_width=True, on_click=clear_session_state, kwargs={'keep_keys': ['mg__input_datafile_filename', 'mg__input_datafile_coordinate_units', 'mg__do_batch_norm']})
+
+        # In the second column, create the data loading spinner
         with data_butt_cols[1]:
-            # Load the data
             if MaG_load_hit:
                 with st.spinner('Loading Data'):
                     st.session_state['mg__df'] = load_data(os.path.join(input_directory, input_datafilename), coord_units_in_microns, dataset_formats.extract_datafile_metadata(os.path.join(input_directory, input_datafilename))[4])
@@ -305,6 +341,7 @@ def main():
                     st.session_state['mg__all_numeric_columns'] = st.session_state['mg__df'].select_dtypes(include='number').columns
                     st.session_state['mg__all_columns'] = st.session_state['mg__df'].columns
                     st.session_state['mg__column_config'] = {"Corresponding thresholded marker field": st.column_config.SelectboxColumn("Corresponding thresholded marker field", help="Tresholded marker field corresponding to the intensity at left", options=st.session_state['mg__all_columns'], required=True)}
+                    st.session_state['mg__df_batch_normalized'] = batch_normalization_func(st.session_state['mg__df'], st.session_state['mg__all_numeric_columns'])
                     
         # Warn the user that they need to load the data at least once
         if 'mg__df' not in st.session_state:
@@ -315,10 +352,13 @@ def main():
     
         # Load the data and some resulting processed data
         df = st.session_state['mg__df']
+        df_batch_normalized = st.session_state['mg__df_batch_normalized']
         unique_images_short = st.session_state['mg__unique_images_short']
         unique_image_dict = st.session_state['mg__unique_image_dict']
 
-        with input_datafile_columns[1]:
+        # In the right half, run the field matching
+        with topmost_input_columns[1]:
+
             # Add expander, expanded by default just for the time being as sometimes otherwise it collapses unexpectedly
             with st.expander('Field matching (optional):', expanded=False):
 
@@ -388,7 +428,7 @@ def main():
                     else:
                         image_loc = df[df['Slide ID'] == image_for_filtering].index
                     if st.session_state['mg__selected_column_type'] == 'numeric':
-                        line2d = sns.kdeplot(data=df.loc[image_loc, :], x=column_for_filtering).get_lines()[0]
+                        line2d = sns.kdeplot(data=df_batch_normalized.loc[image_loc, :], x=column_for_filtering).get_lines()[0]
                         curr_df = pd.DataFrame({'Value': line2d.get_xdata(), 'Density': line2d.get_ydata()})
                         st.session_state['mg__kdes_or_hists_to_plot'].loc[image_for_filtering, column_for_filtering] = [curr_df[(curr_df['Value'] >= column_range[0]) & (curr_df['Value'] <= column_range[1])]]  # needed because the KDE can extend outside the possible value range
                     else:
@@ -429,10 +469,10 @@ def main():
                                 image_loc = df[df['Slide ID'] == image_for_filtering].index
 
                             # Get the thresholded marker column values
-                            srs_marker_column_values = df.loc[image_loc, marker_column]
+                            srs_marker_column_values = df_batch_normalized.loc[image_loc, marker_column]
 
                             # Set the indices of that series to the corresponding intensities
-                            srs_marker_column_values.index = df.loc[image_loc, column_for_filtering]
+                            srs_marker_column_values.index = df_batch_normalized.loc[image_loc, column_for_filtering]
 
                             # Sort the series by increasing intensity
                             srs_marker_column_values = srs_marker_column_values.sort_index()
@@ -526,7 +566,7 @@ def main():
             # Generate the new dataset
             st.button(label=':star2: Append phenotype assignments to the dataset :star2:',
                       use_container_width=True,
-                      on_click=add_new_phenotypes_to_main_df, args=(df, image_for_filtering))
+                      on_click=add_new_phenotypes_to_main_df, args=(df_batch_normalized, image_for_filtering))
             if image_for_filtering == 'All images':
                 st.write('Clicking this button will apply the phenotype assignments to **all images in the dataset**')
             else:
