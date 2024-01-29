@@ -224,8 +224,36 @@ def basic_filter_column_updates():
     # Since the column selection must have just changed, update its dependencies
     update_dependencies_of_filtering_widgets()
 
+# Delete specified columns in the main dataframe
 def delete_all_gated_phenotypes(new_phenotypes=[]):
     st.session_state['mg__df'] = st.session_state['mg__df'].drop(columns=new_phenotypes)
+
+# Perform simple Z score normalization
+def z_score_normalize(df, numeric_columns):
+
+    # Copy the input dataframe as the output dataframe; this would be the whole function if no batch normalization were selected; this is essentially the identity transformation
+    df_batch_normalized = df.copy()
+
+    # Get the unique images in the dataframe
+    unique_images = df['Slide ID'].unique()
+
+    # For each image in the dataframe...
+    for image_name in unique_images:
+
+        # Get the locations of the data for the current image (this results in a boolean series)
+        image_loc = df['Slide ID'] == image_name
+
+        # Print what we're doing
+        print('Z score normalizing image {} ({} rows)...'.format(image_name, image_loc.sum()))
+
+        # Get just the numeric data for the current image
+        curr_df_numeric = df.loc[image_loc, numeric_columns]
+
+        # Z score normalize these data column by column, assigning the results to the output dataframe at the corresponding locations
+        df_batch_normalized.loc[image_loc, numeric_columns] = (curr_df_numeric - curr_df_numeric.mean()) / curr_df_numeric.std()
+
+    # Return the transformed dataset
+    return df_batch_normalized
 
 def main():
     '''
@@ -291,6 +319,7 @@ def main():
             st.number_input('x-y coordinate units (microns):', min_value=0.0, key='mg__input_datafile_coordinate_units', help='E.g., if the coordinates in the input datafile were pixels, this number would be a conversion to microns in units of microns/pixel.', format='%.4f', step=0.0001)  # set the input datafile coordinate units in microns
             coord_units_in_microns = st.session_state['mg__input_datafile_coordinate_units']
             st.toggle(label='Perform batch normalization', key='mg__do_batch_norm')
+            batch_normalization_func = (z_score_normalize if st.session_state['mg__do_batch_norm'] else lambda df, _: df)  # initially, create a very simple batch normalization option using the Z score, which appears to be justified in literature
 
         # Create columns for the data loading button and spinner
         data_butt_cols = st.columns([3, 1])
@@ -312,6 +341,7 @@ def main():
                     st.session_state['mg__all_numeric_columns'] = st.session_state['mg__df'].select_dtypes(include='number').columns
                     st.session_state['mg__all_columns'] = st.session_state['mg__df'].columns
                     st.session_state['mg__column_config'] = {"Corresponding thresholded marker field": st.column_config.SelectboxColumn("Corresponding thresholded marker field", help="Tresholded marker field corresponding to the intensity at left", options=st.session_state['mg__all_columns'], required=True)}
+                    st.session_state['mg__df_batch_normalized'] = batch_normalization_func(st.session_state['mg__df'], st.session_state['mg__all_numeric_columns'])
                     
         # Warn the user that they need to load the data at least once
         if 'mg__df' not in st.session_state:
