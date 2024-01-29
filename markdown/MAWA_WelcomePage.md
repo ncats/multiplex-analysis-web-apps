@@ -11,18 +11,6 @@ Welcome to the Multiple Analysis Web Apps (MAWA) presented by NCATS-NCI-DMAP. Th
 1. Spatial Interaction Tool
 1. Neighborhood Profiles
 
-
-
-## Neighborhoood Profiles Workflow
-Based on the conversations with our working groups, the following is the intended workflow for using this application.  
-1. Data Import and Export
-2. Phenotyping
-3. UMAP and Clustering Analysis
-4. Review and Explore Differences in UMAP patterns
-5. Review and Explore Differences in Cluster compositions.
-
-Towards these end, the app has been organized into a series of pages that perform each of these actions. The instructions below will be outlined for each of these given pages.
-
 ### 1. Data Import and Export Instructions
 As with most projects, the first step in starting your analysis workflow is with importing the data you intend to use. This is argueabely the most important step and one where the most issues may arise. If you any questions at all about importing and exporting data to not hesitate in seeking help from a DMAP team member (Dante and Andrew).
 

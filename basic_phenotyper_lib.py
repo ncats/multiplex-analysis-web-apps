@@ -313,24 +313,29 @@ def assign_phenotype_species(df):
     return df
 
 def assign_phenotype_custom(df, spec_summ):
-    """Add a "phenotype" column to df based on a species summary dataframe which identfies custom phenotype assignments from custom phenotyping
+    '''Add a "phenotype" column to df based on a species summary dataframe 
+    which identfies custom phenotype assignments from custom phenotyping
 
     Args:
         df (Pandas dataframe): Dataframe containing the "species_name_short" column
         spec_summ (Pandas dataframe): Dataframe containing the custom assignments of phenotypes based on "species_name_short"
 
     Returns:
-        df (Pandas dataframe): Input dataframe with an added "phenotype" column appended or overwritten
-    """
+        df (Pandas dataframe): Input dataframe with an added "phenotype" column 
+                               appended or overwritten
+    '''
     # Create a "phenotype" column mapped from a species summary dataset
     df['phenotype'] = df['species_name_short'].map(dict(zip(spec_summ['species_name_short'].to_list(), spec_summ['phenotype'].to_list())))
-    
+
     df.loc[df['phenotype'].isna(), 'phenotype'] = 'unassigned'
 
     # Return dataframe with phenotype column
     return df
 
 def load_previous_species_summary(filename):
+    '''
+    Load previous species summary file
+    '''
 
     spec_summ_load = pd.read_csv(filename)
 
@@ -339,6 +344,9 @@ def load_previous_species_summary(filename):
     return spec_summ
 
 def draw_scatter_fig(figsize=(12, 12)):
+    '''
+    Setup Scatter plot figure and axes
+    '''
 
     SlBgC  = '#0E1117'  # Streamlit Background Color
     SlTC   = '#FAFAFA'  # Streamlit Text Color
@@ -353,7 +361,7 @@ def draw_scatter_fig(figsize=(12, 12)):
     ax.tick_params(axis='y', colors=SlTC, which='both')
 
     return fig, ax
-    
+
 def scatter_plot(df, fig, ax, figTitle, xVar, yVar, hueVar, hueOrder, xLim = None, yLim = None, boxoff = False, small_ver = False, feat = None, clusters_label = None, figname='scatter_plot.png', dpi=200, saveFlag=0):
     """Create a 2D scatter plot and color the points by a specific variable in a dataframe
 
@@ -451,27 +459,31 @@ def scatter_plot(df, fig, ax, figTitle, xVar, yVar, hueVar, hueOrder, xLim = Non
         fig.savefig(figname, dpi=dpi, bbox_inches='tight')
     return fig
 
-# Helps with Wrapping text
 def wrapTitleText(title):
-    charLim =70
-    wrapTitle = []
+    '''
+    Helps with wrapping text
+    '''
+    char_lim =75
+    wrap_title = []
     for x in title:
-        while len(x) > charLim:
-            x1 = x[:charLim]
-            x2 = x[charLim:]
-            wrapTitle.append(x1)
+        while len(x) > char_lim:
+            x1 = x[:char_lim]
+            x2 = x[char_lim:]
+            wrap_title.append(x1)
             x = x2
-        wrapTitle.append(x)
+        wrap_title.append(x)
 
-    return wrapTitle
+    return wrap_title
 
 def setup_Spatial_UMAP(df, marker_names, phenoOrder, cpu_pool_size = 1):
-    # Import Libraries REMOVE THIS APPEND LATER
+    '''
+    Setup the requirements for running spatial UMAP
+    '''
     import pandas as pd
     import numpy as np
     import matplotlib as mpl
     from SpatialUMAP import SpatialUMAP
-        
+
     spatial_umap = SpatialUMAP(dist_bin_um=np.array([25, 50, 100, 150, 200]), um_per_px=0.5, area_downsample=.2)
     spatial_umap.cells = df
     spatial_umap.patients = spatial_umap.makeDummyClinic(10)
