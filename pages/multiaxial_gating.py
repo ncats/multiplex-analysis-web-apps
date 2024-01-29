@@ -179,7 +179,7 @@ def add_new_phenotypes_to_main_df(df, image_for_filtering):
         print('------------------------')
 
         # Save the gating table to disk
-        gating_filename = 'gating_table_for_{}_for_datafile_{}-{}.csv'.format(filtering_section_name, st.session_state['mg__input_datafile_filename'], datetime.now().strftime("date%Y_%m_%d_time%H_%M_%S"))
+        gating_filename = 'gating_table_for_{}_for_datafile_{}-{}.csv'.format(filtering_section_name, '.'.join(st.session_state['mg__input_datafile_filename'].split('.')[:-1]), datetime.now().strftime("date%Y_%m_%d_time%H_%M_%S"))
         df_phenotype_assignments.to_csv(path_or_buf=os.path.join(os.path.join('.', 'output'), gating_filename), index=True)
         st.write('File {} written to disk'.format(gating_filename))
 
