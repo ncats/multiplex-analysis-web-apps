@@ -11,7 +11,7 @@ Welcome to the Multiple Analysis Web Apps (MAWA) presented by NCATS-NCI-DMAP. Th
 1. Spatial Interaction Tool
 1. Neighborhood Profiles
 
-### 1. Data Import and Export Instructions
+### 1. Data Import and Export
 As with most projects, the first step in starting your analysis workflow is with importing the data you intend to use. This is argueabely the most important step and one where the most issues may arise. If you any questions at all about importing and exporting data to not hesitate in seeking help from a DMAP team member (Dante and Andrew).
 
 #### NIDAP Infrastructure
