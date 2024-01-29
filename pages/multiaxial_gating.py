@@ -268,32 +268,39 @@ def main():
         st.session_state['mg__input_datafile_filename'] = utils.get_first_element_or_none(options_for_input_datafiles)
     if 'mg__input_datafile_coordinate_units' not in st.session_state:
         st.session_state['mg__input_datafile_coordinate_units'] = 0.25
+    if 'mg__do_batch_norm' not in st.session_state:
+        st.session_state['mg__do_batch_norm'] = False
     if 'mg__selected_intensity_fields' not in st.session_state:
         st.session_state['mg__selected_intensity_fields'] = []
     if 'mg__selected_image' not in st.session_state:
         st.session_state['mg__selected_image'] = 'All images'
 
-    # Create columns for the input datafile settings
-    input_datafile_columns = st.columns(2)
-    with input_datafile_columns[0]:
-        data_sel_cols = st.columns([3, 1])
+    # Create columns for the selections in the top part of the app
+    topmost_input_columns = st.columns(2)
 
-        # Set the input datafile name
-        with data_sel_cols[0]:
+    # In the left half, create the data loading options and spinner
+    with topmost_input_columns[0]:
+
+        # Create columns for the data loading options (just one column is used)
+        load_data_columns = st.columns([3, 1])
+
+        # Set the load data options
+        with load_data_columns[0]:
             st.selectbox('Filename:', options_for_input_datafiles, key='mg__input_datafile_filename', help='Input datafiles must be present in the "input" directory and have a .csv or .tsv extension.')
             input_datafilename = st.session_state['mg__input_datafile_filename']
-
-        # Set the input datafile coordinate units in microns
-        with data_sel_cols[1]:
-            st.number_input('x-y coordinate units (microns):', min_value=0.0, key='mg__input_datafile_coordinate_units', help='E.g., if the coordinates in the input datafile were pixels, this number would be a conversion to microns in units of microns/pixel.', format='%.4f', step=0.0001)
+            st.number_input('x-y coordinate units (microns):', min_value=0.0, key='mg__input_datafile_coordinate_units', help='E.g., if the coordinates in the input datafile were pixels, this number would be a conversion to microns in units of microns/pixel.', format='%.4f', step=0.0001)  # set the input datafile coordinate units in microns
             coord_units_in_microns = st.session_state['mg__input_datafile_coordinate_units']
+            st.toggle(label='Perform batch normalization', key='mg__do_batch_norm')
 
+        # Create columns for the data loading button and spinner
         data_butt_cols = st.columns([3, 1])
-        with data_butt_cols[0]:
-            MaG_load_hit = st.button('Load data', use_container_width=True, on_click=clear_session_state, kwargs={'keep_keys': ['mg__input_datafile_filename', 'mg__input_datafile_coordinate_units']})
 
+        # In the first column, create the data loading button
+        with data_butt_cols[0]:
+            MaG_load_hit = st.button('Load data', use_container_width=True, on_click=clear_session_state, kwargs={'keep_keys': ['mg__input_datafile_filename', 'mg__input_datafile_coordinate_units', 'mg__do_batch_norm']})
+
+        # In the second column, create the data loading spinner
         with data_butt_cols[1]:
-            # Load the data
             if MaG_load_hit:
                 with st.spinner('Loading Data'):
                     st.session_state['mg__df'] = load_data(os.path.join(input_directory, input_datafilename), coord_units_in_microns, dataset_formats.extract_datafile_metadata(os.path.join(input_directory, input_datafilename))[4])
@@ -318,7 +325,9 @@ def main():
         unique_images_short = st.session_state['mg__unique_images_short']
         unique_image_dict = st.session_state['mg__unique_image_dict']
 
-        with input_datafile_columns[1]:
+        # In the right half, run the field matching
+        with topmost_input_columns[1]:
+
             # Add expander, expanded by default just for the time being as sometimes otherwise it collapses unexpectedly
             with st.expander('Field matching (optional):', expanded=False):
 
