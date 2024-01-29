@@ -3191,6 +3191,10 @@ def preprocess_dataset(format, input_datafile, coord_units_in_microns, images_to
         if not os.path.exists(pickle_dir):
             os.makedirs(pickle_dir)
 
+        # If some apps still use the OMAL format, support it, even though it really means HALO
+        if format == 'OMAL':
+            format = 'HALO'
+
         # Obtain the class describing the dataset according to the `format` parameter
         dataset_class = getattr(dataset_formats, format)
 
