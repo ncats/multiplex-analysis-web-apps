@@ -23,7 +23,9 @@ Inside your NIDAP Project folder is a DATASET named `Input`. This is where you s
 #### Data Export
 There is another DATASET named `Output` which will hold the files that you have chosen to save. YOu can select anyone of these files to download for later use or delete if it cluttering the space.
 
-### 2. Phenotyping Instructions
+### 2. Multi-axial Gating
+
+### 3. Phenotyping
 The second page to start your analysis pipeline is the phenotyping page. This is where you will load your data, view your different feature conditions, and select your phenotyping. There are two primary steps in performing phenotyping.
 
 **Step 0**: Import Data. The phenotyper needs data to use perform phenotyping
@@ -32,14 +34,16 @@ The second page to start your analysis pipeline is the phenotyping page. This is
     `Markers`: The phenotype is set as one of the given Marker that the cell is positive for. If the cell is positive for more than one Marker, the cell entry in the dataset is duplicated and represented by each positive marker value being studied.
     `Custom`: The phenotype is set as a value of your own choise. Once the Custom phenotyping is selected, the Phenotype Summary Table on the right side of the page becomes editable. 
 
-### 3. Neighborhood Profiles (UMAP) Instructions
-Once data is loaded and phenotyped appropriately, Neighborhood Profiles analysis can begin. There are 4 main steps required:
-**Step 0**: Make sure your data is imported and phenotyped
-**Step 1**: Perform Cell Counts/Areas: Clicking on this button starts the process of calculating the density of the cells in a given neighborhood profile.
-**Step 2**: Perform UMAP: Clicking on this button starts the process of performing a 2-dimensional spatial UMAP on the dataset.
-**Step 3**: Perform Clustering: Clicking this button performs k-means clustering on the 2-D UMAP coordinates produced from the previous step. The value of k can be set by using the slider located next to the button
+### 4. Spatial Interaction Tool
 
-### 4. UMAP Differences Analyzer
+### 5. Neighborhood Profiles (UMAP)
+Once data is loaded and phenotyped appropriately, Neighborhood Profiles analysis can begin. There are 4 main steps required:  
+**Step 0**: Make sure your data is imported and phenotyped  
+**Step 1**: Perform Cell Counts/Areas: Clicking on this button starts the process of calculating the density of the cells in a given neighborhood profile.  
+**Step 2**: Perform UMAP: Clicking on this button starts the process of performing a 2-dimensional spatial UMAP on the dataset.  
+**Step 3**: Perform Clustering: Clicking this button performs k-means clustering on the 2-D UMAP coordinates produced from the previous step. The value of k can be set by using the slider located next to the button  
+
+#### 4. UMAP Differences Analyzer
 After completing the UMAP decomposition and clustering analysis, the user may now take a look at the down-stream figures generated as a result of these analyses. While there are not many levers and knobs to change the data implicitly here, the user can generate different figures.
 1. Before starting to view these Clustering Differences, you must complete at least the UMAP processing seen on the previous page. To experience the full offering of the Clustering Differences page, you must also complete the Clustering step on the previous page. There are warnings on the page to help you remember what needs to be completed in order to see each figure.
 2. The Figures that are available for viewing:  
@@ -47,7 +51,7 @@ After completing the UMAP decomposition and clustering analysis, the user may no
     2. 2D UMAP filtered by lineage and features 
     3. Different UMAP scaled by features 
 
-### 5. Clusters Analyzer
+#### 5. Clusters Analyzer
 After completing the UMAP decomposition and clustering analysis, the user may now take a look at the down-stream figures generated as a result of these analyses. The Cluster Analyzer page contains two figures generated from the upstream data analysis:
 1. `Cluster/Phenotype Heatmap`  
 2. `Incidence Lineplot`  
