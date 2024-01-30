@@ -16,8 +16,7 @@ import streamlit_dataframe_editor as sde
 
 # Function to load the data in a unified format
 def load_data(input_datafile_path, coord_units_in_microns, dataset_format):
-    transform = {'HALO': 'OMAL'}
-    dataset_class = getattr(dataset_formats, (transform[dataset_format] if dataset_format in transform else dataset_format))  # done this way so that the format (e.g., “REEC”) can be select programmatically
+    dataset_class = getattr(dataset_formats, dataset_format)
     dataset_obj = dataset_class(input_datafile=input_datafile_path, coord_units_in_microns=coord_units_in_microns)
     dataset_obj.process_dataset(do_calculate_minimum_coordinate_spacing_per_roi=False, do_trimming=False, do_extra_processing=False)
     return dataset_obj.data
@@ -334,7 +333,7 @@ def main():
                 with st.spinner('Loading Data'):
                     st.session_state['mg__df'] = load_data(os.path.join(input_directory, input_datafilename), coord_units_in_microns, dataset_formats.extract_datafile_metadata(os.path.join(input_directory, input_datafilename))[4])
                     unique_images = st.session_state['mg__df']['Slide ID'].unique()
-                    st.session_state['mg__unique_images_short'] = [x.split('-imagenum_')[1] for x in unique_images]
+                    st.session_state['mg__unique_images_short'] = ['-'.join(x.split('-')[1:]) for x in unique_images]
                     st.session_state['mg__unique_image_dict'] = dict(zip(st.session_state['mg__unique_images_short'], unique_images))
                     phenotype_columns = [column for column in st.session_state['mg__df'].columns if column.startswith('Phenotype ')]
                     st.session_state['mg__df'] = st.session_state['mg__df'].rename(columns=dict(zip(phenotype_columns, [column.replace('Phenotype ', 'Phenotype_orig ') for column in phenotype_columns])))
