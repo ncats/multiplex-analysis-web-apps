@@ -279,11 +279,16 @@ class Platform:
                     local_download_path = nidap_io.download_file_from_dataset(dataset_file_object)  # slow
 
                     # Populate the local input directory with the current selection
+                    # Rules:
+                    #   * If it's not a .zip file, just copy it over
+                    #   * If it's a .zip file, there can be either 1 or 2 periods in the full filename including extension
+                    #   * If there's just a single period (e.g., asdf.zip), it must be a zipped directory with name following either DIRNAME.zip or DIRNAME--bleh.zip
+                    #   * If there are two periods (e.g., asdf.csv.zip), it must be a zipped datafile with name following asdf.csv
                     if selected_input_filename.endswith('.zip'):
                         splitted = selected_input_filename.split('.')  # should be of length 2 or 3 (for, e.g., asdf.csv.zip)
                         num_periods = len(splitted) - 1  # should be 1 or 2
                         if (num_periods < 1) or (num_periods > 2):
-                            st.error('Available input filename {} has a bad number of periods ({}... it should have 1-2 periods); please fix this.'.format(selected_input_filename, num_periods))
+                            st.error('Available .zip input filename {} has a bad number of periods ({}... it should have 1-2 periods); please fix this.'.format(selected_input_filename, num_periods))
                             sys.exit()
                         if num_periods == 1:  # it's a zipped directory, by specification
                             if '--' not in selected_input_filename:
