@@ -121,9 +121,6 @@ def main():
                 input_datafile = os.path.join('input', st.session_state.datafileU)
                 _, _, _, _, file_format, _ = dataset_formats.extract_datafile_metadata(input_datafile)
 
-                if file_format == 'HALO':
-                    file_format = 'OMAL'
-
                 st.session_state.file_format = file_format
                 dataset_class = getattr(dataset_formats, file_format)  # done this way so that the format (e.g., “REEC”) can be select programmatically
                 dataset_obj = dataset_class(input_datafile, 

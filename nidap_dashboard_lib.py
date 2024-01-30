@@ -229,7 +229,7 @@ def loadDataButton(session_state, df_import, projectName, fileName):
     # Slide ID Progression Initializeion
     session_state['idxSlide ID'] = 0
     session_state['numSlide ID'] = len(session_state['uniSlide ID'])
-    session_state['uniSlide ID_short'] = [x[x.find('imagenum_')+9: ] for x in session_state['uniSlide ID']]
+    session_state['uniSlide ID_short'] = session_state['uniSlide ID']
     session_state['selSlide ID_short'] = session_state['uniSlide ID_short'][0]
 
     session_state.prog_left_disabeled = True
