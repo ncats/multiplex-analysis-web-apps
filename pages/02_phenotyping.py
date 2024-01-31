@@ -166,6 +166,8 @@ def main():
                 st.session_state.selected_phenoMeth = st.session_state.phenoMeth
                 st.session_state = ndl.updatePhenotyping(st.session_state)
                 st.session_state.pointstSliderVal_Sel = st.session_state.calcSliderVal
+                if 'pheno__de_phenotype_assignments' in st.session_state:
+                    del st.session_state['pheno__de_phenotype_assignments']  # probably just do this instead of updating the dataframe editor using the method so that the default, "reset" dataframe gets set appropriately
 
     #
     if st.session_state.selected_phenoMeth != 'Not Selected':
