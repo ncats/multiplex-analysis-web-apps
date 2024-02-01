@@ -82,6 +82,30 @@ def marker_multiselect_callback():
     st.session_state.marker_names = st.session_state.marker_multi_sel
     st.session_state = ndl.set_phenotyping_elements(st.session_state, st.session_state.df_raw)
 
+# Allow sample phenotype assignments to be made for quick testing
+def make_sample_phenotype_assignments(csv_filename):
+    # NEXT:
+    #   * Make button below like in the Gater
+    #   * Call using csv_filename = 'sample_phenotype_assignments.csv'
+
+    # Import relevant library
+    import pandas as pd
+
+    # Get the current version of the phenotype assignments dataframe
+    df_to_which_to_update = st.session_state['pheno__de_phenotype_assignments'].reconstruct_edited_dataframe()
+
+    # Load in a dataframe containing the translations to make, from species_name_short to phenotype
+    df_to_assign = pd.read_csv(os.path.join('.', 'sample_phenotyping', csv_filename))
+
+    # Create a dictionary of these translations
+    assignments = dict(zip(df_to_assign['species_name_short'], df_to_assign['phenotype']))
+
+    # Use the translations dictionary to perform actual translation
+    df_to_which_to_update['phenotype'] = df_to_which_to_update['species_name_short'].apply(lambda species_name_short: assignments[species_name_short])
+
+    # Update the official phenotype assignments dataframe with the dataframe to which to update it
+    st.session_state['pheno__de_phenotype_assignments'].update_editor_contents(df_to_which_to_update, reset_key=False)
+
 def main():
     '''
     Main function for running the page

@@ -254,6 +254,10 @@ def z_score_normalize(df, numeric_columns):
     # Return the transformed dataset
     return df_batch_normalized
 
+# Allow a sample gating table to be loaded for quick testing
+def load_sample_gating_table(csv_filename):
+    st.session_state['mg__de_phenotype_assignments'].update_editor_contents(pd.read_csv(os.path.join('.', 'sample_phenotyping', csv_filename)), reset_key=False)
+
 def main():
     '''
     Main function for running the page
@@ -561,6 +565,9 @@ def main():
 
             # Output the dataframe holding the specifications for all phenotypes
             st.session_state['mg__de_phenotype_assignments'].dataframe_editor(reset_data_editor_button_text='Reset all phenotype definitions')
+
+            # Allow a sample gating table to be loaded
+            st.button('Load sample gating table', on_click=load_sample_gating_table, kwargs={'csv_filename': 'sample_gating_table.csv'})
 
             # Generate the new dataset
             st.button(label=':star2: Append phenotype assignments to the dataset :star2:',
