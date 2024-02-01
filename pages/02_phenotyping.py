@@ -86,7 +86,7 @@ def marker_multiselect_callback():
 def make_sample_phenotype_assignments(csv_filename):
     # NEXT:
     #   * Make button below like in the Gater
-    #   * Call using csv_filename = 'sample_phenotype_assignments.csv'
+    #   * make_sample_phenotype_assignments(csv_filename='sample_phenotype_assignments.csv')
 
     # Import relevant library
     import pandas as pd
@@ -104,7 +104,7 @@ def make_sample_phenotype_assignments(csv_filename):
     df_to_which_to_update['phenotype'] = df_to_which_to_update['species_name_short'].apply(lambda species_name_short: assignments[species_name_short])
 
     # Update the official phenotype assignments dataframe with the dataframe to which to update it
-    st.session_state['pheno__de_phenotype_assignments'].update_editor_contents(df_to_which_to_update, reset_key=False)
+    st.session_state['pheno__de_phenotype_assignments'].update_editor_contents(df_to_which_to_update, reset_key=False, extra_functionality=data_editor_change_callback)
 
 def main():
     '''
@@ -249,6 +249,10 @@ def main():
             if 'pheno__de_phenotype_assignments' not in st.session_state:
                 st.session_state['pheno__de_phenotype_assignments'] = sde.DataframeEditor(df_name='pheno__df_phenotype_assignments', default_df_contents=bpl.init_pheno_assign(st.session_state.df))
             st.session_state['pheno__de_phenotype_assignments'].dataframe_editor(on_change=data_editor_change_callback, reset_data_editor_button_text='Reset phenotype assignments')  # note there is no return variable
+
+            # Allow a sample gating table to be loaded
+            st.button('Load sample gating table', on_click=make_sample_phenotype_assignments, kwargs={'csv_filename': 'sample_phenotype_assignments.csv'})
+
         else:
             st.dataframe(st.session_state.spec_summ, use_container_width=True)
 
