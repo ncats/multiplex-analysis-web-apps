@@ -104,7 +104,7 @@ def make_sample_phenotype_assignments(csv_filename):
     df_to_which_to_update['phenotype'] = df_to_which_to_update['species_name_short'].apply(lambda species_name_short: assignments[species_name_short])
 
     # Update the official phenotype assignments dataframe with the dataframe to which to update it
-    st.session_state['pheno__de_phenotype_assignments'].update_editor_contents(df_to_which_to_update, reset_key=False, extra_functionality=data_editor_change_callback)
+    st.session_state['pheno__de_phenotype_assignments'].update_editor_contents(df_to_which_to_update, reset_key=False, additional_callback=data_editor_change_callback)
 
 def main():
     '''
