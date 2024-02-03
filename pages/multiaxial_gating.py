@@ -566,8 +566,8 @@ def main():
             # Output the dataframe holding the specifications for all phenotypes
             st.session_state['mg__de_phenotype_assignments'].dataframe_editor(reset_data_editor_button_text='Reset all phenotype definitions')
 
-            # Allow a sample gating table to be loaded
-            st.button('Load sample gating table', on_click=load_sample_gating_table, kwargs={'csv_filename': 'sample_gating_table.csv'})
+            # # Allow a sample gating table to be loaded
+            # st.button('Load sample gating table', on_click=load_sample_gating_table, kwargs={'csv_filename': 'sample_gating_table.csv'})
 
             # Generate the new dataset
             st.button(label=':star2: Append phenotype assignments to the dataset :star2:',
