@@ -317,6 +317,11 @@ def main():
         set_session_state_key(settings, 'annotation', 'microns_per_integer_unit')
         set_session_state_key(settings, 'plotting', 'min_log_pval')
 
+    # if st.button('DEBUG: Save data to pkl file'):
+    #     import pickle
+    #     with open('debug_data.pkl', 'wb') as f:
+    #         pickle.dump([st.session_state['df'], st.session_state['mg__input_datafile_filename']], f)
+
     st.button(':arrow_right: Load relevant settings from Phenotyper', on_click=load_relevant_settings_from_phenotyper)
 
     # Logical divider

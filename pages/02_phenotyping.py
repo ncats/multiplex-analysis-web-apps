@@ -161,6 +161,12 @@ def main():
             if (st.button('Load Multi-axial Gating Data')) & ('mg__df' in st.session_state):
                 st.session_state.bc.startTimer()
                 st.session_state = ndl.loadDataButton(st.session_state, st.session_state['mg__df'], 'Mutli-axial Gating', st.session_state.mg__input_datafile_filename[:-4])
+
+                # if st.button('DEBUG: Save data to pkl file'):
+                #     import pickle
+                #     with open('debug_data_from_gater.pkl', 'wb') as f:
+                #         pickle.dump(st.session_state['mg__df'], f)
+
                 st.session_state.bc.printElapsedTime(msg = f'Performing Phenotyping')
         st.session_state.bc.set_value_df('time_load_data', st.session_state.bc.elapsedTime())
 

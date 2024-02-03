@@ -1331,8 +1331,8 @@ def potentially_apply_patching(df, input_datafile, roi_width, overlap, func_coor
         # Print the length of the new dataframe
         print('Length of duplicated dataframe: {}'.format(len(df)))
 
-    # Sort the data by slide and then by ROI
-    df = df.sort_values(by=['Slide ID', 'tag']).reset_index(drop=True)  # adding .reset_index(drop=True) to just *make sure* the SIP code in general doesn't assume the data index is already in sorted order
+    # # Sort the data by slide and then by ROI
+    # df = df.sort_values(by=['Slide ID', 'tag']).reset_index(drop=True)  # adding .reset_index(drop=True) to just *make sure* the SIP code in general doesn't assume the data index is already in sorted order
 
     return df
 
@@ -1359,8 +1359,8 @@ def delete_rois_with_single_coord(df):
     print('Dropping {} ROIs with valid objects that have only a single unique spatial coordinate'.format(len(rois_with_single_unique_coord)))
     df = df.loc[df['tag'].apply(lambda x: x not in rois_with_single_unique_coord), :]
 
-    # Add .reset_index(drop=True) to just *make sure* the SIP code in general doesn't assume the data index is already in sorted order
-    df = df.reset_index(drop=True)
+    # # Add .reset_index(drop=True) to just *make sure* the SIP code in general doesn't assume the data index is already in sorted order
+    # df = df.reset_index(drop=True)
 
     return df
 

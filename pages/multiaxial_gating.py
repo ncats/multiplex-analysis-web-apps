@@ -588,6 +588,9 @@ def main():
             st.write('Augmented dataset sample:')
             st.dataframe(st.session_state['mg__df'].sample(5), hide_index=True)
 
+            # if st.button('Save dataset to `output` folder'):
+            #     st.session_state['mg__df'].to_csv('./output/saved_dataset.csv')
+
             # Get a list of all new phenotypes
             new_phenotypes = [column for column in st.session_state['mg__df'].columns if column.startswith('Phenotype ')]
 
