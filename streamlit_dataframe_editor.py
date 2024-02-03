@@ -123,13 +123,13 @@ class DataframeEditor:
         self.default_df_contents = cast_column_labels_to_strings(default_df_contents)
         self.reset_dataframe_content()
 
-    def reset_dataframe_content(self):
+    def reset_dataframe_content(self, additional_callback=None):
         '''
         Initialize the editor contents to its default dataframe
         '''
-        self.update_editor_contents(new_df_contents=self.default_df_contents)  # reset_key must = True (the default) here or else the resetting will not happen per nuances of Streamlit, due to the desired dataframe contents being the same as they once were with the same key I believe
+        self.update_editor_contents(new_df_contents=self.default_df_contents, additional_callback=additional_callback)  # reset_key must = True (the default) here or else the resetting will not happen per nuances of Streamlit, due to the desired dataframe contents being the same as they once were with the same key I believe
 
-    def update_editor_contents(self, new_df_contents, reset_key=True):
+    def update_editor_contents(self, new_df_contents, reset_key=True, additional_callback=None):
         '''
         Set the dataframe in the data editor to specific values robustly
         Note reset_key=True has some flicker but is necessary in case the data editor contents are ever the same, in which case they wouldn't update. So reset_key=False may lead to non-updates, but no flicker, and is the right option for e.g. leaving and coming back to the page containing the data editor as long as the contents were not expected to have changed in the interim, so there's no need to force a refresh using reset_key=True.
@@ -143,6 +143,10 @@ class DataframeEditor:
         # This step causes brief flashing of the dataframe so it's best to not run this unless required. A good time to not run this is when a dataframe is reloaded after leaving and coming back to the page it's on
         if reset_key:
             st.session_state[df_name + '_key'] = df_name + '_' + get_random_integer() + '__do_not_persist'  # not strictly necessary to do every time, though it is in the case where the new data is exactly the same as the original data, so we may as well do it every time
+
+        # Allow extra functionality to be run if the data editor contents are programmatically changed
+        if additional_callback is not None:
+            additional_callback()
 
     def reconstruct_edited_dataframe(self):
         '''
@@ -175,4 +179,4 @@ class DataframeEditor:
 
         # Create a button to reset the data in the data editor
         if reset_data_editor_button:
-            st.button(reset_data_editor_button_text, on_click=self.reset_dataframe_content, key=(df_name + '_button__do_not_persist'))
+            st.button(reset_data_editor_button_text, on_click=self.reset_dataframe_content, key=(df_name + '_button__do_not_persist'), kwargs={'additional_callback': on_change})
