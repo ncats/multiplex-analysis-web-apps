@@ -1,6 +1,6 @@
 ---
 nav_order: 2
-title: Features
+title: Feature Summary
 ---
 
 General:
