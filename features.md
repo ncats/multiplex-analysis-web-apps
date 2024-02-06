@@ -3,6 +3,8 @@ nav_order: 2
 title: Feature Summary
 ---
 
+# Feature Summary
+
 General:
 
 * Intuitive, point-and-click graphical user interface
