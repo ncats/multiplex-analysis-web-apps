@@ -8,8 +8,8 @@ title: Feature Summary
 ## General
 
 * Intuitive, point-and-click graphical user interface
-* Employment of multiple CPUs
 * Aimed for users of all computational skill levels
+* Employment of multiple CPUs
 
 ## Phenotyping
 
