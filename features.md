@@ -24,6 +24,6 @@ title: Feature Summary
 
 ## Spatial Analysis - Neighborhood Profiler
 
-* UMAP decomposition of counts cells of different phenotypes at multiple distances from each cell
+* UMAP decomposition of cell counts of different phenotypes at multiple distances from each cell
 * Clustering of the UMAP components to determine a discrete number of "neighborhood profiles" in the dataset
 * Exploratory visualizations to inspect and compare neighborhood makeups and to investigate potential correlations with other features or response variables in the dataset
