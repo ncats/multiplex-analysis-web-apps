@@ -11,7 +11,7 @@ title: Home
 
 ![](./assets/images/Clusters_Homepg.png)
 
-Multiplex Analysis Web Apps (MAWA) is a suite of web-based tools for analyzing multiplex data, from phenotyping through spatial analysis. Users of all skill levels from biologists to imaging experts seeking to uncover relationships between cell populations in their multiplex data can do so rapidly using the intuitive, point-and-click MAWA interface. Those wishing to use MAWA or collaborate on developing additional capabilities are welcome to contact Andrew Weisman or Dante Smith.
+Multiplex Analysis Web Apps (MAWA) is a suite of web-based tools for analyzing multiplex data, from phenotyping through spatial analysis. Users of all skill levels from biologists to imaging experts seeking to uncover relationships between cell populations in their multiplex data can do so rapidly using the intuitive, point-and-click MAWA interface. Those wishing to use MAWA or collaborate on developing additional capabilities are welcome to contact [Andrew Weisman](mailto:andrew.weisman@nih.gov) or [Dante Smith](mailto:dante.smith@nih.gov).
 
 ## Available Apps
 
