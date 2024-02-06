@@ -5,7 +5,7 @@ title: Feature Summary
 
 General:
 
-* Simple, point-and-click graphical user interface
+* Intuitive, point-and-click graphical user interface
 * Employment of multiple CPUs
 * Aimed for users of all computational skill levels
 
