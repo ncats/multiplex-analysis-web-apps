@@ -29,7 +29,7 @@ def top_of_page_reqs(session_state):
 
     # Sidebar organization
     with st.sidebar:
-        st.write('**:book: [Documentation](https://nidap.nih.gov/workspace/module/view/latest/ri.workshop.main.module.6b54d691-4d02-4f77-8acd-734f42e3eee0)**')
+        st.write('**:book: [Documentation](https://ncats.github.io/multiplex-analysis-web-apps/)**')
 
     # Check the platform
     session_state = check_for_platform(session_state)

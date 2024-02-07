@@ -82,6 +82,30 @@ def marker_multiselect_callback():
     st.session_state.marker_names = st.session_state.marker_multi_sel
     st.session_state = ndl.set_phenotyping_elements(st.session_state, st.session_state.df_raw)
 
+# Allow sample phenotype assignments to be made for quick testing
+def make_sample_phenotype_assignments(csv_filename):
+    # NEXT:
+    #   * Make button below like in the Gater
+    #   * make_sample_phenotype_assignments(csv_filename='sample_phenotype_assignments.csv')
+
+    # Import relevant library
+    import pandas as pd
+
+    # Get the current version of the phenotype assignments dataframe
+    df_to_which_to_update = st.session_state['pheno__de_phenotype_assignments'].reconstruct_edited_dataframe()
+
+    # Load in a dataframe containing the translations to make, from species_name_short to phenotype
+    df_to_assign = pd.read_csv(os.path.join('.', 'sample_phenotyping', csv_filename))
+
+    # Create a dictionary of these translations
+    assignments = dict(zip(df_to_assign['species_name_short'], df_to_assign['phenotype']))
+
+    # Use the translations dictionary to perform actual translation
+    df_to_which_to_update['phenotype'] = df_to_which_to_update['species_name_short'].apply(lambda species_name_short: assignments[species_name_short])
+
+    # Update the official phenotype assignments dataframe with the dataframe to which to update it
+    st.session_state['pheno__de_phenotype_assignments'].update_editor_contents(df_to_which_to_update, reset_key=False, additional_callback=data_editor_change_callback)
+
 def main():
     '''
     Main function for running the page
@@ -137,6 +161,12 @@ def main():
             if (st.button('Load Multi-axial Gating Data')) & ('mg__df' in st.session_state):
                 st.session_state.bc.startTimer()
                 st.session_state = ndl.loadDataButton(st.session_state, st.session_state['mg__df'], 'Mutli-axial Gating', st.session_state.mg__input_datafile_filename[:-4])
+
+                # if st.button('DEBUG: Save data to pkl file'):
+                #     import pickle
+                #     with open('debug_data_from_gater.pkl', 'wb') as f:
+                #         pickle.dump(st.session_state['mg__df'], f)
+
                 st.session_state.bc.printElapsedTime(msg = f'Performing Phenotyping')
         st.session_state.bc.set_value_df('time_load_data', st.session_state.bc.elapsedTime())
 
@@ -166,6 +196,8 @@ def main():
                 st.session_state.selected_phenoMeth = st.session_state.phenoMeth
                 st.session_state = ndl.updatePhenotyping(st.session_state)
                 st.session_state.pointstSliderVal_Sel = st.session_state.calcSliderVal
+                if 'pheno__de_phenotype_assignments' in st.session_state:
+                    del st.session_state['pheno__de_phenotype_assignments']  # probably just do this instead of updating the dataframe editor using the method so that the default, "reset" dataframe gets set appropriately
 
     #
     if st.session_state.selected_phenoMeth != 'Not Selected':
@@ -223,6 +255,10 @@ def main():
             if 'pheno__de_phenotype_assignments' not in st.session_state:
                 st.session_state['pheno__de_phenotype_assignments'] = sde.DataframeEditor(df_name='pheno__df_phenotype_assignments', default_df_contents=bpl.init_pheno_assign(st.session_state.df))
             st.session_state['pheno__de_phenotype_assignments'].dataframe_editor(on_change=data_editor_change_callback, reset_data_editor_button_text='Reset phenotype assignments')  # note there is no return variable
+
+            # # Allow a sample gating table to be loaded
+            # st.button('Load sample gating table', on_click=make_sample_phenotype_assignments, kwargs={'csv_filename': 'sample_phenotype_assignments.csv'})
+
         else:
             st.dataframe(st.session_state.spec_summ, use_container_width=True)
 
