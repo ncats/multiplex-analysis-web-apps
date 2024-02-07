@@ -67,7 +67,7 @@ class benchmark_collector:
             elapsed_time = None
         return elapsed_time
 
-    def print_elapsed_time(self, msg):
+    def printElapsedTime(self, msg):
         '''
         Print the current value of elapsed time 
         '''
