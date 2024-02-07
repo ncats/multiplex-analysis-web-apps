@@ -2,7 +2,7 @@
 This is the python script which produces the NEIGHBORHOOD PROFILES PAGE
 '''
 import streamlit as st
-from streamlit_extras.add_vertical_space import add_vertical_space 
+from streamlit_extras.add_vertical_space import add_vertical_space
 
 # Import relevant libraries
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
@@ -11,6 +11,9 @@ import app_top_of_page as top
 import streamlit_dataframe_editor as sde
 
 def init_spatial_umap():
+    '''
+    Initalizing the spatial_umap object
+    '''
     st.session_state.bc.startTimer()
     with st.spinner('Calculating Cell Counts and Areas'):
         st.session_state.spatial_umap = bpl.setup_Spatial_UMAP(st.session_state.df,
@@ -24,15 +27,19 @@ def init_spatial_umap():
 
     st.session_state.cell_counts_completed = True
 
-def apply_umap(UMAPStyle):
+def apply_umap(umap_style):
+    '''
+    Call back function for applying the UMAP functions
+    '''
     clust_minmax = [1, 40]
     st.session_state.bc.startTimer()
     with st.spinner('Calculating UMAP'):
-        st.session_state.spatial_umap = bpl.perform_spatialUMAP(st.session_state.spatial_umap, UMAPStyle)
+        st.session_state.spatial_umap = bpl.perform_spatialUMAP(st.session_state.spatial_umap,
+                                                                umap_style)
     st.write('Done Calculating Spatial UMAP')
-    
+
     # Record time elapsed
-    st.session_state.bc.printElapsedTime(msg = f'Performing UMAP')
+    st.session_state.bc.printElapsedTime(msg = 'Performing UMAP')
     st.session_state.bc.set_value_df('time_to_run_UMAP', st.session_state.bc.elapsedTime())
 
     # List of possible UMAP Lineages as defined by the completed UMAP
@@ -41,6 +48,9 @@ def apply_umap(UMAPStyle):
     st.session_state.umapMarks = [st.session_state.defLineageOpt]
     st.session_state.umapMarks.extend(st.session_state.spatial_umap.markers)
     st.session_state.umapMarks.extend(['Other'])
+
+    # Identify all of the features in the dataframe
+    st.session_state.outcomes = st.session_state.spatial_umap.cells.columns
 
     # List of possible outcome variables as defined by the config yaml files
     st.session_state.umapOutcomes = [st.session_state.defumapOutcomes]
@@ -54,7 +64,7 @@ def apply_umap(UMAPStyle):
     st.session_state.bc.startTimer()
     with st.spinner('Calculating Possible Clusters'):
         st.session_state.clust_range, st.session_state.wcss = bpl.measure_possible_clust(st.session_state.spatial_umap, clust_minmax)
-    st.session_state.bc.printElapsedTime(msg = f'Calculating posstible clusters')
+    st.session_state.bc.printElapsedTime(msg = 'Calculating possible clusters')
 
     st.session_state.wcss_calc_completed = True
     st.session_state.umapCompleted = True
@@ -62,13 +72,18 @@ def apply_umap(UMAPStyle):
     filter_and_plot()
 
 def set_clusters():
+    '''
+    Callback function for setting the number of clusters
+    and applying them to the UMAP/dataset
+    '''
     st.session_state.bc.startTimer()
-    st.session_state.spatial_umap = bpl.perform_clusteringUMAP(st.session_state.spatial_umap, st.session_state.slider_clus_val)
+    st.session_state.spatial_umap = bpl.perform_clusteringUMAP(st.session_state.spatial_umap,
+                                                               st.session_state.slider_clus_val)
     st.session_state.selected_nClus = st.session_state.slider_clus_val
     st.write('Done Calculating Clusters')
 
     # Record time elapsed
-    st.session_state.bc.printElapsedTime(msg = f'Setting Clusters')
+    st.session_state.bc.printElapsedTime(msg = 'Setting Clusters')
     st.session_state.bc.set_value_df('time_to_run_cluster', st.session_state.bc.elapsedTime())
 
     st.session_state.clustering_completed = True
@@ -96,9 +111,14 @@ def slide_id_prog_right_callback():
         filter_and_plot()
 
 def slide_id_callback():
+    '''
+    Call back for setting the current Slide_ID index
+    '''
     # st.session_state['idxSlide ID'] = st.session_state['uniSlide ID_short'].index(st.session_state['selSlide ID_short'])
-    idx =  st.session_state['idxSlide ID'] = st.session_state['uniSlide ID_short'].index(st.session_state['selSlide ID_short'])
+    idx = st.session_state['idxSlide ID'] = st.session_state['uniSlide ID_short'].index(st.session_state['selSlide ID_short'])
     st.session_state['selSlide ID'] = st.session_state['uniSlide ID'][idx]
+
+    # After correct index is selected, reapply filters, redraw plots
     filter_and_plot()
 
 def filter_and_plot():
@@ -155,9 +175,9 @@ def main():
                 init_spatial_umap()
         if umapButt:
             if st.session_state.cell_counts_completed:
-                apply_umap(UMAPStyle = 'Densities')
+                apply_umap(umap_style = 'Densities')
         if clustButt:
-            if st.session_state.umapCompleted: 
+            if st.session_state.umapCompleted:
                 set_clusters()
 
     with neiProCols[2]:
@@ -166,7 +186,7 @@ def main():
             with st.expander('Cluster Meta-Analysis'):
                 wcss_cols = st.columns(2)
                 with wcss_cols[0]:
-                    st.markdown('''The within-cluster sum of squares (WCSS) is a measure of the 
+                    st.markdown('''The within-cluster sum of squares (WCSS) is a measure of the
                                 variability of the observations within each cluster. In general, 
                                 a cluster that has a small sum of squares is more compact than a 
                                 cluster that has a large sum of squares. Clusters that have higher 
@@ -199,7 +219,7 @@ def main():
         clustOPheno = st.radio('Plot Colors by: ',
                                ('Clusters', 'Phenotype'),
                                horizontal = True, index = 0, key = 'clustOPheno')
-        
+
         imageProgCol = st.columns([3, 1, 1, 2])
         with imageProgCol[0]:
             st.selectbox('Slide ID',
@@ -235,10 +255,10 @@ def main():
     with uNeighPCol:
         st.header('Neighborhood Profiles')
         if 'spatial_umap' in st.session_state:
-            selNeighFig = st.selectbox('Select a cluster to view', 
+            selNeighFig = st.selectbox('Select a cluster to view',
                                        list(range(st.session_state.selected_nClus)))
             if hasattr(st.session_state.spatial_umap, 'dens_df'):
-                
+
                 NeiProFig = bpl.neighProfileDraw(st.session_state.spatial_umap, selNeighFig)
                 st.pyplot(fig=NeiProFig)
 
@@ -248,7 +268,7 @@ def main():
                 with neigh_prof_col[1]:
                     add_vertical_space(2)
                     if st.button('Append Export List', key = 'appendexportbutton_neighproline__do_not_persist'):
-                        
+
                         ndl.save_png(NeiProFig, 'Neighborhood Profiles', st.session_state.neigh_prof_line_suffix)
                         st.toast(f'Added {st.session_state.neigh_prof_line_suffix} to export list')
 
