@@ -119,9 +119,27 @@ def init_session_state(session_state, settings_yaml_file):
     session_state.errmsg_wrongCol = ''':green[Please only select .csv files that include columns listed in the  
                                        Required DATASET Features (About Page). See Dante or Andrew for help]'''
 
-    # Completing UMAP analysis
-    # Has the UMAP been completed yet?
+    # Inital Phenotyping state
     session_state.phenotyping_completed = False
+
+    # Reset all of the neighborhood Profiles settings
+    session_state = reset_neigh_profile_settings(session_state)
+
+    # Set data_loaded = False.
+    # This needs to happen at the end to counteract the 'loadDataButton' action
+    session_state.data_loaded = False
+
+    return session_state
+
+def reset_neigh_profile_settings(session_state):
+    '''
+    Resets all the variables required for neighborhood
+    profiles analysis 
+    '''
+
+    print('Resetting Neighborhood Profiles Analysis Settings')
+
+    # Has the UMAP been completed yet?
     session_state.cell_counts_completed = False
     session_state.umapCompleted         = False
     session_state.clustering_completed  = False
@@ -157,10 +175,6 @@ def init_session_state(session_state, settings_yaml_file):
     session_state.inciPhenoSel   = session_state.defLineageOpt
     session_state.inciOutcomeSel = session_state.definciOutcomes
     session_state.Inci_Value_display = 'Count Differences'
-
-    # Set data_loaded = False. 
-    # This needs to happen at the end to counteract the 'loadDataButton' action
-    session_state.data_loaded = False
 
     return session_state
 
@@ -552,14 +566,20 @@ def setFigureObjs_UMAPDifferences(session_state):
     # Inspection UMAP properties
     if session_state.umapInspect_Feat != session_state.defumapOutcomes:
         w_Ins = dfUMAPI[session_state.umapInspect_Feat]
-        w_Ins, dfUMAPI = bpl.preprocess_weighted_umap(w_Ins, dfUMAPI)
+        if w_Ins.dtypes != 'object':
+            w_Ins, dfUMAPI = bpl.preprocess_weighted_umap(w_Ins, dfUMAPI)
+        else:
+            w_Ins = None
     else:
         w_Ins = None
 
     # Difference UMAP properties
     if session_state.diffUMAPSel_Feat != session_state.defumapOutcomes:
         w = dfUMAPD[session_state.diffUMAPSel_Feat]
-        if session_state.diffUMAPSel_Feat in session_state.outcomes_nBOOL:
+        val_selected_feat_diff = dfUMAPD[session_state.diffUMAPSel_Feat].unique()
+        is_bool_diff = (val_selected_feat_diff.sort() == [0, 1])
+        if ~is_bool_diff:
+            print('Choosn a non-boolean value')
             compThresh = 0
             w = np.array(w > compThresh).astype('int')
 

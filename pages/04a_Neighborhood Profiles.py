@@ -14,6 +14,10 @@ def init_spatial_umap():
     '''
     Initalizing the spatial_umap object
     '''
+
+    # Reset the settings required for Neighborhood Analysis
+    st.session_state = ndl.reset_neigh_profile_settings(st.session_state)
+
     st.session_state.bc.startTimer()
     with st.spinner('Calculating Cell Counts and Areas'):
         st.session_state.spatial_umap = bpl.setup_Spatial_UMAP(st.session_state.df,
