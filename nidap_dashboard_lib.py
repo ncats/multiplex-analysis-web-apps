@@ -20,6 +20,18 @@ import basic_phenotyper_lib as bpl                  # Useful functions for cell 
 from foundry_IO_lib import foundry_IO_lib           # Foundry Input/Output Class
 from benchmark_collector import benchmark_collector # Benchmark Collector Class
 
+def identify_col_type(col):
+    dtypes = col.dtypes
+    unique_vals = col.unique().sort()
+    print(dtypes, unique_vals)
+
+    if (unique_vals == [0, 1]):
+        return 'bool'
+    elif dtypes == 'object':
+        return 'object'
+    else:
+        return 'not_bool'
+
 def init_session_state(session_state, settings_yaml_file):
     """
     Initialize session_state values for streamlit processing
@@ -119,9 +131,27 @@ def init_session_state(session_state, settings_yaml_file):
     session_state.errmsg_wrongCol = ''':green[Please only select .csv files that include columns listed in the  
                                        Required DATASET Features (About Page). See Dante or Andrew for help]'''
 
-    # Completing UMAP analysis
-    # Has the UMAP been completed yet?
+    # Inital Phenotyping state
     session_state.phenotyping_completed = False
+
+    # Reset all of the neighborhood Profiles settings
+    session_state = reset_neigh_profile_settings(session_state)
+
+    # Set data_loaded = False.
+    # This needs to happen at the end to counteract the 'loadDataButton' action
+    session_state.data_loaded = False
+
+    return session_state
+
+def reset_neigh_profile_settings(session_state):
+    '''
+    Resets all the variables required for neighborhood
+    profiles analysis 
+    '''
+
+    print('Resetting Neighborhood Profiles Analysis Settings')
+
+    # Has the UMAP been completed yet?
     session_state.cell_counts_completed = False
     session_state.umapCompleted         = False
     session_state.clustering_completed  = False
@@ -157,10 +187,6 @@ def init_session_state(session_state, settings_yaml_file):
     session_state.inciPhenoSel   = session_state.defLineageOpt
     session_state.inciOutcomeSel = session_state.definciOutcomes
     session_state.Inci_Value_display = 'Count Differences'
-
-    # Set data_loaded = False. 
-    # This needs to happen at the end to counteract the 'loadDataButton' action
-    session_state.data_loaded = False
 
     return session_state
 
@@ -519,6 +545,10 @@ def setFigureObjs_UMAP(session_state):
     return session_state
 
 def setFigureObjs_UMAPDifferences(session_state):
+    '''
+    Organize parts of dataframes to be used in the figures
+    that are the results of Neighborhood Profile analyses
+    '''
 
     title = [f'DATASET: {session_state.datafile}',
              f'PHENO METHOD: {session_state.selected_phenoMeth}',
@@ -552,14 +582,17 @@ def setFigureObjs_UMAPDifferences(session_state):
     # Inspection UMAP properties
     if session_state.umapInspect_Feat != session_state.defumapOutcomes:
         w_Ins = dfUMAPI[session_state.umapInspect_Feat]
-        w_Ins, dfUMAPI = bpl.preprocess_weighted_umap(w_Ins, dfUMAPI)
+        if identify_col_type(w_Ins) != 'object':
+            w_Ins, dfUMAPI = bpl.preprocess_weighted_umap(w_Ins, dfUMAPI)
+        else:
+            w_Ins = None
     else:
         w_Ins = None
 
     # Difference UMAP properties
     if session_state.diffUMAPSel_Feat != session_state.defumapOutcomes:
         w = dfUMAPD[session_state.diffUMAPSel_Feat]
-        if session_state.diffUMAPSel_Feat in session_state.outcomes_nBOOL:
+        if identify_col_type(w) == 'not_bool':
             compThresh = 0
             w = np.array(w > compThresh).astype('int')
 
@@ -569,13 +602,20 @@ def setFigureObjs_UMAPDifferences(session_state):
             dfUMAPD_A = dfUMAPD.loc[dfUMAPD[session_state.diffUMAPSel_Feat] >= compThresh, :]
             dfUMAPD_B = dfUMAPD.loc[dfUMAPD[session_state.diffUMAPSel_Feat] < compThresh, :]
             dfUMAPD_AB = dfUMAPD_B.copy()
-        else:
+        elif identify_col_type(w) == 'bool':
             featComp1 = '= 1'
             featComp2 = '= 0'
 
             dfUMAPD_A = dfUMAPD.loc[dfUMAPD[session_state.diffUMAPSel_Feat] == 1, :]
             dfUMAPD_B = dfUMAPD.loc[dfUMAPD[session_state.diffUMAPSel_Feat] == 0, :]
             dfUMAPD_AB = dfUMAPD_B.copy()
+        else:
+            featComp1 = 'try other column'
+            featComp2 = 'try other column'
+
+            dfUMAPD_A  = dfUMAPD.copy()
+            dfUMAPD_B  = dfUMAPD.copy()
+            dfUMAPD_AB = dfUMAPD.copy()
 
         w, dfUMAPD = bpl.preprocess_weighted_umap(w, dfUMAPD)
 
@@ -676,10 +716,12 @@ def setFigureObjs_UMAPDifferences(session_state):
 
     # Not Cell Counts
     if session_state.inciOutcomeSel != session_state.definciOutcomes:
-        # Remake nonboolean variable into a boolean.
-        if session_state.inciOutcomeSel in session_state.outcomes_nBOOL:
+        col = cellsUMAP[session_state.inciOutcomeSel]
+        if identify_col_type(col) == 'not_bool':
             compThresh = 0
             cellsUMAP['chosen_feature'] = cellsUMAP.apply(lambda row: 1 if row[session_state.inciOutcomeSel] >= compThresh else 0, axis = 1)
+        elif identify_col_type(col) == 'bool':
+            cellsUMAP['chosen_feature'] = cellsUMAP[session_state.inciOutcomeSel]
         else:
             cellsUMAP['chosen_feature'] = cellsUMAP[session_state.inciOutcomeSel]
 

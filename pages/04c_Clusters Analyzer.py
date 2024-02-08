@@ -35,9 +35,9 @@ def main():
     st.radio("Filter by Phenotypes or Markers?",
             ['Phenotypes', 'Markers'],
             key = 'lineageDisplayToggle_clus',
-            horizontal = True, 
+            horizontal = True,
             on_change = reset_phenotype_selection)
-    
+
     if st.session_state.lineageDisplayToggle_clus == 'Phenotypes':
         st.session_state.cluslineages = st.session_state.umapPheno
     elif st.session_state.lineageDisplayToggle_clus == 'Markers':
@@ -61,7 +61,7 @@ def main():
         if st.session_state.umapCompleted:
             st.pyplot(st.session_state.heatmapfig)
 
-    ### INCIDENCE PLOT ###       
+    ### INCIDENCE PLOT ###
     with clusterfigs[1]:
         st.header('Incidence Lineplot')
 
