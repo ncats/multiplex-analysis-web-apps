@@ -2,7 +2,7 @@
 
 Multiplex Analysis Web Apps (MAWA) is a collection of tools developed by data scientists at NIH/NCI/CBIIT to support researchers utilizing multiplex imaging techniques. This suite of apps employs a Streamlit interface and for NIH users can be accessed using NIDAP free of charge.
 
-## Local installation and execution (tested on Ubuntu)
+## Local installation and execution (working on both Ubuntu and Windows as of 2024-02-08)
 
 Remember, at NIH, no installation is required; NIDAP should be used instead. NIH users should contact the authors below for more information.
 
