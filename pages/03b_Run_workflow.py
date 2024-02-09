@@ -120,7 +120,7 @@ def main():
 
             # Map the new settings values to the old settings formats which are used in the workflow options below
             orig_settings = dict()
-            orig_settings['dataset'], orig_settings['analysis'], orig_settings['plotting'], orig_settings['annotation'] = dict(), dict(), dict(), dict()
+            orig_settings['dataset'], orig_settings['analysis'], orig_settings['plotting'], orig_settings['annotation'], orig_settings['phenotyping'] = dict(), dict(), dict(), dict(), dict()
             orig_settings['dataset']['input_datafile'] = os.path.join('.', 'input', st.session_state['settings__input_datafile__filename'])
             orig_settings['dataset']['format'] = dict(zip(['HALO', 'Native', 'GMBSecondGeneration', 'QuPath', 'Steinbock'], ['OMAL', 'Native', 'GMBSecondGeneration', 'QuPath', 'Steinbock']))[st.session_state['settings__input_datafile__format']]
             orig_settings['dataset']['coord_units_in_microns'] = st.session_state['settings__input_datafile__coordinate_units']
