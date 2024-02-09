@@ -72,11 +72,18 @@ def write_current_tool_parameters_to_disk(output_dir):
         with open(pathname, mode='wt') as file:
             file.write('# Timestamp: {}\n'.format(datetime.now()))
             file.write('# Hostname: {}\n'.format(socket.gethostname()))
-            # file.write('# Git commit: {}\n'.format(subprocess.run('git rev-parse HEAD', shell=True, capture_output=True).stdout.decode().split('\n')[:-1][0]))
+            if os.path.exists('.git'):
+                file.write('# Git commit: {}\n'.format(subprocess.run('git rev-parse HEAD', shell=True, capture_output=True).stdout.decode().split('\n')[:-1][0]))
+            else:
+                file.write('# Git commit: Currently unknown because there is no .git directory present\n')
             file.write('# Python version (may conflict with environment.yml, showing strange system setup): {}\n'.format(sys.version.split('\n')[0]))
             file.write('\n')
             yaml.dump(streamlit_utils.get_current_settings(), file, sort_keys=False)
-        # st.info('File {} has been written to disk'.format(pathname))
+            if 'sit__used_settings' in st.session_state:
+                file.write('\n')
+                file.write('Actual settings used in the Spatial Interaction Tool:\n')
+                file.write('\n')
+                yaml.dump(st.session_state['sit__used_settings'], file, sort_keys=False)
     else:
         st.warning('File {} already exists; not overwriting it'.format(pathname))
 

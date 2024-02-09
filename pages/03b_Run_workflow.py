@@ -9,6 +9,7 @@ from pathlib import Path
 import streamlit_utils
 import app_top_of_page as top
 import streamlit_dataframe_editor as sde
+import platform_io
 
 def main():
 
@@ -124,8 +125,9 @@ def main():
             orig_settings['dataset']['format'] = dict(zip(['HALO', 'Native', 'GMBSecondGeneration', 'QuPath', 'Steinbock'], ['OMAL', 'Native', 'GMBSecondGeneration', 'QuPath', 'Steinbock']))[st.session_state['settings__input_datafile__format']]
             orig_settings['dataset']['coord_units_in_microns'] = st.session_state['settings__input_datafile__coordinate_units']
             orig_settings['dataset']['sep'] = (',' if orig_settings['dataset']['input_datafile'].endswith('.csv') else '\t')
-            orig_settings['analysis']['allow_compound_species'] = (False if st.session_state['settings__phenotyping__method'] == 'Marker' else True)
-            orig_settings['dataset']['phenotype_identification_tsv_file'] = (os.path.join(input_directory, 'phenotypes', st.session_state['settings__phenotyping__phenotype_identification_file']) if st.session_state['settings__phenotyping__method'] == 'Custom' else None)
+            orig_settings['phenotyping']['method'] = st.session_state['settings__phenotyping__method']
+            orig_settings['analysis']['allow_compound_species'] = (False if orig_settings['phenotyping']['method'] == 'Marker' else True)
+            orig_settings['dataset']['phenotype_identification_tsv_file'] = (os.path.join(input_directory, 'phenotypes', st.session_state['settings__phenotyping__phenotype_identification_file']) if orig_settings['phenotyping']['method'] == 'Custom' else None)
             orig_settings['dataset']['roi_width'] = (st.session_state['settings__analysis__roi_width'] if st.session_state['settings__analysis__partition_slides_into_rois'] else None)
             orig_settings['dataset']['overlap'] = (st.session_state['settings__analysis__roi_overlap'] if st.session_state['settings__analysis__partition_slides_into_rois'] else 0)
             orig_settings['analysis']['thickness'] = st.session_state['settings__analysis__neighbor_radius']
@@ -151,26 +153,56 @@ def main():
             # Get dataset loading columns for the button and an output message
             dataset_loading_col1, dataset_loading_col2 = st.columns(2)
 
-            # Create a dataset loading button
+            # Assess whether tci.preprocess_dataset() is ready to be called
             ready_to_preprocess_data = True
             for x in ['input_datafile', 'format', 'coord_units_in_microns', 'sep', 'phenotype_identification_tsv_file', 'roi_width', 'overlap']:
                 if x not in orig_settings['dataset']:
                     ready_to_preprocess_data = False
                     break
-            with dataset_loading_col1:
-                dataset_just_loaded = st.button('Load dataset', disabled=(not ready_to_preprocess_data))
+            for x in ['images_to_analyze']:
+                if x not in orig_settings['analysis']:
+                    ready_to_preprocess_data = False
+                    break
 
-            # Load the dataset into a dataset object defined in dataset_formats.py if the button was pressed
+            # Determine if any checkpoints (which are directories of pickle files or images) exist
+            output_dir = os.path.join('.', 'output')
+            output_dir_listing = os.listdir(output_dir)
+            dirs_to_delete = ['checkpoints', 'images', 'logs']
+            existing_dirs_to_delete = set(dirs_to_delete).intersection(set(output_dir_listing))
+            if len(existing_dirs_to_delete) > 0:
+                checkpoints_exist = True
+                help_message = 'WARNING: Clicking this button will delete these directories in the local `output` directory: {}'.format(existing_dirs_to_delete)
+            else:
+                checkpoints_exist = False
+                help_message = None
+
+            # Create a dataset (and settings) loading button
+            with dataset_loading_col1:
+                if 'sit__used_settings' in st.session_state:
+                    if st.session_state['sit__used_settings'] != orig_settings:
+                        st.warning('The current settings differ from those used when the tool was last run. Click the button below to reload the dataset and settings, and then click the "Run workflow" button to rerun the workflow using the updated data/settings.', icon="⚠️")
+                dataset_just_loaded = st.button('Load dataset and settings', disabled=(not ready_to_preprocess_data), help=help_message)
+
+            # If the "Load dataset and settings" button was clicked...
             if dataset_just_loaded:
+
+                # Delete any existing checkpoints so that both the preprocessing and the rest of the workflow will run from scratch
+                if checkpoints_exist:
+                    platform_io.delete_selected_files_and_dirs('output', existing_dirs_to_delete)
+
+                # Save to memory all settings that are actually being used to run the SIT
+                st.session_state['sit__used_settings'] = orig_settings.copy()
+
+                # Load the dataset into a dataset object defined in dataset_formats.py if the button was pressed
                 dataset_obj = tci.preprocess_dataset(
-                    format=orig_settings['dataset']['format'],
-                    input_datafile=orig_settings['dataset']['input_datafile'],
-                    coord_units_in_microns=orig_settings['dataset']['coord_units_in_microns'],
-                    phenotype_identification_tsv_file=orig_settings['dataset']['phenotype_identification_tsv_file'],
-                    sep=orig_settings['dataset']['sep'],
-                    roi_width=orig_settings['dataset']['roi_width'],
-                    overlap=orig_settings['dataset']['overlap'],
-                    images_to_analyze=orig_settings['analysis']['images_to_analyze']
+                    format=st.session_state['sit__used_settings']['dataset']['format'],
+                    input_datafile=st.session_state['sit__used_settings']['dataset']['input_datafile'],
+                    coord_units_in_microns=st.session_state['sit__used_settings']['dataset']['coord_units_in_microns'],
+                    phenotype_identification_tsv_file=st.session_state['sit__used_settings']['dataset']['phenotype_identification_tsv_file'],
+                    sep=st.session_state['sit__used_settings']['dataset']['sep'],
+                    roi_width=st.session_state['sit__used_settings']['dataset']['roi_width'],
+                    overlap=st.session_state['sit__used_settings']['dataset']['overlap'],
+                    images_to_analyze=st.session_state['sit__used_settings']['analysis']['images_to_analyze']
                     )
                 st.session_state['dataset_obj'] = dataset_obj
 
@@ -232,15 +264,15 @@ def main():
                     slices = tci.TIMECellInteraction(
                         dataset_obj,
                         project_dir=project_dir,
-                        allow_compound_species=orig_settings['analysis']['allow_compound_species'],
-                        thickness_new=orig_settings['analysis']['thickness'],
-                        use_analytical_significance=orig_settings['analysis']['use_analytical_significance'],
-                        n_neighs=orig_settings['analysis']['n_neighs'],
-                        radius_instead_of_knn=orig_settings['analysis']['radius_instead_of_knn']
+                        allow_compound_species=st.session_state['sit__used_settings']['analysis']['allow_compound_species'],
+                        thickness_new=st.session_state['sit__used_settings']['analysis']['thickness'],
+                        use_analytical_significance=st.session_state['sit__used_settings']['analysis']['use_analytical_significance'],
+                        n_neighs=st.session_state['sit__used_settings']['analysis']['n_neighs'],
+                        radius_instead_of_knn=st.session_state['sit__used_settings']['analysis']['radius_instead_of_knn']
                     )
                     # st.session_state['main_analysis_input_data'] = slices.data
-                    st.session_state['df_data_by_roi'] = slices.df_data_by_roi
-                    st.session_state['thickness'] = orig_settings['analysis']['thickness']
+                    # st.session_state['df_data_by_roi'] = slices.df_data_by_roi
+                    # st.session_state['thickness'] = st.session_state['sit__used_settings']['analysis']['thickness']
 
                 # Plot every ROI using slices.df_roi_plotting_data in parallel
                 # Took <2 min on 3625 ROIs on 7/5/22
@@ -282,10 +314,10 @@ def main():
                     print('**** {}... ****'.format(block_names[iblock]))
                     st.write('**:sparkles: {}...**'.format(block_names[iblock]))
                     slices.check_and_prepare_metrics_for_plotting(
-                        log_pval_range=orig_settings['plotting']['log_pval_range'],
-                        num_valid_centers_minimum=orig_settings['plotting']['num_valid_centers_minimum']
+                        log_pval_range=st.session_state['sit__used_settings']['plotting']['log_pval_range'],
+                        num_valid_centers_minimum=st.session_state['sit__used_settings']['plotting']['num_valid_centers_minimum']
                     )
-                    st.session_state['df_density_pvals_arrays'] = slices.df_density_pvals_arrays
+                    # st.session_state['df_density_pvals_arrays'] = slices.df_density_pvals_arrays
 
                 # Plot every density heatmap using slices.df_density_pvals in parallel
                 iblock = 4
@@ -327,8 +359,8 @@ def main():
                     print('**** {}... ****'.format(block_names[iblock]))
                     st.write('**:sparkles: {}...**'.format(block_names[iblock]))
                     slices.average_dens_pvals_over_rois_for_each_slide(
-                        weight_rois_by_num_valid_centers=orig_settings['plotting']['weight_rois_by_num_valid_centers'],
-                        input_datafile=orig_settings['dataset']['input_datafile']  # this is just needed to get the input data filename to save to disk along with the df_log_dens_pvals_arr_per_slide for later read-in by the correlation analyzer
+                        weight_rois_by_num_valid_centers=st.session_state['sit__used_settings']['plotting']['weight_rois_by_num_valid_centers'],
+                        input_datafile=st.session_state['sit__used_settings']['dataset']['input_datafile']  # this is just needed to get the input data filename to save to disk along with the df_log_dens_pvals_arr_per_slide for later read-in by the correlation analyzer
                     )
 
                 # Plot the ROIs on each slide
@@ -344,14 +376,13 @@ def main():
                     print('**** {}... ****'.format(block_names[iblock]))
                     st.write('**:sparkles: {}...**'.format(block_names[iblock]))
                     slices.average_over_rois_per_annotation_region(
-                        annotations_csv_files=orig_settings['annotation']['csv_files'],
-                        phenotyping_method=st.session_state['settings__phenotyping__method'],
-                        phenotype_identification_file=orig_settings['dataset']['phenotype_identification_tsv_file'],
-                        # marker_column_names_list=orig_settings['annotation']['marker_column_names_list'],
-                        annotation_coord_units_in_microns=orig_settings['annotation']['annotation_coord_units_in_microns'],
-                        annotation_microns_per_integer_unit=orig_settings['annotation']['annotation_microns_per_integer_unit'],
-                        settings__analysis__thickness=orig_settings['analysis']['thickness'],
-                        min_log_pval_for_plotting=orig_settings['plotting']['min_log_pval']
+                        annotations_csv_files=st.session_state['sit__used_settings']['annotation']['csv_files'],
+                        phenotyping_method=st.session_state['sit__used_settings']['phenotyping']['method'],
+                        phenotype_identification_file=st.session_state['sit__used_settings']['dataset']['phenotype_identification_tsv_file'],
+                        annotation_coord_units_in_microns=st.session_state['sit__used_settings']['annotation']['annotation_coord_units_in_microns'],
+                        annotation_microns_per_integer_unit=st.session_state['sit__used_settings']['annotation']['annotation_microns_per_integer_unit'],
+                        settings__analysis__thickness=st.session_state['sit__used_settings']['analysis']['thickness'],
+                        min_log_pval_for_plotting=st.session_state['sit__used_settings']['plotting']['min_log_pval']
                         )
 
                 # Plot the density P values for each ROI over spatial plots of the slides; this probably overwrites existing plots, but it doesn't take long to regenerate them
