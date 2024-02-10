@@ -42,6 +42,8 @@ def main():
         if ('df_paths_per_slide' not in st.session_state) or collect_image_paths:
             st.session_state['df_paths_per_slide'] = utils.get_paths_for_slides()
             image_paths_extracted = True
+            st.session_state['slide_name_to_visualize'] = list(st.session_state['df_paths_per_slide'].index)[0]
+            update_slide_index(list(st.session_state['df_paths_per_slide'].index))
         else:
             image_paths_extracted = False
 

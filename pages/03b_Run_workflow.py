@@ -41,6 +41,8 @@ def load_dataset_and_settings(checkpoints_exist, existing_dirs_to_delete, orig_s
         del st.session_state['df_paths_per_roi']
     if 'df_paths_per_slide' in st.session_state:
         del st.session_state['df_paths_per_slide']
+    if 'overlay_info' in st.session_state:
+        del st.session_state['overlay_info']
 
 def main():
 

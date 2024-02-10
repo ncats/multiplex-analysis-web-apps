@@ -44,6 +44,8 @@ def main():
         if ('df_paths_per_roi' not in st.session_state) or collect_image_paths:
             st.session_state['df_paths_per_roi'] = utils.get_paths_for_rois()
             image_paths_extracted = True
+            st.session_state['roi_name_to_visualize'] = list(st.session_state['df_paths_per_roi'].index)[0]
+            update_roi_index(list(st.session_state['df_paths_per_roi'].index))
         else:
             image_paths_extracted = False
 

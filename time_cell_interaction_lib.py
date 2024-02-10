@@ -2735,8 +2735,8 @@ def plot_roi(fig, spec2plot, species, x, y, plotting_map, colors, x_range, y_ran
                     # Get the scalar data value to plot
                     log_dens_pval = row_data[pval_colname]
 
-                    # Determine whether this is a valid value of the log of the density P value
-                    log_dens_pval_is_valid = not np.isnan(log_dens_pval)  # will throw an error if log_dens_pval is ever None, which it should never be, so we're good
+                    # log_dens_pval_is_valid = not np.isnan(log_dens_pval)  # will throw an error if log_dens_pval is ever None, which it should never be, so we're good
+                    log_dens_pval_is_valid = not ((log_dens_pval is None) or np.isnan(log_dens_pval))
 
                     # If this data point exists...
                     if log_dens_pval_is_valid:
@@ -4364,14 +4364,14 @@ def plot_pvals_over_slides_for_center_neighbor_pair(args_as_single_tuple):
     # Left log density P values
     left_or_right_string = 'left'
     title_suffix = ' - dispersion of {} around {}'.format(neighbor_name, center_name)
-    filename_suffix = '-with_log_dens_pvals_per_roi__center_{}__neighbor_{}__{}_pvals{}'.format(center_name, neighbor_name, left_or_right_string, filename_suffix2)
+    filename_suffix = '-with_log_dens_pvals_per_roi__center_{}__neighbor_{}__{}_pvals{}'.format(center_name.strip(), neighbor_name.strip(), left_or_right_string, filename_suffix2)
     pval_colname = '{}_log_dens_pval'.format(left_or_right_string)
     plot_just_rois(depatched, plotting_map, num_colors, webpage_dir, mapping_dict, coord_units_in_microns, slide_id_col='Slide ID', roi_id_col='Slide ID', x_coord_col='Cell X Position', y_coord_col='Cell Y Position', plot_real_data=True, roi_figsize=roi_figsize, marker_size_step=marker_size_step, alpha=alpha, edgecolors=edgecolors, default_marker_size_fac=default_marker_size_fac, roi_dpi=roi_dpi, yaxis_dir=yaxis_dir, boxes_to_plot0=rectangle_data, filename_suffix=filename_suffix, pval_params=(pval_colname, vmin, vmax, False), title_suffix=title_suffix, webpage_dir_addon=webpage_dir_addon)
 
     # Right log density P values
     left_or_right_string = 'right'
     title_suffix = ' - aggregation of {} around {}'.format(neighbor_name, center_name)
-    filename_suffix = '-with_log_dens_pvals_per_roi__center_{}__neighbor_{}__{}_pvals{}'.format(center_name, neighbor_name, left_or_right_string, filename_suffix2)
+    filename_suffix = '-with_log_dens_pvals_per_roi__center_{}__neighbor_{}__{}_pvals{}'.format(center_name.strip(), neighbor_name.strip(), left_or_right_string, filename_suffix2)
     pval_colname = '{}_log_dens_pval'.format(left_or_right_string)
     plot_just_rois(depatched, plotting_map, num_colors, webpage_dir, mapping_dict, coord_units_in_microns, slide_id_col='Slide ID', roi_id_col='Slide ID', x_coord_col='Cell X Position', y_coord_col='Cell Y Position', plot_real_data=True, roi_figsize=roi_figsize, marker_size_step=marker_size_step, alpha=alpha, edgecolors=edgecolors, default_marker_size_fac=default_marker_size_fac, roi_dpi=roi_dpi, yaxis_dir=yaxis_dir, boxes_to_plot0=rectangle_data, filename_suffix=filename_suffix, pval_params=(pval_colname, vmin, vmax, False), title_suffix=title_suffix, webpage_dir_addon=webpage_dir_addon)
 
@@ -4383,5 +4383,5 @@ def plot_and_save_roi(args_as_single_tuple):
     plot_roi(fig_roi, spec2plot_roi, species_roi, x_roi, y_roi, plotting_map, colors, x_range, y_range, uroi, marker_size_step, default_marker_size, roi_dpi, mapping_dict, coord_units_in_microns, alpha=alpha, edgecolors=edgecolors, yaxis_dir=yaxis_dir, boxes_to_plot=boxes_to_plot, pval_params=pval_params, title_suffix=title_suffix)
     roi_fig_filename = '{}{}.png'.format(tag, filename_suffix)
     roi_fig_pathname = os.path.join(savedir, roi_fig_filename)
-    fig_roi.savefig(roi_fig_pathname, dpi=roi_dpi, bbox_inches='tight', facecolor='white')
+    fig_roi.savefig(roi_fig_pathname.replace(' ', '_'), dpi=roi_dpi, bbox_inches='tight', facecolor='white')
     plt.close(fig_roi)  # close the figure

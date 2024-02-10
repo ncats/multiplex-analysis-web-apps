@@ -50,6 +50,12 @@ def main():
         if ('overlay_info' not in st.session_state) or collect_overlay_info:
             st.session_state['overlay_info'] = utils.get_overlay_info()
             overlay_info_extracted = True
+            st.session_state['slide_name_to_visualize'] = st.session_state['overlay_info']['slide_names'][0]
+            update_slide_index(st.session_state['overlay_info']['slide_names'])
+            st.session_state['center_species_name_to_visualize'] = st.session_state['overlay_info']['center_species'][0]
+            update_center_species_index(st.session_state['overlay_info']['center_species'])
+            st.session_state['neighbor_species_name_to_visualize'] = st.session_state['overlay_info']['neighbor_species'][0]
+            update_neighbor_species_index(st.session_state['overlay_info']['neighbor_species'])
         else:
             overlay_info_extracted = False
 
