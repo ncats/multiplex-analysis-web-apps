@@ -518,7 +518,7 @@ class Platform:
         st.text_input('Suffix for the basename of the new results archive to create:', key='basename_suffix_for_new_results_archive', help='The name will go after "output_archive" and a timestamp, e.g., "output_archive-20230920_003801-project_xxxx_panel_07".')
 
         # If the user is ready to save the current results to a new results archive...
-        if st.button(':arrow_left: Save current results to a new archive', help='This will copy all current results to a new archive. Note the currently selected parameters ("Tool parameter selection" tab at left) will automatically be copied as a YAML file to the new archive. It might be helpful to ensure those are the actual parameters used to generate the current results.'):
+        if st.button(':arrow_left: Save current results to a new archive', help='This will copy all current results to a new archive, including job settings and environment information.'):
 
             # Copy a YAML file of the current tool settings to the current/loaded results
             write_current_tool_parameters_to_disk(local_output_dir)
