@@ -2,47 +2,11 @@
 import streamlit as st
 import os
 import numpy as np
-import pprint
 import time_cell_interaction_lib as tci  # import the TIME library stored in time_cell_interaction_lib.py
 import time
-from pathlib import Path
 import streamlit_utils
 import app_top_of_page as top
 import streamlit_dataframe_editor as sde
-import platform_io
-
-def load_dataset_and_settings(checkpoints_exist, existing_dirs_to_delete, orig_settings):
-    '''
-    Callback for when the "Load dataset and settings" button is pressed
-    '''
-
-    # Delete any existing checkpoints so that both the preprocessing and the rest of the workflow will run from scratch
-    if checkpoints_exist:
-        platform_io.delete_selected_files_and_dirs('output', existing_dirs_to_delete)
-
-    # Save to memory all settings that are actually being used to run the SIT
-    st.session_state['sit__used_settings'] = orig_settings.copy()
-
-    # Load the dataset into a dataset object defined in dataset_formats.py if the button was pressed
-    dataset_obj = tci.preprocess_dataset(
-        format=st.session_state['sit__used_settings']['dataset']['format'],
-        input_datafile=st.session_state['sit__used_settings']['dataset']['input_datafile'],
-        coord_units_in_microns=st.session_state['sit__used_settings']['dataset']['coord_units_in_microns'],
-        phenotype_identification_tsv_file=st.session_state['sit__used_settings']['dataset']['phenotype_identification_tsv_file'],
-        sep=st.session_state['sit__used_settings']['dataset']['sep'],
-        roi_width=st.session_state['sit__used_settings']['dataset']['roi_width'],
-        overlap=st.session_state['sit__used_settings']['dataset']['overlap'],
-        images_to_analyze=st.session_state['sit__used_settings']['analysis']['images_to_analyze']
-        )
-    st.session_state['dataset_obj'] = dataset_obj
-
-    # Reset any image path extraction in subsequent tabs
-    if 'df_paths_per_roi' in st.session_state:
-        del st.session_state['df_paths_per_roi']
-    if 'df_paths_per_slide' in st.session_state:
-        del st.session_state['df_paths_per_slide']
-    if 'overlay_info' in st.session_state:
-        del st.session_state['overlay_info']
 
 def main():
 
@@ -55,9 +19,6 @@ def main():
     # Run Top of Page (TOP) functions
     st.session_state = top.top_of_page_reqs(st.session_state)
 
-    # Constant
-    input_directory = os.path.join('.', 'input')
-    
     # Display page heading
     st.title('Run workflow')
 
@@ -80,87 +41,6 @@ def main():
         # Use only a single column
         col_settings, col_output = st.columns(2)
         with col_settings:
-
-            # ---- Path checks and dataset loading --------------------------------------------------------------
-
-            # Section title
-            st.subheader('Dataset selection')
-
-            # Determine the project directory from the location of this Jupyter notebook
-            project_dir = os.path.realpath(os.path.join(os.getcwd(), '..'))  # define the project directory
-
-            # Map the new settings values to the old settings formats which are used in the workflow options below
-            orig_settings = dict()
-            orig_settings['dataset'], orig_settings['analysis'], orig_settings['plotting'], orig_settings['annotation'], orig_settings['phenotyping'] = dict(), dict(), dict(), dict(), dict()
-            orig_settings['dataset']['input_datafile'] = os.path.join('.', 'input', st.session_state['settings__input_datafile__filename'])
-            orig_settings['dataset']['format'] = dict(zip(['HALO', 'Native', 'GMBSecondGeneration', 'QuPath', 'Steinbock'], ['OMAL', 'Native', 'GMBSecondGeneration', 'QuPath', 'Steinbock']))[st.session_state['settings__input_datafile__format']]
-            orig_settings['dataset']['coord_units_in_microns'] = st.session_state['settings__input_datafile__coordinate_units']
-            orig_settings['dataset']['sep'] = (',' if orig_settings['dataset']['input_datafile'].endswith('.csv') else '\t')
-            orig_settings['phenotyping']['method'] = st.session_state['settings__phenotyping__method']
-            orig_settings['analysis']['allow_compound_species'] = (False if orig_settings['phenotyping']['method'] == 'Marker' else True)
-            orig_settings['dataset']['phenotype_identification_tsv_file'] = (os.path.join(input_directory, 'phenotypes', st.session_state['settings__phenotyping__phenotype_identification_file']) if orig_settings['phenotyping']['method'] == 'Custom' else None)
-            orig_settings['dataset']['roi_width'] = (st.session_state['settings__analysis__roi_width'] if st.session_state['settings__analysis__partition_slides_into_rois'] else None)
-            orig_settings['dataset']['overlap'] = (st.session_state['settings__analysis__roi_overlap'] if st.session_state['settings__analysis__partition_slides_into_rois'] else 0)
-            orig_settings['analysis']['thickness'] = st.session_state['settings__analysis__neighbor_radius']
-            orig_settings['analysis']['use_analytical_significance'] = (True if st.session_state['settings__analysis__significance_calculation_method'] == 'Poisson (radius)' else False)
-            orig_settings['analysis']['n_neighs'] = (st.session_state['settings__analysis__n_neighs'] if st.session_state['settings__analysis__significance_calculation_method'] == 'Permutation (k-nearest neighbors)' else -1)
-            orig_settings['analysis']['radius_instead_of_knn'] = (True if st.session_state['settings__analysis__significance_calculation_method'] == 'Permutation (radius)' else False)
-            orig_settings['plotting']['num_valid_centers_minimum'] = st.session_state['settings__analysis__min_num_valid_centers']
-            orig_settings['plotting']['weight_rois_by_num_valid_centers'] = st.session_state['settings__analysis__weight_by_num_valid_centers']
-            orig_settings['plotting']['log_pval_range'] = (st.session_state['settings__analysis__log_pval_minimum'], st.session_state['settings__analysis__log_pval_maximum'])  # used for analysis and plotting both, except for the annotation-specific plots
-            orig_settings['annotation']['csv_files'] = st.session_state['settings__annotation__used_annotation_files']
-            orig_settings['annotation']['annotation_coord_units_in_microns'] = st.session_state['settings__annotation__coordinate_units']
-            orig_settings['annotation']['annotation_microns_per_integer_unit'] = st.session_state['settings__annotation__microns_per_integer_unit']
-            orig_settings['analysis']['images_to_analyze'] = st.session_state['settings__analysis__images_to_analyze']
-            orig_settings['plotting']['min_log_pval'] = st.session_state['settings__plotting__min_log_pval']
-
-            # Print the settings to screen in both the new and old formats
-            print('Selected settings for the workflow (new format):')
-            pprint.pprint(streamlit_utils.get_current_settings(), sort_dicts=False)
-            print('Selected settings for the workflow (old format):')
-            pprint.pprint(orig_settings, sort_dicts=False)
-
-            # Get dataset loading columns for the button and an output message
-            dataset_loading_col1, dataset_loading_col2 = st.columns(2)
-
-            # Assess whether tci.preprocess_dataset() is ready to be called
-            ready_to_preprocess_data = True
-            for x in ['input_datafile', 'format', 'coord_units_in_microns', 'sep', 'phenotype_identification_tsv_file', 'roi_width', 'overlap']:
-                if x not in orig_settings['dataset']:
-                    ready_to_preprocess_data = False
-                    break
-            for x in ['images_to_analyze']:
-                if x not in orig_settings['analysis']:
-                    ready_to_preprocess_data = False
-                    break
-
-            # Determine if any checkpoints (which are directories of pickle files or images) exist
-            output_dir = os.path.join('.', 'output')
-            output_dir_listing = os.listdir(output_dir)
-            dirs_to_delete = ['checkpoints', 'images', 'logs']
-            existing_dirs_to_delete = set(dirs_to_delete).intersection(set(output_dir_listing))
-            if len(existing_dirs_to_delete) > 0:
-                checkpoints_exist = True
-                help_message = 'WARNING: Clicking this button will delete these directories in the local `output` directory: {}. If you wish, first back them up in the "Data Import and Export" tab at left.'.format(existing_dirs_to_delete)
-                potential_icon_prefix = '⚠️'
-            else:
-                checkpoints_exist = False
-                help_message = None
-                potential_icon_prefix = ''
-
-            # Create a dataset (and settings) loading button
-            with dataset_loading_col1:
-                if 'sit__used_settings' in st.session_state:
-                    if st.session_state['sit__used_settings'] != orig_settings:
-                        st.warning('The current settings differ from those used when the tool was last run. Click the button below to reload the dataset and settings, and then click the "Run workflow" button to rerun the workflow using the updated data/settings.', icon="⚠️")
-                dataset_just_loaded = st.button('{} Load dataset and settings'.format(potential_icon_prefix), disabled=(not ready_to_preprocess_data), help=help_message, on_click=load_dataset_and_settings, kwargs={'checkpoints_exist': checkpoints_exist, 'existing_dirs_to_delete': existing_dirs_to_delete, 'orig_settings': orig_settings})
-
-            # If the button was pressed and therefore the data was loaded, then say so
-            with dataset_loading_col2:
-                if dataset_just_loaded:
-                    st.info('Dataset loaded', icon="ℹ️")
-
-            # ---- Main workflow --------------------------------------------------------------------------------
 
             # Section title
             st.subheader('Workflow settings')
@@ -205,7 +85,7 @@ def main():
                     st.write('**:sparkles: {}...**'.format(block_names[iblock]))
                     slices = tci.TIMECellInteraction(
                         dataset_obj,
-                        project_dir=project_dir,
+                        project_dir=os.path.realpath(os.path.join(os.getcwd(), '..')),
                         allow_compound_species=st.session_state['sit__used_settings']['analysis']['allow_compound_species'],
                         thickness_new=st.session_state['sit__used_settings']['analysis']['thickness'],
                         use_analytical_significance=st.session_state['sit__used_settings']['analysis']['use_analytical_significance'],
