@@ -10,7 +10,7 @@ icon = ""
 
 [[pages]]
 path = "pages/multiaxial_gating.py"
-name = "Multi-axial Gating"
+name = "Multiaxial Gating"
 icon = ""
 
 [[pages]]
