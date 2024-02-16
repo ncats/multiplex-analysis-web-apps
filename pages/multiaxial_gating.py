@@ -616,7 +616,7 @@ def main():
                 # If the button is pressed
                 if st.button('Plot the selected phenotype in the selected image'):
                     df_for_scatterplot = df.loc[df['Slide ID'] == unique_image_dict[st.session_state['mg__image_to_plot']], ['Cell X Position', 'Cell Y Position', st.session_state['mg__phenotype_to_plot']]]
-                    fig = px.scatter(data_frame=df_for_scatterplot, x='Cell X Position', y='Cell Y Position', color=st.session_state['mg__phenotype_to_plot'])
+                    fig = px.scatter(data_frame=df_for_scatterplot, x='Cell X Position', y='Cell Y Position', color=st.session_state['mg__phenotype_to_plot'], category_orders={st.session_state['mg__phenotype_to_plot']: ['-', '+']})
                     fig.update_xaxes(scaleanchor='y')
                     st.plotly_chart(fig)
 
