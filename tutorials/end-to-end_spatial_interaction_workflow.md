@@ -166,3 +166,57 @@ Double click in each row in the "phenotype" column to potentially re-assign comp
 ☝️ ***Tip:** There is no need to assign a "phenotype" to every row in the "Phenotype Assignments" table. The downstream spatial analysis apps will (in different ways) exclude phenotypes labeled "unassigned", as the Spatial Interaction Tool does when it loads the settings from the Phenotyping app and "Custom" phenotyping is selected.*
 
 Note that the "Phenotype Summary" table below and the "Phenotype Plot" to the left get dynamically updated as phenotype assignments are made.
+
+## Part II: Assessing Cell Interactions Using the Spatial Interaction Tool
+
+### Step 1: Load the new phenotypes and phenotyping refinement into the SIT
+
+Click on the "Tool Parameter Selection" page,
+
+<img src="end-to-end_spatial_interaction_workflow/phenotyping_page-highlighted_tool_parameter_selection.png" alt="Highlighted Tool Parameter Selection page" width="400"/>
+
+and on the page that loads, click on the "Load relevant settings from Phenotyper" button:
+
+<img src="end-to-end_spatial_interaction_workflow/tool_parameter_selection_page-load_relevant_settings_from_phenotyper.png" alt="Load relevant settings from Phenotyper" width="800"/>
+
+The loaded settings now look like:
+
+<img src="end-to-end_spatial_interaction_workflow/tool_parameter_selection_page-loaded_settings_from_phenotyper.png" alt="Loaded settings from Phenotyper" width="1024"/>
+
+This action created two files: (1) a datafile called "orig_datafile_plus_gated_phenotypes-date2024_02_16_time20_58_57.csv" that is the original datafile with the new phenotypes from the Multiaxial Gater appended to it, and (2) a new "phenotype identification file" called "phenotyping_assignments_from_phenotyper-date2024_02_16_time20_59_01.tsv" that contains the refinements we made in the Phenotyper to the new phenotypes.
+
+In addition, it loaded relevant settings into the "Input datafile settings", "Phenotyping settings," and "Analysis settings" sections of the page.
+
+Now make three modifications in the "Analysis settings" section:
+
+1. Uncheck the "Partition slides into regions of interest (ROIs)" checkbox. This is because the sample dataset contains single ROIs instead of whole slides so there is no need to further partition the data.
+1. Reduce the "Minimum niumber of valid centers" setting to 1. This will exclude fewer ROIs, if any, from the analysis.
+1. In the subsection "Clipping range of the log (base 10) density P values," change the "Minimum" field to -20 to more clearly observe small interactions in the heatmap:
+
+<img src="end-to-end_spatial_interaction_workflow/tool_parameter_selection_page-modified_analysis_settings.png" alt="Modified analysis settings" width="600"/>
+
+Now click the "Load dataset and settings" button:
+
+<img src="end-to-end_spatial_interaction_workflow/tool_parameter_selection_page-load_dataset_and_settings.png" alt="Load dataset and settings" width="600"/>
+
+Now click on the "Run SIT Workflow" page,
+
+<img src="end-to-end_spatial_interaction_workflow/tool_parameter_selection_page-highlighted_run_sit_workflow.png" alt="Highlighted Run SIT Workflow page" width="400"/>
+
+loading a page that looks like this:
+
+<img src="end-to-end_spatial_interaction_workflow/run_sit_workflow_page.png" alt="Run SIT Workflow page" width="1024"/>
+
+It's best to leave the default settings checked for now; these are the settings that will allow the following two pages ("Display Individual ROI Heatmaps" and "Display Average Heatmaps") to be populated to visualize the calculated interactions between the defined cell phenotypes.
+
+Press the "Run workflow" button to start the analysis:
+
+<img src="end-to-end_spatial_interaction_workflow/run_sit_workflow_page-run_workflow.png" alt="Run workflow" width="200"/>
+
+The entire workflow will take about a minute to run and will display an output like:
+
+<img src="end-to-end_spatial_interaction_workflow/run_sit_workflow_page-workflow_output.png" alt="Workflow output" width="500"/>
+
+To visualize the results, start by clicking on the "Display Individual ROI Heatmaps" page,
+
+<img src="end-to-end_spatial_interaction_workflow/run_sit_workflow_page-highlighted_display_individual_roi_heatmaps.png" alt="Highlighted Display Individual ROI Heatmaps page" width="400"/>
