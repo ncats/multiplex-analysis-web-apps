@@ -141,7 +141,7 @@ Instead of refining your phenotype definition, you may wish to simply say "Defin
 
 In the three phenotype definitions specified above, we do not have any cells that fall into this category. But, we still did not ensure that all our phenotype definitions were mutually exclusive. While the first two phenotypes "CD16 high PDL1 low" and "CD16 high PDL1 high" *are* mutually exclusive, we made no effort to ensure that the third phenotype "Ecad mid" is different from the first two. Indeed, 7.5% of the cells in the dataset are both "Ecad mid" and either of the first two phenotypes. This can also be addressed in this step of the workflow, as will now be demonstrated.
 
-☝️ ***Tip:** There may be situations in which you *want* cells to be labeled with multiple phenotypes, and this is a highly supported feature: Simply perform subsequent phenotyping in the "Phenotyping" app using the "species" phenotyping method. Instead, below you will use the "Custom" phenotyping method to re-assign such compound phenotypes.*
+☝️ ***Tip:** There may be situations in which you want cells to be labeled with multiple phenotypes, and this is a highly supported feature: Simply perform subsequent phenotyping in the "Phenotyping" app using the "species" phenotyping method. Instead, below you will use the "Custom" phenotyping method to re-assign such compound phenotypes.*
 
 Click on the "Phenotyping" page,
 
