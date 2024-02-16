@@ -69,7 +69,7 @@ Select a column corresponding to an intensity channel in the "Column for filteri
 
 <img src="end-to-end_spatial_interaction_workflow/multiaxial_gating_page-cd16_selected.png" alt="CD16 selected" width="400"/>
 
-☝️ Tip: As for all dropdown menus, you can easily search for a column name by clicking on the dropdown and immediately typing in the name (case-insensitive).
+☝️ ***Tip:** As for all dropdown menus, you can easily search for a column name by clicking on the dropdown and immediately typing in the name (case-insensitive).*
 
 A histogram (smoothed by a kernel density estimate) of the distribution of Z scores over the CD16 column for all images (since "All images" is selected in the "Image selection" field) is displayed in red. To select only a subset of intensities, limit the selected range by adjusting either end of the double-ended slider in the "Selected value range" field. For example, to limit the selection to cells with CD16 intensity values that are at least 1.5 standard deviations above the mean, move the left end of the slider to about 1.5, and click on the "Add column filter to current phenotype" button,
 
@@ -109,7 +109,7 @@ Now add two more phenotypes in the same manner, adding one or more column filter
 
 <img src="end-to-end_spatial_interaction_workflow/multiaxial_gating_page-full_phenotype_gating_table.png" alt="Full phenotype gating table" width="800"/>
 
-☝️ Tip: You can view a large image of the phenotype assignments table (gating table) by clicking on the "maximize" icon that appears at the top right of the table when hoving your mouse over it:
+☝️ ***Tip:** You can view a large image of the phenotype assignments table (gating table) by clicking on the "maximize" icon that appears at the top right of the table when hoving your mouse over it:*
 
 <img src="end-to-end_spatial_interaction_workflow/multiaxial_gating_page-full_phenotype_gating_table-small.png" alt="Full phenotype gating table - small" width="600"/>
 
@@ -129,7 +129,7 @@ Select an image and phenotype to plot in the "Image to plot" and "Phenotype to p
 
 <img src="end-to-end_spatial_interaction_workflow/multiaxial_gating_page-visualize_new_phenotypes.png" alt="Plot of the selected phenotype in the selected image" width="600"/>
 
-☝️ Tip: The displayed scatterplot is fully interactive (zoom, pan, etc.). Double click on it to reset to the original view.
+☝️ ***Tip:** The displayed scatterplot is fully interactive (zoom, pan, etc.). Double click on it to reset to the original view.*
 
 ### Step 7: Resolve any phenotype conflicts
 
@@ -141,7 +141,7 @@ Instead of refining your phenotype definition, you may wish to simply say "Defin
 
 In the three phenotype definitions specified above, we do not have any cells that fall into this category. But, we still did not ensure that all our phenotype definitions were mutually exclusive. While the first two phenotypes "CD16 high PDL1 low" and "CD16 high PDL1 high" *are* mutually exclusive, we made no effort to ensure that the third phenotype "Ecad mid" is different from the first two. Indeed, 7.5% of the cells in the dataset are both "Ecad mid" and either of the first two phenotypes. This can also be addressed in this step of the workflow, as will now be demonstrated.
 
-☝️ Tip: There may be situations in which you *want* cells to be labeled with multiple phenotypes, and this is a highly supported feature: Simply perform subsequent phenotyping in the "Phenotyping" app using the "species" phenotyping method. Instead, below you will use the "Custom" phenotyping method to re-assign such compound phenotypes.
+☝️ ***Tip:** There may be situations in which you *want* cells to be labeled with multiple phenotypes, and this is a highly supported feature: Simply perform subsequent phenotyping in the "Phenotyping" app using the "species" phenotyping method. Instead, below you will use the "Custom" phenotyping method to re-assign such compound phenotypes.*
 
 Click on the "Phenotyping" page,
 
@@ -163,6 +163,6 @@ Double click in each row in the "phenotype" column to potentially re-assign comp
 
 <img src="end-to-end_spatial_interaction_workflow/phenotyping_page-phenotype_assignments_table_assigned.png" alt="Phenotype assignments table unassigned" width="800"/>
 
-☝️ Tip: There is no need to assign a "phenotype" to every row in the "Phenotype Assignments" table. The downstream spatial analysis apps will (in different ways) exclude phenotypes labeled "unassigned", as the Spatial Interaction Tool does when it loads the settings from the Phenotyping app and "Custom" phenotyping is selected.
+☝️ ***Tip:** There is no need to assign a "phenotype" to every row in the "Phenotype Assignments" table. The downstream spatial analysis apps will (in different ways) exclude phenotypes labeled "unassigned", as the Spatial Interaction Tool does when it loads the settings from the Phenotyping app and "Custom" phenotyping is selected.*
 
 Note that the "Phenotype Summary" table below and the "Phenotype Plot" to the left get dynamically updated as phenotype assignments are made.
