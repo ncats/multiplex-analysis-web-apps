@@ -4282,15 +4282,20 @@ def plot_density_pvals_simple(log_dens_pvals_arr, log_pval_range, figsize, dpi, 
 
         # Plot the log of the left/less P values
         sns.heatmap(log_dens_pvals_arr[:, :, 0, islice], vmin=vmin, vmax=vmax, linewidths=.5, ax=ax[0], cbar=True, xticklabels=all_species_names, yticklabels=all_species_names, square=True)
+        ax[0].set_xticklabels(all_species_names, rotation=45)
+        ax[0].set_yticklabels(all_species_names, rotation=30)
         ax[0].set_title('log10(\"less\" density pvals)')
         ax[0].set_xlabel('Neighbor species')
         ax[0].set_ylabel('Center species')
 
         # Plot the log of the right/greater P values
         sns.heatmap(log_dens_pvals_arr[:, :, 1, islice], vmin=vmin, vmax=vmax, linewidths=.5, ax=ax[1], cbar=True, xticklabels=all_species_names, yticklabels=all_species_names, square=True)
+        ax[1].set_xticklabels(all_species_names, rotation=45)
+        ax[1].set_yticklabels(all_species_names, alpha=0, rotation=30)  # alpha=0 is a hack to make the y-axis label not appear yet still have the heatmap be the size it would otherwise be
         ax[1].set_title('log10(\"greater\" density pvals)')
         ax[1].set_xlabel('Neighbor species')
-        ax[1].set_ylabel('Center species')
+        ax[1].set_ylabel('Center species', alpha=0)  # alpha=0 is a hack to make the y-axis label not appear yet still have the heatmap be the size it would otherwise be
+        ax[1].get_legend().set_alpha(0)  # set the legend alpha value to 0 for transparency to make it not appear yet still have the heatmap be the size it would otherwise be
 
         # Set the figure title to the slide title and ensure the facecolor is white
         # fig.suptitle('Density P values - {} - {} data - slice {} of {}'.format(entity_name, ('real' if plot_real_data else 'simulated'), islice + 1, nslices))
