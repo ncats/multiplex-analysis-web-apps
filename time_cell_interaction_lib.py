@@ -4289,7 +4289,7 @@ def plot_density_pvals_simple(log_dens_pvals_arr, log_pval_range, figsize, dpi, 
         ax[0].set_ylabel('Center species')
 
         # Plot the log of the right/greater P values
-        sns.heatmap(log_dens_pvals_arr[:, :, 1, islice], vmin=vmin, vmax=vmax, linewidths=.5, ax=ax[1], cbar=True, xticklabels=all_species_names, yticklabels=all_species_names, square=True, cbar_kws={'alpha': 0})
+        sns.heatmap(log_dens_pvals_arr[:, :, 1, islice], vmin=vmin, vmax=vmax, linewidths=.5, ax=ax[1], cbar=True, xticklabels=all_species_names, yticklabels=all_species_names, square=True, cbar_kws={'alpha': 0})  # note the colorbar transparency setting here does not seem to have any effect
         ax[1].set_xticklabels(all_species_names, rotation=45)
         ax[1].set_yticklabels(all_species_names, alpha=0, rotation=30)  # alpha=0 is a hack to make the y-axis label not appear yet still have the heatmap be the size it would otherwise be
         ax[1].set_title('log10(\"greater\" density pvals)')
