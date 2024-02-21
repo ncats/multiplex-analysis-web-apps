@@ -187,6 +187,8 @@ This action created two files: (1) a datafile called "orig_datafile_plus_gated_p
 
 In addition, it loaded relevant settings into the "Input datafile settings", "Phenotyping settings," and "Analysis settings" sections of the page.
 
+### Step 2: Modify the default analysis settings
+
 Now make three modifications in the "Analysis settings" section:
 
 1. Uncheck the "Partition slides into regions of interest (ROIs)" checkbox. This is because the sample dataset contains single ROIs instead of whole slides so there is no need to further partition the data.
@@ -195,9 +197,15 @@ Now make three modifications in the "Analysis settings" section:
 
 <img src="end-to-end_spatial_interaction_workflow/tool_parameter_selection_page-modified_analysis_settings.png" alt="Modified analysis settings" width="600"/>
 
+### Step 3: Load the dataset and settings
+
 Now click the "Load dataset and settings" button:
 
 <img src="end-to-end_spatial_interaction_workflow/tool_parameter_selection_page-load_dataset_and_settings.png" alt="Load dataset and settings" width="600"/>
+
+Once the dataset has been loaded, you will see a temporary "Dataset loaded" message show up in the bottom right corner of the window. Further, a '⚠️' character will show up on the button you just clicked, which indicates that if you click the button again (which at this point is completely fine), the directory containing workflow checkpoints will be overwritten.
+
+### Step 4: Run the Spatial Interaction Tool (SIT)
 
 Now click on the "Run SIT Workflow" page,
 
@@ -217,6 +225,63 @@ The entire workflow will take about a minute to run and will display an output l
 
 <img src="end-to-end_spatial_interaction_workflow/run_sit_workflow_page-workflow_output.png" alt="Workflow output" width="500"/>
 
+### Step 5: Visualize the cell interactions for each ROI
+
 To visualize the results, start by clicking on the "Display Individual ROI Heatmaps" page,
 
 <img src="end-to-end_spatial_interaction_workflow/run_sit_workflow_page-highlighted_display_individual_roi_heatmaps.png" alt="Highlighted Display Individual ROI Heatmaps page" width="400"/>
+
+loading a page that looks like this:
+
+<img src="end-to-end_spatial_interaction_workflow/display_individual_roi_heatmaps_page.png" alt="Display Individual ROI Heatmaps page" width="1024"/>
+
+Some notes:
+
+* Note that right off the bat, the magenta-colored squares in the heatmap in the bottom left indicate that "Ecad mid only" and "CD16 high PDL1 low" cells tend to repel away from each other when compared to random distributions of the two cell types in space. The two black cells (and one orange cell) in the heatmap to the right indicate that "Ecad mid only" and "CD16 high PDL1 high" (and, to a lesser extent, "CD16 high PDL1 low") tend to aggregate around themselves (though not each other). The rest of the squares in the heatmaps indicate insignificant levels of repulsion or aggregation between cell types when compared to random distributions of the cells in space.
+* Note you can select which ROI to display by choosing from the "Select ROI name to visualize..." dropdown or by stepping through them by clicking on the "+" or "-" in the "...OR, select ROI index to visualize" field.
+* In this sample dataset, there is one ROI per slide. This is because this is how the dataset came and because we deselected the "Partition slides into regions of interest (ROIs)" checkbox. If there were multiple ROIs per slide, the rightmost image would depict a composite of all the ROIs in the slide, where the currently selected ROI would be highlighted by a black border.
+
+### Step 6: Visualize the cell interactions for each slide averaged over its ROIs
+
+Click on the "Display Average Heatmaps" page,
+
+<img src="end-to-end_spatial_interaction_workflow/display_individual_roi_heatmaps_page-highlighted_display_average_heatmaps.png" alt="Highlighted Display Average Heatmaps page" width="400"/>
+
+loading a page that looks like this:
+
+<img src="end-to-end_spatial_interaction_workflow/display_average_heatmaps_page.png" alt="Display Average Heatmaps page" width="1024"/>
+
+Some notes:
+
+* As noted previously, in this sample dataset, there is one ROI per slide. Had their been multiple ROIs per slide, the displayed heatmap would be averaged over the heatmaps for all ROIs in each slide. In this current case, the average heatmap is the same as the heatmap for the single ROI. The cell scatterplot on the right would again be a composite of all the ROIs in the slide, with all the ROI borders displayed in black depending on whether the "Display slide patching at right?" is set to "not patched" or "patched".
+* Similar to before, you can select which slide to display by choosing from the "Select slide name to visualize..." dropdown or by stepping through them by clicking on the "+" or "-" in the "...OR, select slide index to visualize" field.
+
+### Step 7: Save the results
+
+To save all your work so you can later run additional analyses or re-visualize the results using the web interface, click on the "Data Import and Export" page, which now looks something like this:
+
+<img src="end-to-end_spatial_interaction_workflow/data_import_and_export_page-after_analysis.png" alt="Data Import and Export page after analysis" width="1024"/>
+
+We see that, unlike at the beginning of this tutorial, the table in the "Results loaded in the tool" section is now populated with the files that were generated. The "gating_table_for_all_images_for_datafile_Multiplexed_Image_Sample-date2024..." file was generated by the Multiaxial Gater and the rest of the files and directories were generated by the Spatial Interaction Tool.
+
+To save all these results securely to NIDAP, enter a suffix in the "Suffix for the basename of the new results archive to create" field such as "gating_through_sit_on_Multiplexed_Image_Sample" and click the "Save current results to a new archive" button:
+
+<img src="end-to-end_spatial_interaction_workflow/data_import_and_export_page-save_results_to_new_archive.png" alt="Save results to new archive" width="1000"/>
+
+If you press the "Refresh available results archives" button, you will see that the new archive has been created:
+
+<img src="end-to-end_spatial_interaction_workflow/data_import_and_export_page-new_archive_created.png" alt="New archive created" width="600"/>
+
+The next time you start MAWA, you can optionally load this archive by selecting it in the "Select available results archive to load" dropdown and clicking the "Load selected (above) results archive" button, allowing  you to, e.g., resume analysis with the SIT or visualize its results using the web interface. In the meantime, it will be safely stored on NIDAP.
+
+## What's next?
+
+This tutorial has shown you how to perform manual phenotyping on a CSV file containing multiplex intensities and obtain measures of the degrees to which cells of the defined phenotypes are interacting.
+
+Next, you may want to:
+
+* Try out the workflow above on your own dataset, replacing "Multiplexed_Image_Sample.csv" with the name of your own datafile.
+* For slides that could be partitioned into ROIs, check the "Partition slides into regions of interest (ROIs)" checkbox in the "Analysis settings" section of the SIT settings. Use a ROI width of 800 or 1000 microns for testing the workflow, or use widths of 400 or even 200 microns for production jobs. Keep in mind that the smaller the ROI width, the more ROIs will be generated and the longer the workflow will take to run.
+* Note also that values of down to -50 in the "Minimum" field of the "Clipping range of the log (base 10) density P values" section of the SIT settings are more typical. The larger the value (i.e., closer to zero), the more interactions will be visualized in the heatmaps. The value of -20 was used here to more clearly observe small interactions.
+* Check the "Plot density P values for each ROI over slide spatial plot" checkbox in the SIT workflow settings in order to generate images of the whole slides with its ROIs colored by the log of the P value for a selected pair of cell types (accessed on the "Display ROI P Values Overlaid on Slides" page). While this is a useful visualization, it can lengthen the runtime of the workflow.
+* [Reach out](mailto:andrew.weisman@nih.gov) to us to get more advice on how to use MAWA to perform spatial analysis on your multiplex data!
