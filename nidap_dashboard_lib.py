@@ -21,6 +21,9 @@ from foundry_IO_lib import foundry_IO_lib           # Foundry Input/Output Class
 from benchmark_collector import benchmark_collector # Benchmark Collector Class
 
 def identify_col_type(col):
+    '''
+    Quick and dirty column identifaction function
+    '''
     dtypes = col.dtypes
     unique_vals = col.unique().sort()
     print(dtypes, unique_vals)

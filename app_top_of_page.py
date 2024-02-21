@@ -9,6 +9,9 @@ import streamlit as st
 from st_pages import show_pages_from_config, add_indentation
 from streamlit_extras.app_logo import add_logo
 
+# Import relevant libraries
+import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
+
 def top_of_page_reqs(session_state):
     '''
     Top of the page requirements. These are the commands
@@ -27,9 +30,18 @@ def top_of_page_reqs(session_state):
     add_indentation()
     show_pages_from_config()
 
+    # Initalize MAWA variables
+    if 'init' not in session_state:
+        settings_yaml_file = 'config_files/OMAL_REEC.yml'
+        # Initialize session_state values for streamlit processing
+        session_state = ndl.init_session_state(session_state, settings_yaml_file)
+
     # Sidebar organization
+    benchmark_button = False
     with st.sidebar:
         st.write('**:book: [Documentation](https://ncats.github.io/multiplex-analysis-web-apps/)**')
+        if benchmark_button:
+            st.button('Record Benchmarking', on_click = session_state.bc.save_run_to_csv)
 
     # Check the platform
     session_state = check_for_platform(session_state)
