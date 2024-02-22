@@ -50,7 +50,7 @@ def load_session_state(saved_streamlit_session_states_dir, saved_streamlit_sessi
         saved_streamlit_session_states_dir (str): The directory from which to load the session state pickle files
         saved_streamlit_session_state_prefix (str): The prefix to add to the pickle filename
         saved_streamlit_session_state_key (str): The key to exclude from the session state when loading
-        selected_session (str, optional): The selected session to load. If not provided, the session state key will be used.
+        selected_session (str, optional): The selected session to load. If not provided, the selectbox key will be used.
     
     Returns:
         None
@@ -124,7 +124,7 @@ def app_session_management(saved_streamlit_session_states_dir, saved_streamlit_s
         if os.path.islink(os.path.join(saved_streamlit_session_states_dir, f)):
             os.unlink(os.path.join(saved_streamlit_session_states_dir, f))
     
-    # Check if a pickle file exists in the "output" directory, and if so, create a symbolic link to it from the saved_streamlit_session_states_dir directory
+    # Check if the right type of pickle file exists in the "output" directory, and if so, create a symbolic link to it from the saved_streamlit_session_states_dir directory
     session_state_files_in_output_dir = []
     if os.path.exists('output'):
         for f in os.listdir('output'):
@@ -133,7 +133,7 @@ def app_session_management(saved_streamlit_session_states_dir, saved_streamlit_s
                 os.symlink(os.path.join('..', 'output', f), symlink_path)
                 session_state_files_in_output_dir.append(f)
 
-    # Get the list of pickle files in the saved session state directory
+    # Get the list of pickle files in the saved session state directory (unsorted)
     files = [f for f in os.listdir(saved_streamlit_session_states_dir) if (f.endswith('.pkl') and f.startswith(saved_streamlit_session_state_prefix))]
 
     # Name the relevant section in the sidebar
@@ -153,7 +153,7 @@ def app_session_management(saved_streamlit_session_states_dir, saved_streamlit_s
     if session_state_files_in_output_dir:
         st.sidebar.write('Session state files in the "output" directory: `{}`'.format([f.removeprefix(saved_streamlit_session_state_prefix).removesuffix('.pkl') for f in session_state_files_in_output_dir]))
 
-    # Return the list of files
+    # Return the most recent session state file, or None
     return session_basenames_in_reverse_order[0] if session_basenames_in_reverse_order else None
 
 def main():
@@ -161,7 +161,7 @@ def main():
     Main function for the Streamlit app.
 
     This function creates the sidebar for app session management and initializes the
-    test selectbox if it doesn't exist.
+    test selectbox if the key doesn't exist.
 
     Args:
         None
