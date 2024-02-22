@@ -1,15 +1,28 @@
+'''
+Example streamlit page for testing data editor
+'''
+
 import streamlit as st
 import streamlit_dataframe_editor as sde
 
 def data_editor_change_callback():
+    '''
+    Data editor change callback
+    '''
     st.session_state['saved_dataeditor_values'] = st.session_state['dataeditor__do_not_persist']
 
 def update_input_data_editor():
+    '''
+    update the input data data editor
+    '''
     for key, value in st.session_state['saved_dataeditor_values']['edited_rows'].items():
         for key2, value2 in value.items():
             st.session_state.df_dataeditor_input.loc[key, key2] = value2
 
 def main():
+    '''
+    Main function for running the page
+    '''
 
     # Run streamlit-dataframe-editor library initialization tasks at the top of the page
     st.session_state = sde.initialize_session_state(st.session_state)

@@ -2,6 +2,7 @@
 This is the python script which produces the PHENOTYPING PAGE
 '''
 import os
+import pandas as pd
 import streamlit as st
 from streamlit_extras.add_vertical_space import add_vertical_space
 import dataset_formats
@@ -79,17 +80,19 @@ def filter_and_plot():
     st.session_state = ndl.setFigureObjs(st.session_state)
 
 def marker_multiselect_callback():
+    '''
+    Callback function for selecting which markers to include in phenotyping
+    '''
     st.session_state.marker_names = st.session_state.marker_multi_sel
     st.session_state = ndl.set_phenotyping_elements(st.session_state, st.session_state.df_raw)
 
-# Allow sample phenotype assignments to be made for quick testing
 def make_sample_phenotype_assignments(csv_filename):
+    '''
+    Allow sample phenotype assignments to be made for quick testing
+    '''
     # NEXT:
     #   * Make button below like in the Gater
     #   * make_sample_phenotype_assignments(csv_filename='sample_phenotype_assignments.csv')
-
-    # Import relevant library
-    import pandas as pd
 
     # Get the current version of the phenotype assignments dataframe
     df_to_which_to_update = st.session_state['pheno__de_phenotype_assignments'].reconstruct_edited_dataframe()
@@ -121,11 +124,6 @@ def main():
     # Run Top of Page (TOP) functions
     st.session_state = top.top_of_page_reqs(st.session_state)
 
-    if 'init' not in st.session_state:
-        settings_yaml_file = 'config_files/OMAL_REEC.yml'
-        # Initialize session_state values for streamlit processing
-        st.session_state = ndl.init_session_state(st.session_state, settings_yaml_file)
-
     st.header('Phenotyper\nNCATS-NCI-DMAP')
 
     input_directory = os.path.join('.', 'input')
@@ -133,8 +131,8 @@ def main():
     options_for_input_datafiles = [x for x in os.listdir(input_directory) if x.endswith(('.csv', '.tsv'))]
     phenoFileOptions = [x for x in os.listdir(output_directory) if (x.startswith('phenotype_summary')) and (x.endswith(('.csv', '.tsv')))]
 
-    dataLoadedCols = st.columns([2,2,2])
-    with dataLoadedCols[0]:
+    data_load_cols = st.columns([2,2,2])
+    with data_load_cols[0]:
         st.selectbox(label = 'Choose a datafile', options = options_for_input_datafiles, key = 'datafileU')
         st.number_input('x-y coordinate units (microns):', min_value=0.0, key='phenotyping_micron_coordinate_units', help='E.g., if the coordinates in the input datafile were pixels, this number would be a conversion to microns in units of microns/pixel.', format='%.4f', step=0.0001)
 
@@ -152,7 +150,7 @@ def main():
                                             extra_cols_to_keep=['tNt', 'GOODNUC', 'HYPOXIC', 'NORMOXIC', 'NucArea', 'RelOrientation'])
                 dataset_obj.process_dataset(do_calculate_minimum_coordinate_spacing_per_roi=False)
                 st.session_state.bc.printElapsedTime(msg = f'Loading {input_datafile} into memory')
-                
+
                 st.session_state.bc.startTimer()
                 st.session_state = ndl.loadDataButton(st.session_state, dataset_obj.data, 'Input', st.session_state.datafileU[:-4])
                 st.session_state.bc.printElapsedTime(msg = f'Performing Phenotyping on {input_datafile}')
@@ -167,10 +165,10 @@ def main():
                 #     with open('debug_data_from_gater.pkl', 'wb') as f:
                 #         pickle.dump(st.session_state['mg__df'], f)
 
-                st.session_state.bc.printElapsedTime(msg = f'Performing Phenotyping')
+                st.session_state.bc.printElapsedTime(msg = 'Performing Phenotyping')
         st.session_state.bc.set_value_df('time_load_data', st.session_state.bc.elapsedTime())
 
-    with dataLoadedCols[1]:
+    with data_load_cols[1]:
         st.selectbox(label = 'Choose a previous phenotyping file', options = phenoFileOptions, key = 'phenoFileSelect', help='Loaded .csv files populate here when the file name begins with "phenotype_summary"')
         if (st.button('Load Phenotyping File')) and (st.session_state.phenoFileSelect is not None):
             phenotype_file = os.path.join('output', st.session_state.phenoFileSelect)
@@ -180,7 +178,7 @@ def main():
             st.session_state = ndl.updatePhenotyping(st.session_state)
             st.session_state.pointstSliderVal_Sel = st.session_state.calcSliderVal
 
-    with dataLoadedCols[2]:
+    with data_load_cols[2]:
     ### Data Phenotyping Container ###
         with st.form('Analysis Levers'):
 
@@ -197,14 +195,13 @@ def main():
                 st.session_state = ndl.updatePhenotyping(st.session_state)
                 st.session_state.pointstSliderVal_Sel = st.session_state.calcSliderVal
                 if 'pheno__de_phenotype_assignments' in st.session_state:
-                    del st.session_state['pheno__de_phenotype_assignments']  # probably just do this instead of updating the dataframe editor using the method so that the default, "reset" dataframe gets set appropriately
+                    del st.session_state['pheno__de_phenotype_assignments']
 
-    #
     if st.session_state.selected_phenoMeth != 'Not Selected':
         st.session_state.phenotyping_completed = True
 
-    midCol = st.columns(2)
-    with midCol[0]:
+    mid_col = st.columns(2)
+    with mid_col[0]:
     ### Data Filters Container ###
         with st.expander('Data Filters'):
             with st.form('Filter Levers'):
@@ -226,8 +223,8 @@ def main():
                 if submitted:
                     filter_and_plot()
                     st.session_state.pointstSliderVal_Sel = st.session_state.calcSliderVal
-    with midCol[1]:
-         with st.expander('Choose Markers to include'):
+    with mid_col[1]:
+        with st.expander('Choose Markers to include'):
             st.multiselect('Markers', options = st.session_state.loaded_marker_names,
                                       key = 'marker_multi_sel',
                                       on_change=marker_multiselect_callback)
@@ -241,10 +238,10 @@ def main():
         st.markdown(f'## Current Phenotyping Method: {st.session_state.selected_phenoMeth}')
 
     ### Define Visualization Columns
-    vizCol1, vizCol2 = st.columns(2)
+    viz_col = st.columns(2)
 
     # Second column on the page
-    with vizCol2:
+    with viz_col[1]:
 
         ### PHENOTYPE ASSIGNMENTS TABLE ###
         st.markdown('## Phenotype Assignments')
@@ -292,7 +289,7 @@ def main():
                 st.toast(f'Added {st.session_state.df_update_filename_U} to export list ')
 
     # First column on the page
-    with vizCol1:
+    with viz_col[0]:
         # Print a column header
         st.header('Phenotype Plot')
 

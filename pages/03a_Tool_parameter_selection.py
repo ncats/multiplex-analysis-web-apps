@@ -1,6 +1,7 @@
 # Import relevant libraries
 import os
 import yaml
+import pandas as pd
 import streamlit as st
 import streamlit_utils
 import pprint
@@ -9,7 +10,6 @@ import time_cell_interaction_lib as tci  # import the TIME library stored in tim
 import utils
 import app_top_of_page as top
 import streamlit_dataframe_editor as sde
-import pandas as pd
 
 # Input/output directory initializations
 input_directory = os.path.join('.', 'input')

@@ -12,7 +12,7 @@ from datetime import datetime
 class benchmark_collector:
     '''
     benchmark_collector (bc) class. Used for timing the execution
-    of functions withing MAWA.
+    of functions within MAWA.
     '''
     def __init__(self, fiol = None):
         '''
@@ -27,7 +27,7 @@ class benchmark_collector:
 
         self.benchmark_csv = "C:/Users/smithdaj/OneDrive - National Institutes of Health/Documents - NCATS-NCI-DMAP/MAWA/MAWA_Suite_Benchmarking.csv"
         self.benchmark_project_path = '/NIH/Data Management & Analysis Program (DMAP)/benchmarking/'
-        self.benchmark_dataset     = 'Neighborhood-Profiles-Benchmarks'
+        self.benchmark_dataset      = 'Neighborhood-Profiles-Benchmarks'
 
         d = {'id': [datetime.now()],
              'on_NIDAP': [on_nidap],
