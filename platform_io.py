@@ -3,9 +3,8 @@ import os
 import pandas as pd
 import streamlit as st
 import shutil
-# import asyncio
-# import aiohttp
 import time
+import streamlit_dataframe_editor as sde
 
 # Constant
 local_input_dir = os.path.join('.', 'input')
@@ -20,8 +19,11 @@ def make_complex_dataframe_from_file_listing(dirpath, item_names, df_session_sta
     selecteds = [False for _ in item_names]
     df = pd.DataFrame({'Selected': selecteds, 'File or directory name': item_names, '# of files within': num_contents, 'Modification time': [time.ctime(x) for x in modification_times], 'mod_time_sec': modification_times}).sort_values('mod_time_sec', ascending=False).reset_index(drop=True)
     if editable:
-        # TODO: Replace with streamlit-dataframe-editor
-        st.session_state[df_session_state_key] = st.data_editor(df.iloc[:, :-1], key=(df_session_state_key + '_input__do_not_persist'))
+        # TODO: Replace with streamlit-dataframe-editor --> done
+        # st.session_state[df_session_state_key] = st.data_editor(df.iloc[:, :-1], key=(df_session_state_key + '_input__do_not_persist'))
+        if 'loader__de_file_listing_complex' not in st.session_state:
+            st.session_state['loader__de_file_listing_complex'] = sde.DataframeEditor(df_name='loader__df_file_listing_complex', default_df_contents=df.iloc[:, :-1])
+        st.session_state['loader__de_file_listing_complex'].dataframe_editor(reset_data_editor_button_text='Reset file selections')
     else:
         st.dataframe(df.iloc[:, 1:-1])
         if df_session_state_key is not None:
@@ -42,8 +44,11 @@ def make_simple_dataframe_from_file_listing(available_files, streamlit_key_for_a
 
     # Display an editable dataframe version of this
     if editable:
-        # TODO: Replace with streamlit-dataframe-editor
-        st.session_state[streamlit_key_for_available_files_df] = st.data_editor(df, key=(streamlit_key_for_available_files_df + '_input__do_not_persist'))
+        # TODO: Replace with streamlit-dataframe-editor --> done
+        # st.session_state[streamlit_key_for_available_files_df] = st.data_editor(df, key=(streamlit_key_for_available_files_df + '_input__do_not_persist'))
+        if 'loader__de_file_listing_simple' not in st.session_state:
+            st.session_state['loader__de_file_listing_simple'] = sde.DataframeEditor(df_name='loader__df_file_listing_simple', default_df_contents=df)
+        st.session_state['loader__de_file_listing_simple'].dataframe_editor(reset_data_editor_button_text='Reset file selections')
     else:
         st.dataframe(df)
         if streamlit_key_for_available_files_df is not None:
