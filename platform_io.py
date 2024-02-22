@@ -72,11 +72,18 @@ def write_current_tool_parameters_to_disk(output_dir):
         with open(pathname, mode='wt') as file:
             file.write('# Timestamp: {}\n'.format(datetime.now()))
             file.write('# Hostname: {}\n'.format(socket.gethostname()))
-            # file.write('# Git commit: {}\n'.format(subprocess.run('git rev-parse HEAD', shell=True, capture_output=True).stdout.decode().split('\n')[:-1][0]))
+            if os.path.exists('.git'):
+                file.write('# Git commit: {}\n'.format(subprocess.run('git rev-parse HEAD', shell=True, capture_output=True).stdout.decode().split('\n')[:-1][0]))
+            else:
+                file.write('# Git commit: Currently unknown because there is no .git directory present\n')
             file.write('# Python version (may conflict with environment.yml, showing strange system setup): {}\n'.format(sys.version.split('\n')[0]))
             file.write('\n')
             yaml.dump(streamlit_utils.get_current_settings(), file, sort_keys=False)
-        # st.info('File {} has been written to disk'.format(pathname))
+            if 'sit__used_settings' in st.session_state:
+                file.write('\n')
+                file.write('Actual settings used in the Spatial Interaction Tool:\n')
+                file.write('\n')
+                yaml.dump(st.session_state['sit__used_settings'], file, sort_keys=False)
     else:
         st.warning('File {} already exists; not overwriting it'.format(pathname))
 
@@ -511,7 +518,7 @@ class Platform:
         st.text_input('Suffix for the basename of the new results archive to create:', key='basename_suffix_for_new_results_archive', help='The name will go after "output_archive" and a timestamp, e.g., "output_archive-20230920_003801-project_xxxx_panel_07".')
 
         # If the user is ready to save the current results to a new results archive...
-        if st.button(':arrow_left: Save current results to a new archive', help='This will copy all current results to a new archive. Note the currently selected parameters ("Tool parameter selection" tab at left) will automatically be copied as a YAML file to the new archive. It might be helpful to ensure those are the actual parameters used to generate the current results.'):
+        if st.button(':arrow_left: Save current results to a new archive', help='This will copy all current results to a new archive, including job settings and environment information.'):
 
             # Copy a YAML file of the current tool settings to the current/loaded results
             write_current_tool_parameters_to_disk(local_output_dir)

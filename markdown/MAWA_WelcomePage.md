@@ -6,7 +6,7 @@ Welcome to the Multiple Analysis Web Apps (MAWA) presented by NCATS-NCI-DMAP. Th
 
 ## Available Apps
 1. Data Import and Export
-1. Multi-axial Gating
+1. Multiaxial Gating
 1. Phenotyping
 1. Spatial Interaction Tool
 1. Neighborhood Profiles
@@ -23,7 +23,7 @@ Inside your NIDAP Project folder is a DATASET named `Input`. This is where you s
 #### Data Export
 There is another DATASET named `Output` which will hold the files that you have chosen to save. YOu can select anyone of these files to download for later use or delete if it cluttering the space.
 
-### 2. Multi-axial Gating
+### 2. Multiaxial Gating
 
 ### 3. Phenotyping
 The second page to start your analysis pipeline is the phenotyping page. This is where you will load your data, view your different feature conditions, and select your phenotyping. There are two primary steps in performing phenotyping.

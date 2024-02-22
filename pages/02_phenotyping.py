@@ -158,7 +158,7 @@ def main():
                 st.session_state.bc.printElapsedTime(msg = f'Performing Phenotyping on {input_datafile}')
 
         with databuttonCols[1]:
-            if (st.button('Load Multi-axial Gating Data')) & ('mg__df' in st.session_state):
+            if (st.button('Load Multiaxial Gating Data')) & ('mg__df' in st.session_state):
                 st.session_state.bc.startTimer()
                 st.session_state = ndl.loadDataButton(st.session_state, st.session_state['mg__df'], 'Mutli-axial Gating', st.session_state.mg__input_datafile_filename[:-4])
 

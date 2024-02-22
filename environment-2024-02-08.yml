@@ -1,0 +1,29 @@
+name: mawa-2024-02-08
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python
+  - pip
+  - pygeos
+  - pip:
+    - anndata
+    - matplotlib
+    - natsort
+    - numpy
+    - palantir-sdk
+    - pandas
+    - plotly
+    - scipy
+    - seaborn
+    - scikit-image
+    - scikit-learn
+    - split-file-reader
+    - squidpy
+    - streamlit
+    - streamlit-extras
+    - tqdm
+    - umap-learn
+    - pyyaml
+    - st-pages
+    - streamlit-javascript

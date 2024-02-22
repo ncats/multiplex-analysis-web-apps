@@ -1,14 +1,22 @@
 # Multiplex Analysis Web Apps
 
-The Mutliplex Analysis Web Apps (MAWA) is a collection of tools developed by Data Scientists at NIH NCATS to support
-research invesitaging Cancer Biology and Multiplex imaging techniques. This suite of apps is presented in a Streamlit 
-dashboard and is primarily accessed using the National Institutes Data Analysis Platform (NIDAP).
+Multiplex Analysis Web Apps (MAWA) is a collection of tools developed by data scientists at NIH/NCI/CBIIT to support researchers utilizing multiplex imaging techniques. This suite of apps employs a Streamlit interface and for NIH users can be accessed using NIDAP free of charge.
+
+## Local installation and execution (working on both Ubuntu and Windows as of 2024-02-08)
+
+Remember, at NIH, no installation is required; NIDAP should be used instead. NIH users should contact the authors below for more information.
+
+```bash
+conda update -n base -c conda-forge conda
+conda env create -f environment-2024-02-08.yml
+conda activate mawa-2024-02-08
+streamlit run Multiplex_Analysis_Web_Apps.py
+```
 
 ## Using MAWA
-The primary script to execute to run the suite of apps is `Multiplex_Analysis_Web_Apps.py`. 
-Please also pay attention to the `enviornment.yml` file for the dependenceies.
 
-Each page or app within MAWA is located in the Page folder in this repo. The pages are as follows
+Each page or app within MAWA is located in the `pages` folder in this repo. The pages are as follows:
+
 1. 01_data_import_and_export.py
 1. multiaxial_gating.py
 1. 02_phenotyping.py
@@ -22,6 +30,7 @@ Each page or app within MAWA is located in the Page folder in this repo. The pag
 1. 04b_UMAP Analyzer.py
 1. 04c_Clusters Analyzer.py
 
-Authors:
-Andrew Weisman
-Dante Smith
+## Authors
+
+[Andrew Weisman](mailto:andrew.weisman@nih.gov)  
+[Dante Smith](mailto:dante.smith@nih.gov)

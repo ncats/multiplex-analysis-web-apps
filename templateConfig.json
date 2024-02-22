@@ -1,6 +1,6 @@
 {
   "parentTemplateId" : "jupyter-workspaces",
   "childTemplatesByPath" : { },
-  "parentTemplateVersion" : "0.120.0",
+  "parentTemplateVersion" : "0.123.0",
   "childTemplateVersionsByPath" : { }
 }

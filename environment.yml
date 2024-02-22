@@ -1,4 +1,5 @@
 dependencies:
+  - pip
   - pip:
     - scikit-learn
     - streamlit-extras

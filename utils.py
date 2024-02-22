@@ -193,12 +193,15 @@ def get_overlay_info():
     # Sort the data by case, then by condition, then by the slide string, returning the index as a list (i.e., correctly sorted slide names)
     slide_names = df_paths.sort_values(by=['case', 'condition', 'slide_name']).index.to_list()
 
+    # Get the list of overlay image names without the prefix indicating the slide name
+    overlays_less_slide_name = [x.split('-with_log_dens_pvals_per_roi')[1] for x in overlays_listing]
+
     # Determine the rest of the unique identifiers making up the overlay image names
-    center_species = list(set([x.split('__center_')[1].split('__neighbor_')[0] for x in overlays_listing]))
+    center_species = list(set([x.split('__')[1].removeprefix('center_') for x in overlays_less_slide_name]))
     center_species.sort()
-    neighbor_species = list(set([x.split('__neighbor_')[1].split('__')[0] for x in overlays_listing]))
+    neighbor_species = list(set([x.split('__')[2].removeprefix('neighbor_') for x in overlays_less_slide_name]))
     neighbor_species.sort()
-    pval_types = list(set([x.split('__')[3].split('_pvals.png')[0] for x in overlays_listing]))
+    pval_types = list(set([x.split('__')[3].removesuffix('_pvals.png') for x in overlays_less_slide_name]))
     pval_types.sort()
 
     # Return the needed path and lists as a single dictionary
