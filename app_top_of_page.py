@@ -30,11 +30,9 @@ def top_of_page_reqs(session_state):
     add_indentation()
     show_pages_from_config()
 
-    # Initalize MAWA variables
+    # Initalize session_state values for streamlit processing
     if 'init' not in session_state:
-        settings_yaml_file = 'config_files/OMAL_REEC.yml'
-        # Initialize session_state values for streamlit processing
-        session_state = ndl.init_session_state(session_state, settings_yaml_file)
+        session_state = ndl.init_session_state(session_state)
 
     # Sidebar organization
     benchmark_button = False
