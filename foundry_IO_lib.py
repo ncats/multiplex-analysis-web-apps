@@ -1,3 +1,6 @@
+'''
+Class for handling the Input and Output of Foundry Datasets
+'''
 import io
 import os
 import pandas as pd
@@ -18,9 +21,9 @@ class foundry_IO_lib:
         Initializes a FIOL (Foundry IO Lib) Object
         """
 
-        hostN = os.environ.get('FOUNDRY_HOSTNAME', 'Not found')
+        host_name = os.environ.get('FOUNDRY_HOSTNAME', 'Not found')
         token = os.environ.get('FOUNDRY_TOKEN', 'Not found')
-        if (hostN == 'Not found') | (token == 'Not found'):
+        if (host_name == 'Not found') | (token == 'Not found'):
             # Import SDK handling library
             from palantir.datasets import dataset
             self.dataset = dataset
@@ -100,7 +103,7 @@ class foundry_IO_lib:
         # Local Import
         else:
             return pd.read_csv(dataset_path, sep=',')
-        
+
     def export_results_dataset(self, df, path, filename, saveCompass=False, type = 'S', create = True):
         """
         Write a dataset and phenotype assignments to disk.
@@ -175,7 +178,7 @@ class foundry_IO_lib:
             self.dataset(datafile) \
                 .file(fileNameFull) \
                 .write(content = pngData)
-        
+
         # Once Upload is complete, delete the local file
         os.remove(fileNameFull)
         print(f'Uploaded {fileNameFull}')
@@ -193,4 +196,3 @@ class foundry_IO_lib:
             self.dataset(dataset) \
                 .file(filename) \
                 .write(content = file_data)
-
