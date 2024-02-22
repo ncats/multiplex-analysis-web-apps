@@ -9,6 +9,11 @@ name = "Data Import and Export"
 icon = ""
 
 [[pages]]
+path = "pages/datafile_format_unifier.py"
+name = "Datafile Unification"
+icon = ""
+
+[[pages]]
 path = "pages/multiaxial_gating.py"
 name = "Multiaxial Gating"
 icon = ""

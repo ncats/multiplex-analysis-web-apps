@@ -4,6 +4,7 @@ import pickle
 import os
 from datetime import datetime
 import os
+import app_top_of_page as top
 
 def save_session_state(saved_streamlit_session_states_dir, saved_streamlit_session_state_prefix, saved_streamlit_session_state_key):
     """
@@ -60,24 +61,31 @@ def load_session_state(saved_streamlit_session_states_dir, saved_streamlit_sessi
     if selected_session is None:
         selected_session = st.session_state[saved_streamlit_session_state_key]
 
-    # Generate the filename based on the selected session
-    filename = os.path.join(saved_streamlit_session_states_dir, saved_streamlit_session_state_prefix + selected_session + '.pkl')
+    # If no session file was explicitly input and if no session files exist, do nothing; otherwise, load one of these selected sessions (if not a manually input one [nominally the most recent], then the one selected in the session state file selection dropdown)
+    if selected_session is not None:
 
-    # Load the state (as a dictionary) from the pickle file
-    with open(filename, 'rb') as f:
-        session_dict = pickle.load(f)
+        # Generate the filename based on the selected session
+        filename = os.path.join(saved_streamlit_session_states_dir, saved_streamlit_session_state_prefix + selected_session + '.pkl')
 
-    # Delete every key in the current session state except for the selected session
-    for key in st.session_state.keys():
-        if key != saved_streamlit_session_state_key:
-            del st.session_state[key]
+        # Load the state (as a dictionary) from the pickle file
+        with open(filename, 'rb') as f:
+            session_dict = pickle.load(f)
 
-    # Load each key-value pair individually into session_state
-    for key, value in session_dict.items():
-        st.session_state[key] = value
+        # Delete every key in the current session state except for the selected session
+        for key in st.session_state.keys():
+            if key != saved_streamlit_session_state_key:
+                del st.session_state[key]
 
-    # Output a success message
-    st.success('State loaded from ' + filename)
+        # Load each key-value pair individually into session_state
+        for key, value in session_dict.items():
+            st.session_state[key] = value
+
+        # Output a success message
+        st.success('State loaded from ' + filename)
+
+    # If no session state files exist, output a warning
+    else:
+        st.warning('No session state files exist so none were loaded')
 
 def reset_session_state(saved_streamlit_session_state_key):
     """
@@ -156,15 +164,16 @@ def app_session_management(saved_streamlit_session_states_dir, saved_streamlit_s
     # Return the most recent session state file, or None
     return session_basenames_in_reverse_order[0] if session_basenames_in_reverse_order else None
 
-def main():
+def execute(first_app_run):
     """
-    Main function for the Streamlit app.
+    Execute the session state management functions.
 
-    This function creates the sidebar for app session management and initializes the
-    test selectbox if the key doesn't exist.
+    This function executes the session state management functions, including the creation of the sidebar for app session
+    management and the initialization of the session state with an existing session
+    if the app is first run or if Streamlit has been restarted.
 
     Args:
-        None
+        first_app_run (bool): Whether the app has been run before
 
     Returns:
         None
@@ -175,18 +184,35 @@ def main():
     saved_streamlit_session_state_prefix = 'streamlit_session_state-'
     saved_streamlit_session_state_key = 'session_selection'
 
-    # Create the sidebar for app session management
+    # Create the sidebar content for app session management
     most_recent_session_management_file = app_session_management(saved_streamlit_session_states_dir, saved_streamlit_session_state_prefix, saved_streamlit_session_state_key)
 
-    # Initialize the test selectbox if it doesn't exist
-    if 'selectbox' not in st.session_state:
-        if most_recent_session_management_file is None:
-            st.session_state['selectbox'] = 'Option 1'
-        else:
-            load_session_state(saved_streamlit_session_states_dir, saved_streamlit_session_state_prefix, saved_streamlit_session_state_key, selected_session=most_recent_session_management_file)
+    # Initialize the session state with an existing session if the app is first run or if Streamlit has been restarted
+    if first_app_run:
+        load_session_state(saved_streamlit_session_states_dir, saved_streamlit_session_state_prefix, saved_streamlit_session_state_key, selected_session=most_recent_session_management_file)
+
+def main():
+    """
+    Main function for the Streamlit app.
+
+    The following is a sample of how to use this module.
+
+    Args:
+        None
+
+    Returns:
+        None
+    """
+
+    # Run Top of Page (TOP) functions
+    st.session_state = top.top_of_page_reqs(st.session_state)
+
+    # Initialize the selected_option if it doesn't exist
+    if 'selected_option' not in st.session_state:
+        st.session_state['selected_option'] = 'Option 1'
 
     # Sample widget that's part of the session state
-    st.selectbox('Select an option', ['Option 1', 'Option 2', 'Option 3'], key='selectbox')
+    st.selectbox('Select an option', ['Option 1', 'Option 2', 'Option 3'], key='selected_option')
 
 # Run the main function
 if __name__ == '__main__':

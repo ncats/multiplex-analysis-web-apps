@@ -8,6 +8,7 @@ import platform_io
 import streamlit as st
 from st_pages import show_pages_from_config, add_indentation
 from streamlit_extras.app_logo import add_logo
+import streamlit_session_state_management
 
 def top_of_page_reqs(session_state):
     '''
@@ -23,9 +24,20 @@ def top_of_page_reqs(session_state):
     # Add Logo
     add_logo('app_images/mawa_logo-width315.png', height=150)
 
+    # Determine whether this is the first time the app has been run
+    if 'app_has_been_run_at_least_once' not in st.session_state:
+        st.session_state['app_has_been_run_at_least_once'] = True
+        first_app_run = True
+    else:
+        first_app_run = False
+
     # Apply pages order and indentation
     add_indentation()
-    show_pages_from_config()
+    if first_app_run:
+        show_pages_from_config()  # this is slow so only do it once
+
+    # Run session state management in the sidebar
+    streamlit_session_state_management.execute(first_app_run)
 
     # Sidebar organization
     with st.sidebar:
