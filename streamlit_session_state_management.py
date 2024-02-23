@@ -31,8 +31,13 @@ def save_session_state(saved_streamlit_session_states_dir, saved_streamlit_sessi
     now = datetime.now()
     filename = os.path.join(saved_streamlit_session_states_dir, saved_streamlit_session_state_prefix + now.strftime('date%Y-%m-%d_time%H-%M-%S') + '.pkl')
 
-    # Save each key-value pair in the session_state to the pickle file
-    session_dict = {key: value for key, value in st.session_state.items() if key != saved_streamlit_session_state_key}
+    # Create a dictionary of most items in the session state
+    session_dict = {}
+    for key, value in st.session_state.items():
+        if (not key.endswith('__do_not_persist')) and (not key.startswith('FormSubmitter:')) and (key != saved_streamlit_session_state_key):
+            session_dict[key] = value
+
+    # Save the dictionary to the pickle file
     with open(filename, 'wb') as f:
         pickle.dump(session_dict, f)
     
@@ -67,14 +72,14 @@ def load_session_state(saved_streamlit_session_states_dir, saved_streamlit_sessi
         # Generate the filename based on the selected session
         filename = os.path.join(saved_streamlit_session_states_dir, saved_streamlit_session_state_prefix + selected_session + '.pkl')
 
-        # Load the state (as a dictionary) from the pickle file
-        with open(filename, 'rb') as f:
-            session_dict = pickle.load(f)
-
         # Delete every key in the current session state except for the selected session
         for key in st.session_state.keys():
             if key != saved_streamlit_session_state_key:
                 del st.session_state[key]
+
+        # Load the state (as a dictionary) from the pickle file
+        with open(filename, 'rb') as f:
+            session_dict = pickle.load(f)
 
         # Load each key-value pair individually into session_state
         for key, value in session_dict.items():
