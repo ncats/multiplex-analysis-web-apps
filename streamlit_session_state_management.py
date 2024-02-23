@@ -110,6 +110,9 @@ def reset_session_state(saved_streamlit_session_state_key):
         if key != saved_streamlit_session_state_key:
             del st.session_state[key]
 
+    # Flag that the reset button has been hit
+    st.session_state['reset_button_hit'] = True
+
     # Output a success message
     st.success('Session state reset')
 
@@ -194,7 +197,16 @@ def execute(first_app_run):
 
     # Initialize the session state with an existing session if the app is first run or if Streamlit has been restarted
     if first_app_run:
-        load_session_state(saved_streamlit_session_states_dir, saved_streamlit_session_state_prefix, saved_streamlit_session_state_key, selected_session=most_recent_session_management_file)
+        load_most_recent_session = False
+        if 'reset_button_hit' in st.session_state:
+            if not st.session_state['reset_button_hit']:
+                load_most_recent_session = True
+            else:
+                st.session_state['reset_button_hit'] = False
+        else:
+            load_most_recent_session = True
+        if load_most_recent_session:
+            load_session_state(saved_streamlit_session_states_dir, saved_streamlit_session_state_prefix, saved_streamlit_session_state_key, selected_session=most_recent_session_management_file)
 
 def main():
     """

@@ -12,25 +12,28 @@ local_output_dir = os.path.join('.', 'output')
 
 # Write a dataframe from a file listing with columns for selection, filename, # of files inside (for directories), and modification time, sorted descending by modification time
 # Note this is primarily for local listings, not remote listings
-def make_complex_dataframe_from_file_listing(dirpath, item_names, df_session_state_key=None, editable=True):
+def make_complex_dataframe_from_file_listing(dirpath, item_names, df_session_state_key_basename=None, editable=True):
     import time
     num_contents = [len(os.listdir(os.path.join(dirpath, x))) if os.path.isdir(os.path.join(dirpath, x)) else None for x in item_names]
     modification_times = [os.path.getmtime(os.path.join(dirpath, x)) for x in item_names]
     selecteds = [False for _ in item_names]
     df = pd.DataFrame({'Selected': selecteds, 'File or directory name': item_names, '# of files within': num_contents, 'Modification time': [time.ctime(x) for x in modification_times], 'mod_time_sec': modification_times}).sort_values('mod_time_sec', ascending=False).reset_index(drop=True)
     if editable:
-        # TODO: Replace with streamlit-dataframe-editor --> done
-        # st.session_state[df_session_state_key] = st.data_editor(df.iloc[:, :-1], key=(df_session_state_key + '_input__do_not_persist'))
-        if 'loader__de_file_listing_complex' not in st.session_state:
-            st.session_state['loader__de_file_listing_complex'] = sde.DataframeEditor(df_name='loader__df_file_listing_complex', default_df_contents=df.iloc[:, :-1])
-        st.session_state['loader__de_file_listing_complex'].dataframe_editor(reset_data_editor_button_text='Reset file selections')
+        ss_de_key_name = 'loader__de_' + df_session_state_key_basename + '_complex'
+        ss_df_key_name = 'loader__df_' + df_session_state_key_basename + '_complex'
+        # TODO: Replace with streamlit-dataframe-editor (code below seems to throw e.g. "DuplicateWidgetID: There are multiple widgets with the same key='loader__df_file_listing_complex_773139__do_not_persist'.")
+        # Maybe the random number is being set to the same value each time this function is called, investigate that
+        # st.session_state[ss_df_key_name] = st.data_editor(df.iloc[:, :-1], key=(ss_df_key_name + '_input__do_not_persist'))
+        if ss_de_key_name not in st.session_state:
+            st.session_state[ss_de_key_name] = sde.DataframeEditor(df_name=ss_df_key_name, default_df_contents=df.iloc[:, :-1])
+        st.session_state[ss_de_key_name].dataframe_editor(reset_data_editor_button_text='Reset file selections')
     else:
         st.dataframe(df.iloc[:, 1:-1])
-        if df_session_state_key is not None:
-            st.warning('Session state key {} is not being assigned since editable=False was selected in call to make_complex_dataframe_from_file_listing()'.format(df_session_state_key))
+        if df_session_state_key_basename is not None:
+            st.warning('Session state key {} is not being assigned since editable=False was selected in call to make_complex_dataframe_from_file_listing()'.format(ss_df_key_name))
 
 # Write an editable dataframe (simple, having only a selection column and filenames with .zip removed) for the available files, also saving the filenames with the possible .zip extensions to a separate Series
-def make_simple_dataframe_from_file_listing(available_files, streamlit_key_for_available_files_df=None, streamlit_key_for_available_filenames_srs=None, editable=True):
+def make_simple_dataframe_from_file_listing(available_files, df_session_state_key_basename=None, streamlit_key_for_available_filenames_srs=None, editable=True):
 
     # Save (to Streamlit, analogous to how it's done for the data editor, below), the full filenames of the available files
     if streamlit_key_for_available_filenames_srs is not None:
@@ -44,15 +47,17 @@ def make_simple_dataframe_from_file_listing(available_files, streamlit_key_for_a
 
     # Display an editable dataframe version of this
     if editable:
+        ss_de_key_name = 'loader__de_' + df_session_state_key_basename + '_simple'
+        ss_df_key_name = 'loader__df_' + df_session_state_key_basename + '_simple'
         # TODO: Replace with streamlit-dataframe-editor --> done
-        # st.session_state[streamlit_key_for_available_files_df] = st.data_editor(df, key=(streamlit_key_for_available_files_df + '_input__do_not_persist'))
-        if 'loader__de_file_listing_simple' not in st.session_state:
-            st.session_state['loader__de_file_listing_simple'] = sde.DataframeEditor(df_name='loader__df_file_listing_simple', default_df_contents=df)
-        st.session_state['loader__de_file_listing_simple'].dataframe_editor(reset_data_editor_button_text='Reset file selections')
+        # st.session_state[ss_df_key_name] = st.data_editor(df, key=(ss_df_key_name + '_input__do_not_persist'))
+        if ss_de_key_name not in st.session_state:
+            st.session_state[ss_de_key_name] = sde.DataframeEditor(df_name=ss_df_key_name, default_df_contents=df)
+        st.session_state[ss_de_key_name].dataframe_editor(reset_data_editor_button_text='Reset file selections')
     else:
         st.dataframe(df)
-        if streamlit_key_for_available_files_df is not None:
-            st.warning('Session state key {} is not being assigned since editable=False was selected in call to make_simple_dataframe_from_file_listing()'.format(streamlit_key_for_available_files_df))
+        if df_session_state_key_basename is not None:
+            st.warning('Session state key {} is not being assigned since editable=False was selected in call to make_simple_dataframe_from_file_listing()'.format(ss_df_key_name))
 
 # Delete selected files/dirs from a directory
 def delete_selected_files_and_dirs(directory, selected_files):
@@ -241,7 +246,7 @@ class Platform:
             available_inputs = self.available_inputs
 
             # Create a simple editable dataframe of the available input filenames
-            make_simple_dataframe_from_file_listing(available_files=available_inputs, streamlit_key_for_available_files_df='df_available_inputs_edited', streamlit_key_for_available_filenames_srs='srs_available_input_filenames', editable=True)
+            make_simple_dataframe_from_file_listing(available_files=available_inputs, df_session_state_key_basename='available_inputs', streamlit_key_for_available_filenames_srs='srs_available_input_filenames', editable=True)
             
     # Add a button to re-read the available input files on the remote
     def add_refresh_available_inputs_button(self):
@@ -325,7 +330,7 @@ class Platform:
         if self.platform == 'local':  # not editable locally because deletion is disabled anyway so there'd be nothing to do with selected files
             make_complex_dataframe_from_file_listing(dirpath=local_input_dir, item_names=local_inputs, editable=False)
         elif self.platform == 'nidap':  # editable on NIDAP because deletion is enabled since it's safe to delete loaded input files since they're backed up to NIDAP
-            make_complex_dataframe_from_file_listing(dirpath=local_input_dir, item_names=local_inputs, df_session_state_key='df_local_inputs_edited', editable=True)
+            make_complex_dataframe_from_file_listing(dirpath=local_input_dir, item_names=local_inputs, df_session_state_key_basename='local_inputs', editable=True)
 
     # Possibly allow for deletion of loaded input files
     def add_delete_local_inputs_button(self):
@@ -384,7 +389,7 @@ class Platform:
         if self.platform == 'local':
             st.subheader(':open_file_folder: Available results archives (i.e., saved results)')
             self.get_archives_listing()
-            make_complex_dataframe_from_file_listing(dirpath=local_output_dir, item_names=self.available_archives, df_session_state_key='df_available_archives_edited', editable=True)
+            make_complex_dataframe_from_file_listing(dirpath=local_output_dir, item_names=self.available_archives, df_session_state_key_basename='available_archives', editable=True)
 
         # Only get the listing on NIDAP when it's not already loaded (or when the refresh button is hit, below) because that's "slow"
         elif self.platform == 'nidap':
@@ -583,7 +588,7 @@ class Platform:
     # Write a dataframe of the results in the local output directory, also obviously platform-independent
     def display_local_results_df(self):
         st.subheader(':open_file_folder: Results loaded in the tool')
-        make_complex_dataframe_from_file_listing(local_output_dir, self.get_local_results_listing(), df_session_state_key='df_local_results_edited', editable=True)
+        make_complex_dataframe_from_file_listing(local_output_dir, self.get_local_results_listing(), df_session_state_key_basename='local_results', editable=True)
 
     # Delete selected items from the output results directory
     def add_delete_local_results_button(self):
