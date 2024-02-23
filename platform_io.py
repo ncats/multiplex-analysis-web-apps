@@ -5,6 +5,7 @@ import streamlit as st
 import shutil
 import time
 import streamlit_dataframe_editor as sde
+import streamlit_session_state_management
 
 # Constant
 local_input_dir = os.path.join('.', 'input')
@@ -19,11 +20,12 @@ def make_complex_dataframe_from_file_listing(dirpath, item_names, df_session_sta
     selecteds = [False for _ in item_names]
     df = pd.DataFrame({'Selected': selecteds, 'File or directory name': item_names, '# of files within': num_contents, 'Modification time': [time.ctime(x) for x in modification_times], 'mod_time_sec': modification_times}).sort_values('mod_time_sec', ascending=False).reset_index(drop=True)
     if editable:
-        ss_de_key_name = 'loader__de_' + df_session_state_key_basename + '_complex'
-        ss_df_key_name = 'loader__df_' + df_session_state_key_basename + '_complex'
-        # TODO: Replace with streamlit-dataframe-editor (code below seems to throw e.g. "DuplicateWidgetID: There are multiple widgets with the same key='loader__df_file_listing_complex_773139__do_not_persist'.")
-        # Maybe the random number is being set to the same value each time this function is called, investigate that
+        ss_de_key_name = 'loader__de_' + df_session_state_key_basename
+        ss_df_key_name = 'loader__df_' + df_session_state_key_basename
         # st.session_state[ss_df_key_name] = st.data_editor(df.iloc[:, :-1], key=(ss_df_key_name + '_input__do_not_persist'))
+        if ss_de_key_name in st.session_state:
+            if set(df['File or directory name']) != set(st.session_state[ss_de_key_name].reconstruct_edited_dataframe()['File or directory name']):
+                del st.session_state[ss_de_key_name]
         if ss_de_key_name not in st.session_state:
             st.session_state[ss_de_key_name] = sde.DataframeEditor(df_name=ss_df_key_name, default_df_contents=df.iloc[:, :-1])
         st.session_state[ss_de_key_name].dataframe_editor(reset_data_editor_button_text='Reset file selections')
@@ -47,10 +49,12 @@ def make_simple_dataframe_from_file_listing(available_files, df_session_state_ke
 
     # Display an editable dataframe version of this
     if editable:
-        ss_de_key_name = 'loader__de_' + df_session_state_key_basename + '_simple'
-        ss_df_key_name = 'loader__df_' + df_session_state_key_basename + '_simple'
-        # TODO: Replace with streamlit-dataframe-editor --> done
+        ss_de_key_name = 'loader__de_' + df_session_state_key_basename
+        ss_df_key_name = 'loader__df_' + df_session_state_key_basename
         # st.session_state[ss_df_key_name] = st.data_editor(df, key=(ss_df_key_name + '_input__do_not_persist'))
+        if ss_de_key_name in st.session_state:
+            if set(df['File or directory name']) != set(st.session_state[ss_de_key_name].reconstruct_edited_dataframe()['File or directory name']):
+                del st.session_state[ss_de_key_name]
         if ss_de_key_name not in st.session_state:
             st.session_state[ss_de_key_name] = sde.DataframeEditor(df_name=ss_df_key_name, default_df_contents=df)
         st.session_state[ss_de_key_name].dataframe_editor(reset_data_editor_button_text='Reset file selections')
@@ -284,7 +288,7 @@ class Platform:
                 dataset_file_objects = self.dataset_file_objects_for_available_inputs
 
                 # Get the selected filenames
-                df_available_inputs = st.session_state['df_available_inputs_edited']
+                df_available_inputs = st.session_state['loader__de_available_inputs'].reconstruct_edited_dataframe()
                 srs_available_input_filenames = st.session_state['srs_available_input_filenames']
                 selected_input_filenames = srs_available_input_filenames[df_available_inputs['Selected']].tolist()
 
@@ -344,7 +348,7 @@ class Platform:
         # Delete local input files on NIDAP which is safe because they are backed up to NIDAP and deletion here will only be for the *loaded* input files
         elif self.platform == 'nidap':
             if st.button(':x: Delete selected (above) loaded input files'):
-                df_local_inputs = st.session_state['df_local_inputs_edited']
+                df_local_inputs = st.session_state['loader__de_local_inputs'].reconstruct_edited_dataframe()
                 local_input_files_to_delete = df_local_inputs[df_local_inputs['Selected']]['File or directory name']
                 delete_selected_files_and_dirs(local_input_dir, local_input_files_to_delete)
                 st.rerun()
@@ -408,7 +412,7 @@ class Platform:
             if st.button(':x: Delete selected (above) results archives'):
 
                 # Get the editable dataframe of the available archives from Streamlit
-                df_available_archives = st.session_state['df_available_archives_edited']
+                df_available_archives = st.session_state['loader__de_available_archives'].reconstruct_edited_dataframe()
 
                 # Get the names of just the selected directories
                 dirs_to_delete = df_available_archives[df_available_archives['Selected']]['File or directory name']
@@ -536,6 +540,9 @@ class Platform:
             # Save the current environment to the current/loaded results
             write_current_environment_to_disk(local_output_dir)
 
+            # Save the current session state to the current/loaded results
+            streamlit_session_state_management.save_session_state(local_output_dir)
+
             # If working locally...
             if self.platform == 'local':
 
@@ -597,7 +604,7 @@ class Platform:
         if st.button(':x: Delete selected (above) results files or directories'):
 
             # Store the output results dataframe
-            df_local_results = st.session_state['df_local_results_edited']
+            df_local_results = st.session_state['loader__de_local_results'].reconstruct_edited_dataframe()
 
             # Get just the file or directory names they want to delete
             selected_items_to_delete = df_local_results[df_local_results['Selected']]['File or directory name']
@@ -644,7 +651,7 @@ class Platform:
         if st.button(':x: Delete empty local results archive directories'):
         
             # Store the local results dataframe
-            df_local_results = st.session_state['df_local_results_edited']
+            df_local_results = st.session_state['loader__de_local_results'].reconstruct_edited_dataframe()
 
             # Obtain the directories to delete as the empty ones that start with "output_archive-"
             dirs_to_delete = df_local_results[(df_local_results['# of files within'] == 0) & (df_local_results['File or directory name'].apply(lambda x: x.startswith('output_archive-')))]['File or directory name']
@@ -654,6 +661,11 @@ class Platform:
 
             # Rerun since this potentially changes outputs
             st.rerun()
+
+    # Create a snapshot of the session state in the "output" directory
+    def create_session_state_snapshot(self):
+        st.subheader(':tractor: Create snapshot of session state')
+        st.button(':camera: Create snapshot', on_click=streamlit_session_state_management.save_session_state, args=(local_output_dir))
 
 # Determine whether a full string contains any of a tuple of substrings
 def multi_contains(full_str, substrs):

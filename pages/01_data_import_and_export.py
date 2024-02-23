@@ -84,6 +84,7 @@ def main():
             platform.write_environment_to_local_results()
             platform.add_create_empty_archive_button()
             platform.add_delete_empty_archives_button()
+            platform.create_session_state_snapshot()
 
     # Since the platform object above was a local copy of that in Streamlit, and it may have been modified, save it back to Streamlit
     st.session_state['platform'] = platform

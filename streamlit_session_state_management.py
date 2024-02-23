@@ -6,7 +6,7 @@ from datetime import datetime
 import os
 import app_top_of_page as top
 
-def save_session_state(saved_streamlit_session_states_dir, saved_streamlit_session_state_prefix, saved_streamlit_session_state_key):
+def save_session_state(saved_streamlit_session_states_dir, saved_streamlit_session_state_prefix='streamlit_session_state-', saved_streamlit_session_state_key='session_selection'):
     """
     Save the session state to a pickle file.
 
@@ -44,7 +44,7 @@ def save_session_state(saved_streamlit_session_states_dir, saved_streamlit_sessi
     # Output a success message
     st.success('State saved to ' + filename)
 
-def load_session_state(saved_streamlit_session_states_dir, saved_streamlit_session_state_prefix, saved_streamlit_session_state_key, selected_session=None):
+def load_session_state(saved_streamlit_session_states_dir, saved_streamlit_session_state_prefix='streamlit_session_state-', saved_streamlit_session_state_key='session_selection', selected_session=None):
     """
     Load the session state from a pickle file.
 
@@ -92,7 +92,7 @@ def load_session_state(saved_streamlit_session_states_dir, saved_streamlit_sessi
     else:
         st.warning('No session state files exist so none were loaded')
 
-def reset_session_state(saved_streamlit_session_state_key):
+def reset_session_state(saved_streamlit_session_state_key='session_selection'):
     """
     Reset the session state.
 
