@@ -4,6 +4,8 @@ import streamlit as st
 import pandas as pd
 import app_top_of_page as top
 import streamlit_dataframe_editor as sde
+import re
+# from streamlit_dataframe_editor import DataframeEditor  # attempting Lens' fix from https://stackoverflow.com/questions/1412787/picklingerror-cant-pickle-class-decimal-decimal-its-not-the-same-object for the error PicklingError: Can't pickle <class 'streamlit_dataframe_editor.DataframeEditor'>: it's not the same object as streamlit_dataframe_editor.DataframeEditor --> does not work, same error
 
 def list_files(directory, extensions):
     """
@@ -39,7 +41,7 @@ def main():
     extensions = ('.csv', '.tsv')
 
     # Split the page into two columns
-    main_columns = st.columns(2)
+    main_columns = st.columns(3)
 
     # In the first column...
     with main_columns[0]:
@@ -48,7 +50,7 @@ def main():
         files = list_files(directory, extensions)
 
         # Display a header for the datafile selection section
-        st.header('Datafile selection')
+        st.header(':one: Select datafiles')
 
         # If no files are found, write a message to the user
         if len(files) == 0:
@@ -95,7 +97,7 @@ def main():
             input_files = sorted(df_reconstructed[selected_rows]['Filename'].to_list())
             
             # Create a button to concatenate the selected files
-            if st.button('Concatenate selected files'):
+            if st.button(':star2: Concatenate selected files :star2:'):
 
                 # Efficiently check if the columns are equal for all input files
                 columns_equal = True
@@ -110,25 +112,66 @@ def main():
 
                 # If the columns are equal for all input files, concatenate all files into a single dataframe
                 if columns_equal:
-                    st.session_state['unifier__df'] = pd.concat([pd.read_csv(os.path.join(directory, input_file)) for input_file in input_files])
+                    st.session_state['unifier__df'] = pd.concat([pd.read_csv(os.path.join(directory, input_file)) for input_file in input_files], ignore_index=True)
                     st.session_state['unifier__input_files'] = input_files
+                    # Delete some subsequent keys if present
+                    for key_to_delete in ['unifier__columns_actually_used_to_drop_rows', 'unifier__columns_actually_used_to_define_slides']:
+                        if key_to_delete in st.session_state:
+                            del st.session_state[key_to_delete]
+                    st.toast('Files concatenated successfully')
 
             # If the concatenated dataframe exists...
-            if ('unifier__df' in st.session_state) and (st.session_state['unifier__input_files'] != input_files):
-                st.warning('The input files have changed since the last time the dataframe was created. Please re-concatenate the files.')
+            if ('unifier__input_files' in st.session_state) and (st.session_state['unifier__input_files'] != input_files):
+                st.warning('The input files have changed since the last time the dataframe was created. Please re-concatenate the files or adjust the input files to match the previous selection.')
 
+    # If concatentation has been performed...
     if 'unifier__df' in st.session_state:
 
+        # Get a shortcut to the concatenated dataframe
         df = st.session_state['unifier__df']
 
         # In the second column...
         with main_columns[1]:
-            st.write('second column')
 
+            # Drop rows with `None` values in selected columns
+            st.header(':two: (Optional) Drop null rows')
+            st.write('Observe the concatenated dataframe at bottom and select columns by which to drop rows. Rows will be dropped if the selected columns have a value of `None`.')
+            st.multiselect('Select columns by which to to drop rows:', df.columns, key='unifier__columns_to_drop_rows_by')
+            if st.button(':star2: Drop rows :star2:'):
+                st.session_state['unifier__df'] = df.dropna(subset=st.session_state['unifier__columns_to_drop_rows_by']).reset_index(drop=True).convert_dtypes()
+                st.session_state['unifier__columns_actually_used_to_drop_rows'] = st.session_state['unifier__columns_to_drop_rows_by']
+                # Delete some subsequent keys if present
+                for key_to_delete in ['unifier__columns_actually_used_to_define_slides']:
+                    if key_to_delete in st.session_state:
+                        del st.session_state[key_to_delete]
+                st.toast('Rows dropped successfully')
+            if ('unifier__columns_actually_used_to_drop_rows' in st.session_state) and (set(st.session_state['unifier__columns_actually_used_to_drop_rows']) != set(st.session_state['unifier__columns_to_drop_rows_by'])):
+                st.warning('The columns used to drop rows have changed since the last time rows were dropped. Please start from scratch (the dataframe has been overwritten) or adjust the columns to match the previous selection.')
+            df = st.session_state['unifier__df']
+
+            # Identify columns that combine to uniquely define slides
+            st.header(':three: Combine columns to uniquely define slides')
+            st.multiselect('Select string columns to combine to uniquely define slides:', df.select_dtypes(include=['object', 'string']).columns, key='unifier__columns_to_combine_to_uniquely_define_slides')
+            if st.button(':star2: Combine columns :star2:'):
+                subset_columns = st.session_state['unifier__columns_to_combine_to_uniquely_define_slides']
+                unique_rows = df.drop_duplicates(subset=subset_columns)[subset_columns]
+                df_from = unique_rows.apply(lambda x: '__'.join(x), axis='columns')
+                df_to = unique_rows.apply(lambda x: '__'.join(x.apply(lambda y: re.split(r'[/\\]', y)[-1])).replace(' ', '_').replace('.', '_'), axis='columns')
+                transformation = dict(zip(df_from, df_to))
+                df.insert(0, 'Slide ID', df[subset_columns].apply(lambda x: transformation['__'.join(x)], axis='columns'))  # much faster than the commented line below
+                # df.insert(0, 'Slide ID', df[subset_columns].apply(lambda x: '__'.join(x.apply(lambda y: re.split(r'[/\\]', y)[-1])).replace(' ', '_').replace('.', '_'), axis='columns'))  # takes much longer to do it directly as here
+                st.session_state['unifier__df'] = df
+                st.session_state['unifier__columns_actually_used_to_define_slides'] = subset_columns
+                st.toast('Columns combined into a "Slide ID" column successfully')
+            if ('unifier__columns_actually_used_to_define_slides' in st.session_state) and (set(st.session_state['unifier__columns_actually_used_to_define_slides']) != set(st.session_state['unifier__columns_to_combine_to_uniquely_define_slides'])):
+                st.warning('The columns used to define slides have changed since the last time slides were defined. Please re-combine the columns or adjust them to match the previous selection.')
+            df = st.session_state['unifier__df']
+
+        # Output a sample of the concatenated dataframe
         st.divider()
         st.header('Sample of concatenated dataframe')
         st.write('Click on the page and hit "r" to refresh the sample.')
-        st.write(df.sample(100))
+        st.write(df.sample(100).sort_index())
         st.write('The full concatenated dataframe has {} rows and {} columns.'.format(df.shape[0], df.shape[1]))
 
     # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
