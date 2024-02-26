@@ -1,6 +1,6 @@
 # Import relevant libraries
 import streamlit as st
-import pickle
+import dill as pickle  # Use dill instead of pickle to avoid "PicklingError: Can't pickle <class 'streamlit_dataframe_editor.DataframeEditor'>: it's not the same object as streamlit_dataframe_editor.DataframeEditor"
 import os
 from datetime import datetime
 import os
@@ -38,6 +38,10 @@ def save_session_state(saved_streamlit_session_states_dir, saved_streamlit_sessi
             session_dict[key] = value
 
     # Save the dictionary to the pickle file
+    # I believe this randomly crashes with "PicklingError: Can't pickle <class 'streamlit_dataframe_editor.DataframeEditor'>: it's not the same object as streamlit_dataframe_editor.DataframeEditor". Some approaches might include:
+    #   1. Use dill instead of pickle. Note that if we were to use dill, we could try saving the entire session at once (instead of individual objects) and also thereby include difficult items such as st.form objects. For now, the best place to start is probably to just replace the pickle calls with dill. This is implemented above ("import dill as pickle")
+    #   2. Save just the initialization data (and of course the current contents) for the objects to disk and then when reading them back in, initialize the DataframeEditor object there using that data. I.e., handle the custom classes separately.
+    #   3. Save objects to the file one at a time (instead of one large dictionary, maybe not using a dictionary at all if possible (e.g., save each key-item as a tuple?).
     with open(filename, 'wb') as f:
         pickle.dump(session_dict, f)
     
