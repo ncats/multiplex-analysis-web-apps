@@ -180,28 +180,42 @@ def main():
             # Allow user to select one or two columns for specifying coordinates
             # st.header(':four: Select coordinate columns')
             coordinate_options = ['One column (centroid)', 'Two columns (min and max)']
-            st.radio('Select number of columns that specify one coordinate axis:', coordinate_options, key='unifier__number_of_coordinate_columns')
+            left_column, right_column = st.columns(2)
+            with left_column:
+                st.radio('Select number of columns that specify one coordinate axis:', coordinate_options, key='unifier__number_of_coordinate_columns')
+            with right_column:
+                st.number_input('Enter the number of microns per coordinate unit in the columns below:', value=1.0, key='unifier__microns_per_coordinate_unit')
             if st.session_state['unifier__number_of_coordinate_columns'] == coordinate_options[0]:
-                x_coordinate_column = st.selectbox('Select a column for the x-coordinate:', df_numeric_columns, key='unifier__x_coordinate_column')
-                y_coordinate_column = st.selectbox('Select a column for the y-coordinate:', df_numeric_columns, key='unifier__y_coordinate_column')
-                # TODO: Add code to handle one column selection
+                x_column, y_column = st.columns(2)
+                with x_column:
+                    st.selectbox('Select a column for the x-coordinate:', df_numeric_columns, key='unifier__x_coordinate_column')
+                with y_column:
+                    st.selectbox('Select a column for the y-coordinate:', df_numeric_columns, key='unifier__y_coordinate_column')
             else:
-                x_min_coordinate_column = st.selectbox('Select a column for the minimum x-coordinate:', df_numeric_columns, key='unifier__x_min_coordinate_column')
-                x_max_coordinate_column = st.selectbox('Select a column for the maximum x-coordinate:', df_numeric_columns, key='unifier__x_max_coordinate_column')
-                y_min_coordinate_column = st.selectbox('Select a column for the minimum y-coordinate:', df_numeric_columns, key='unifier__y_min_coordinate_column')
-                y_max_coordinate_column = st.selectbox('Select a column for the maximum y-coordinate:', df_numeric_columns, key='unifier__y_max_coordinate_column')
-                # TODO: Add code to handle two columns selection
+                min_column, max_column = st.columns(2)
+                with min_column:
+                    st.selectbox('Select a column for the minimum x-coordinate:', df_numeric_columns, key='unifier__x_min_coordinate_column')
+                    st.selectbox('Select a column for the minimum y-coordinate:', df_numeric_columns, key='unifier__y_min_coordinate_column')
+                with max_column:
+                    st.selectbox('Select a column for the maximum x-coordinate:', df_numeric_columns, key='unifier__x_max_coordinate_column')
+                    st.selectbox('Select a column for the maximum y-coordinate:', df_numeric_columns, key='unifier__y_max_coordinate_column')
 
-            # Allow user to select the coordinate units in microns
-            # st.header(':four: Select coordinate units')
-            st.number_input('Enter the number of microns per coordinate unit:', value=1.0, key='unifier__microns_per_coordinate_unit')
-
+            # Allow the user to select the which columns correspond to the markers/phenotypes
+            # st.header(':four: Select marker/phenotype columns')
+            st.multiselect('Optional: Select the categorical columns that correspond to the markers/phenotypes (i.e., thresholded intensities):', df_columns, key='unifier__marker_columns')
 
             # if st.button(':star2: Set ROI identifier :star2:'):
             #     st.session_state['unifier__roi_identifier'] = roi_identifier
             #     st.toast('ROI identifier set successfully')
             # if 'unifier__roi_identifier' in st.session_state:
             #     st.write('ROI identifier column: {}'.format(st.session_state['unifier__roi_identifier']))
+
+            # cols_to_keep = ['Slide ID', 'tag', 'Cell X Position', 'Cell Y Position'] + df.loc[0, :].filter(regex='^Phenotype ').index.tolist()
+            # cols_to_keep = ['Slide ID', 'tag', 'Cell X Position', 'Cell Y Position'] + df.loc[0, :].filter(regex='^Phenotype ').index.tolist() + extra_cols_to_keep
+            # delete ROIs with single coordinates
+            # optionally apply patching
+            # do whatever is in HALO's pipeline
+            # pick up going through dataset_formats.py line 218
 
         # Output a sample of the concatenated dataframe
         st.divider()
