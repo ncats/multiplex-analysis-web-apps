@@ -492,9 +492,6 @@ def setup_Spatial_UMAP(df, marker_names, phenoOrder, cpu_pool_size = 1):
     '''
     Setup the requirements for running spatial UMAP
     '''
-    import pandas as pd
-    import numpy as np
-    import matplotlib as mpl
     from SpatialUMAP import SpatialUMAP
 
     spatial_umap = SpatialUMAP(dist_bin_um=np.array([25, 50, 100, 150, 200]), um_per_px=0.5, area_downsample=.2)

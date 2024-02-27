@@ -136,8 +136,8 @@ def main():
         st.selectbox(label = 'Choose a datafile', options = options_for_input_datafiles, key = 'datafileU')
         st.number_input('x-y coordinate units (microns):', min_value=0.0, key='phenotyping_micron_coordinate_units', help='E.g., if the coordinates in the input datafile were pixels, this number would be a conversion to microns in units of microns/pixel.', format='%.4f', step=0.0001)
 
-        databuttonCols = st.columns([1, 2])
-        with databuttonCols[0]:
+        data_button_cols = st.columns([1, 2])
+        with data_button_cols[0]:
             if (st.button('Load Data')) and (st.session_state.datafileU is not None):
                 st.session_state.bc.startTimer()
                 input_datafile = os.path.join('input', st.session_state.datafileU)
@@ -145,8 +145,8 @@ def main():
 
                 st.session_state.file_format = file_format
                 dataset_class = getattr(dataset_formats, file_format)  # done this way so that the format (e.g., “REEC”) can be select programmatically
-                dataset_obj = dataset_class(input_datafile, 
-                                            coord_units_in_microns = st.session_state.phenotyping_micron_coordinate_units, 
+                dataset_obj = dataset_class(input_datafile,
+                                            coord_units_in_microns = st.session_state.phenotyping_micron_coordinate_units,
                                             extra_cols_to_keep=['tNt', 'GOODNUC', 'HYPOXIC', 'NORMOXIC', 'NucArea', 'RelOrientation'])
                 dataset_obj.process_dataset(do_calculate_minimum_coordinate_spacing_per_roi=False)
                 st.session_state.bc.printElapsedTime(msg = f'Loading {input_datafile} into memory')
@@ -155,7 +155,7 @@ def main():
                 st.session_state = ndl.loadDataButton(st.session_state, dataset_obj.data, 'Input', st.session_state.datafileU[:-4])
                 st.session_state.bc.printElapsedTime(msg = f'Performing Phenotyping on {input_datafile}')
 
-        with databuttonCols[1]:
+        with data_button_cols[1]:
             if (st.button('Load Multiaxial Gating Data')) & ('mg__df' in st.session_state):
                 st.session_state.bc.startTimer()
                 st.session_state = ndl.loadDataButton(st.session_state, st.session_state['mg__df'], 'Mutli-axial Gating', st.session_state.mg__input_datafile_filename[:-4])

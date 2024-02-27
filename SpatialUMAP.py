@@ -104,13 +104,16 @@ class SpatialUMAP:
         del self.pool
 
     def process_region_counts(self, region_id, pool_size):
+        '''
+        Process_region_counts
+        '''
         # get indices of cells from this region
         idx = np.where(region_id == self.cells['TMA_core_id'])[0]
         # get counts if there are cells in region
         if len(idx) > 0:
             # partial for picklable fn for pool for process with data from this region
-            args = dict(cell_positions=self.cell_positions[idx], 
-                        cell_labels=self.cell_labels.values[idx], 
+            args = dict(cell_positions=self.cell_positions[idx],
+                        cell_labels=self.cell_labels.values[idx],
                         dist_bin_px=self.dist_bin_px)
             pool_map_fn = partial(SpatialUMAP.process_cell_counts, **args)
             # process
@@ -132,8 +135,8 @@ class SpatialUMAP:
             img_tissue_mask_dn = sktran.rescale(img_tissue_mask, self.area_downsample).astype(bool)
 
             # partial for picklable fn for pool for process with data from this region
-            args = dict(cell_positions=self.cell_positions[idx][:, [1, 0]] * self.area_downsample, 
-                        cell_labels=self.cell_labels.values[idx], 
+            args = dict(cell_positions=self.cell_positions[idx][:, [1, 0]] * self.area_downsample,
+                        cell_labels=self.cell_labels.values[idx],
                         dist_bin_px=self.arcs_radii, img_mask=img_tissue_mask_dn, arcs=self.arcs_masks)
             pool_map_fn = partial(SpatialUMAP.process_cell_areas, **args)
             # process
@@ -211,7 +214,7 @@ class SpatialUMAP:
         # instantiate our density output matrix
         self.density = np.empty(self.counts.shape)
         # identify those cells that do not have enough other cells around them. Any that
-        # do not meet this criteria will be filtered out. 
+        # do not meet this criteria will be filtered out.
         self.cells['area_filter'] = ((self.areas / self.arcs_masks.sum(axis=(0, 1))[np.newaxis, ...]) > area_threshold).all(axis=1)
 
         # identify the indices of cells that are pass our filter
