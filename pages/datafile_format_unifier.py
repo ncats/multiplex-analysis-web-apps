@@ -167,11 +167,51 @@ def main():
                 st.warning('The columns used to define slides have changed since the last time slides were defined. Please re-combine the columns or adjust them to match the previous selection.')
             df = st.session_state['unifier__df']
 
+        with main_columns[2]:
+
+            # Store the current columns in a variable
+            df_columns = df.columns
+            df_numeric_columns = df.select_dtypes(include='number').columns
+            
+            # Allow user to select a column as ROI identifier
+            # st.header(':four: Select ROI identifier')
+            st.selectbox('Select a column from to be used as a region of interest (ROI) identifier. If no particular identifier exists, use the "Slide ID" column:', df_columns, key='unifier__roi_identifier_column')
+
+            # Allow user to select one or two columns for specifying coordinates
+            # st.header(':four: Select coordinate columns')
+            coordinate_options = ['One column (centroid)', 'Two columns (min and max)']
+            st.radio('Select number of columns that specify one coordinate axis:', coordinate_options, key='unifier__number_of_coordinate_columns')
+            if st.session_state['unifier__number_of_coordinate_columns'] == coordinate_options[0]:
+                x_coordinate_column = st.selectbox('Select a column for the x-coordinate:', df_numeric_columns, key='unifier__x_coordinate_column')
+                y_coordinate_column = st.selectbox('Select a column for the y-coordinate:', df_numeric_columns, key='unifier__y_coordinate_column')
+                # TODO: Add code to handle one column selection
+            else:
+                x_min_coordinate_column = st.selectbox('Select a column for the minimum x-coordinate:', df_numeric_columns, key='unifier__x_min_coordinate_column')
+                x_max_coordinate_column = st.selectbox('Select a column for the maximum x-coordinate:', df_numeric_columns, key='unifier__x_max_coordinate_column')
+                y_min_coordinate_column = st.selectbox('Select a column for the minimum y-coordinate:', df_numeric_columns, key='unifier__y_min_coordinate_column')
+                y_max_coordinate_column = st.selectbox('Select a column for the maximum y-coordinate:', df_numeric_columns, key='unifier__y_max_coordinate_column')
+                # TODO: Add code to handle two columns selection
+
+            # Allow user to select the coordinate units in microns
+            # st.header(':four: Select coordinate units')
+            st.number_input('Enter the number of microns per coordinate unit:', value=1.0, key='unifier__microns_per_coordinate_unit')
+
+
+            # if st.button(':star2: Set ROI identifier :star2:'):
+            #     st.session_state['unifier__roi_identifier'] = roi_identifier
+            #     st.toast('ROI identifier set successfully')
+            # if 'unifier__roi_identifier' in st.session_state:
+            #     st.write('ROI identifier column: {}'.format(st.session_state['unifier__roi_identifier']))
+
         # Output a sample of the concatenated dataframe
         st.divider()
         st.header('Sample of concatenated dataframe')
-        st.write('Click on the page and hit "r" to refresh the sample.')
-        st.write(df.sample(100).sort_index())
+        resample_dataframe = st.button('Resample dataframe')
+        if ('sampled_df' not in st.session_state) or resample_dataframe:
+            sampled_df = df.sample(100).sort_index()
+            st.session_state['sampled_df'] = sampled_df
+        sampled_df = st.session_state['sampled_df']
+        st.write(sampled_df)
         st.write('The full concatenated dataframe has {} rows and {} columns.'.format(df.shape[0], df.shape[1]))
 
     # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
