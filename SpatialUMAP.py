@@ -116,10 +116,15 @@ class SpatialUMAP:
                         cell_labels=self.cell_labels.values[idx],
                         dist_bin_px=self.dist_bin_px)
             pool_map_fn = partial(SpatialUMAP.process_cell_counts, **args)
+            chunk_size = 10000
+            idxchunk = [idx[i:i + chunk_size] for i in range(0, len(idx), chunk_size)]
             # process
-            i, counts = list(map(lambda x: np.stack(x, axis=0), list(zip(*self.pool.map(pool_map_fn, range(len(idx)))))))
-            # set results, adjust indexing (just in case)
-            self.counts[idx] = counts[i]
+            for i, chunk in enumerate(idxchunk):
+                chunk_range = range(0, len(chunk), 1)
+                chunk_range2 = [x + chunk_size*i for x in chunk_range]
+                i, counts = list(map(lambda x: np.stack(x, axis=0), list(zip(*self.pool.map(pool_map_fn, chunk_range2)))))
+                # set results, adjust indexing (just in case)
+                self.counts[chunk] = counts
 
     def process_region_areas(self, region_id, pool_size, area_threshold, plots_directory=None):
         # get indices of cells from this region
