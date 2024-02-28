@@ -527,8 +527,7 @@ def is_symmetric_all(arr):
     # Return the boolean declaring whether all contained matrices are symmetric
     return all_are_symmetric
 
-# def execute_data_parallelism_potentially(function=(lambda x: x), list_of_tuple_arguments=[(4444)], nworkers=0, task_description='', do_benchmarking=False, mp_start_method=None):
-def execute_data_parallelism_potentially(function=(lambda x: x), list_of_tuple_arguments=[(4444,)], nworkers=0, task_description='', do_benchmarking=False, mp_start_method='forkserver'):  # spawn works with name=main block in Home.py
+def execute_data_parallelism_potentially(function=(lambda x: x), list_of_tuple_arguments=[(4444,)], nworkers=0, task_description='', do_benchmarking=False, mp_start_method=None):  # spawn works with name=main block in Home.py
     # Note I forced mp_start_method = 'spawn' up until 4/27/23. Removing that and letting Python choose the default for the OS got parallelism working on NIDAP. I likely forced it to be spawn a long time ago maybe to get it working on Biowulf or my laptop or something like that. This worked in all scenarios including on my laptop (in WSL) though I get weird warnings I believe. I got confident about doing it this most basic way on 4/27/23 after reading Goyo's 2/7/23 example [here](https://discuss.streamlit.io/t/streamlit-session-state-with-multiprocesssing/29230/2) showing the same exact method I've been using except for forcing multiprocessing to use the "spawn" start method.
 
     # Import relevant library
@@ -596,6 +595,7 @@ def calculate_neighbor_counts(center_coords=None, neighbor_coords=None, radii=No
     radii_sq = (radii ** 2)[np.newaxis, np.newaxis, :]  # (1, 1, num_radii)
 
     # Boolean matrix of whether the centers and neighbors are within the ranges
+    # We may be able to make this more efficient by using the fact that the radii are sorted and calculating only one inequality, but this should still be pretty reasonable
     in_ranges = (radii_sq[:, :, :-1] <= dist_mat_sq) & (dist_mat_sq < radii_sq[:, :, 1:])  # (num_centers, num_neighbors, num_radii - 1) = (num_centers, num_neighbors, num_ranges)
 
     # Get the counts of the neighbors for each center and radius range
@@ -606,6 +606,21 @@ def calculate_neighbor_counts(center_coords=None, neighbor_coords=None, radii=No
 
 # Efficiently count neighbors around centers for an arbitrary number of radius ranges, while ensuring that no intermediate matrices (i.e., the distance matrices) are too large in memory, with the maximum cutoff in MB corresponding to single_dist_mat_cutoff_in_mb
 def calculate_neighbor_counts_with_possible_chunking(center_coords=None, neighbor_coords=None, radii=None, single_dist_mat_cutoff_in_mb=200, test=False, verbose=False):
+    """
+    This function calculates the number of neighbors around each center for each radius range, potentially chunking the centers into smaller groups to avoid creating a distance matrix that is too large in memory. The cutoff size for the distance matrix is given in megabytes. The function returns the neighbor counts for each center and radius range, as well as the number of chunks used to calculate the neighbor counts. The function also prints a warning if the chunk size is larger than the cutoff size, which is quite unlikely as long as the cutoff is large enough. E.g., as long as the cutoff size is at least 76 MB, this won't be triggered unless there are more than 10M neighbors inputted to the function. The default cutoff value of 200 MB would only trigger if there were more than 26M inputted neighbors.
+
+    Args:
+        center_coords (np.ndarray): The coordinates of the centers. Shape is (num_centers, 2).
+        neighbor_coords (np.ndarray): The coordinates of the neighbors. Shape is (num_neighbors, 2).
+        radii (np.ndarray): The radii to use for the neighbor counting. Shape is (num_ranges + 1,) = (num_radii,).
+        single_dist_mat_cutoff_in_mb (float): The maximum size in megabytes of the distance matrix for all centers and neighbors. Default is 200 MB.
+        test (bool): Whether to use test data. Default is False.
+        verbose (bool): Whether to print debugging output. Default is False.
+
+    Returns:
+        np.ndarray: The neighbor counts for each center and radius range. Shape is (num_centers, num_ranges).
+        int: The number of chunks used to calculate the neighbor counts.
+    """
 
     # Import relevant library
     import numpy as np
