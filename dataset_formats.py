@@ -87,6 +87,17 @@ def extract_datafile_metadata(datafile_path):
         marker_suffix = None
         markers = None
 
+    # If the file is in the format standardized in the dataset unifier app...
+    elif 'Image ID (standardized)' in columns_list:
+        file_format = 'Standardized'
+        image_column_str = 'Image ID (standardized)'
+        marker_prefix = 'Phenotype (standardized) '
+        marker_cols = [x for x in columns_list if x.startswith(marker_prefix)]
+        coord_cols = ['Centroid X (µm) (standardized)', 'Centroid Y (µm) (standardized)']
+        image_string_processing_func = lambda x: x
+        marker_suffix = None
+        markers = None
+
     # If the file is of unknown format...
     else:
         print('WARNING: Unregistered datafile format')
@@ -948,6 +959,102 @@ class Steinbock(Native):
 
         # Variable definitions from attributes
         df = self.data
+
+        # For each phenotype column, convert zeros and ones to -'s and +'s
+        for col in df.filter(regex='^Phenotype\ '):
+            df[col] = df[col].map({0: '-', 1: '+'})
+
+        # Attribute assignments from variables
+        self.data = df
+
+    def extra_processing(self):
+
+        # Variable definitions from attributes
+        df = self.data
+
+        # Here just delete ROIs containing a single coordinate since we may have performed patching and that resulted in such situations
+        df = delete_rois_with_single_coord(df)
+
+        # Attribute assignments from variables
+        self.data = df
+
+
+class Standardized(Native):
+    """It is assumed that the input datafile(s) has been standardized using MAWA's Datafile Unifier.
+    """
+
+    def adhere_to_slide_id_format(self):
+        """Ensure the "Slide ID" column of the data conforms to the required format.
+        """
+
+        # Determine the series holding the image IDs
+        srs_imagenum = self.data['Image ID (standardized)']
+
+        # Get the unique image names
+        unique_images = srs_imagenum.unique()
+
+        # Calculate a dictionary mapper that maps the unique images to integers
+        mapper = dict(zip(unique_images, [x + 1 for x in range(len(unique_images))]))
+
+        # Attribute assignments
+        self.data['Slide ID'] = srs_imagenum.apply(lambda x: '{}A-{}'.format(mapper[x], x))
+
+    def adhere_to_tag_format(self):
+        """Ensure the "tag" column of the data conforms to the required format.
+        """
+
+        # Variable definitions from attributes
+        df = self.data
+        roi_width = self.roi_width
+        overlap = self.overlap
+        input_datafile = self.input_datafile
+
+        # Define the function to convert the coordinate descriptors to pixels, if not already in pixels
+        func_coords_to_pixels = lambda df_tmp: (5 * df_tmp).astype(int)  # since in the standardized dataset, the coordinates, which are in microns, have a precision of 0.2 microns
+        func_microns_to_pixels = lambda x: int(5 * x)
+
+        # Either patch up the dataset into ROIs and assign the ROI ("tag") column accordingly, or don't and assign the ROI column accordingly
+        if 'ROI ID (standardized)' not in df.columns:
+            df['tag'] = df['ROI ID (standardized)']
+        else:
+            df = potentially_apply_patching(df, input_datafile, roi_width, overlap, func_coords_to_pixels, func_microns_to_pixels)
+
+        # Overwrite the original dataframe with the one having the appended ROI column (I'd imagine this line is unnecessary)
+        self.data = df
+
+    def adhere_to_cell_position_format(self):
+        """Ensure the "Cell X Position" and "Cell Y Position" columns of the data conform to the required format
+        """
+
+        # Variable definitions from attributes
+        df = self.data
+        coord_units_in_microns = self.coord_units_in_microns
+
+        # Establish the x- and y-coordinate columns from their gates
+        srs_x_orig = (df['XMin'] + df['XMax']) / 2
+        srs_y_orig = (df['YMin'] + df['YMax']) / 2
+
+        # Convert coordinates to microns by multiplying by coord_units_in_microns, creating the new columns for the x- and y-coordinates
+        df['Cell X Position'] = srs_x_orig * coord_units_in_microns
+        df['Cell Y Position'] = srs_y_orig * coord_units_in_microns
+
+        # Attribute assignments from variables
+        self.data = df
+        self.coord_units_in_microns = 1  # implying 1 micron per coordinate unit (since now the coordinates are in microns)
+
+    def adhere_to_phenotype_format(self):
+        """Ensure the "Phenotype XXXX" columns of the data conform to the required format
+        """
+
+        # Variable definitions from attributes
+        df = self.data
+        input_datafile = self.input_datafile
+
+        # Define the phenotypes of interest in the input dataset
+        _, _, _, _, _, phenotype_columns = extract_datafile_metadata(input_datafile)
+
+        # Rename the phenotype columns so that they are prepended with "Phenotype "
+        df = df.rename(dict(zip(phenotype_columns, ['Phenotype {}'.format(x.strip()) for x in phenotype_columns])), axis='columns')
 
         # For each phenotype column, convert zeros and ones to -'s and +'s
         for col in df.filter(regex='^Phenotype\ '):
