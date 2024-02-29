@@ -27,3 +27,4 @@ dependencies:
     - pyyaml
     - st-pages
     - streamlit-javascript
+    - dill
