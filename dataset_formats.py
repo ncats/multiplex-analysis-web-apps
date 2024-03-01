@@ -133,8 +133,8 @@ def potentially_apply_phenotype_override(df, phenotype_prefix_override):
         # Store the columns that start with the standard "Phenotype " prefix
         phenotype_columns = [column for column in current_columns if column.startswith('Phenotype ')]
 
-        # Create a dictionary transforming these column names to ones subscripted with "_standard"
-        transform = dict(zip(phenotype_columns, [column.replace('Phenotype ', 'Phenotype_standard ', 1) for column in phenotype_columns]))
+        # Create a dictionary transforming these column names to ones subscripted with "_dataset_formatted"
+        transform = dict(zip(phenotype_columns, [column.replace('Phenotype ', 'Phenotype_dataset_formatted ', 1) for column in phenotype_columns]))
 
         # Transform the dataframe column names accordingly
         df = df.rename(columns=transform)
@@ -997,7 +997,7 @@ class Standardized(Native):
         mapper = dict(zip(unique_images, [x + 1 for x in range(len(unique_images))]))
 
         # Attribute assignments
-        self.data['Slide ID'] = srs_imagenum.apply(lambda x: '{}A-{}'.format(mapper[x], x))
+        self.data.insert(0, 'Slide ID', srs_imagenum.apply(lambda x: '{}A-{}'.format(mapper[x], x)))
 
     def adhere_to_tag_format(self):
         """Ensure the "tag" column of the data conforms to the required format.
@@ -1009,18 +1009,25 @@ class Standardized(Native):
         overlap = self.overlap
         input_datafile = self.input_datafile
 
+        # Constant
+        min_coord_spacing = 0.2  # in the datafile unifier, the coordinates are in microns and have a precision of 0.2 microns
+
         # Define the function to convert the coordinate descriptors to pixels, if not already in pixels
-        func_coords_to_pixels = lambda df_tmp: (5 * df_tmp).astype(int)  # since in the standardized dataset, the coordinates, which are in microns, have a precision of 0.2 microns
-        func_microns_to_pixels = lambda x: int(5 * x)
+        func_coords_to_pixels = lambda df_tmp: ((1 / min_coord_spacing) * df_tmp).astype(int)
+        func_microns_to_pixels = lambda x: int((1 / min_coord_spacing) * x)
 
         # Either patch up the dataset into ROIs and assign the ROI ("tag") column accordingly, or don't and assign the ROI column accordingly
-        if 'ROI ID (standardized)' not in df.columns:
+        if 'ROI ID (standardized)' in df.columns:
             df['tag'] = df['ROI ID (standardized)']
         else:
             df = potentially_apply_patching(df, input_datafile, roi_width, overlap, func_coords_to_pixels, func_microns_to_pixels)
 
+        # Move the "tag" column in df to the second position
+        df = df[['Slide ID', 'tag'] + [col for col in df.columns if col != 'Slide ID' and col != 'tag']]
+
         # Overwrite the original dataframe with the one having the appended ROI column (I'd imagine this line is unnecessary)
         self.data = df
+        self.min_coord_spacing_ = min_coord_spacing
 
     def adhere_to_cell_position_format(self):
         """Ensure the "Cell X Position" and "Cell Y Position" columns of the data conform to the required format
@@ -1028,15 +1035,10 @@ class Standardized(Native):
 
         # Variable definitions from attributes
         df = self.data
-        coord_units_in_microns = self.coord_units_in_microns
 
-        # Establish the x- and y-coordinate columns from their gates
-        srs_x_orig = (df['XMin'] + df['XMax']) / 2
-        srs_y_orig = (df['YMin'] + df['YMax']) / 2
-
-        # Convert coordinates to microns by multiplying by coord_units_in_microns, creating the new columns for the x- and y-coordinates
-        df['Cell X Position'] = srs_x_orig * coord_units_in_microns
-        df['Cell Y Position'] = srs_y_orig * coord_units_in_microns
+        # Create the new columns for the x- and y-coordinates
+        df.insert(2, 'Cell X Position', df['Centroid X (µm) (standardized)'])
+        df.insert(3, 'Cell Y Position', df['Centroid Y (µm) (standardized)'])
 
         # Attribute assignments from variables
         self.data = df
@@ -1051,17 +1053,25 @@ class Standardized(Native):
         input_datafile = self.input_datafile
 
         # Define the phenotypes of interest in the input dataset
-        _, _, _, _, _, phenotype_columns = extract_datafile_metadata(input_datafile)
+        _, _, _, _, _, phenotype_columns = extract_datafile_metadata(input_datafile)  # phenotype_columns are the actual marker names
 
         # Rename the phenotype columns so that they are prepended with "Phenotype "
         df = df.rename(dict(zip(phenotype_columns, ['Phenotype {}'.format(x.strip()) for x in phenotype_columns])), axis='columns')
 
-        # For each phenotype column, convert zeros and ones to -'s and +'s
+        # For each phenotype column, convert to -'s and +'s
         for col in df.filter(regex='^Phenotype\ '):
-            df[col] = df[col].map({0: '-', 1: '+'})
+            df[col] = df[col].apply(lambda x: x[-1] if isinstance(x, str) else '-' if x == 0 else '+')
 
         # Attribute assignments from variables
         self.data = df
+
+    def calculate_minimum_coordinate_spacing(self):
+        """Calculate the minimum spacing (aside from zero) in the data coordinates after conversion to microns. Not sure this is ever used anymore.
+        """
+        pass  # it's actually set in .adhere_to_tag_format() above
+
+    def calculate_minimum_coordinate_spacing_per_roi(self):
+        pass  # it's actually set in .adhere_to_tag_format() above
 
     def extra_processing(self):
 

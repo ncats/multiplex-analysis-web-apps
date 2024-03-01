@@ -102,9 +102,11 @@ def main():
                 # Efficiently check if the columns are equal for all input files
                 columns_equal = True
                 if len(input_files) > 1:
-                    first_file_columns = pd.read_csv(os.path.join(directory, input_files[0]), nrows=0).columns
+                    sep = (',' if input_files[0].split('.')[-1] == 'csv' else '\t')
+                    first_file_columns = pd.read_csv(os.path.join(directory, input_files[0]), nrows=0, sep=sep).columns
                     for input_file in input_files[1:]:
-                        current_file_columns = pd.read_csv(os.path.join(directory, input_file), nrows=0).columns
+                        sep = (',' if input_file.split('.')[-1] == 'csv' else '\t')
+                        current_file_columns = pd.read_csv(os.path.join(directory, input_file), nrows=0, sep=sep).columns
                         if not first_file_columns.equals(current_file_columns):
                             st.error('Columns are not equal for files: {} and {}'.format(input_files[0], input_file))
                             columns_equal = False
@@ -112,7 +114,8 @@ def main():
 
                 # If the columns are equal for all input files, concatenate all files into a single dataframe
                 if columns_equal:
-                    st.session_state['unifier__df'] = pd.concat([pd.read_csv(os.path.join(directory, input_file)) for input_file in input_files], ignore_index=True)
+                    sep = (',' if input_files[0].split('.')[-1] == 'csv' else '\t')
+                    st.session_state['unifier__df'] = pd.concat([pd.read_csv(os.path.join(directory, input_file), sep=sep) for input_file in input_files], ignore_index=True)
                     st.session_state['unifier__input_files'] = input_files
                     # Delete some subsequent keys if present
                     for key_to_delete in ['unifier__columns_actually_used_to_drop_rows', 'unifier__columns_actually_used_to_define_slides']:
