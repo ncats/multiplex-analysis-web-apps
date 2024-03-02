@@ -1010,11 +1010,12 @@ class Standardized(Native):
         input_datafile = self.input_datafile
 
         # Constant
-        min_coord_spacing = 0.2  # in the datafile unifier, the coordinates are in microns and have a precision of 0.2 microns
+        min_coord_spacing = 0.2  # in the datafile unifier, the coordinates are in microns and have a precision of 0.2 microns... this is just larger than the 63x value of 0.16 microns per pixel
+        print('Note: Dummy conversion between microns and pixels is being used. Tag/ROI names do not actually correspond to pixels; instead of pixels we\'re using arbitrary integer units! This is completely fine and should just affect the ROI names.')
 
         # Define the function to convert the coordinate descriptors to pixels, if not already in pixels
-        func_coords_to_pixels = lambda df_tmp: ((1 / min_coord_spacing) * df_tmp).astype(int)
-        func_microns_to_pixels = lambda x: int((1 / min_coord_spacing) * x)
+        func_coords_to_pixels = lambda df_tmp: (df_tmp / min_coord_spacing).astype(int)
+        func_microns_to_pixels = lambda x: int(x / min_coord_spacing)
 
         # Either patch up the dataset into ROIs and assign the ROI ("tag") column accordingly, or don't and assign the ROI column accordingly
         if 'ROI ID (standardized)' in df.columns:
