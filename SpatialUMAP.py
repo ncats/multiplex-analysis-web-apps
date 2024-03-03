@@ -1,16 +1,17 @@
-# Author: Alex Baras, MD, PhD (https://github.com/alexbaras)
-# NCATS Maintainer: Dante J Smith, PhD (https://github.com/djsmith17)
+'''
+Author: Alex Baras, MD, PhD (https://github.com/alexbaras)
+NCATS Maintainer: Dante J Smith, PhD (https://github.com/djsmith17)
+'''
+import multiprocessing as mp
+from functools import partial
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
 import matplotlib.pyplot as plt
-from scipy.spatial import ConvexHull
-from skimage import draw as skdraw, transform as sktran
-from time import time
-import multiprocessing as mp
-from functools import partial
 from scipy import optimize
 from scipy import ndimage as ndi
+from scipy.spatial import ConvexHull
+from skimage import draw as skdraw, transform as sktran
 np.seterr(divide='ignore', invalid='ignore')
 
 class SpatialUMAP:
@@ -88,6 +89,19 @@ class SpatialUMAP:
         self.area_downsample = area_downsample
         self.arcs_radii = (self.dist_bin_px * self.area_downsample).astype(int)
         self.arcs_masks = SpatialUMAP.construct_arcs(self.arcs_radii)
+
+        # Attributes to be created in higher level script
+        self.cells = pd.DataFrame()
+        self.cell_positions = pd.DataFrame()
+        self.cell_labels = pd.DataFrame()
+        self.region_ids = np.array([])
+        self.pool = None
+        self.counts = None
+        self.areas = None
+
+        self.phenoLabel = None
+        self.umap_test = np.array([])
+        self.patients = np.array([])
 
     def clear_counts(self):
         self.counts = np.empty((self.cell_positions.shape[0], len(self.dist_bin_um), self.num_species))
@@ -172,6 +186,11 @@ class SpatialUMAP:
                 plt.ion()
 
     def get_counts(self, pool_size=2, save_file=None):
+        '''
+        get_counts begins the process of identifying the 
+        cell counts surrounding each given cell in a 
+        dataset
+        '''
         self.clear_counts()
         self.start_pool(pool_size)
         for region_id in tqdm(self.region_ids):
@@ -210,7 +229,7 @@ class SpatialUMAP:
         print(f'{numSampInc} Samples used of {numSamp} Samples in dataset')
         print(f'{np.sum(self.cells["umap_train"] == 1)} elements assigned to training data. ~{np.round(100*np.sum(self.cells["umap_train"] == 1)/self.cells.shape[0])}%')
         print(f'{np.sum(self.cells["umap_test"] == 1)} elements assigned to testing data. ~{np.round(100*np.sum(self.cells["umap_test"] == 1)/self.cells.shape[0])}%')
-    
+
     def calc_densities(self, area_threshold):
         '''
         calculate density base on counts of cells / area of each arc examine
@@ -287,16 +306,21 @@ class SpatialUMAP:
         self.maxdens_df   = 1.05*max(self.dens_df_mean['density'] + self.dens_df_se['density'])
     
     def makeDummyClinic(self, length):
-        # A method for quickly making a clinic dataset if needed to pair with existitng Spatial UMAP methods
-        # length (int): number of dummy patients (samples) to create
-        Sample_numberPat = np.linspace(1, length, length)
-        Death_5YPat = np.zeros(length)
-        d = {'Sample_number': Sample_numberPat, 'Death_5Y': Death_5YPat}
+        '''
+        A method for quickly making a clinic dataset if needed 
+        to pair with existitng Spatial UMAP methods
+        length (int): number of dummy patients (samples) to create
+        '''
+        sample_number_pat = np.linspace(1, length, length)
+        death_5y_pat = np.zeros(length)
+        d = {'Sample_number': sample_number_pat, 'Death_5Y': death_5y_pat}
         return pd.DataFrame(data = d)
 
     def generate_H(self, lineages):
-        ## Spatial UMAP 2D Density Plots By Lineage and Stratified by 5 Year Survival
-        # get per specimen density maps
+        '''
+        Spatial UMAP 2D Density Plots By Lineage and Stratified by 5 Year Survival
+        get per specimen density maps
+        '''
 
         # set number of bins and get actual binning points based on whole dataset
         n_bins = 200
@@ -331,11 +355,8 @@ class SpatialUMAP:
                     H[:, :, j + 1, i, 1] = np.nan
             else:
                 H[:, :, :, i, :] = np.nan
-        
-        return H
 
-    def define_phenotype_ordering():
-        pass
+        return H
 
 class FitEllipse:
     '''FitElipse is a class that defines the concentric circle areas
@@ -354,6 +375,10 @@ class FitEllipse:
     def __init__(self):
         self.x = None
         self.img_ellipse = None
+
+        self.w = None
+        self.h = None
+        self.res = None
 
     @staticmethod
     def ellipse_function(points, x, y, a, b, r):

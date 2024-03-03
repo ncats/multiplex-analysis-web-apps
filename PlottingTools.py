@@ -163,7 +163,8 @@ def plot_spatial_interactive(elems, title, feature):
 
 
 def plot_neighborhood_profile(ax, cell_label, dist_bin, cell_density, phenoSet, maxDens=0.1, legF=0):
-    '''This function generates the line plots of the phenotype density 
+    '''
+    This function generates the line plots of the phenotype density 
     at different distances from a given cell
     '''
 
@@ -226,7 +227,7 @@ def plot_neighborhood_profile_propor(ax, cell_label, dist_bin, cell_propor, phen
         plt.legend()
 
     
-def plot_mean_neighborhood_profile(ax, dist_bin, dens_df, selClus, maxDens=0.1, legF=0):
+def plot_mean_neighborhood_profile(ax, dist_bin, dens_df, sel_clus, maxDens=0.1, legF=0):
     '''This function generates the line plots of the phenotype density 
     at different distances from a given cell
     '''
@@ -235,7 +236,7 @@ def plot_mean_neighborhood_profile(ax, dist_bin, dens_df, selClus, maxDens=0.1, 
     SlTC   = '#FAFAFA'  # Streamlit Text Color
     Sl2BgC = '#262730'  # Streamlit Secondary Background Color
 
-    dens_df = dens_df.loc[dens_df['cluster'] == selClus, :]
+    dens_df = dens_df.loc[dens_df['cluster'] == sel_clus, :]
 
     sns.lineplot(dens_df,
                  x = 'dist_bin',
@@ -249,7 +250,7 @@ def plot_mean_neighborhood_profile(ax, dist_bin, dens_df, selClus, maxDens=0.1, 
     ax.set_xticks(dist_bin)
     ax.set_xlim([0, 225])
     ax.set_ylim([0, maxDens])
-    ax.set_title(f'Cluster {selClus}: Densities', fontsize = 16, color = SlTC)
+    ax.set_title(f'Cluster {sel_clus}: Densities', fontsize = 16, color = SlTC)
     ax.set_xlabel('Spatial Bound (\u03BCm)', fontsize = 14, color = SlTC)
     ax.set_ylabel('Cell Density', fontsize = 14, color = SlTC)
 
