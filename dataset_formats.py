@@ -71,10 +71,10 @@ def extract_datafile_metadata(datafile_path):
         image_column_str = 'ShortName'
         image_string_processing_func = lambda x: x
         coord_cols = ['CentroidX', 'CentroidY']
-        marker_prefix = 'Ultivue_'
-        marker_suffix = 'PositiveClassification'
-        marker_cols = [col for col in columns_list if (col.startswith(marker_prefix) & col.endswith(marker_suffix))]
-        markers = None
+        marker_prefix = None
+        marker_suffix = None
+        marker_cols = 'pheno_20230327_152849'
+        markers = ['CD8', 'COX2', 'NOS2']
 
     # If the file is from QuPath...
     elif tuple(columns_list[:4]) == ('Image', 'Class', 'Centroid X µm', 'Centroid Y µm'):
@@ -850,13 +850,12 @@ class Ultivue(Native):
 
         # Define the phenotypes of interest in the input dataset
         _, _, _, _, _, markers = extract_datafile_metadata(input_datafile)
-        phenotype_columns = ['Ultivue_' + marker + 'PositiveClassification' for marker in markers]
+        phenotype_columns = 'pheno_20230327_152849'
 
+        phenotype_unique = df[phenotype_columns].unique()
         # Rename the phenotype columns so that they are prepended with "Phenotype "
-        df = df.rename(dict(zip(phenotype_columns, ['Phenotype {}'.format(marker.strip()) for marker in markers])), axis='columns')
-        # For each phenotype column, convert zeros and ones to -'s and +'s
-        for col in df.filter(regex='^Phenotype\ '):
-            df[col] = df[col].map({0: '-', 1: '+'})
+        for marker in markers:
+            df[f'Phenotype {marker}'] = df[phenotype_columns].apply(lambda x: '+' if f'{marker}+' in x else '-')
 
         # Attribute assignments from variables
         self.data = df
