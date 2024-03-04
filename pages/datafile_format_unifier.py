@@ -63,10 +63,13 @@ def main():
             # Write a message to the user
             num_files = len(files)
             if num_files == 1:
-                st.write('Detected 1 ".csv" or ".tsv" file in the `input` directory:')
+                st.write('Detected 1 ".csv" or ".tsv" file in the `input` directory.')
             else:
-                st.write('Detected {} ".csv" and ".tsv" files in the `input` directory:'.format(num_files))
+                st.write('Detected {} ".csv" and ".tsv" files in the `input` directory.'.format(num_files))
 
+            # Write a note to the user
+            st.write('Note: You can double-click on any cell to see a full filename that is too long to fit in the cell.')
+    
             # Create a dataframe from the list of files, including a column for the user to select files
             df_input_files = pd.DataFrame(files, columns=['Filename'])
             df_input_files.insert(0, 'Selected', False)
@@ -91,14 +94,18 @@ def main():
             num_selected_rows = selected_rows.sum()
             if num_selected_rows == 1:
                 st.write('There is 1 row selected.')
+                button_text = ':star2: Combine selected files into single dataframe ⚠️ :star2:'
+                button_help_message = 'Note: Even if just one file is selected, please this button to proceed.'
             else:
                 st.write('There are {} files selected.'.format(num_selected_rows))
+                button_text = ':star2: Combine selected files into single dataframe :star2:'
+                button_help_message = None
 
             # Extract the selected files from the dataframe editor
             input_files = sorted(df_reconstructed[selected_rows]['Filename'].to_list())
             
             # Create a button to concatenate the selected files
-            if st.button(':star2: Combine selected files into single dataframe:star2:'):
+            if st.button(button_text, help=button_help_message):
 
                 # Efficiently check if the columns are equal for all input files
                 columns_equal = True
@@ -138,38 +145,31 @@ def main():
         with main_columns[0]:
 
             # Drop rows with `None` values in selected columns
-            st.header(':two: (Optional) Delete null rows')
-            st.write('Observe the combined dataframe at bottom and select columns by which to remove rows. Rows will be removed if the selected columns have a value of `None`.')
-            st.multiselect('Select columns by which to to delete rows:', df.columns, key='unifier__columns_to_drop_rows_by')
-            if st.button(':star2: Delete rows from dataframe :star2:'):
-                row_count_before = len(df)
-                st.session_state['unifier__df'] = df.dropna(subset=st.session_state['unifier__columns_to_drop_rows_by']).reset_index(drop=True).convert_dtypes()
-                row_count_after = len(st.session_state['unifier__df'])
-                st.session_state['unifier__columns_actually_used_to_drop_rows'] = st.session_state['unifier__columns_to_drop_rows_by']
-                # Delete some subsequent keys if present
-                for key_to_delete in ['unifier__columns_actually_used_to_define_slides']:
-                    if key_to_delete in st.session_state:
-                        del st.session_state[key_to_delete]
-                st.toast(f'{row_count_after - row_count_before} rows deleted successfully')
-            if ('unifier__columns_actually_used_to_drop_rows' in st.session_state) and (set(st.session_state['unifier__columns_actually_used_to_drop_rows']) != set(st.session_state['unifier__columns_to_drop_rows_by'])):
-                st.warning('The columns used to remove rows have changed since the last time rows were removed. Please start from scratch (the dataframe has been overwritten) or adjust the columns to match the previous selection.')
-            df = st.session_state['unifier__df']
+            st.header('(Optional) :two: Delete null rows')
+            with st.expander('(Optional) Click to expand:', expanded=False):
+                st.write('Observe the combined dataframe at bottom and select columns by which to remove rows. Rows will be removed if the selected columns have a value of `None`.')
+                st.multiselect('Select columns by which to to delete rows:', df.columns, key='unifier__columns_to_drop_rows_by')
+                if st.button(':star2: Delete rows from dataframe :star2:'):
+                    row_count_before = len(df)
+                    st.session_state['unifier__df'] = df.dropna(subset=st.session_state['unifier__columns_to_drop_rows_by']).reset_index(drop=True).convert_dtypes()
+                    row_count_after = len(st.session_state['unifier__df'])
+                    st.session_state['unifier__columns_actually_used_to_drop_rows'] = st.session_state['unifier__columns_to_drop_rows_by']
+                    # Delete some subsequent keys if present
+                    for key_to_delete in ['unifier__columns_actually_used_to_define_slides']:
+                        if key_to_delete in st.session_state:
+                            del st.session_state[key_to_delete]
+                    st.toast(f'{row_count_after - row_count_before} rows deleted successfully')
+                if ('unifier__columns_actually_used_to_drop_rows' in st.session_state) and (set(st.session_state['unifier__columns_actually_used_to_drop_rows']) != set(st.session_state['unifier__columns_to_drop_rows_by'])):
+                    st.warning('The columns used to remove rows have changed since the last time rows were removed. Please start from scratch (the dataframe has been overwritten) or adjust the columns to match the previous selection.')
+                df = st.session_state['unifier__df']
 
         # In the second column...
         with main_columns[1]:
 
-            # Interface for image and ROI identification
-            st.header(':three: Identify images and ROIs')
-            st.subheader('Image identification')
+            # Image identification
+            st.header(':three: Identify images')
             st.multiselect('Select columns to combine to uniquely define images:', df.columns, key='unifier__columns_to_combine_to_uniquely_define_slides')  # removing .select_dtypes(include=['object', 'string']) from df
-            st.subheader('Region of interest (ROI) identification')
-            if st.checkbox('Check here if the ROIs are explicitly defined by a column in the dataframe', key='unifier__roi_explicitly_defined', help='Note: This is not often the case, so this can usually be left unchecked.'):
-                st.selectbox('Select the column containing the ROI names:', df.columns, key='unifier__roi_column')
-
-            # Identify columns that combine to uniquely define slides
-            if st.button(':star2: Assign images and ROIs :star2:'):
-
-                # Image identification processing
+            if st.button(':star2: Assign images :star2:'):
                 subset_columns = st.session_state['unifier__columns_to_combine_to_uniquely_define_slides']
                 unique_rows = df.drop_duplicates(subset=subset_columns)[subset_columns]
                 df_from = unique_rows.apply(lambda x: '__'.join(x.apply(str)), axis='columns')
@@ -180,19 +180,36 @@ def main():
                     if df_subset[column].dtype not in ['string', 'object']:
                         df_subset[column] = df_subset[column].apply(str)
                 utils.dataframe_insert_possibly_existing_column(df, 0, 'Image ID (standardized)', df_subset.apply(lambda x: transformation['__'.join(x)], axis='columns'))
+                st.session_state['unifier__df'] = df
+                st.session_state['unifier__columns_actually_used_to_define_slides'] = subset_columns
+                st.toast('Columns combined into a "Image ID (standardized)" column successfully')
+            if ('unifier__columns_actually_used_to_define_slides' in st.session_state) and (set(st.session_state['unifier__columns_actually_used_to_define_slides']) != set(st.session_state['unifier__columns_to_combine_to_uniquely_define_slides'])):
+                st.warning('The columns used to define slides have changed since the last time slides were defined. Please re-assign the image names or adjust the columns to match the previous selection.')
+            df = st.session_state['unifier__df']
 
-                # ROI identification processing
+            # ROI identification
+            st.header(':four: Identify regions of interest (ROIs)')
+            if st.checkbox('Check here if the ROIs are explicitly defined by a column in the dataframe', key='unifier__roi_explicitly_defined', help='Note: This is not often the case, so this can usually be left unchecked.'):
+                st.selectbox('Select the column containing the ROI names:', df.columns, key='unifier__roi_column')
+            if not st.session_state['unifier__roi_explicitly_defined']:
+                button_text = ':star2: Assign ROIs ⚠️ :star2:'
+                button_help_message = 'Note: Even if the ROIs are not explicitly defined by a column in the dataframe, please this button to proceed.'
+            else:
+                button_text = ':star2: Assign ROIs :star2:'
+                button_help_message = None
+            if st.button(button_text, help=button_help_message):
                 if st.session_state['unifier__roi_explicitly_defined']:
                     utils.dataframe_insert_possibly_existing_column(df, 1, 'ROI ID (standardized)', df[st.session_state['unifier__roi_column']])
                 else:
                     if 'ROI ID (standardized)' in df.columns:
                         del df['ROI ID (standardized)']
-
                 st.session_state['unifier__df'] = df
-                st.session_state['unifier__columns_actually_used_to_define_slides'] = subset_columns
-                st.toast('Columns combined into a "Slide ID" column successfully')
-            if ('unifier__columns_actually_used_to_define_slides' in st.session_state) and (set(st.session_state['unifier__columns_actually_used_to_define_slides']) != set(st.session_state['unifier__columns_to_combine_to_uniquely_define_slides'])):
-                st.warning('The columns used to define slides have changed since the last time slides were defined. Please re-combine the columns or adjust them to match the previous selection.')
+                st.session_state['unifier__roi_actually_explicitly_defined'] = st.session_state['unifier__roi_explicitly_defined']
+                st.session_state['unifier_actual_roi_column'] = st.session_state['unifier__roi_column']
+                st.toast('"ROI ID (standardized)" column created successfully')
+            if ('unifier__roi_actually_explicitly_defined' in st.session_state) and ((st.session_state['unifier__roi_actually_explicitly_defined'] != st.session_state['unifier__roi_explicitly_defined']) or (st.session_state['unifier_actual_roi_column'] != st.session_state['unifier__roi_column'])):
+                # We may need a hierarchical if-then statement here
+                st.warning('The use of or column used to define ROIs has changed since the last time ROIs were defined. Please re-assign the ROI names or adjust the settings to match the previous ones.')
             df = st.session_state['unifier__df']
 
         with main_columns[2]:
