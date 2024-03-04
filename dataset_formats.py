@@ -1043,7 +1043,7 @@ class Standardized(Native):
 
         # Attribute assignments from variables
         self.data = df
-        self.coord_units_in_microns = 1  # implying 1 micron per coordinate unit (since now the coordinates are in microns)
+        self.coord_units_in_microns = 1  # implying 1 micron per coordinate unit (since now the coordinates are in microns, which is assumed to be the case for "standardized" data)
 
     def adhere_to_phenotype_format(self):
         """Ensure the "Phenotype XXXX" columns of the data conform to the required format
