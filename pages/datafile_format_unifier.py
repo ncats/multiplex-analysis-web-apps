@@ -51,7 +51,7 @@ def main():
         files = list_files(directory, extensions)
 
         # Display a header for the datafile selection section
-        st.header(':one: Select datafiles')
+        st.header(':one: Select datafiles to combine')
 
         # If no files are found, write a message to the user
         if len(files) == 0:
@@ -92,13 +92,13 @@ def main():
             if num_selected_rows == 1:
                 st.write('There is 1 row selected.')
             else:
-                st.write('There are {} rows selected.'.format(num_selected_rows))
+                st.write('There are {} files selected.'.format(num_selected_rows))
 
             # Extract the selected files from the dataframe editor
             input_files = sorted(df_reconstructed[selected_rows]['Filename'].to_list())
             
             # Create a button to concatenate the selected files
-            if st.button(':star2: Concatenate selected files :star2:'):
+            if st.button(':star2: Combine selected files into single dataframe:star2:'):
 
                 # Efficiently check if the columns are equal for all input files
                 columns_equal = True
@@ -122,11 +122,11 @@ def main():
                     for key_to_delete in ['unifier__columns_actually_used_to_drop_rows', 'unifier__columns_actually_used_to_define_slides']:
                         if key_to_delete in st.session_state:
                             del st.session_state[key_to_delete]
-                    st.toast('Files concatenated successfully')
+                    st.toast('Files combined successfully')
 
             # If the concatenated dataframe exists...
             if ('unifier__input_files' in st.session_state) and (st.session_state['unifier__input_files'] != input_files):
-                st.warning('The input files have changed since the last time the dataframe was created. Please re-concatenate the files or adjust the input files to match the previous selection.')
+                st.warning('The input files have changed since the last time the dataframe was created. Please re-combine the files or adjust the input files to match the previous selection.')
 
     # If concatentation has been performed...
     if 'unifier__df' in st.session_state:
@@ -134,14 +134,14 @@ def main():
         # Get a shortcut to the concatenated dataframe
         df = st.session_state['unifier__df']
 
-        # In the second column...
-        with main_columns[1]:
+        # In the first column...
+        with main_columns[0]:
 
             # Drop rows with `None` values in selected columns
-            st.header(':two: (Optional) Drop null rows')
-            st.write('Observe the concatenated dataframe at bottom and select columns by which to drop rows. Rows will be dropped if the selected columns have a value of `None`.')
-            st.multiselect('Select columns by which to to drop rows:', df.columns, key='unifier__columns_to_drop_rows_by')
-            if st.button(':star2: Drop rows :star2:'):
+            st.header(':two: (Optional) Delete null rows')
+            st.write('Observe the combined dataframe at bottom and select columns by which to remove rows. Rows will be removed if the selected columns have a value of `None`.')
+            st.multiselect('Select columns by which to to delete rows:', df.columns, key='unifier__columns_to_drop_rows_by')
+            if st.button(':star2: Delete rows from dataframe :star2:'):
                 row_count_before = len(df)
                 st.session_state['unifier__df'] = df.dropna(subset=st.session_state['unifier__columns_to_drop_rows_by']).reset_index(drop=True).convert_dtypes()
                 row_count_after = len(st.session_state['unifier__df'])
@@ -150,15 +150,26 @@ def main():
                 for key_to_delete in ['unifier__columns_actually_used_to_define_slides']:
                     if key_to_delete in st.session_state:
                         del st.session_state[key_to_delete]
-                st.toast(f'{row_count_after - row_count_before} rows dropped successfully')
+                st.toast(f'{row_count_after - row_count_before} rows deleted successfully')
             if ('unifier__columns_actually_used_to_drop_rows' in st.session_state) and (set(st.session_state['unifier__columns_actually_used_to_drop_rows']) != set(st.session_state['unifier__columns_to_drop_rows_by'])):
-                st.warning('The columns used to drop rows have changed since the last time rows were dropped. Please start from scratch (the dataframe has been overwritten) or adjust the columns to match the previous selection.')
+                st.warning('The columns used to remove rows have changed since the last time rows were removed. Please start from scratch (the dataframe has been overwritten) or adjust the columns to match the previous selection.')
             df = st.session_state['unifier__df']
 
+        # In the second column...
+        with main_columns[1]:
+
+            # Interface for image and ROI identification
+            st.header(':three: Identify images and ROIs')
+            st.subheader('Image identification')
+            st.multiselect('Select columns to combine to uniquely define images:', df.columns, key='unifier__columns_to_combine_to_uniquely_define_slides')  # removing .select_dtypes(include=['object', 'string']) from df
+            st.subheader('Region of interest (ROI) identification')
+            if st.checkbox('Check here if the ROIs are explicitly defined by a column in the dataframe', key='unifier__roi_explicitly_defined', help='Note: This is not often the case, so this can usually be left unchecked.'):
+                st.selectbox('Select the column containing the ROI names:', df.columns, key='unifier__roi_column')
+
             # Identify columns that combine to uniquely define slides
-            st.header(':three: Combine columns to uniquely define slides')
-            st.multiselect('Select string columns to combine to uniquely define slides:', df.columns, key='unifier__columns_to_combine_to_uniquely_define_slides')  # removing .select_dtypes(include=['object', 'string']) from df
-            if st.button(':star2: Combine columns :star2:'):
+            if st.button(':star2: Assign images and ROIs :star2:'):
+
+                # Image identification processing
                 subset_columns = st.session_state['unifier__columns_to_combine_to_uniquely_define_slides']
                 unique_rows = df.drop_duplicates(subset=subset_columns)[subset_columns]
                 df_from = unique_rows.apply(lambda x: '__'.join(x.apply(str)), axis='columns')
@@ -168,9 +179,15 @@ def main():
                 for column in subset_columns:
                     if df_subset[column].dtype not in ['string', 'object']:
                         df_subset[column] = df_subset[column].apply(str)
-                # df.insert(0, 'Slide ID', df[subset_columns].apply(lambda x: transformation['__'.join(x.apply(str))], axis='columns'))  # much faster than the commented line below
-                utils.dataframe_insert_possibly_existing_column(df, 0, 'Slide ID', df_subset.apply(lambda x: transformation['__'.join(x)], axis='columns'))
-                # df.insert(0, 'Slide ID', df[subset_columns].apply(lambda x: '__'.join(x.apply(lambda y: re.split(r'[/\\]', y)[-1])).replace(' ', '_').replace('.', '_'), axis='columns'))  # takes much longer to do it directly as here
+                utils.dataframe_insert_possibly_existing_column(df, 0, 'Image ID (standardized)', df_subset.apply(lambda x: transformation['__'.join(x)], axis='columns'))
+
+                # ROI identification processing
+                if st.session_state['unifier__roi_explicitly_defined']:
+                    utils.dataframe_insert_possibly_existing_column(df, 1, 'ROI ID (standardized)', df[st.session_state['unifier__roi_column']])
+                else:
+                    if 'ROI ID (standardized)' in df.columns:
+                        del df['ROI ID (standardized)']
+
                 st.session_state['unifier__df'] = df
                 st.session_state['unifier__columns_actually_used_to_define_slides'] = subset_columns
                 st.toast('Columns combined into a "Slide ID" column successfully')
@@ -232,14 +249,14 @@ def main():
 
         # Output a sample of the concatenated dataframe
         st.divider()
-        st.header('Sample of concatenated dataframe')
+        st.header('Sample of unified dataframe')
         resample_dataframe = st.button('Resample dataframe')
         if ('sampled_df' not in st.session_state) or resample_dataframe:
             sampled_df = df.sample(100).sort_index()
             st.session_state['sampled_df'] = sampled_df
         sampled_df = st.session_state['sampled_df']
         st.write(sampled_df)
-        st.write('The full concatenated dataframe has {} rows and {} columns.'.format(df.shape[0], df.shape[1]))
+        st.write('The full combined dataframe has {} rows and {} columns.'.format(df.shape[0], df.shape[1]))
 
     # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
     st.session_state = sde.finalize_session_state(st.session_state)
