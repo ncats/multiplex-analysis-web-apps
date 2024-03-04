@@ -77,22 +77,6 @@ class SpatialUMAP:
         # return index and counts
         return i, counts
     
-    @staticmethod
-    def euclidian_counts(idx, distances, cell_labels, dist_bin_px):
-
-        idx_counts = None
-        cell_labels_uni = sorted(cell_labels.unique())
-        dist_bin_px = np.concatenate([[0], dist_bin_px])
-        for i in range(len(dist_bin_px)-1):
-            present_cells = cell_labels[(distances[idx] > dist_bin_px[i]) & (distances[idx] <= dist_bin_px[i+1])]
-            these_counts = [sum(present_cells == label) for label in cell_labels_uni]
-
-            if idx_counts is not None:
-                idx_counts = np.vstack((idx_counts, these_counts))
-            else:
-                idx_counts = np.array(these_counts)
-
-        return idx_counts
 
     def __init__(self, dist_bin_um, um_per_px, area_downsample):
         # microns per pixel
@@ -213,20 +197,6 @@ class SpatialUMAP:
         self.start_pool(pool_size)
         for region_id in tqdm(self.region_ids):
             self.process_region_counts(region_id, pool_size)
-        self.close_pool()
-            idx = np.where(region_id == self.cells['TMA_core_id'])[0]
-            distances = euclidean_distances(self.cells.loc[idx, ['Cell X Position', 'Cell Y Position']])
-            cell_labels = self.cells.loc[idx, 'Lineage']
-
-            args = dict(distances=distances,
-                        cell_labels=cell_labels,
-                        dist_bin_px=self.dist_bin_px)
-            pool_map_fn = partial(SpatialUMAP.euclidian_counts, **args)
-
-            idx_set = range(len(idx))
-            with mp.Pool(pool_size) as pool:
-                counts = list(map(lambda x: np.stack(x, axis=0), list(pool.map(pool_map_fn, idx_set))))
-            self.counts[idx] = counts
 
         if save_file is not None:
             column_names = ['%s-%s' % (cell_type, distance) for distance in self.dist_bin_um for cell_type in self.cell_labels.columns.values]
