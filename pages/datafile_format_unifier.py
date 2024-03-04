@@ -5,6 +5,7 @@ import pandas as pd
 import app_top_of_page as top
 import streamlit_dataframe_editor as sde
 import re
+import utils
 # from streamlit_dataframe_editor import DataframeEditor  # attempting Lens' fix from https://stackoverflow.com/questions/1412787/picklingerror-cant-pickle-class-decimal-decimal-its-not-the-same-object for the error PicklingError: Can't pickle <class 'streamlit_dataframe_editor.DataframeEditor'>: it's not the same object as streamlit_dataframe_editor.DataframeEditor --> does not work, same error
 
 def list_files(directory, extensions):
@@ -141,27 +142,34 @@ def main():
             st.write('Observe the concatenated dataframe at bottom and select columns by which to drop rows. Rows will be dropped if the selected columns have a value of `None`.')
             st.multiselect('Select columns by which to to drop rows:', df.columns, key='unifier__columns_to_drop_rows_by')
             if st.button(':star2: Drop rows :star2:'):
+                row_count_before = len(df)
                 st.session_state['unifier__df'] = df.dropna(subset=st.session_state['unifier__columns_to_drop_rows_by']).reset_index(drop=True).convert_dtypes()
+                row_count_after = len(st.session_state['unifier__df'])
                 st.session_state['unifier__columns_actually_used_to_drop_rows'] = st.session_state['unifier__columns_to_drop_rows_by']
                 # Delete some subsequent keys if present
                 for key_to_delete in ['unifier__columns_actually_used_to_define_slides']:
                     if key_to_delete in st.session_state:
                         del st.session_state[key_to_delete]
-                st.toast('Rows dropped successfully')
+                st.toast(f'{row_count_after - row_count_before} rows dropped successfully')
             if ('unifier__columns_actually_used_to_drop_rows' in st.session_state) and (set(st.session_state['unifier__columns_actually_used_to_drop_rows']) != set(st.session_state['unifier__columns_to_drop_rows_by'])):
                 st.warning('The columns used to drop rows have changed since the last time rows were dropped. Please start from scratch (the dataframe has been overwritten) or adjust the columns to match the previous selection.')
             df = st.session_state['unifier__df']
 
             # Identify columns that combine to uniquely define slides
             st.header(':three: Combine columns to uniquely define slides')
-            st.multiselect('Select string columns to combine to uniquely define slides:', df.select_dtypes(include=['object', 'string']).columns, key='unifier__columns_to_combine_to_uniquely_define_slides')
+            st.multiselect('Select string columns to combine to uniquely define slides:', df.columns, key='unifier__columns_to_combine_to_uniquely_define_slides')  # removing .select_dtypes(include=['object', 'string']) from df
             if st.button(':star2: Combine columns :star2:'):
                 subset_columns = st.session_state['unifier__columns_to_combine_to_uniquely_define_slides']
                 unique_rows = df.drop_duplicates(subset=subset_columns)[subset_columns]
-                df_from = unique_rows.apply(lambda x: '__'.join(x), axis='columns')
-                df_to = unique_rows.apply(lambda x: '__'.join(x.apply(lambda y: re.split(r'[/\\]', y)[-1])).replace(' ', '_').replace('.', '_'), axis='columns')
+                df_from = unique_rows.apply(lambda x: '__'.join(x.apply(str)), axis='columns')
+                df_to = unique_rows.apply(lambda x: '__'.join(x.apply(str).apply(lambda y: re.split(r'[/\\]', y)[-1])).replace(' ', '_').replace('.', '_'), axis='columns')
                 transformation = dict(zip(df_from, df_to))
-                df.insert(0, 'Slide ID', df[subset_columns].apply(lambda x: transformation['__'.join(x)], axis='columns'))  # much faster than the commented line below
+                df_subset = df[subset_columns]
+                for column in subset_columns:
+                    if df_subset[column].dtype not in ['string', 'object']:
+                        df_subset[column] = df_subset[column].apply(str)
+                # df.insert(0, 'Slide ID', df[subset_columns].apply(lambda x: transformation['__'.join(x.apply(str))], axis='columns'))  # much faster than the commented line below
+                utils.dataframe_insert_possibly_existing_column(df, 0, 'Slide ID', df_subset.apply(lambda x: transformation['__'.join(x)], axis='columns'))
                 # df.insert(0, 'Slide ID', df[subset_columns].apply(lambda x: '__'.join(x.apply(lambda y: re.split(r'[/\\]', y)[-1])).replace(' ', '_').replace('.', '_'), axis='columns'))  # takes much longer to do it directly as here
                 st.session_state['unifier__df'] = df
                 st.session_state['unifier__columns_actually_used_to_define_slides'] = subset_columns
@@ -187,7 +195,9 @@ def main():
             with left_column:
                 st.radio('Select number of columns that specify one coordinate axis:', coordinate_options, key='unifier__number_of_coordinate_columns')
             with right_column:
-                st.number_input('Enter the number of microns per coordinate unit in the columns below:', value=1.0, key='unifier__microns_per_coordinate_unit')
+                if 'unifier__microns_per_coordinate_unit' not in st.session_state:
+                    st.session_state['unifier__microns_per_coordinate_unit'] = 1.0
+                st.number_input('Enter the number of microns per coordinate unit in the columns below:', key='unifier__microns_per_coordinate_unit')
             if st.session_state['unifier__number_of_coordinate_columns'] == coordinate_options[0]:
                 x_column, y_column = st.columns(2)
                 with x_column:

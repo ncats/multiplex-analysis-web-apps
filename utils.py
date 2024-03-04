@@ -723,3 +723,26 @@ def calculate_neighbor_counts_with_possible_chunking(center_coords=None, neighbo
 
     # Return the neighbor counts
     return neighbor_counts
+
+def dataframe_insert_possibly_existing_column(df, column_position, column_name, srs_column_values):
+    """
+    Alternative to df.insert() that replaces the column values if the column already exists, but otherwise uses df.insert() to add the column to the dataframe.
+
+    Args:
+        df (pandas.DataFrame): The dataframe to which to add the column
+        column_position (int): The position at which to add the column
+        column_name (str): The name of the column to add
+        srs_column_values (pandas.Series): The values to add to the column
+
+    Returns:
+        pandas.DataFrame: The dataframe with the column added
+    """
+
+    # If the column already exists, replace the column values; otherwise, add the column to the dataframe
+    if column_name in df.columns:
+        df[column_name] = srs_column_values
+    else:
+        df.insert(column_position, column_name, srs_column_values)
+
+    # Return the dataframe
+    return df

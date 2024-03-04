@@ -1,3 +1,5 @@
+import utils
+
 def extract_image_name(input_path):
     '''Extract the full image name from a HALO-formatted "Image Location" column.'''
     sep_char = '\\' if '\\' in input_path else '/'
@@ -997,7 +999,7 @@ class Standardized(Native):
         mapper = dict(zip(unique_images, [x + 1 for x in range(len(unique_images))]))
 
         # Attribute assignments
-        self.data.insert(0, 'Slide ID', srs_imagenum.apply(lambda x: '{}A-{}'.format(mapper[x], x)))
+        utils.dataframe_insert_possibly_existing_column(self.data, 0, 'Slide ID', srs_imagenum.apply(lambda x: '{}A-{}'.format(mapper[x], x)))
 
     def adhere_to_tag_format(self):
         """Ensure the "tag" column of the data conforms to the required format.
@@ -1038,8 +1040,8 @@ class Standardized(Native):
         df = self.data
 
         # Create the new columns for the x- and y-coordinates
-        df.insert(2, 'Cell X Position', df['Centroid X (µm) (standardized)'])
-        df.insert(3, 'Cell Y Position', df['Centroid Y (µm) (standardized)'])
+        utils.dataframe_insert_possibly_existing_column(df, 2, 'Cell X Position', df['Centroid X (µm) (standardized)'])
+        utils.dataframe_insert_possibly_existing_column(df, 3, 'Cell Y Position', df['Centroid Y (µm) (standardized)'])
 
         # Attribute assignments from variables
         self.data = df
