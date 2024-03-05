@@ -25,6 +25,9 @@ def list_files(directory, extensions):
     return files
 
 def main():
+    """
+    Main function for the Datafile Unifier page.
+    """
 
     # Set page settings
     st.set_page_config(layout='wide', page_title='Datafile Unifier')
@@ -40,17 +43,19 @@ def main():
     directory = os.path.join('.', 'input')
     extensions = ('.csv', '.tsv')
 
-    # Split the page into two columns
+    # Split the page into three main columns
     main_columns = st.columns(3)
 
     # In the first column...
     with main_columns[0]:
 
-        # Get a list of files with the given extensions in the requested directory
-        files = list_files(directory, extensions)
+        # ---- 1. Select datafiles to combine --------------------------------------------------------------------------------------------------------------------------------
 
         # Display a header for the datafile selection section
         st.header(':one: Select datafiles to combine')
+
+        # Get a list of files with the given extensions in the requested directory
+        files = list_files(directory, extensions)
 
         # If no files are found, write a message to the user
         if len(files) == 0:
@@ -59,14 +64,12 @@ def main():
         # If files are found, display them in a dataframe editor
         else:
             
-            # Write a message to the user
+            # Write messages to the user
             num_files = len(files)
             if num_files == 1:
                 st.write('Detected 1 ".csv" or ".tsv" file in the `input` directory.')
             else:
                 st.write('Detected {} ".csv" and ".tsv" files in the `input` directory.'.format(num_files))
-
-            # Write a note to the user
             st.write('Note: You can double-click on any cell to see a full filename that is too long to fit in the cell.')
     
             # Create a dataframe from the list of files, including a column for the user to select files
@@ -88,7 +91,7 @@ def main():
             # Extract the selected dataframe from the dataframe editor
             df_reconstructed = st.session_state['unifier__de_datafile_selection'].reconstruct_edited_dataframe()
 
-            # Write a message to the user about the number of selected files
+            # Preprocess the selected file selections
             selected_rows = df_reconstructed['Selected'] == True
             num_selected_rows = selected_rows.sum()
             if num_selected_rows == 1:
@@ -102,6 +105,7 @@ def main():
 
             # Extract the selected files from the dataframe editor
             input_files = sorted(df_reconstructed[selected_rows]['Filename'].to_list())
+            st.session_state['unifier__input_files'] = input_files
             
             # Create a button to concatenate the selected files
             if st.button(button_text, help=button_help_message):
@@ -123,15 +127,16 @@ def main():
                 if columns_equal:
                     sep = (',' if input_files[0].split('.')[-1] == 'csv' else '\t')
                     st.session_state['unifier__df'] = pd.concat([pd.read_csv(os.path.join(directory, input_file), sep=sep) for input_file in input_files], ignore_index=True)
-                    st.session_state['unifier__input_files'] = input_files
-                    for key_to_delete in ['unifier__columns_actually_used_to_drop_rows', 'unifier__columns_actually_used_to_define_slides']:  # delete some subsequent keys if present
-                        if key_to_delete in st.session_state:
-                            del st.session_state[key_to_delete]
+
+                    # Save the setting used for this operation
+                    st.session_state['unifier__input_files_actual'] = input_files
+
+                    # Display a success message
                     st.toast('Files combined successfully')
 
-            # If the concatenated dataframe exists...
-            if ('unifier__input_files' in st.session_state) and (st.session_state['unifier__input_files'] != input_files):
-                st.warning('The input files have changed since the last time the dataframe was created. Please re-combine the files or adjust the input files to match the previous selection.')
+            # If the selected input files have changed since the last time the combined dataframe was created, display a warning
+            if ('unifier__input_files_actual' in st.session_state) and (st.session_state['unifier__input_files_actual'] != st.session_state['unifier__input_files']):
+                st.warning('The selected input files have changed since the last time the combined dataframe was created. Please re-combine the files or adjust the input files to match the previous selection.')
 
     # If concatentation has been performed...
     if 'unifier__df' in st.session_state:
@@ -142,34 +147,55 @@ def main():
         # In the first column...
         with main_columns[0]:
 
-            # Drop rows with `None` values in selected columns
+            # ---- 2. (Optional) Delete null rows --------------------------------------------------------------------------------------------------------------------------------
+
+            # Display a header for the null row deletion section
             st.header('(Optional) :two: Delete null rows')
+
+            # Create an expander for the null row deletion section
             with st.expander('(Optional) Click to expand:', expanded=False):
+
+                # Write a note to the user
                 st.write('Observe the combined dataframe at bottom and select columns by which to remove rows. Rows will be removed if the selected columns have a value of `None`.')
+
+                # Allow the user to select the columns by which to delete rows
                 if 'unifier__columns_to_drop_rows_by' not in st.session_state:
                     st.session_state['unifier__columns_to_drop_rows_by'] = []
                 st.multiselect('Select columns by which to to delete rows:', df.columns, key='unifier__columns_to_drop_rows_by')
+
+                # Create a button to delete rows from the dataframe
                 if st.button(':star2: Delete rows from dataframe :star2:'):
                     row_count_before = len(df)
                     st.session_state['unifier__df'] = df.dropna(subset=st.session_state['unifier__columns_to_drop_rows_by']).reset_index(drop=True).convert_dtypes()
                     row_count_after = len(st.session_state['unifier__df'])
-                    st.session_state['unifier__columns_actually_used_to_drop_rows'] = st.session_state['unifier__columns_to_drop_rows_by']
-                    for key_to_delete in ['unifier__columns_actually_used_to_define_slides']:  # delete some subsequent keys if present
-                        if key_to_delete in st.session_state:
-                            del st.session_state[key_to_delete]
+
+                    # Save the setting used for this operation
+                    st.session_state['unifier__columns_to_drop_rows_by_actual'] = st.session_state['unifier__columns_to_drop_rows_by']
+
+                    # Display a success message
                     st.toast(f'{row_count_after - row_count_before} rows deleted successfully')
-                if ('unifier__columns_actually_used_to_drop_rows' in st.session_state) and (set(st.session_state['unifier__columns_actually_used_to_drop_rows']) != set(st.session_state['unifier__columns_to_drop_rows_by'])):
+
+                # If the selected columns to delete rows have changed since the last time rows were deleted, display a warning
+                if ('unifier__columns_to_drop_rows_by_actual' in st.session_state) and (set(st.session_state['unifier__columns_to_drop_rows_by_actual']) != set(st.session_state['unifier__columns_to_drop_rows_by'])):
                     st.warning('The columns used to remove rows have changed since the last time rows were removed. Please start from scratch (the dataframe has been overwritten) or adjust the columns to match the previous selection.')
+
+                # Get a shortcut to the concatenated dataframe
                 df = st.session_state['unifier__df']
 
         # In the second column...
         with main_columns[1]:
 
-            # Image identification
+            # ---- 3. Identify images --------------------------------------------------------------------------------------------------------------------------------
+
+            # Display a header for the image identification section
             st.header(':three: Identify images')
+
+            # Allow the user to select the columns by which to uniquely define images
             if 'unifier__columns_to_combine_to_uniquely_define_slides' not in st.session_state:
                 st.session_state['unifier__columns_to_combine_to_uniquely_define_slides'] = []
             st.multiselect('Select columns to combine to uniquely define images:', df.columns, key='unifier__columns_to_combine_to_uniquely_define_slides')  # removing .select_dtypes(include=['object', 'string']) from df
+
+            # Create a button to assign images to the dataframe
             if st.button(':star2: Assign images :star2:'):
                 subset_columns = st.session_state['unifier__columns_to_combine_to_uniquely_define_slides']
                 unique_rows = df.drop_duplicates(subset=subset_columns)[subset_columns]
@@ -181,55 +207,93 @@ def main():
                     if df_subset[column].dtype not in ['string', 'object']:
                         df_subset[column] = df_subset[column].apply(str)
                 utils.dataframe_insert_possibly_existing_column(df, 0, 'Image ID (standardized)', df_subset.apply(lambda x: transformation['__'.join(x)], axis='columns'))
+
+                # Save this dataframe to memory
                 st.session_state['unifier__df'] = df
-                st.session_state['unifier__columns_actually_used_to_define_slides'] = subset_columns
+
+                # Save the setting used for this operation
+                st.session_state['unifier__columns_to_combine_to_uniquely_define_slides_actual'] = subset_columns
+
+                # Display a success message
                 st.toast('Columns combined into a "Image ID (standardized)" column successfully')
-            if ('unifier__columns_actually_used_to_define_slides' in st.session_state) and (set(st.session_state['unifier__columns_actually_used_to_define_slides']) != set(st.session_state['unifier__columns_to_combine_to_uniquely_define_slides'])):
+
+            # If the selected columns to define images have changed since the last time images were defined, display a warning
+            if ('unifier__columns_to_combine_to_uniquely_define_slides_actual' in st.session_state) and (set(st.session_state['unifier__columns_to_combine_to_uniquely_define_slides_actual']) != set(st.session_state['unifier__columns_to_combine_to_uniquely_define_slides'])):
                 st.warning('The columns used to define slides have changed since the last time slides were defined. Please re-assign the image names or adjust the columns to match the previous selection.')
+
+            # Get a shortcut to the concatenated dataframe
             df = st.session_state['unifier__df']
 
-            # ROI identification
+            # ---- 4. Identify regions of interest (ROIs) --------------------------------------------------------------------------------------------------------------------------------
+
+            # Display a header for the region of interest (ROI) identification section
             st.header(':four: Identify regions of interest (ROIs)')
+
+            # Allow the user to select the column by which to uniquely define ROIs
             if 'unifier__roi_explicitly_defined' not in st.session_state:
                 st.session_state['unifier__roi_explicitly_defined'] = False
             if st.checkbox('Check here if the ROIs are explicitly defined by a column in the dataframe', key='unifier__roi_explicitly_defined', help='Note: This is not often the case, so this can usually be left unchecked.'):
                 if 'unifier__roi_column' not in st.session_state:
                     st.session_state['unifier__roi_column'] = df.columns[0]
                 st.selectbox('Select the column containing the ROI names:', df.columns, key='unifier__roi_column')
+
+            # Assign some dynamic button-related variables
             if not st.session_state['unifier__roi_explicitly_defined']:
                 button_text = ':star2: Assign ROIs ⚠️ :star2:'
                 button_help_message = 'Note: Even if the ROIs are not explicitly defined by a column in the dataframe, please click this button to proceed.'
             else:
                 button_text = ':star2: Assign ROIs :star2:'
                 button_help_message = None
+
+            # Create a button to assign ROIs to the dataframe
             if st.button(button_text, help=button_help_message):
                 if st.session_state['unifier__roi_explicitly_defined']:
                     utils.dataframe_insert_possibly_existing_column(df, 1, 'ROI ID (standardized)', df[st.session_state['unifier__roi_column']])
                 else:
                     if 'ROI ID (standardized)' in df.columns:
                         del df['ROI ID (standardized)']
+
+                # Save this dataframe to memory
                 st.session_state['unifier__df'] = df
-                st.session_state['unifier__roi_actually_explicitly_defined'] = st.session_state['unifier__roi_explicitly_defined']
-                st.session_state['unifier_actual_roi_column'] = st.session_state['unifier__roi_column']
+
+                # Save the settings used for this operation
+                st.session_state['unifier__roi_explicitly_defined_actual'] = st.session_state['unifier__roi_explicitly_defined']
+                if st.session_state['unifier__roi_explicitly_defined']:
+                    st.session_state['unifier__roi_column_actual'] = st.session_state['unifier__roi_column']
+
+                # Display a success message
                 st.toast('"ROI ID (standardized)" column created successfully')
-            if ('unifier__roi_actually_explicitly_defined' in st.session_state) and ((st.session_state['unifier__roi_actually_explicitly_defined'] != st.session_state['unifier__roi_explicitly_defined']) or (st.session_state['unifier_actual_roi_column'] != st.session_state['unifier__roi_column'])):  # we may need a hierarchical if-then statement here
-                st.warning('The use of or column used to define ROIs has changed since the last time ROIs were defined. Please re-assign the ROI names or adjust the settings to match the previous ones.')
+
+            # If the selected columns to define ROIs have changed since the last time ROIs were defined, display a warning
+            if st.session_state['unifier__roi_explicitly_defined']:
+                if ('unifier__roi_explicitly_defined_actual' in st.session_state) and ((st.session_state['unifier__roi_explicitly_defined_actual'] != st.session_state['unifier__roi_explicitly_defined']) or (st.session_state['unifier__roi_column_actual'] != st.session_state['unifier__roi_column'])):
+                    st.warning('The use of or column used to define ROIs has changed since the last time ROIs were defined. Please re-assign the ROI names or adjust the settings to match the previous ones.')
+            else:
+                if ('unifier__roi_explicitly_defined_actual' in st.session_state) and (st.session_state['unifier__roi_explicitly_defined_actual'] != st.session_state['unifier__roi_explicitly_defined']):
+                    st.warning('The use of or column used to define ROIs has changed since the last time ROIs were defined. Please re-assign the ROI names or adjust the settings to match the previous ones.')
+
+            # Get a shortcut to the concatenated dataframe
             df = st.session_state['unifier__df']
 
-            # Coordinate identification
-            st.header(':four: Identify coordinates')
+            # ---- 5. Identify coordinates --------------------------------------------------------------------------------------------------------------------------------
+
+            # Display a header for the coordinate identification section
+            st.header(':five: Identify coordinates')
+
+            # Define some constants/variables
             df_numeric_columns = df.select_dtypes(include='number').columns
             coordinate_options = ['One column (centroid)', 'Two columns (min and max)']
-            left_column, right_column = st.columns(2)
-            with left_column:
+
+            # Allow the user to select coordinate related settings
+            smallest_columns = st.columns(2)
+            with smallest_columns[0]:
                 if 'unifier__number_of_coordinate_columns' not in st.session_state:
                     st.session_state['unifier__number_of_coordinate_columns'] = coordinate_options[0]
                 st.radio('Select number of columns that specify one coordinate axis:', coordinate_options, key='unifier__number_of_coordinate_columns')
-            with right_column:
+            with smallest_columns[1]:
                 if 'unifier__microns_per_coordinate_unit' not in st.session_state:
                     st.session_state['unifier__microns_per_coordinate_unit'] = 1.0
                 st.number_input('Enter the number of microns per coordinate unit in the columns below:', key='unifier__microns_per_coordinate_unit')
-            smallest_columns = st.columns(2)
             if st.session_state['unifier__number_of_coordinate_columns'] == coordinate_options[0]:
                 if 'unifier__x_coordinate_column' not in st.session_state:
                     st.session_state['unifier__x_coordinate_column'] = df_numeric_columns[0]
@@ -253,6 +317,8 @@ def main():
                 with smallest_columns[1]:
                     st.selectbox('Select a column for the maximum x-coordinate:', df_numeric_columns, key='unifier__x_max_coordinate_column')
                     st.selectbox('Select a column for the maximum y-coordinate:', df_numeric_columns, key='unifier__y_max_coordinate_column')
+
+            # Create a button to assign coordinates to the dataframe, including converting them to microns and rounding them to the nearest 0.2 microns
             if st.button(':star2: Assign coordinates :star2:'):
                 if st.session_state['unifier__number_of_coordinate_columns'] == coordinate_options[0]:
                     centroid_x = df[st.session_state['unifier__x_coordinate_column']]
@@ -264,30 +330,44 @@ def main():
                 centroid_y = centroid_y * st.session_state['unifier__microns_per_coordinate_unit']
                 utils.dataframe_insert_possibly_existing_column(df, 2, 'Centroid X (µm) (standardized)', (centroid_x / 0.2).round() * 0.2)
                 utils.dataframe_insert_possibly_existing_column(df, 3, 'Centroid Y (µm) (standardized)', (centroid_y / 0.2).round() * 0.2)
+
+                # Save this dataframe to memory
                 st.session_state['unifier__df'] = df
+
+                # Save the settings used for this operation
                 st.session_state['unifier__number_of_coordinate_columns_actual'] = st.session_state['unifier__number_of_coordinate_columns']
                 st.session_state['unifier__microns_per_coordinate_unit_actual'] = st.session_state['unifier__microns_per_coordinate_unit']
-                st.session_state['unifier__x_coordinate_column_actual'] = st.session_state['unifier__x_coordinate_column']
-                st.session_state['unifier__y_coordinate_column_actual'] = st.session_state['unifier__y_coordinate_column']
-                st.session_state['unifier__x_min_coordinate_column_actual'] = st.session_state['unifier__x_min_coordinate_column']
-                st.session_state['unifier__y_min_coordinate_column_actual'] = st.session_state['unifier__y_min_coordinate_column']
-                st.session_state['unifier__x_max_coordinate_column_actual'] = st.session_state['unifier__x_max_coordinate_column']
-                st.session_state['unifier__y_max_coordinate_column_actual'] = st.session_state['unifier__y_max_coordinate_column']
+                if st.session_state['unifier__number_of_coordinate_columns'] == coordinate_options[0]:
+                    st.session_state['unifier__x_coordinate_column_actual'] = st.session_state['unifier__x_coordinate_column']
+                    st.session_state['unifier__y_coordinate_column_actual'] = st.session_state['unifier__y_coordinate_column']
+                else:
+                    st.session_state['unifier__x_min_coordinate_column_actual'] = st.session_state['unifier__x_min_coordinate_column']
+                    st.session_state['unifier__y_min_coordinate_column_actual'] = st.session_state['unifier__y_min_coordinate_column']
+                    st.session_state['unifier__x_max_coordinate_column_actual'] = st.session_state['unifier__x_max_coordinate_column']
+                    st.session_state['unifier__y_max_coordinate_column_actual'] = st.session_state['unifier__y_max_coordinate_column']
+
+                # Display a success message
                 st.toast('Coordinate columns created successfully')
-            if ('unifier__number_of_coordinate_columns_actual' in st.session_state) and any(st.session_state[key] != st.session_state[key + '_actual'] for key in ['unifier__number_of_coordinate_columns', 'unifier__microns_per_coordinate_unit', 'unifier__x_coordinate_column', 'unifier__y_coordinate_column', 'unifier__x_min_coordinate_column', 'unifier__y_min_coordinate_column', 'unifier__x_max_coordinate_column', 'unifier__y_max_coordinate_column']):  # we may need a hierarchical if-then statement here
-                st.warning('The values of some coordinate settings have changed since the last time coordinates were assigned. Please re-assign the coordinates or adjust the settings to match the previous ones.')
+
+            # If the selected columns to define coordinates have changed since the last time coordinates were defined, display a warning
+            if st.session_state['unifier__number_of_coordinate_columns'] == coordinate_options[0]:
+                if ('unifier__number_of_coordinate_columns_actual' in st.session_state) and any(st.session_state[key] != st.session_state[key + '_actual'] for key in ['unifier__number_of_coordinate_columns', 'unifier__microns_per_coordinate_unit', 'unifier__x_coordinate_column', 'unifier__y_coordinate_column']):
+                    st.warning('The values of some coordinate settings have changed since the last time coordinates were assigned. Please re-assign the coordinates or adjust the settings to match the previous ones.')
+            else:
+                if ('unifier__number_of_coordinate_columns_actual' in st.session_state) and any(st.session_state[key] != st.session_state[key + '_actual'] for key in ['unifier__number_of_coordinate_columns', 'unifier__microns_per_coordinate_unit', 'unifier__x_min_coordinate_column', 'unifier__y_min_coordinate_column', 'unifier__x_max_coordinate_column', 'unifier__y_max_coordinate_column']):
+                    st.warning('The values of some coordinate settings have changed since the last time coordinates were assigned. Please re-assign the coordinates or adjust the settings to match the previous ones.')
+
+            # Get a shortcut to the concatenated dataframe
             df = st.session_state['unifier__df']
 
             # Allow the user to select the which columns correspond to the markers/phenotypes
             # st.header(':four: Select marker/phenotype columns')
             # st.multiselect('Optional: Select the categorical columns that correspond to the markers/phenotypes (i.e., thresholded intensities):', df_columns, key='unifier__marker_columns')
-
             # if st.button(':star2: Set ROI identifier :star2:'):
             #     st.session_state['unifier__roi_identifier'] = roi_identifier
             #     st.toast('ROI identifier set successfully')
             # if 'unifier__roi_identifier' in st.session_state:
             #     st.write('ROI identifier column: {}'.format(st.session_state['unifier__roi_identifier']))
-
             # cols_to_keep = ['Slide ID', 'tag', 'Cell X Position', 'Cell Y Position'] + df.loc[0, :].filter(regex='^Phenotype ').index.tolist()
             # cols_to_keep = ['Slide ID', 'tag', 'Cell X Position', 'Cell Y Position'] + df.loc[0, :].filter(regex='^Phenotype ').index.tolist() + extra_cols_to_keep
             # delete ROIs with single coordinates
