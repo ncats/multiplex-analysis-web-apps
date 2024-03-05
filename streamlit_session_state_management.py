@@ -97,7 +97,7 @@ def load_session_state(saved_streamlit_session_states_dir, saved_streamlit_sessi
     else:
         st.warning('No session state files exist so none were loaded')
 
-def reset_session_state(saved_streamlit_session_state_key='session_selection'):
+def reset_session_state(saved_streamlit_session_state_key='session_selection', success_message=True):
     """
     Reset the session state.
 
@@ -119,7 +119,8 @@ def reset_session_state(saved_streamlit_session_state_key='session_selection'):
     st.session_state['reset_button_hit'] = True
 
     # Output a success message
-    st.success('Session state reset')
+    if success_message:
+        st.success('Session state reset')
 
 def app_session_management(saved_streamlit_session_states_dir, saved_streamlit_session_state_prefix, saved_streamlit_session_state_key):
     """

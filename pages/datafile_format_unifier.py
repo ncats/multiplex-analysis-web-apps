@@ -95,9 +95,9 @@ def main():
             selected_rows = df_reconstructed['Selected'] == True
             num_selected_rows = selected_rows.sum()
             if num_selected_rows == 1:
-                st.write('There is 1 row selected.')
+                st.write('There is 1 file selected.')
                 button_text = ':star2: Combine selected files into single dataframe ⚠️ :star2:'
-                button_help_message = 'Note: Even if just one file is selected, please this button to proceed.'
+                button_help_message = 'Note: Even if just one file is selected, please click this button to proceed.'
             else:
                 st.write('There are {} files selected.'.format(num_selected_rows))
                 button_text = ':star2: Combine selected files into single dataframe :star2:'
