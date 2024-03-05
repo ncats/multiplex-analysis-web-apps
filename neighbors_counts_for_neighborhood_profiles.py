@@ -1,12 +1,32 @@
-# Import relevant libraries
-import numpy as np
-import utils
-import os
-import pandas as pd
-import multiprocessing
-import time
+'''
+Alternative method of performing the Cell density calculations
+by Andrew
+'''
 
-def calculate_density_matrix_for_all_images(image_names, df, phenotypes, phenotype_column_name, image_column_name, coord_column_names, radii, num_ranges, range_strings, debug_output=False, num_cpus_to_use=1):
+# Import relevant libraries
+import os
+import time
+import multiprocessing
+import numpy as np
+import pandas as pd
+import utils
+
+class dummySessionState:
+    '''
+    This is a simple class meant to mimic the SessionState class 
+    from the streamlit library. It is used to store the state of the 
+    app and its variables.
+    '''
+    def __init__(self):
+        pass
+
+    def __setitem__(self, key, value):
+        setattr(self, key, value)
+
+    def __getitem__(self, key):
+        return getattr(self, key)
+
+def calculate_density_matrix_for_all_images(image_names, df, phenotypes, phenotype_column_name, image_column_name, coord_column_names, radii, range_strings, debug_output=False, num_cpus_to_use=1):
     """
     Calculate the density matrix for all images.
 
@@ -18,7 +38,6 @@ def calculate_density_matrix_for_all_images(image_names, df, phenotypes, phenoty
         image_column_name (str): The name of the column containing the image information.
         coord_column_names (list): The list of column names containing the coordinate information.
         radii (numpy.ndarray): The array of radii.
-        num_ranges (int): The number of ranges.
         range_strings (list): The list of range strings.
         debug_output (bool, optional): Whether to print debug output.
         num_cpus_to_use (int, optional): The number of CPUs to use. Defaults to 1.
@@ -27,9 +46,11 @@ def calculate_density_matrix_for_all_images(image_names, df, phenotypes, phenoty
         pandas.DataFrame: The dataframe containing the density matrix for all images.
     """
 
-    # Initialize a list of the keyword arguments
+    # Initialize keyword arguments
     kwargs_list = []
 
+    # Initialize the start time
+    start_time = time.time()
     # Loop through the images
     for image in image_names:
 
@@ -42,7 +63,6 @@ def calculate_density_matrix_for_all_images(image_names, df, phenotypes, phenoty
                 image,
                 coord_column_names,
                 radii,
-                num_ranges,
                 range_strings,
                 debug_output
             )
@@ -58,10 +78,12 @@ def calculate_density_matrix_for_all_images(image_names, df, phenotypes, phenoty
         # A single call would be something like: calculate_density_matrix_for_image(**kwargs_list[4])
         results = pool.starmap(calculate_density_matrix_for_image, kwargs_list)
 
+    print(f'All images took {(time.time() - start_time) / 60:.2f} minutes to complete')
+
     # Concatenate the results into a single dataframe
     return pd.concat(results)
 
-def calculate_density_matrix_for_image(df_image, phenotypes, phenotype_column_name, image, coord_column_names, radii, num_ranges, range_strings, debug_output=False):
+def calculate_density_matrix_for_image(df_image, phenotypes, phenotype_column_name, image, coord_column_names, radii, range_strings, debug_output=False):
     """
     Calculate the density matrix for a single image.
 
@@ -72,7 +94,6 @@ def calculate_density_matrix_for_image(df_image, phenotypes, phenotype_column_na
         image (str): The name of the current image.
         coord_column_names (list): The list of column names containing the coordinate information.
         radii (numpy.ndarray): The array of radii.
-        num_ranges (int): The number of ranges.
         range_strings (list): The list of range strings.
         debug_output (bool, optional): Whether to print debug output.
 
@@ -82,6 +103,9 @@ def calculate_density_matrix_for_image(df_image, phenotypes, phenotype_column_na
 
     # Initialize the start time
     start_time = time.time()
+
+    # Get the number of range segments
+    num_ranges = len(radii) - 1
 
     # Initialize the dataframe to store the number of neighbors for the current image
     df_num_neighbors_image = pd.DataFrame(index=df_image.index)
@@ -98,7 +122,8 @@ def calculate_density_matrix_for_image(df_image, phenotypes, phenotype_column_na
         # If there are no centers of the current type in the current image, print a message
         if num_centers_in_image == 0:
             if debug_output:
-                print(f'No centers found for image {image} and phenotype {center_phenotype}')
+                pass
+                # print(f'No centers found for image {image} and phenotype {center_phenotype}')
 
         # Otherwise, calculate the number of neighbors of each type in the current image, for all neighbor phenotypes and all radii
         else:
@@ -118,35 +143,39 @@ def calculate_density_matrix_for_image(df_image, phenotypes, phenotype_column_na
                 # If there are no neighbors of the current type in the current image, print a message
                 if num_neighbors_in_image == 0:
                     if debug_output:
-                        print(f'No neighbors found for image {image} and phenotype {neighbor_phenotype}')
+                        pass
+                        # print(f'No neighbors found for image {image} and phenotype {neighbor_phenotype}')
 
                 # Otherwise, calculate the number of neighbors of the current type in the current image, for all radii
                 else:
 
                     # Print the number of centers and neighbors found for the current image and phenotypes
                     if debug_output:
-                        print(f'Number of centers found for image {image} and phenotype {center_phenotype}: {num_centers_in_image}')
-                        print(f'Number of neighbors found for image {image} and phenotype {neighbor_phenotype}: {num_neighbors_in_image}')
+                        pass
+                        # print(f'Number of centers found for image {image} and phenotype {center_phenotype}: {num_centers_in_image}')
+                        # print(f'Number of neighbors found for image {image} and phenotype {neighbor_phenotype}: {num_neighbors_in_image}')
 
                     # Get the coordinates of the neighbors of the current type in the current image as a numpy array
                     arr_image_neighbor_phenotype = df_image[neighbor_loc_for_image][coord_column_names].to_numpy()
 
-                    # Calculate the number of neighbors around the centers of the current types in the current image, for all radii
-                    nneighbors = utils.calculate_neighbor_counts_with_possible_chunking(center_coords=arr_image_center_phenotype, neighbor_coords=arr_image_neighbor_phenotype, radii=radii, single_dist_mat_cutoff_in_mb=200, verbose=False, test=False)  # (num_centers, num_ranges)
-
-                    # Print the shape of the number of neighbors array
-                    if debug_output:
-                        print(nneighbors.shape)
+                    # Calculate the number of neighbors around the centers of the current types in the current image, in each radii range
+                    nneighbors = utils.calculate_neighbor_counts_with_possible_chunking(center_coords = arr_image_center_phenotype,
+                                                                                        neighbor_coords = arr_image_neighbor_phenotype,
+                                                                                        radii = radii,
+                                                                                        single_dist_mat_cutoff_in_mb = 200,
+                                                                                        verbose = False,
+                                                                                        test = False)  # (num_centers, num_ranges)
 
                     # Add the number of neighbors to the dataframe
-                    for iradius_range in range(num_ranges):
-                        range_string = range_strings[iradius_range]
-                        df_num_neighbors_image.loc[center_loc_for_image, f'Number of neighbors of type {neighbor_phenotype} in range {range_string}'] = nneighbors[:, iradius_range]  # note that since we are adding columns dynamically that the order of these columns may not be logical because sometimes there are no centers or no neighbors
+                    for irange in range(num_ranges):
+                        range_string = range_strings[irange]
+                        # note that since we are adding columns dynamically that the order of these columns may not be logical because sometimes there are no centers or no neighbors
+                        df_num_neighbors_image.loc[center_loc_for_image, f'Number of neighbors of type {neighbor_phenotype} in range {range_string}'] = nneighbors[:, irange]  
 
     # Print the time taken to calculate the number of neighbors for the current image
     if debug_output:
-        print(f'Time taken to calculate the number of neighbors for image {image} ({len(df_image)} rows) on a single CPU: {(time.time() - start_time) / 60:.2f} minutes')
-    
+        print(f'Time to calculate neighbors for image {image} ({len(df_image)} rows) on a single CPU: {(time.time() - start_time) / 60:.2f} minutes')
+
     # Return the dataframe with the number of neighbors for the current image
     return df_num_neighbors_image
 
@@ -156,41 +185,38 @@ def main():
     This is a sample of how to calculate the density matrix for the entire dataset.
     """
 
+    session_state = dummySessionState()
+
     # Constants
-    input_file = os.path.join('.', 'input', 'Combo_CSVfiles_20230327_152849.csv')
-    radii_small_spacing = np.arange(0, 251, 25)
-    radii_large_spacing = np.arange(0, 251, 50)
-    coord_column_names = ['CentroidX', 'CentroidY']
-    image_column_name = 'ShortName'
-    phenotype_column_name = 'pheno_20230327_152849'
+    num_cpus_to_use = int(multiprocessing.cpu_count() / 2)
+    datafile = 'Combo_CSVfiles_20230327_152849.csv'
+    input_file = os.path.join('.', 'input', datafile)
 
     # Read in the datafile
     df = pd.read_csv(input_file)
+    radii = np.array([0, 25, 50, 100, 150, 200])
 
-    # To see mapping of phenotype names
-    # print(df.iloc[:, 83:92].drop_duplicates())
+    image_column_name = 'ShortName'
+    coord_column_names = ['CentroidX', 'CentroidY']
+    phenotype_column_name = 'pheno_20230327_152849'
 
     # Variables
     image_names = df[image_column_name].unique()
     phenotypes = df[phenotype_column_name].unique()
-    radii = radii_small_spacing
-    # radii = radii_large_spacing
     debug_output = True
     num_ranges = len(radii) - 1
-    range_strings = ['[{}, {})'.format(radii[iradius], radii[iradius + 1]) for iradius in range(num_ranges)]
-    num_cpus_to_use = int(multiprocessing.cpu_count() / 2)
+    range_strings = [f'{radii[iradius]}, {radii[iradius + 1]})' for iradius in range(num_ranges)]
 
     # Calculate the density matrix for all images
-    df_density_matrix = calculate_density_matrix_for_all_images(image_names, df, phenotypes, phenotype_column_name, image_column_name, coord_column_names, radii, num_ranges, range_strings, debug_output=debug_output, num_cpus_to_use=num_cpus_to_use)
+    df_density_matrix = calculate_density_matrix_for_all_images(image_names, df, phenotypes, phenotype_column_name, image_column_name, coord_column_names, radii, range_strings, debug_output=debug_output, num_cpus_to_use=num_cpus_to_use)
 
-    # Print the shape final density matrix dataframe, which can be concatenated with the original dataframe
+    # Print shape of final density matrix dataframe
     print(f'Shape of final density matrix: {df_density_matrix.shape}')
 
     # Fill in any NaN values with 0 and convert to integers
     df_density_matrix = df_density_matrix.fillna(0).astype(int)
 
-    # To concatenate the density matrix with the original dataframe
-    # pd.concat([df, df_density_matrix], axis='columns')
+    df_density_matrix.to_csv('C:/Users/smithdaj/Desktop/AndrewMethod/Combo_CSVfiles_Out2.csv', index = False)
 
 # Call the main function
 if __name__ == '__main__':
