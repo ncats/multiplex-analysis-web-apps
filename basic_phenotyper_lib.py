@@ -512,7 +512,7 @@ def setup_Spatial_UMAP(df, marker_names, pheno_order, cpu_pool_size = 1):
     # Set sample number
     if 'Sample_number' not in spatial_umap.cells:
         spatial_umap.cells['Sample_number'] = np.ones(spatial_umap.cells.shape[0])
-    print(f'There are {spatial_umap.cells["Sample_number"].unique().size} samples in this dataset ')
+    print(f'There are {spatial_umap.cells["TMA_core_id"].unique().size} images in this dataset ')
 
     # Define the number of species we will be working with (how many different get_dummies)
     spatial_umap.species = sorted(spatial_umap.cells['Lineage'].unique())
@@ -570,7 +570,7 @@ def perform_spatialUMAP(spatial_umap, UMAPStyle):
     bc = benchmark_collector()
     # set training and "test" cells for umap training and embedding, respectively
     print('Setting Train/Test Split')
-    spatial_umap.set_train_test(n=2500, groupByLabel = 'Sample_number', seed=54321)
+    spatial_umap.set_train_test(n=2500, groupby_label = 'TMA_core_id', seed=54321)
     
     # fit umap on training cells
     bc.startTimer()

@@ -75,8 +75,7 @@ class SpatialUMAP:
         # matmul to counts
         counts = np.diff(np.matmul(counts.astype(int), cell_labels.astype(int)), axis=0)
         # return index and counts
-        return i, counts
-    
+        return counts
 
     def __init__(self, dist_bin_um, um_per_px, area_downsample):
         # microns per pixel
@@ -135,12 +134,14 @@ class SpatialUMAP:
             chunk_size = 10000
             idxchunk = [idx[i:i + chunk_size] for i in range(0, len(idx), chunk_size)]
             # process
-            for i, chunk in enumerate(idxchunk):
-                chunk_range = range(0, len(chunk), 1)
-                chunk_range2 = [x + chunk_size*i for x in chunk_range]
-                i, counts = list(map(lambda x: np.stack(x, axis=0), list(zip(*self.pool.map(pool_map_fn, chunk_range2)))))
-                # set results, adjust indexing (just in case)
-                self.counts[chunk] = counts
+            with mp.Pool(pool_size) as pool:
+                for i, chunk in enumerate(idxchunk):
+                    chunk_range = range(0, len(chunk), 1)
+                    chunk_range2 = [x + chunk_size*i for x in chunk_range]
+                    results = list(pool.map(pool_map_fn, chunk_range2))
+                    counts = list(map(lambda x: np.stack(x, axis=0), results))
+                    # set results, adjust indexing (just in case)
+                    self.counts[chunk] = counts
 
     def process_region_areas(self, region_id, pool_size, area_threshold, plots_directory=None):
         # get indices of cells from this region
@@ -194,9 +195,10 @@ class SpatialUMAP:
         dataset
         '''
         self.clear_counts()
-        self.start_pool(pool_size)
+        # self.start_pool(pool_size)
         for region_id in tqdm(self.region_ids):
             self.process_region_counts(region_id, pool_size)
+        # self.close_pool()
 
         if save_file is not None:
             column_names = ['%s-%s' % (cell_type, distance) for distance in self.dist_bin_um for cell_type in self.cell_labels.columns.values]
@@ -213,21 +215,28 @@ class SpatialUMAP:
         if save_file is not None:
             pd.DataFrame(self.areas, columns=self.dist_bin_um).to_csv(save_file, index=False)
 
-    def set_train_test(self, n, groupByLabel = 'Sample_number', seed=None):
+    def set_train_test(self, n, groupby_label = 'TMA_core_id', seed=None):
+        '''
+        set_test_train() is almost an unecessary method. Ultimately,
+        when performing UMAP, we will intend to transform the whole dataset
+        and we will never need to actually split the dataset into train and test.
+
+        That said, this method will allow us to identify an even subset of the dataset
+        to fit to be fitted to a model quickly, before the rest of the data is 
+        transformed based on the UMAP model.
+        '''
         region_ids = self.cells['TMA_core_id'].unique()
+        min_cells_images = min([sum(self.cells['TMA_core_id'] == reg) for reg in region_ids])
+        percent_min = 0.2
+        cells_for_fitting = int(min_cells_images * percent_min)
         self.cells[['umap_train', 'umap_test']] = False
 
-        # How many samples do we have in the dataset?
-        numSamp = self.cells.groupby(groupByLabel).count().shape[0]
-        numSampInc = 0
-        for region_id, group in self.cells.groupby(groupByLabel):
-            if group['area_filter'].sum() >= (n * 2):
-                numSampInc +=1
-                idx_train, idx_test, _ = np.split(np.random.default_rng(seed).permutation(group['area_filter'].sum()), [n, n * 2])
+        for region_id, group in self.cells.groupby(groupby_label):
+            if group['area_filter'].sum() >= (cells_for_fitting * 2):
+                idx_train, idx_test, _ = np.split(np.random.default_rng(seed).permutation(group['area_filter'].sum()), [cells_for_fitting, cells_for_fitting * 2])
                 self.cells.loc[group.index[group.area_filter][idx_train], 'umap_train'] = True
                 self.cells.loc[group.index[group.area_filter], 'umap_test'] = True
         
-        print(f'{numSampInc} Samples used of {numSamp} Samples in dataset')
         print(f'{np.sum(self.cells["umap_train"] == 1)} elements assigned to training data. ~{np.round(100*np.sum(self.cells["umap_train"] == 1)/self.cells.shape[0])}%')
         print(f'{np.sum(self.cells["umap_test"] == 1)} elements assigned to testing data. ~{np.round(100*np.sum(self.cells["umap_test"] == 1)/self.cells.shape[0])}%')
 

@@ -35,7 +35,7 @@ def top_of_page_reqs(session_state):
         session_state = ndl.init_session_state(session_state)
 
     # Sidebar organization
-    benchmark_button = False
+    benchmark_button = True
     with st.sidebar:
         st.write('**:book: [Documentation](https://ncats.github.io/multiplex-analysis-web-apps/)**')
         if benchmark_button:
