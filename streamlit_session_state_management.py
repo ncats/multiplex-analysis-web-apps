@@ -1,10 +1,12 @@
 # Import relevant libraries
 import streamlit as st
-import dill as pickle  # Use dill instead of pickle to avoid "PicklingError: Can't pickle <class 'streamlit_dataframe_editor.DataframeEditor'>: it's not the same object as streamlit_dataframe_editor.DataframeEditor"
+# import dill as pickle  # Use dill instead of pickle to avoid "PicklingError: Can't pickle <class 'streamlit_dataframe_editor.DataframeEditor'>: it's not the same object as streamlit_dataframe_editor.DataframeEditor"
+import pickle
 import os
 from datetime import datetime
 import os
 import app_top_of_page as top
+import streamlit_dataframe_editor as sde
 
 def save_session_state(saved_streamlit_session_states_dir, saved_streamlit_session_state_prefix='streamlit_session_state-', saved_streamlit_session_state_key='session_selection'):
     """
@@ -35,7 +37,17 @@ def save_session_state(saved_streamlit_session_states_dir, saved_streamlit_sessi
     session_dict = {}
     for key, value in st.session_state.items():
         if (not key.endswith('__do_not_persist')) and (not key.startswith('FormSubmitter:')) and (key != saved_streamlit_session_state_key):
-            session_dict[key] = value
+            # If the value is a DataframeEditor object, save the initialization data and the current contents
+            if isinstance(value, sde.DataframeEditor):
+                dataframe_editor_ingredients = {
+                    'df_name': value.df_name,
+                    'default_df_contents': value.default_df_contents,
+                    'edited_dataframe': value.reconstruct_edited_dataframe()
+                }
+                dataframe_editor_ingredients_name = 'dataframe_editor_ingredients__' + key
+                session_dict[dataframe_editor_ingredients_name] = dataframe_editor_ingredients
+            else:
+                session_dict[key] = value
 
     # Save the dictionary to the pickle file
     # I believe this randomly crashes with "PicklingError: Can't pickle <class 'streamlit_dataframe_editor.DataframeEditor'>: it's not the same object as streamlit_dataframe_editor.DataframeEditor". Some approaches might include:
@@ -67,6 +79,16 @@ def load_session_state(saved_streamlit_session_states_dir, saved_streamlit_sessi
         None
     """
 
+    # import streamlit_dataframe_editor as sde
+
+    # for key in st.session_state.keys():
+    #     if isinstance(st.session_state[key], sde.DataframeEditor):
+    #         del st.session_state[key]
+
+
+    # if 'dataframe_editor' in st.session_state:
+    #     del st.session_state['dataframe_editor']
+
     # Get the selected session basename to load
     if selected_session is None:
         selected_session = st.session_state[saved_streamlit_session_state_key]
@@ -88,7 +110,14 @@ def load_session_state(saved_streamlit_session_states_dir, saved_streamlit_sessi
 
         # Load each key-value pair individually into session_state
         for key, value in session_dict.items():
-            st.session_state[key] = value
+            if key.startswith('dataframe_editor_ingredients__'):
+                dataframe_editor_key = key.removeprefix('dataframe_editor_ingredients__')
+                dataframe_editor_ingredients = value
+                curr_dataframe_editor = sde.DataframeEditor(df_name=dataframe_editor_ingredients['df_name'], default_df_contents=dataframe_editor_ingredients['default_df_contents'])
+                curr_dataframe_editor.update_editor_contents(new_df_contents=dataframe_editor_ingredients['edited_dataframe'], reset_key=True)
+                st.session_state[dataframe_editor_key] = curr_dataframe_editor
+            else:
+                st.session_state[key] = value
 
         # Output a success message
         st.success('State loaded from ' + filename)
@@ -121,6 +150,12 @@ def reset_session_state(saved_streamlit_session_state_key='session_selection', s
     # Output a success message
     if success_message:
         st.success('Session state reset')
+
+def test_callback():
+    if 'dataframe_editor' in st.session_state:
+        st.write('here i am')
+        st.session_state['dataframe_editor'].reset_dataframe_content()
+        st.write('here i am2')
 
 def app_session_management(saved_streamlit_session_states_dir, saved_streamlit_session_state_prefix, saved_streamlit_session_state_key):
     """
@@ -160,6 +195,10 @@ def app_session_management(saved_streamlit_session_states_dir, saved_streamlit_s
 
     # Name the relevant section in the sidebar
     st.sidebar.subheader('App Session Management')
+
+
+    st.sidebar.button('another button', on_click=test_callback)
+
 
     # Create the sidebar with the 'Save', 'Load', and 'Reset' buttons
     col1, col2, col3 = st.sidebar.columns(3)
