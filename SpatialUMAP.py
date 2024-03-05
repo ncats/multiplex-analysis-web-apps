@@ -2,6 +2,7 @@
 Author: Alex Baras, MD, PhD (https://github.com/alexbaras)
 NCATS Maintainer: Dante J Smith, PhD (https://github.com/djsmith17)
 '''
+import time
 import multiprocessing as mp
 from functools import partial
 import numpy as np
@@ -76,6 +77,64 @@ class SpatialUMAP:
         counts = np.diff(np.matmul(counts.astype(int), cell_labels.astype(int)), axis=0)
         # return index and counts
         return counts
+    
+    def per_image_cell_counts_euc(self, image, cell_positions, cell_labels, targ_labels, dist_bin_px):
+        '''
+        per_image_cell_counts_euc() returns the number of cells within a given image
+
+        Parameters:
+            cell_positions (pd.DataFrame): DataFrame containing the cell positions
+            cell_labels (np.array): labels of the cells
+            targ_labels (np.array): labels of the cells to be counted
+            dist_bin_px (np.array): distance bins in pixels
+        '''
+        
+        start_time = time.time()
+        print(f'Starting analysis for image {image}')
+        # calculate pairwise distances between all cells in the image
+        dist_st_time = time.time()
+        distances = euclidean_distances(cell_positions)
+        dist_end_time = (time.time() - dist_st_time) / 60
+        print(f'Finished distance calculation for image {image} ({len(cell_positions)} cells) in {dist_end_time:.2f} minutes')
+
+        image_counts = None
+        for i in range(len(distances)):
+            counts = self.euclidian_counts(i, distances, cell_labels, targ_labels, dist_bin_px)
+            if image_counts is not None:
+                image_counts = np.vstack((image_counts, counts))
+            else:
+                image_counts = counts
+
+        comp_time = (time.time() - start_time) / 60
+        print(f'Finished analysis for image {image} in {comp_time:.2f} minutes')
+        return image_counts
+
+    @staticmethod
+    def euclidian_counts(idx, distances, cell_labels, targ_labels, dist_bin_px):
+        '''
+        euclidian_counts() returns the number of cells within a given 
+        distance of a given cell.
+
+        Parameters:
+            idx (int): index of the cell to be counted
+            distances (np.array): pairwise distances between cells
+            cell_labels (np.array): labels of the cells
+            targ_labels (np.array): labels of the cells to be counted
+            dist_bin_px (np.array): distance bins in pixels
+        '''
+
+        idx_counts = None
+        dist_bin_px = np.concatenate([[0], dist_bin_px])
+        for i in range(len(dist_bin_px)-1):
+            present_cells = cell_labels[(distances[idx] > dist_bin_px[i]) & (distances[idx] <= dist_bin_px[i+1])]
+            these_counts = [sum(present_cells == label) for label in targ_labels]
+
+            if idx_counts is not None:
+                idx_counts = np.vstack((idx_counts, these_counts))
+            else:
+                idx_counts = np.array(these_counts)
+
+        return idx_counts[np.newaxis, :]
 
     def __init__(self, dist_bin_um, um_per_px, area_downsample):
         # microns per pixel
@@ -203,6 +262,40 @@ class SpatialUMAP:
         if save_file is not None:
             column_names = ['%s-%s' % (cell_type, distance) for distance in self.dist_bin_um for cell_type in self.cell_labels.columns.values]
             pd.DataFrame(self.counts.reshape((self.counts.shape[0], -1)), columns=column_names).to_csv(save_file, index=False)
+
+    def get_counts_euc(self, df, dist_bin_px, num_cpus_to_use=2):
+        '''
+        Another way to get counts, using euclidean distances
+        '''
+        # Initialize keyword arguments
+        images = df['Slide ID'].unique()
+        kwargs_list = []
+
+        for image in images:
+
+            df_image = df.loc[df['Slide ID'] == image, :]
+            cell_positions = df_image[['Cell X Position', 'Cell Y Position']]
+            cell_labels = df_image['Lineage']
+            targ_labels = df['Lineage'].unique()
+            dist_bin_px = dist_bin_px
+
+            results = self.per_image_cell_counts_euc(image, cell_positions, cell_labels, targ_labels, dist_bin_px)
+            print(results.shape)
+            kwargs_list.append(
+                (
+                    image,
+                    cell_positions,
+                    cell_labels,
+                    targ_labels,
+                    dist_bin_px
+                )
+            )
+
+        # Create a pool of worker processes
+        # with mp.Pool(processes=num_cpus_to_use) as pool:
+        #     results = pool.starmap(self.per_image_cell_counts_euc, kwargs_list)
+
+        return results
 
     def get_areas(self, area_threshold, pool_size=2, save_file=None, plots_directory=None):
         self.clear_areas()
