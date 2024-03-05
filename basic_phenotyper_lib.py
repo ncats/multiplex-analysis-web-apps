@@ -17,13 +17,10 @@ from sklearn.cluster import KMeans # K-Means
 
 from benchmark_collector import benchmark_collector # Benchmark Collector Class
 
-def preprocess_df(df_orig, marker_names, marker_col_prefix):
+def preprocess_df(df_orig, marker_names, marker_col_prefix, bc):
     '''Perform some preprocessing on our dataset to apply tranforms
     and collect meta-data
     '''
-
-    # Create the bench mark collector obj
-    bc = benchmark_collector()
 
     # Set df_raw as the baseline dataframe
     df_raw = df_orig.copy()
@@ -563,11 +560,9 @@ def perform_density_calc(spatial_umap, bc, cpu_pool_size = 1):
 
     return spatial_umap
 
-def perform_spatialUMAP(spatial_umap, UMAPStyle):
+def perform_spatialUMAP(spatial_umap, bc, UMAPStyle):
     import umap
-    from benchmark_collector import benchmark_collector # Benchmark Collector Class
 
-    bc = benchmark_collector()
     # set training and "test" cells for umap training and embedding, respectively
     print('Setting Train/Test Split')
     spatial_umap.set_train_test(n=2500, groupby_label = 'TMA_core_id', seed=54321)

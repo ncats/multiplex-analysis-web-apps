@@ -42,6 +42,7 @@ def apply_umap(umap_style):
     st.session_state.bc.startTimer()
     with st.spinner('Calculating UMAP'):
         st.session_state.spatial_umap = bpl.perform_spatialUMAP(st.session_state.spatial_umap,
+                                                                st.session_state.bc,
                                                                 umap_style)
     st.write('Done Calculating Spatial UMAP')
 

@@ -275,7 +275,7 @@ def set_phenotyping_elements(session_state, df_orig):
     session_state.df_raw, \
     session_state.df, \
     session_state.spec_summ, \
-    session_state.pheno_summ = bpl.preprocess_df(df_orig, session_state.marker_names, session_state.marker_pre)
+    session_state.pheno_summ = bpl.preprocess_df(df_orig, session_state.marker_names, session_state.marker_pre, session_state.bc)
 
     # Initalize Custom Phenotyping Variables
     session_state.spec_summ_load       = session_state.spec_summ.copy() # Default version that is loaded
