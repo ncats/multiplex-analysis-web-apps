@@ -4,9 +4,7 @@ that supports the types of analysis activities needed by the
 NCI researchers with their data on NIDAP.
 '''
 
-import os
 import time
-import yaml
 import numpy as np
 import pandas as pd
 import altair as alt
@@ -118,7 +116,7 @@ def init_session_state(session_state):
                                        
                                    '''
     # Error message when selected csv does not include the requisite features
-    session_state.errmsg_wrongCol = ''':green[Please only select .csv files that include columns listed in the  
+    session_state.errmsg_wrongCol = ''':green[Please only select .csv files that include columns listed in the
                                        Required DATASET Features (About Page). See Dante or Andrew for help]'''
 
     # Inital Phenotyping state
@@ -324,8 +322,7 @@ def updatePhenotyping(session_state):
 
     # Initalize Species Summary Table
     session_state.spec_summ    = bpl.init_pheno_assign(session_state.df)
-    # Set the data_editor species summary 
-    
+
     if 'dataeditor__do_not_persist' in session_state:
         del session_state.dataeditor__do_not_persist
 
@@ -475,7 +472,7 @@ def setFigureObjs(session_state, InSliderVal = None):
     session_state.phenoOrder = list(session_state.pheno_summ.loc[session_state.pheno_summ['phenotype_count'].index, 'phenotype'])
 
     # NumPoints
-    targCellCount = 150000 
+    targCellCount = 150000
     df_plot = session_state.df_filt.copy()
 
     # minXY = df_plot[['Cell X Position', 'Cell Y Position']].min()-1
@@ -503,8 +500,8 @@ def setFigureObjs(session_state, InSliderVal = None):
 
     # Seaborn
     session_state.phenoFig, session_state.ax = bpl.draw_scatter_fig(figsize=session_state.figsize)
-    session_state.phenoFig = bpl.scatter_plot(df_plot, session_state.phenoFig, session_state.ax, title, 
-                                              xVar = 'Cell X Position', yVar = 'Cell Y Position', hueVar='phenotype', 
+    session_state.phenoFig = bpl.scatter_plot(df_plot, session_state.phenoFig, session_state.ax, title,
+                                              xVar = 'Cell X Position', yVar = 'Cell Y Position', hueVar='phenotype',
                                               hueOrder=session_state.phenoOrder)
 
     # Altair

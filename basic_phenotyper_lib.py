@@ -488,13 +488,10 @@ def wrapTitleText(title):
 
     return wrap_title
 
-def setup_Spatial_UMAP(df, marker_names, phenoOrder, cpu_pool_size = 1):
+def setup_Spatial_UMAP(df, marker_names, pheno_order, cpu_pool_size = 1):
     '''
     Setup the requirements for running spatial UMAP
     '''
-    import pandas as pd
-    import numpy as np
-    import matplotlib as mpl
     from SpatialUMAP import SpatialUMAP
 
     spatial_umap = SpatialUMAP(dist_bin_um=np.array([25, 50, 100, 150, 200]), um_per_px=0.5, area_downsample=.2)
@@ -504,15 +501,18 @@ def setup_Spatial_UMAP(df, marker_names, phenoOrder, cpu_pool_size = 1):
     # Set Lineage and sort
     spatial_umap.cells['Lineage'] = spatial_umap.cells['phenotype']
     spatial_umap.cells['Lineage'] = spatial_umap.cells['Lineage'].astype("category")
-    spatial_umap.cells['Lineage'] = spatial_umap.cells['Lineage'].cat.set_categories(phenoOrder)
+    spatial_umap.cells['Lineage'] = spatial_umap.cells['Lineage'].cat.set_categories(pheno_order)
     # spatial_umap.cells = spatial_umap.cells.sort_values(["Lineage"])
+
+    # Assign pheno_order
+    spatial_umap.phenoLabel = pheno_order
 
     # Set regions
     spatial_umap.cells['TMA_core_id'] = spatial_umap.cells['Slide ID']
     # Set sample number
     if 'Sample_number' not in spatial_umap.cells:
         spatial_umap.cells['Sample_number'] = np.ones(spatial_umap.cells.shape[0])
-    print(f'There are {spatial_umap.cells["Sample_number"].unique().size} samples in this dataset ')
+    print(f'There are {spatial_umap.cells["TMA_core_id"].unique().size} images in this dataset ')
 
     # Define the number of species we will be working with (how many different get_dummies)
     spatial_umap.species = sorted(spatial_umap.cells['Lineage'].unique())
@@ -528,6 +528,17 @@ def setup_Spatial_UMAP(df, marker_names, phenoOrder, cpu_pool_size = 1):
     spatial_umap.cell_labels = pd.get_dummies(spatial_umap.cells['Lineage'])
     # set the region is to be analyzed (a TMA core is treated similar to a region of a interest)
     spatial_umap.region_ids = spatial_umap.cells.TMA_core_id.unique()
+    # default cluster values
+    spatial_umap.cells['clust_label'] = -1
+
+    return spatial_umap
+
+def perform_density_calc(spatial_umap, bc, cpu_pool_size = 1):
+    '''
+    Calculate the cell counts, cell areas,
+    perform the cell densities and cell proportions analyses.
+    '''
+
     # clear metrics
     spatial_umap.clear_counts()
     spatial_umap.clear_areas()
@@ -536,21 +547,19 @@ def setup_Spatial_UMAP(df, marker_names, phenoOrder, cpu_pool_size = 1):
 
     # get the counts per cell and save to pickle file
     print('Starting Cell Counts process')
+    bc.startTimer()
     spatial_umap.get_counts(pool_size=cpu_pool_size)
+    bc.printElapsedTime(f'Calculating Counts for {len(spatial_umap.cells)} cells')
 
     # get the areas of cells and save to pickle file
     area_threshold = 0.001
-    print('Starting Cell Areas process')
+    print('\nStarting Cell Areas process')
     spatial_umap.get_areas(area_threshold, pool_size=cpu_pool_size)
 
     # calculate density based on counts of cells / area of each arc examine
     spatial_umap.calc_densities(area_threshold)
     # calculate proportions based on species counts/# cells within an arc
     spatial_umap.calc_proportions(area_threshold)
-
-    spatial_umap.phenoLabel = phenoOrder
-
-    spatial_umap.cells['clust_label'] = -1
 
     return spatial_umap
 
@@ -561,7 +570,7 @@ def perform_spatialUMAP(spatial_umap, UMAPStyle):
     bc = benchmark_collector()
     # set training and "test" cells for umap training and embedding, respectively
     print('Setting Train/Test Split')
-    spatial_umap.set_train_test(n=2500, groupByLabel = 'Sample_number', seed=54321)
+    spatial_umap.set_train_test(n=2500, groupby_label = 'TMA_core_id', seed=54321)
     
     # fit umap on training cells
     bc.startTimer()
@@ -705,19 +714,24 @@ def createHeatMap(df, phenoList, title, normAxis = None):
 
     return fig
 
-def neighProfileDraw(spatial_umap, selClus, figsize=(14, 16)):
+def neighProfileDraw(spatial_umap, sel_clus, figsize=(14, 16)):
     import PlottingTools as umPT
 
     SlBgC  = '#0E1117'  # Streamlit Background Color
     SlTC   = '#FAFAFA'  # Streamlit Text Color
     Sl2BgC = '#262730'  # Streamlit Secondary Background Color
 
-    NeiProFig = plt.figure(figsize=figsize, facecolor = SlBgC)
-    ax = NeiProFig.add_subplot(1, 1, 1, facecolor = SlBgC)
+    neipro_fig = plt.figure(figsize=figsize, facecolor = SlBgC)
+    ax = neipro_fig.add_subplot(1, 1, 1, facecolor = SlBgC)
 
-    umPT.plot_mean_neighborhood_profile(ax, spatial_umap.dist_bin_um, spatial_umap.dens_df, selClus, maxDens=spatial_umap.maxdens_df, legF=1)
+    umPT.plot_mean_neighborhood_profile(ax,
+                                        spatial_umap.dist_bin_um,
+                                        spatial_umap.dens_df,
+                                        sel_clus,
+                                        maxDens=spatial_umap.maxdens_df,
+                                        legF=1)
 
-    return NeiProFig
+    return neipro_fig
 
 def preprocess_weighted_umap(w, dfUMAP):
 

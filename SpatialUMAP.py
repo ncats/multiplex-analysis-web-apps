@@ -1,16 +1,18 @@
-# Author: Alex Baras, MD, PhD (https://github.com/alexbaras)
-# NCATS Maintainer: Dante J Smith, PhD (https://github.com/djsmith17)
+'''
+Author: Alex Baras, MD, PhD (https://github.com/alexbaras)
+NCATS Maintainer: Dante J Smith, PhD (https://github.com/djsmith17)
+'''
+import multiprocessing as mp
+from functools import partial
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
 import matplotlib.pyplot as plt
-from scipy.spatial import ConvexHull
-from skimage import draw as skdraw, transform as sktran
-from time import time
-import multiprocessing as mp
-from functools import partial
 from scipy import optimize
 from scipy import ndimage as ndi
+from scipy.spatial import ConvexHull
+from sklearn.metrics.pairwise import euclidean_distances
+from skimage import draw as skdraw, transform as sktran
 np.seterr(divide='ignore', invalid='ignore')
 
 class SpatialUMAP:
@@ -73,7 +75,7 @@ class SpatialUMAP:
         # matmul to counts
         counts = np.diff(np.matmul(counts.astype(int), cell_labels.astype(int)), axis=0)
         # return index and counts
-        return i, counts
+        return counts
 
     def __init__(self, dist_bin_um, um_per_px, area_downsample):
         # microns per pixel
@@ -88,6 +90,19 @@ class SpatialUMAP:
         self.area_downsample = area_downsample
         self.arcs_radii = (self.dist_bin_px * self.area_downsample).astype(int)
         self.arcs_masks = SpatialUMAP.construct_arcs(self.arcs_radii)
+
+        # Attributes to be created in higher level script
+        self.cells = pd.DataFrame()
+        self.cell_positions = pd.DataFrame()
+        self.cell_labels = pd.DataFrame()
+        self.region_ids = np.array([])
+        self.pool = None
+        self.counts = None
+        self.areas = None
+
+        self.phenoLabel = None
+        self.umap_test = np.array([])
+        self.patients = np.array([])
 
     def clear_counts(self):
         self.counts = np.empty((self.cell_positions.shape[0], len(self.dist_bin_um), self.num_species))
@@ -104,19 +119,29 @@ class SpatialUMAP:
         del self.pool
 
     def process_region_counts(self, region_id, pool_size):
+        '''
+        Process_region_counts
+        '''
         # get indices of cells from this region
         idx = np.where(region_id == self.cells['TMA_core_id'])[0]
         # get counts if there are cells in region
         if len(idx) > 0:
             # partial for picklable fn for pool for process with data from this region
-            args = dict(cell_positions=self.cell_positions[idx], 
-                        cell_labels=self.cell_labels.values[idx], 
+            args = dict(cell_positions=self.cell_positions[idx],
+                        cell_labels=self.cell_labels.values[idx],
                         dist_bin_px=self.dist_bin_px)
             pool_map_fn = partial(SpatialUMAP.process_cell_counts, **args)
+            chunk_size = 10000
+            idxchunk = [idx[i:i + chunk_size] for i in range(0, len(idx), chunk_size)]
             # process
-            i, counts = list(map(lambda x: np.stack(x, axis=0), list(zip(*self.pool.map(pool_map_fn, range(len(idx)))))))
-            # set results, adjust indexing (just in case)
-            self.counts[idx] = counts[i]
+            with mp.Pool(pool_size) as pool:
+                for i, chunk in enumerate(idxchunk):
+                    chunk_range = range(0, len(chunk), 1)
+                    chunk_range2 = [x + chunk_size*i for x in chunk_range]
+                    results = list(pool.map(pool_map_fn, chunk_range2))
+                    counts = list(map(lambda x: np.stack(x, axis=0), results))
+                    # set results, adjust indexing (just in case)
+                    self.counts[chunk] = counts
 
     def process_region_areas(self, region_id, pool_size, area_threshold, plots_directory=None):
         # get indices of cells from this region
@@ -132,8 +157,8 @@ class SpatialUMAP:
             img_tissue_mask_dn = sktran.rescale(img_tissue_mask, self.area_downsample).astype(bool)
 
             # partial for picklable fn for pool for process with data from this region
-            args = dict(cell_positions=self.cell_positions[idx][:, [1, 0]] * self.area_downsample, 
-                        cell_labels=self.cell_labels.values[idx], 
+            args = dict(cell_positions=self.cell_positions[idx][:, [1, 0]] * self.area_downsample,
+                        cell_labels=self.cell_labels.values[idx],
                         dist_bin_px=self.arcs_radii, img_mask=img_tissue_mask_dn, arcs=self.arcs_masks)
             pool_map_fn = partial(SpatialUMAP.process_cell_areas, **args)
             # process
@@ -164,11 +189,16 @@ class SpatialUMAP:
                 plt.ion()
 
     def get_counts(self, pool_size=2, save_file=None):
+        '''
+        get_counts begins the process of identifying the 
+        cell counts surrounding each given cell in a 
+        dataset
+        '''
         self.clear_counts()
-        self.start_pool(pool_size)
+        # self.start_pool(pool_size)
         for region_id in tqdm(self.region_ids):
             self.process_region_counts(region_id, pool_size)
-        self.close_pool()
+        # self.close_pool()
 
         if save_file is not None:
             column_names = ['%s-%s' % (cell_type, distance) for distance in self.dist_bin_um for cell_type in self.cell_labels.columns.values]
@@ -185,24 +215,31 @@ class SpatialUMAP:
         if save_file is not None:
             pd.DataFrame(self.areas, columns=self.dist_bin_um).to_csv(save_file, index=False)
 
-    def set_train_test(self, n, groupByLabel = 'Sample_number', seed=None):
+    def set_train_test(self, n, groupby_label = 'TMA_core_id', seed=None):
+        '''
+        set_test_train() is almost an unecessary method. Ultimately,
+        when performing UMAP, we will intend to transform the whole dataset
+        and we will never need to actually split the dataset into train and test.
+
+        That said, this method will allow us to identify an even subset of the dataset
+        to fit to be fitted to a model quickly, before the rest of the data is 
+        transformed based on the UMAP model.
+        '''
         region_ids = self.cells['TMA_core_id'].unique()
+        min_cells_images = min([sum(self.cells['TMA_core_id'] == reg) for reg in region_ids])
+        percent_min = 0.2
+        cells_for_fitting = int(min_cells_images * percent_min)
         self.cells[['umap_train', 'umap_test']] = False
 
-        # How many samples do we have in the dataset?
-        numSamp = self.cells.groupby(groupByLabel).count().shape[0]
-        numSampInc = 0
-        for region_id, group in self.cells.groupby(groupByLabel):
-            if group['area_filter'].sum() >= (n * 2):
-                numSampInc +=1
-                idx_train, idx_test, _ = np.split(np.random.default_rng(seed).permutation(group['area_filter'].sum()), [n, n * 2])
+        for region_id, group in self.cells.groupby(groupby_label):
+            if group['area_filter'].sum() >= (cells_for_fitting * 2):
+                idx_train, idx_test, _ = np.split(np.random.default_rng(seed).permutation(group['area_filter'].sum()), [cells_for_fitting, cells_for_fitting * 2])
                 self.cells.loc[group.index[group.area_filter][idx_train], 'umap_train'] = True
                 self.cells.loc[group.index[group.area_filter], 'umap_test'] = True
         
-        print(f'{numSampInc} Samples used of {numSamp} Samples in dataset')
         print(f'{np.sum(self.cells["umap_train"] == 1)} elements assigned to training data. ~{np.round(100*np.sum(self.cells["umap_train"] == 1)/self.cells.shape[0])}%')
         print(f'{np.sum(self.cells["umap_test"] == 1)} elements assigned to testing data. ~{np.round(100*np.sum(self.cells["umap_test"] == 1)/self.cells.shape[0])}%')
-    
+
     def calc_densities(self, area_threshold):
         '''
         calculate density base on counts of cells / area of each arc examine
@@ -211,7 +248,7 @@ class SpatialUMAP:
         # instantiate our density output matrix
         self.density = np.empty(self.counts.shape)
         # identify those cells that do not have enough other cells around them. Any that
-        # do not meet this criteria will be filtered out. 
+        # do not meet this criteria will be filtered out.
         self.cells['area_filter'] = ((self.areas / self.arcs_masks.sum(axis=(0, 1))[np.newaxis, ...]) > area_threshold).all(axis=1)
 
         # identify the indices of cells that are pass our filter
@@ -279,16 +316,21 @@ class SpatialUMAP:
         self.maxdens_df   = 1.05*max(self.dens_df_mean['density'] + self.dens_df_se['density'])
     
     def makeDummyClinic(self, length):
-        # A method for quickly making a clinic dataset if needed to pair with existitng Spatial UMAP methods
-        # length (int): number of dummy patients (samples) to create
-        Sample_numberPat = np.linspace(1, length, length)
-        Death_5YPat = np.zeros(length)
-        d = {'Sample_number': Sample_numberPat, 'Death_5Y': Death_5YPat}
+        '''
+        A method for quickly making a clinic dataset if needed 
+        to pair with existitng Spatial UMAP methods
+        length (int): number of dummy patients (samples) to create
+        '''
+        sample_number_pat = np.linspace(1, length, length)
+        death_5y_pat = np.zeros(length)
+        d = {'Sample_number': sample_number_pat, 'Death_5Y': death_5y_pat}
         return pd.DataFrame(data = d)
 
     def generate_H(self, lineages):
-        ## Spatial UMAP 2D Density Plots By Lineage and Stratified by 5 Year Survival
-        # get per specimen density maps
+        '''
+        Spatial UMAP 2D Density Plots By Lineage and Stratified by 5 Year Survival
+        get per specimen density maps
+        '''
 
         # set number of bins and get actual binning points based on whole dataset
         n_bins = 200
@@ -323,11 +365,8 @@ class SpatialUMAP:
                     H[:, :, j + 1, i, 1] = np.nan
             else:
                 H[:, :, :, i, :] = np.nan
-        
-        return H
 
-    def define_phenotype_ordering():
-        pass
+        return H
 
 class FitEllipse:
     '''FitElipse is a class that defines the concentric circle areas
@@ -346,6 +385,10 @@ class FitEllipse:
     def __init__(self):
         self.x = None
         self.img_ellipse = None
+
+        self.w = None
+        self.h = None
+        self.res = None
 
     @staticmethod
     def ellipse_function(points, x, y, a, b, r):
