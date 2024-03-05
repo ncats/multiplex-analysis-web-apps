@@ -191,23 +191,20 @@ def loadDataButton(session_state, df_import, projectName, fileName):
     """
     print('Loading Data')
 
-    # Create the bench mark collector obj
-    bc = benchmark_collector()
-
     # Meta Data
     session_state.selectProj = projectName # Project Name
     session_state.datafile   = fileName    # File Name
     session_state.df_update_filename_U = session_state.datafile + '_updated'
 
     # Identify Markers in the dataset
-    bc.startTimer()
+    session_state.bc.startTimer()
     session_state.marker_names = bpl.identify_marker_columns(df_import, session_state.marker_pre)
-    bc.printElapsedTime(msg = 'Identifying Marker Names')
+    session_state.bc.printElapsedTime(msg = 'Identifying Marker Names')
 
     # Set Phenotyping Elements
-    bc.startTimer()
+    session_state.bc.startTimer()
     session_state = set_phenotyping_elements(session_state, df_import)
-    bc.printElapsedTime(msg = 'Setting Phenotying Elements')
+    session_state.bc.printElapsedTime(msg = 'Setting Phenotying Elements')
 
     # Data has now undergone enough transformation to be called 'LOADED'
     session_state.data_loaded = True
@@ -252,15 +249,15 @@ def loadDataButton(session_state, df_import, projectName, fileName):
         session_state.prog_right_disabeled = True
 
     # Perform Filtering
-    bc.startTimer()
+    session_state.bc.startTimer()
     session_state.df_filt = perform_filtering(session_state)
-    # bc.printElapsedTime(msg = 'Performing Filtering')
+    # session_state.bc.printElapsedTime(msg = 'Performing Filtering')
 
     # Set Figure Objects
-    bc.startTimer()
+    session_state.bc.startTimer()
     session_state = setFigureObjs(session_state)
     session_state.pointstSliderVal_Sel = session_state.calcSliderVal
-    # bc.printElapsedTime(msg = 'Setting Figure Objects')
+    # session_state.bc.printElapsedTime(msg = 'Setting Figure Objects')
 
     session_state.bc.set_value_df('file', fileName)
     session_state.bc.set_value_df('nSlides', session_state['numSlide ID'])
