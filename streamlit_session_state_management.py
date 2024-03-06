@@ -39,6 +39,7 @@ def save_session_state(saved_streamlit_session_states_dir, saved_streamlit_sessi
         if (not key.endswith('__do_not_persist')) and (not key.startswith('FormSubmitter:')) and (key != saved_streamlit_session_state_key):
             # If the value is a DataframeEditor object, save the initialization data and the current contents
             if isinstance(value, sde.DataframeEditor):
+                print(f'Saving ingredients for dataframe editor {key}')
                 dataframe_editor_ingredients = {
                     'df_name': value.df_name,
                     'default_df_contents': value.default_df_contents,
@@ -47,6 +48,7 @@ def save_session_state(saved_streamlit_session_states_dir, saved_streamlit_sessi
                 dataframe_editor_ingredients_name = 'dataframe_editor_ingredients__' + key
                 session_dict[dataframe_editor_ingredients_name] = dataframe_editor_ingredients
             else:
+                print(f'Saving {key} of type {type(value)}')
                 session_dict[key] = value
 
     # Save the dictionary to the pickle file
@@ -111,12 +113,14 @@ def load_session_state(saved_streamlit_session_states_dir, saved_streamlit_sessi
         # Load each key-value pair individually into session_state
         for key, value in session_dict.items():
             if key.startswith('dataframe_editor_ingredients__'):
+                print(f'Initializing dataframe editor {key.removeprefix("dataframe_editor_ingredients__")}')
                 dataframe_editor_key = key.removeprefix('dataframe_editor_ingredients__')
                 dataframe_editor_ingredients = value
                 curr_dataframe_editor = sde.DataframeEditor(df_name=dataframe_editor_ingredients['df_name'], default_df_contents=dataframe_editor_ingredients['default_df_contents'])
                 curr_dataframe_editor.update_editor_contents(new_df_contents=dataframe_editor_ingredients['edited_dataframe'], reset_key=True)
                 st.session_state[dataframe_editor_key] = curr_dataframe_editor
             else:
+                print(f'Loading {key} of type {type(value)}')
                 st.session_state[key] = value
 
         # Output a success message
