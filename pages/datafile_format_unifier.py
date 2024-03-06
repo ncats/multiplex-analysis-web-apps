@@ -115,28 +115,32 @@ def main():
             # Create a button to concatenate the selected files
             if st.button(button_text, help=button_help_message):
 
-                # Efficiently check if the columns are equal for all input files
-                columns_equal = True
-                if len(input_files) > 1:
-                    sep = (',' if input_files[0].split('.')[-1] == 'csv' else '\t')
-                    first_file_columns = pd.read_csv(os.path.join(directory, input_files[0]), nrows=0, sep=sep).columns
-                    for input_file in input_files[1:]:
-                        sep = (',' if input_file.split('.')[-1] == 'csv' else '\t')
-                        current_file_columns = pd.read_csv(os.path.join(directory, input_file), nrows=0, sep=sep).columns
-                        if not first_file_columns.equals(current_file_columns):
-                            st.error('Columns are not equal for files: {} and {}'.format(input_files[0], input_file))
-                            columns_equal = False
-                            break
+                # Render a progress spinner while the files are being combined
+                with st.spinner('Combining files...'):
 
-                # If the columns are equal for all input files, concatenate all files into a single dataframe
+                    # Efficiently check if the columns are equal for all input files
+                    columns_equal = True
+                    if len(input_files) > 1:
+                        sep = (',' if input_files[0].split('.')[-1] == 'csv' else '\t')
+                        first_file_columns = pd.read_csv(os.path.join(directory, input_files[0]), nrows=0, sep=sep).columns
+                        for input_file in input_files[1:]:
+                            sep = (',' if input_file.split('.')[-1] == 'csv' else '\t')
+                            current_file_columns = pd.read_csv(os.path.join(directory, input_file), nrows=0, sep=sep).columns
+                            if not first_file_columns.equals(current_file_columns):
+                                st.error('Columns are not equal for files: {} and {}'.format(input_files[0], input_file))
+                                columns_equal = False
+                                break
+
+                    # If the columns are equal for all input files, concatenate all files into a single dataframe
+                    if columns_equal:
+                        sep = (',' if input_files[0].split('.')[-1] == 'csv' else '\t')
+                        st.session_state['unifier__df'] = pd.concat([pd.read_csv(os.path.join(directory, input_file), sep=sep) for input_file in input_files], ignore_index=True)
+
+                        # Save the setting used for this operation
+                        st.session_state['unifier__input_files_actual'] = input_files
+
+                # Display a success message
                 if columns_equal:
-                    sep = (',' if input_files[0].split('.')[-1] == 'csv' else '\t')
-                    st.session_state['unifier__df'] = pd.concat([pd.read_csv(os.path.join(directory, input_file), sep=sep) for input_file in input_files], ignore_index=True)
-
-                    # Save the setting used for this operation
-                    st.session_state['unifier__input_files_actual'] = input_files
-
-                    # Display a success message
                     st.toast('Files combined successfully')
 
             # If the selected input files have changed since the last time the combined dataframe was created, display a warning
@@ -170,12 +174,16 @@ def main():
 
                 # Create a button to delete rows from the dataframe
                 if st.button(':star2: Delete rows from dataframe :star2:'):
-                    row_count_before = len(df)
-                    st.session_state['unifier__df'] = df.dropna(subset=st.session_state['unifier__columns_to_drop_rows_by']).reset_index(drop=True).convert_dtypes()
-                    row_count_after = len(st.session_state['unifier__df'])
 
-                    # Save the setting used for this operation
-                    st.session_state['unifier__columns_to_drop_rows_by_actual'] = st.session_state['unifier__columns_to_drop_rows_by']
+                    # Render a progress spinner while the rows are being deleted
+                    with st.spinner('Deleting rows...'):
+
+                        row_count_before = len(df)
+                        st.session_state['unifier__df'] = df.dropna(subset=st.session_state['unifier__columns_to_drop_rows_by']).reset_index(drop=True).convert_dtypes()
+                        row_count_after = len(st.session_state['unifier__df'])
+
+                        # Save the setting used for this operation
+                        st.session_state['unifier__columns_to_drop_rows_by_actual'] = st.session_state['unifier__columns_to_drop_rows_by']
 
                     # Display a success message
                     st.toast(f'{row_count_after - row_count_before} rows deleted successfully')
@@ -202,22 +210,27 @@ def main():
 
             # Create a button to assign images to the dataframe
             if st.button(':star2: Assign images :star2:'):
-                subset_columns = st.session_state['unifier__columns_to_combine_to_uniquely_define_slides']
-                unique_rows = df.drop_duplicates(subset=subset_columns)[subset_columns]
-                df_from = unique_rows.apply(lambda x: '__'.join(x.apply(str)), axis='columns')
-                df_to = unique_rows.apply(lambda x: '__'.join(x.apply(str).apply(lambda y: re.split(r'[/\\]', y)[-1])).replace(' ', '_').replace('.', '_'), axis='columns')
-                transformation = dict(zip(df_from, df_to))
-                df_subset = df[subset_columns]
-                for column in subset_columns:
-                    if df_subset[column].dtype not in ['string', 'object']:
-                        df_subset[column] = df_subset[column].apply(str)
-                utils.dataframe_insert_possibly_existing_column(df, 0, 'Image ID (standardized)', df_subset.apply(lambda x: transformation['__'.join(x)], axis='columns'))
 
-                # Save this dataframe to memory
-                st.session_state['unifier__df'] = df
+                # Render a progress spinner while the images are being assigned
+                with st.spinner('Assigning images...'):
 
-                # Save the setting used for this operation
-                st.session_state['unifier__columns_to_combine_to_uniquely_define_slides_actual'] = subset_columns
+                    # Perform the operation
+                    subset_columns = st.session_state['unifier__columns_to_combine_to_uniquely_define_slides']
+                    unique_rows = df.drop_duplicates(subset=subset_columns)[subset_columns]
+                    df_from = unique_rows.apply(lambda x: '__'.join(x.apply(str)), axis='columns')
+                    df_to = unique_rows.apply(lambda x: '__'.join(x.apply(str).apply(lambda y: re.split(r'[/\\]', y)[-1])).replace(' ', '_').replace('.', '_'), axis='columns')
+                    transformation = dict(zip(df_from, df_to))
+                    df_subset = df[subset_columns]
+                    for column in subset_columns:
+                        if df_subset[column].dtype not in ['string', 'object']:
+                            df_subset[column] = df_subset[column].apply(str)
+                    utils.dataframe_insert_possibly_existing_column(df, 0, 'Image ID (standardized)', df_subset.apply(lambda x: transformation['__'.join(x)], axis='columns'))
+
+                    # Save this dataframe to memory
+                    st.session_state['unifier__df'] = df
+
+                    # Save the setting used for this operation
+                    st.session_state['unifier__columns_to_combine_to_uniquely_define_slides_actual'] = subset_columns
 
                 # Display a success message
                 st.toast('Columns combined into a "Image ID (standardized)" column successfully')
@@ -252,21 +265,29 @@ def main():
 
             # Create a button to assign ROIs to the dataframe
             if st.button(button_text, help=button_help_message):
-                if st.session_state['unifier__roi_explicitly_defined']:
-                    utils.dataframe_insert_possibly_existing_column(df, 1, 'ROI ID (standardized)', df[st.session_state['unifier__roi_column']])
-                    toast_message = '"ROI ID (standardized)" column created successfully'
-                else:
-                    if 'ROI ID (standardized)' in df.columns:
-                        del df['ROI ID (standardized)']
-                    toast_message = 'We have successfully ensured that the "ROI ID (standardized)" column is not present in the dataset'
 
-                # Save this dataframe to memory
-                st.session_state['unifier__df'] = df
+                # Render a progress spinner while the ROIs are being assigned
+                with st.spinner('Assigning ROIs...'):
 
-                # Save the settings used for this operation
-                st.session_state['unifier__roi_explicitly_defined_actual'] = st.session_state['unifier__roi_explicitly_defined']
-                if st.session_state['unifier__roi_explicitly_defined']:
-                    st.session_state['unifier__roi_column_actual'] = st.session_state['unifier__roi_column']
+                    # Perform the operation
+                    if st.session_state['unifier__roi_explicitly_defined']:
+                        utils.dataframe_insert_possibly_existing_column(df, 1, 'ROI ID (standardized)', df[st.session_state['unifier__roi_column']])
+                        toast_message = '"ROI ID (standardized)" column created successfully'
+                        num_roi_columns = 1
+                    else:
+                        if 'ROI ID (standardized)' in df.columns:
+                            del df['ROI ID (standardized)']
+                        toast_message = 'We have successfully ensured that the "ROI ID (standardized)" column is not present in the dataset'
+                        num_roi_columns = 0
+
+                    # Save this dataframe to memory
+                    st.session_state['unifier__df'] = df
+
+                    # Save the settings used for this operation
+                    st.session_state['unifier__roi_explicitly_defined_actual'] = st.session_state['unifier__roi_explicitly_defined']
+                    if st.session_state['unifier__roi_explicitly_defined']:
+                        st.session_state['unifier__roi_column_actual'] = st.session_state['unifier__roi_column']
+                    st.session_state['unifier__num_roi_columns_actual'] = num_roi_columns
 
                 # Display a success message
                 st.toast(toast_message)
@@ -329,31 +350,36 @@ def main():
 
             # Create a button to assign coordinates to the dataframe, including converting them to microns and rounding them to the nearest 0.2 microns
             if st.button(':star2: Assign coordinates :star2:'):
-                if st.session_state['unifier__number_of_coordinate_columns'] == coordinate_options[0]:
-                    centroid_x = df[st.session_state['unifier__x_coordinate_column']]
-                    centroid_y = df[st.session_state['unifier__y_coordinate_column']]
-                else:
-                    centroid_x = (df[st.session_state['unifier__x_min_coordinate_column']] + df[st.session_state['unifier__x_max_coordinate_column']]) / 2
-                    centroid_y = (df[st.session_state['unifier__y_min_coordinate_column']] + df[st.session_state['unifier__y_max_coordinate_column']]) / 2
-                centroid_x = centroid_x * st.session_state['unifier__microns_per_coordinate_unit']
-                centroid_y = centroid_y * st.session_state['unifier__microns_per_coordinate_unit']
-                utils.dataframe_insert_possibly_existing_column(df, 2, 'Centroid X (µm) (standardized)', (centroid_x / 0.2).round() * 0.2)
-                utils.dataframe_insert_possibly_existing_column(df, 3, 'Centroid Y (µm) (standardized)', (centroid_y / 0.2).round() * 0.2)
 
-                # Save this dataframe to memory
-                st.session_state['unifier__df'] = df
+                # Render a progress spinner while the coordinates are being assigned
+                with st.spinner('Assigning coordinates...'):
 
-                # Save the settings used for this operation
-                st.session_state['unifier__number_of_coordinate_columns_actual'] = st.session_state['unifier__number_of_coordinate_columns']
-                st.session_state['unifier__microns_per_coordinate_unit_actual'] = st.session_state['unifier__microns_per_coordinate_unit']
-                if st.session_state['unifier__number_of_coordinate_columns'] == coordinate_options[0]:
-                    st.session_state['unifier__x_coordinate_column_actual'] = st.session_state['unifier__x_coordinate_column']
-                    st.session_state['unifier__y_coordinate_column_actual'] = st.session_state['unifier__y_coordinate_column']
-                else:
-                    st.session_state['unifier__x_min_coordinate_column_actual'] = st.session_state['unifier__x_min_coordinate_column']
-                    st.session_state['unifier__y_min_coordinate_column_actual'] = st.session_state['unifier__y_min_coordinate_column']
-                    st.session_state['unifier__x_max_coordinate_column_actual'] = st.session_state['unifier__x_max_coordinate_column']
-                    st.session_state['unifier__y_max_coordinate_column_actual'] = st.session_state['unifier__y_max_coordinate_column']
+                    # Perform the operation
+                    if st.session_state['unifier__number_of_coordinate_columns'] == coordinate_options[0]:
+                        centroid_x = df[st.session_state['unifier__x_coordinate_column']]
+                        centroid_y = df[st.session_state['unifier__y_coordinate_column']]
+                    else:
+                        centroid_x = (df[st.session_state['unifier__x_min_coordinate_column']] + df[st.session_state['unifier__x_max_coordinate_column']]) / 2
+                        centroid_y = (df[st.session_state['unifier__y_min_coordinate_column']] + df[st.session_state['unifier__y_max_coordinate_column']]) / 2
+                    centroid_x = centroid_x * st.session_state['unifier__microns_per_coordinate_unit']
+                    centroid_y = centroid_y * st.session_state['unifier__microns_per_coordinate_unit']
+                    utils.dataframe_insert_possibly_existing_column(df, st.session_state['unifier__num_roi_columns_actual'] + 1, 'Centroid X (µm) (standardized)', (centroid_x / 0.2).round() * 0.2)
+                    utils.dataframe_insert_possibly_existing_column(df, st.session_state['unifier__num_roi_columns_actual'] + 2, 'Centroid Y (µm) (standardized)', (centroid_y / 0.2).round() * 0.2)
+
+                    # Save this dataframe to memory
+                    st.session_state['unifier__df'] = df
+
+                    # Save the settings used for this operation
+                    st.session_state['unifier__number_of_coordinate_columns_actual'] = st.session_state['unifier__number_of_coordinate_columns']
+                    st.session_state['unifier__microns_per_coordinate_unit_actual'] = st.session_state['unifier__microns_per_coordinate_unit']
+                    if st.session_state['unifier__number_of_coordinate_columns'] == coordinate_options[0]:
+                        st.session_state['unifier__x_coordinate_column_actual'] = st.session_state['unifier__x_coordinate_column']
+                        st.session_state['unifier__y_coordinate_column_actual'] = st.session_state['unifier__y_coordinate_column']
+                    else:
+                        st.session_state['unifier__x_min_coordinate_column_actual'] = st.session_state['unifier__x_min_coordinate_column']
+                        st.session_state['unifier__y_min_coordinate_column_actual'] = st.session_state['unifier__y_min_coordinate_column']
+                        st.session_state['unifier__x_max_coordinate_column_actual'] = st.session_state['unifier__x_max_coordinate_column']
+                        st.session_state['unifier__y_max_coordinate_column_actual'] = st.session_state['unifier__y_max_coordinate_column']
 
                 # Display a success message
                 st.toast('Coordinate columns created successfully')
