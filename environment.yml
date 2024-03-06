@@ -7,4 +7,3 @@ dependencies:
     - split-file-reader
     - st_pages
     - natsort
-    - dill

@@ -16,11 +16,6 @@ def top_of_page_reqs(session_state):
     that are run at the top of the page that help maintain 
     '''
 
-    # # Remove key values from session_state that should not persist
-    # for key, val in session_state.items():
-    #     if (not key.endswith('__do_not_persist')) and (not key.startswith('FormSubmitter:')):
-    #         session_state[key] = val
-
     # Add Logo
     add_logo('app_images/mawa_logo-width315.png', height=150)
 

@@ -4,11 +4,6 @@ name = "Welcome"
 icon = ""
 
 [[pages]]
-path = "test_page.py"
-name = "Test Page"
-icon = ""
-
-[[pages]]
 path = "pages/01_data_import_and_export.py"
 name = "Data Import and Export"
 icon = ""

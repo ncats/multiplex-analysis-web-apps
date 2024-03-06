@@ -1,6 +1,5 @@
 # Import relevant libraries
 import streamlit as st
-# import dill as pickle  # Use dill instead of pickle to avoid "PicklingError: Can't pickle <class 'streamlit_dataframe_editor.DataframeEditor'>: it's not the same object as streamlit_dataframe_editor.DataframeEditor"
 import pickle
 import os
 from datetime import datetime
@@ -59,12 +58,7 @@ def save_session_state(saved_streamlit_session_states_dir, saved_streamlit_sessi
             print(f'Not actually saving {key} of type {type(session_dict[key])}')
             del session_dict[key]
 
-    # Save the dictionary to the pickle file
-    # I believe this randomly crashes with "PicklingError: Can't pickle <class 'streamlit_dataframe_editor.DataframeEditor'>: it's not the same object as streamlit_dataframe_editor.DataframeEditor". Some approaches might include:
-    #   1. Use dill instead of pickle. Note that if we were to use dill, we could try saving the entire session at once (instead of individual objects) and also thereby include difficult items such as st.form objects. For now, the best place to start is probably to just replace the pickle calls with dill. This is implemented above ("import dill as pickle")
-    #   2. Save just the initialization data (and of course the current contents) for the objects to disk and then when reading them back in, initialize the DataframeEditor object there using that data. I.e., handle the custom classes separately.
-    #   3. Save objects to the file one at a time (instead of one large dictionary, maybe not using a dictionary at all if possible (e.g., save each key-item as a tuple?).
-    #   4. Ask copilot for advice
+    # Save the dictionary to the pickle file. Note this no longer randomly crashes with "PicklingError: Can't pickle <class 'streamlit_dataframe_editor.DataframeEditor'>: it's not the same object as streamlit_dataframe_editor.DataframeEditor" because we're no longer saving the DataframeEditor object itself, but rather the initialization data and the current contents. Note that using dill did also solve the problem, which if we were to use dill, we could try saving the entire session at once (instead of individual objects) and also thereby include difficult items such as st.form objects.
     with open(filename, 'wb') as f:
         pickle.dump(session_dict, f)
     
@@ -88,16 +82,6 @@ def load_session_state(saved_streamlit_session_states_dir, saved_streamlit_sessi
     Returns:
         None
     """
-
-    # import streamlit_dataframe_editor as sde
-
-    # for key in st.session_state.keys():
-    #     if isinstance(st.session_state[key], sde.DataframeEditor):
-    #         del st.session_state[key]
-
-
-    # if 'dataframe_editor' in st.session_state:
-    #     del st.session_state['dataframe_editor']
 
     # Get the selected session basename to load
     if selected_session is None:
@@ -163,12 +147,6 @@ def reset_session_state(saved_streamlit_session_state_key='session_selection', s
     if success_message:
         st.success('Session state reset')
 
-def test_callback():
-    if 'dataframe_editor' in st.session_state:
-        st.write('here i am')
-        st.session_state['dataframe_editor'].reset_dataframe_content()
-        st.write('here i am2')
-
 def app_session_management(saved_streamlit_session_states_dir, saved_streamlit_session_state_prefix, saved_streamlit_session_state_key):
     """
     Create the sidebar for app session management.
@@ -207,10 +185,6 @@ def app_session_management(saved_streamlit_session_states_dir, saved_streamlit_s
 
     # Name the relevant section in the sidebar
     st.sidebar.subheader('App Session Management')
-
-
-    st.sidebar.button('another button', on_click=test_callback)
-
 
     # Create the sidebar with the 'Save', 'Load', and 'Reset' buttons
     col1, col2, col3 = st.sidebar.columns(3)
@@ -270,12 +244,6 @@ def main():
     Main function for the Streamlit app.
 
     The following is a sample of how to use this module.
-
-    Args:
-        None
-
-    Returns:
-        None
     """
 
     # Run Top of Page (TOP) functions
