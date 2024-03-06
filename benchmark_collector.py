@@ -34,14 +34,15 @@ class benchmark_collector:
 
         self.fiol = fiol
         if self.fiol is None:
-            on_nidap = False
+            self.on_nidap = False
         else:
-            on_nidap = self.fiol.onNIDAP
+            self.on_nidap = self.fiol.onNIDAP
 
-        if on_nidap:
-            localdir = './input'
-        else:
-            localdir = "C:/Users/smithdaj/OneDrive - National Institutes of Health/Documents - NCATS-NCI-DMAP/MAWA/"
+        sharepoint_path = "C:/Users/smithdaj/OneDrive - National Institutes of Health/Documents - NCATS-NCI-DMAP/MAWA/"
+        localdir = './output'
+        if os.path.exists(sharepoint_path):
+            print('Sharepoint path found, using it for benchmarking csv file.')
+            localdir = sharepoint_path
 
         self.benchmark_csv = os.path.join(localdir, 'MAWA_Suite_Benchmarking.csv')
 
@@ -53,7 +54,7 @@ class benchmark_collector:
         self.benchmark_dataset      = 'Neighborhood-Profiles-Benchmarks'
 
         self.benchmarkDF.loc[0, 'id']       = datetime.now()
-        self.benchmarkDF.loc[0, 'on_NIDAP'] = on_nidap
+        self.benchmarkDF.loc[0, 'on_NIDAP'] = self.on_nidap
         self.stTimer = None
         self.spTimer = None
 
