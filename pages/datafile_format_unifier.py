@@ -105,6 +105,8 @@ def main():
                 st.write('There are {} files selected.'.format(num_selected_rows))
                 button_text = ':star2: Combine selected files into single dataframe :star2:'
                 button_help_message = None
+            with st.expander('Selected files:', expanded=False):
+                st.dataframe(df_reconstructed.loc[selected_rows, 'Filename'], hide_index=True)
 
             # Extract the selected files from the dataframe editor
             input_files = sorted(df_reconstructed[selected_rows]['Filename'].to_list())

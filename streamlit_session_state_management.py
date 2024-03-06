@@ -6,6 +6,7 @@ from datetime import datetime
 import os
 import app_top_of_page as top
 import streamlit_dataframe_editor as sde
+import streamlit_dataframe_editor
 
 def save_session_state(saved_streamlit_session_states_dir, saved_streamlit_session_state_prefix='streamlit_session_state-', saved_streamlit_session_state_key='session_selection'):
     """
@@ -37,7 +38,7 @@ def save_session_state(saved_streamlit_session_states_dir, saved_streamlit_sessi
     keys_to_exclude = []
     for key, value in st.session_state.items():
         if (not key.endswith('__do_not_persist')) and (not key.startswith('FormSubmitter:')) and (key != saved_streamlit_session_state_key):
-            if isinstance(value, sde.DataframeEditor):
+            if isinstance(value, (sde.DataframeEditor, streamlit_dataframe_editor.DataframeEditor)):  # if this still doesn't seem to catch all DataframeEditor objects, try converting the type to a string and then checking if it contains 'DataframeEditor' or something like that
                 print(f'Saving components for dataframe editor {key}')
                 dataframe_editor_components = {
                     'df_name': value.df_name,
