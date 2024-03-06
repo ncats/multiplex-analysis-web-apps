@@ -35,6 +35,7 @@ def save_session_state(saved_streamlit_session_states_dir, saved_streamlit_sessi
 
     # Create a dictionary of most items in the session state
     session_dict = {}
+    keys_to_exclude = []
     for key, value in st.session_state.items():
         if (not key.endswith('__do_not_persist')) and (not key.startswith('FormSubmitter:')) and (key != saved_streamlit_session_state_key):
             # If the value is a DataframeEditor object, save the initialization data and the current contents
@@ -47,9 +48,16 @@ def save_session_state(saved_streamlit_session_states_dir, saved_streamlit_sessi
                 }
                 dataframe_editor_ingredients_name = 'dataframe_editor_ingredients__' + key
                 session_dict[dataframe_editor_ingredients_name] = dataframe_editor_ingredients
+                keys_to_exclude.append(value.df_name + '_key')
             else:
                 print(f'Saving {key} of type {type(value)}')
                 session_dict[key] = value
+
+    # For each key to exclude, delete it from session_dict, i.e., the thing being saved to disk. This should allow a new key to be assigned to the st.data_editor() object within any dataframe editor objects that are later initialized in the load_session_state() function. Otherwise, the key will always be the same so upon loading a session state, the st.data_editor() object will not be redrawn. The solution to that is to force the st.data_editor() object to be redrawn by forcing its key to change.
+    for key in keys_to_exclude:
+        if key in session_dict:
+            print(f'Not actually saving {key} of type {type(session_dict[key])}')
+            del session_dict[key]
 
     # Save the dictionary to the pickle file
     # I believe this randomly crashes with "PicklingError: Can't pickle <class 'streamlit_dataframe_editor.DataframeEditor'>: it's not the same object as streamlit_dataframe_editor.DataframeEditor". Some approaches might include:
