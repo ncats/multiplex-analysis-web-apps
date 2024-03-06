@@ -43,6 +43,9 @@ def main():
     directory = os.path.join('.', 'input')
     extensions = ('.csv', '.tsv')
 
+    # Write a message to the user
+    st.write('After completing Section :one:, a sample of your dataset will be displayed at bottom. Use the sample to help you complete the rest of the sections on this page.')
+
     # Split the page into three main columns
     main_columns = st.columns(3)
 
@@ -156,7 +159,7 @@ def main():
             with st.expander('(Optional) Click to expand:', expanded=False):
 
                 # Write a note to the user
-                st.write('Observe the combined dataframe at bottom and select columns by which to remove rows. Rows will be removed if the selected columns have a value of `None`.')
+                st.write('Observe the combined dataframe at bottom and select columns here by which to remove rows. Rows will be removed if the selected columns have a value of `None`.')
 
                 # Allow the user to select the columns by which to delete rows
                 if 'unifier__columns_to_drop_rows_by' not in st.session_state:
@@ -249,9 +252,11 @@ def main():
             if st.button(button_text, help=button_help_message):
                 if st.session_state['unifier__roi_explicitly_defined']:
                     utils.dataframe_insert_possibly_existing_column(df, 1, 'ROI ID (standardized)', df[st.session_state['unifier__roi_column']])
+                    toast_message = '"ROI ID (standardized)" column created successfully'
                 else:
                     if 'ROI ID (standardized)' in df.columns:
                         del df['ROI ID (standardized)']
+                    toast_message = 'We have successfully ensured that the "ROI ID (standardized)" column is not present in the dataset'
 
                 # Save this dataframe to memory
                 st.session_state['unifier__df'] = df
@@ -262,7 +267,7 @@ def main():
                     st.session_state['unifier__roi_column_actual'] = st.session_state['unifier__roi_column']
 
                 # Display a success message
-                st.toast('"ROI ID (standardized)" column created successfully')
+                st.toast(toast_message)
 
             # If the selected columns to define ROIs have changed since the last time ROIs were defined, display a warning
             if st.session_state['unifier__roi_explicitly_defined']:
@@ -313,9 +318,11 @@ def main():
                     st.session_state['unifier__y_max_coordinate_column'] = df_numeric_columns[0]
                 with smallest_columns[0]:
                     st.selectbox('Select a column for the minimum x-coordinate:', df_numeric_columns, key='unifier__x_min_coordinate_column')
-                    st.selectbox('Select a column for the minimum y-coordinate:', df_numeric_columns, key='unifier__y_min_coordinate_column')
                 with smallest_columns[1]:
                     st.selectbox('Select a column for the maximum x-coordinate:', df_numeric_columns, key='unifier__x_max_coordinate_column')
+                with smallest_columns[0]:
+                    st.selectbox('Select a column for the minimum y-coordinate:', df_numeric_columns, key='unifier__y_min_coordinate_column')
+                with smallest_columns[1]:
                     st.selectbox('Select a column for the maximum y-coordinate:', df_numeric_columns, key='unifier__y_max_coordinate_column')
 
             # Create a button to assign coordinates to the dataframe, including converting them to microns and rounding them to the nearest 0.2 microns
@@ -378,7 +385,7 @@ def main():
         # Output a sample of the concatenated dataframe
         st.divider()
         st.header('Sample of unified dataframe')
-        resample_dataframe = st.button('Resample dataframe')
+        resample_dataframe = st.button('Refresh dataframe sample')
         if ('sampled_df' not in st.session_state) or resample_dataframe:
             sampled_df = df.sample(100).sort_index()
             st.session_state['sampled_df'] = sampled_df

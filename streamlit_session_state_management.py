@@ -37,7 +37,6 @@ def save_session_state(saved_streamlit_session_states_dir, saved_streamlit_sessi
     keys_to_exclude = []
     for key, value in st.session_state.items():
         if (not key.endswith('__do_not_persist')) and (not key.startswith('FormSubmitter:')) and (key != saved_streamlit_session_state_key):
-            # If the value is a DataframeEditor object, save the initialization data and the current contents
             if isinstance(value, sde.DataframeEditor):
                 print(f'Saving components for dataframe editor {key}')
                 dataframe_editor_components = {
@@ -47,6 +46,8 @@ def save_session_state(saved_streamlit_session_states_dir, saved_streamlit_sessi
                 }
                 dataframe_editor_components_name = 'dataframe_editor_components__' + key
                 session_dict[dataframe_editor_components_name] = dataframe_editor_components
+                keys_to_exclude.append(value.df_name)
+                keys_to_exclude.append(value.df_name + '_changes_dict')
                 keys_to_exclude.append(value.df_name + '_key')
             else:
                 print(f'Saving {key} of type {type(value)}')
@@ -58,7 +59,7 @@ def save_session_state(saved_streamlit_session_states_dir, saved_streamlit_sessi
             print(f'Not actually saving {key} of type {type(session_dict[key])}')
             del session_dict[key]
 
-    # Save the dictionary to the pickle file. Note this no longer randomly crashes with "PicklingError: Can't pickle <class 'streamlit_dataframe_editor.DataframeEditor'>: it's not the same object as streamlit_dataframe_editor.DataframeEditor" because we're no longer saving the DataframeEditor object itself, but rather the initialization data and the current contents. Note that using dill did also solve the problem, which if we were to use dill, we could try saving the entire session at once (instead of individual objects) and also thereby include difficult items such as st.form objects.
+    # Save the dictionary to the pickle file. Note this no longer randomly crashes with "PicklingError: Can't pickle <class 'streamlit_dataframe_editor.DataframeEditor'>: it's not the same object as streamlit_dataframe_editor.DataframeEditor" because we're no longer saving the DataframeEditor object itself, but rather the initialization data and the current contents. Note that using dill did also solve the problem, which if we were to use dill, we could try saving the entire session at once (instead of individual objects) and also thereby include difficult items such as st.form objects. NOTE: If we start getting the error again, try either using dill or probably better yet, excluding other custom object types from being saved in the first place, e.g., class 'platform_io.Platform'. Such exclusion would be done in keys_to_exclude as above.
     with open(filename, 'wb') as f:
         pickle.dump(session_dict, f)
     
@@ -108,9 +109,11 @@ def load_session_state(saved_streamlit_session_states_dir, saved_streamlit_sessi
                 print(f'Initializing dataframe editor {key.removeprefix("dataframe_editor_components__")}')
                 dataframe_editor_key = key.removeprefix('dataframe_editor_components__')
                 dataframe_editor_components = value
-                curr_dataframe_editor = sde.DataframeEditor(df_name=dataframe_editor_components['df_name'], default_df_contents=dataframe_editor_components['default_df_contents'])
-                curr_dataframe_editor.update_editor_contents(new_df_contents=dataframe_editor_components['edited_dataframe'], reset_key=True)
-                st.session_state[dataframe_editor_key] = curr_dataframe_editor
+                # curr_dataframe_editor = sde.DataframeEditor(df_name=dataframe_editor_components['df_name'], default_df_contents=dataframe_editor_components['default_df_contents'])
+                # curr_dataframe_editor.update_editor_contents(new_df_contents=dataframe_editor_components['edited_dataframe'], reset_key=True)
+                # st.session_state[dataframe_editor_key] = curr_dataframe_editor
+                st.session_state[dataframe_editor_key] = sde.DataframeEditor(df_name=dataframe_editor_components['df_name'], default_df_contents=dataframe_editor_components['default_df_contents'])
+                st.session_state[dataframe_editor_key].update_editor_contents(new_df_contents=dataframe_editor_components['edited_dataframe'], reset_key=True)  # no real point of setting reset_key=True here since that's the default, but keeping it as a reminder that it's something we can modify
             else:
                 print(f'Loading {key} of type {type(value)}')
                 st.session_state[key] = value
