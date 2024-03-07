@@ -43,6 +43,9 @@ def main():
     directory = os.path.join('.', 'input')
     extensions = ('.csv', '.tsv')
 
+    # Initialization
+    show_dataframe_updates = False
+
     # Write a message to the user
     st.write('After completing Section :one:, a sample of your dataset will be displayed at bottom. Use the sample to help you complete the rest of the sections on this page.')
 
@@ -143,6 +146,9 @@ def main():
                 if columns_equal:
                     st.toast('Files combined successfully')
 
+                # Set a flag to update the dataframe sample at the bottom of the page
+                show_dataframe_updates = True
+
             # If the selected input files have changed since the last time the combined dataframe was created, display a warning
             if ('unifier__input_files_actual' in st.session_state) and (st.session_state['unifier__input_files_actual'] != st.session_state['unifier__input_files']):
                 st.warning('The selected input files have changed since the last time the combined dataframe was created. Please re-combine the files or adjust the input files to match the previous selection.')
@@ -187,6 +193,9 @@ def main():
 
                     # Display a success message
                     st.toast(f'{row_count_after - row_count_before} rows deleted successfully')
+
+                    # Set a flag to update the dataframe sample at the bottom of the page
+                    show_dataframe_updates = True
 
                 # If the selected columns to delete rows have changed since the last time rows were deleted, display a warning
                 if ('unifier__columns_to_drop_rows_by_actual' in st.session_state) and (set(st.session_state['unifier__columns_to_drop_rows_by_actual']) != set(st.session_state['unifier__columns_to_drop_rows_by'])):
@@ -234,6 +243,9 @@ def main():
 
                 # Display a success message
                 st.toast('Columns combined into a "Image ID (standardized)" column successfully')
+
+                # Set a flag to update the dataframe sample at the bottom of the page
+                show_dataframe_updates = True
 
             # If the selected columns to define images have changed since the last time images were defined, display a warning
             if ('unifier__columns_to_combine_to_uniquely_define_slides_actual' in st.session_state) and (set(st.session_state['unifier__columns_to_combine_to_uniquely_define_slides_actual']) != set(st.session_state['unifier__columns_to_combine_to_uniquely_define_slides'])):
@@ -291,6 +303,9 @@ def main():
 
                 # Display a success message
                 st.toast(toast_message)
+
+                # Set a flag to update the dataframe sample at the bottom of the page
+                show_dataframe_updates = True
 
             # If the selected columns to define ROIs have changed since the last time ROIs were defined, display a warning
             if st.session_state['unifier__roi_explicitly_defined']:
@@ -363,7 +378,7 @@ def main():
                         centroid_y = (df[st.session_state['unifier__y_min_coordinate_column']] + df[st.session_state['unifier__y_max_coordinate_column']]) / 2
                     centroid_x = centroid_x * st.session_state['unifier__microns_per_coordinate_unit']
                     centroid_y = centroid_y * st.session_state['unifier__microns_per_coordinate_unit']
-                    utils.dataframe_insert_possibly_existing_column(df, st.session_state['unifier__num_roi_columns_actual'] + 1, 'Centroid X (µm) (standardized)', (centroid_x / 0.2).round() * 0.2)
+                    utils.dataframe_insert_possibly_existing_column(df, st.session_state['unifier__num_roi_columns_actual'] + 1, 'Centroid X (µm) (standardized)', (centroid_x / 0.2).round() * 0.2)  # round to the nearest 0.2 microns, which is also assumed in the appropriate class in dataset_formats.py
                     utils.dataframe_insert_possibly_existing_column(df, st.session_state['unifier__num_roi_columns_actual'] + 2, 'Centroid Y (µm) (standardized)', (centroid_y / 0.2).round() * 0.2)
 
                     # Save this dataframe to memory
@@ -383,6 +398,9 @@ def main():
 
                 # Display a success message
                 st.toast('Coordinate columns created successfully')
+
+                # Set a flag to update the dataframe sample at the bottom of the page
+                show_dataframe_updates = True
 
             # If the selected columns to define coordinates have changed since the last time coordinates were defined, display a warning
             if st.session_state['unifier__number_of_coordinate_columns'] == coordinate_options[0]:
@@ -414,7 +432,7 @@ def main():
         st.divider()
         st.header('Sample of unified dataframe')
         resample_dataframe = st.button('Refresh dataframe sample')
-        if ('sampled_df' not in st.session_state) or resample_dataframe:
+        if ('sampled_df' not in st.session_state) or resample_dataframe or show_dataframe_updates:
             sampled_df = df.sample(100).sort_index()
             st.session_state['sampled_df'] = sampled_df
         sampled_df = st.session_state['sampled_df']
