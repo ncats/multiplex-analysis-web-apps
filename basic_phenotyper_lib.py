@@ -523,6 +523,7 @@ def setup_Spatial_UMAP(df, marker_names, pheno_order, cpu_pool_size = 1):
     spatial_umap.cell_positions = spatial_umap.cells[['Cell X Position', 'Cell Y Position']].values
     # set explicitly as one hot data frame the cell labels
     spatial_umap.cell_labels = pd.get_dummies(spatial_umap.cells['Lineage'])
+    spatial_umap.cell_labels = spatial_umap.cell_labels[spatial_umap.species]
     # set the region is to be analyzed (a TMA core is treated similar to a region of a interest)
     spatial_umap.region_ids = spatial_umap.cells.TMA_core_id.unique()
     # default cluster values
