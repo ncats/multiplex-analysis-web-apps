@@ -403,16 +403,109 @@ def main():
                 show_dataframe_updates = True
 
             # If the selected columns to define coordinates have changed since the last time coordinates were defined, display a warning
+            display_warning = False
             if st.session_state['unifier__number_of_coordinate_columns'] == coordinate_options[0]:
                 if ('unifier__number_of_coordinate_columns_actual' in st.session_state) and any(st.session_state[key] != st.session_state[key + '_actual'] for key in ['unifier__number_of_coordinate_columns', 'unifier__microns_per_coordinate_unit', 'unifier__x_coordinate_column', 'unifier__y_coordinate_column']):
-                    st.warning('The values of some coordinate settings have changed since the last time coordinates were assigned. Please re-assign the coordinates or adjust the settings to match the previous ones.')
+                    display_warning = True
             else:
                 if ('unifier__number_of_coordinate_columns_actual' in st.session_state) and any(st.session_state[key] != st.session_state[key + '_actual'] for key in ['unifier__number_of_coordinate_columns', 'unifier__microns_per_coordinate_unit', 'unifier__x_min_coordinate_column', 'unifier__y_min_coordinate_column', 'unifier__x_max_coordinate_column', 'unifier__y_max_coordinate_column']):
-                    st.warning('The values of some coordinate settings have changed since the last time coordinates were assigned. Please re-assign the coordinates or adjust the settings to match the previous ones.')
+                    display_warning = True
+            if display_warning:
+                st.warning('The values of some coordinate settings have changed since the last time coordinates were assigned. Please re-assign the coordinates or adjust the settings to match the previous ones.')
 
             # Get a shortcut to the concatenated dataframe
             df = st.session_state['unifier__df']
 
+        # In the third column...
+        with main_columns[2]:
+
+            # ---- 3. Identify phenotypes --------------------------------------------------------------------------------------------------------------------------------
+
+            # Display a header for the phenotype identification section
+            st.header(':six: Identify phenotypes')
+
+            # Define possible formats for the phenotyping specification
+            phenotyping_specification_formats = [
+                'One binary column per phenotype (e.g., "-" or "+" in each column)',
+                'One column for all phenotypes (e.g., "CD4", "T cell", "FOXP3", "DAPI", "MHCII", etc.)',
+                'One "Class" column for all phenotypes in QuPath format (e.g., "CD4: FOXP3: MHCII", "CD4: Other: MHCII", "Other: FOXP3", etc.)'
+                ]
+            
+            # Allow the user to select the format of the phenotyping specification
+            if 'unifier__phenotyping_specification_format' not in st.session_state:
+                st.session_state['unifier__phenotyping_specification_format'] = phenotyping_specification_formats[0]
+            st.selectbox('Select the format of the phenotyping specification:', phenotyping_specification_formats, key='unifier__phenotyping_specification_format')
+            if st.session_state['unifier__phenotyping_specification_format'] == phenotyping_specification_formats[0]:
+                if 'unifier__phenotype_columns' not in st.session_state:
+                    st.session_state['unifier__phenotype_columns'] = df.columns[0]
+                st.multiselect('Select the columns that correspond to the phenotypes:', df.columns, key='unifier__phenotype_columns')
+            else:
+                if 'unifier__phenotype_column' not in st.session_state:
+                    st.session_state['unifier__phenotype_column'] = df.columns[0]
+                st.selectbox('Select the column that corresponds to the phenotypes:', df.columns, key='unifier__phenotype_column')
+
+            # Create a button to assign phenotypes to the dataframe
+            if st.button(':star2: Assign phenotypes :star2:'):
+
+                # Render a progress spinner while the phenotypes are being assigned
+                with st.spinner('Assigning phenotypes...'):
+
+                    # Perform the operation
+                    if st.session_state['unifier__phenotyping_specification_format'] == phenotyping_specification_formats[0]:
+                        st.session_state['unifier__df_phenotypes'] = df[st.session_state['unifier__phenotype_columns']]
+                    elif st.session_state['unifier__phenotyping_specification_format'] == phenotyping_specification_formats[1]:
+                        st.session_state['unifier__df_phenotypes'] = df[st.session_state['unifier__phenotype_column']].str.get_dummies()
+                    else:
+                        st.session_state['unifier__df_phenotypes'] = df[st.session_state['unifier__phenotype_column']].str.get_dummies(sep=': ')
+
+                    # # Save this dataframe to memory
+                    # st.session_state['unifier__df'] = pd.concat([df, df_phenotypes], axis=1)
+                        
+                    # Save the settings used for this operation
+                    st.session_state['unifier__phenotyping_specification_format_actual'] = st.session_state['unifier__phenotyping_specification_format']
+                    if st.session_state['unifier__phenotyping_specification_format'] == phenotyping_specification_formats[0]:
+                        st.session_state['unifier__phenotype_columns_actual'] = st.session_state['unifier__phenotype_columns']
+                    else:
+                        st.session_state['unifier__phenotype_column_actual'] = st.session_state['unifier__phenotype_column']
+
+                # Display a success message
+                st.toast('Phenotype columns extracted successfully')
+
+            # If the selected columns to define phenotypes have changed since the last time phenotypes were defined, display a warning
+            display_warning = False
+            if st.session_state['unifier__phenotyping_specification_format'] == phenotyping_specification_formats[0]:
+                if ('unifier__phenotyping_specification_format_actual' in st.session_state) and any(st.session_state[key] != st.session_state[key + '_actual'] for key in ['unifier__phenotyping_specification_format', 'unifier__phenotype_columns']):
+                    display_warning = True
+            else:
+                if ('unifier__phenotyping_specification_format_actual' in st.session_state) and any(st.session_state[key] != st.session_state[key + '_actual'] for key in ['unifier__phenotyping_specification_format', 'unifier__phenotype_column']):
+                    display_warning = True
+            if display_warning:
+                st.warning('The format used to define phenotypes has changed since the last time phenotypes were defined. Please re-assign the phenotypes or adjust the settings to match the previous ones.')
+
+            # Next steps:
+                # - Go through the following code and make sure it is all correct
+                # - Create a button to rename the phenotypes
+                # - Concatenate the result to the main dataframe
+                # - More? Add above general steps probably
+                # - Configure editability of the dataframe editor columns
+
+            # Create a two-column editable dataframe, where both columns hold the column names of st.session_state['unifier__df_phenotypes'] but the first is not editable and the second is editable, allowing the user to rename the phenotypes
+            if 'unifier__df_phenotypes' in st.session_state:
+                df_phenotypes = st.session_state['unifier__df_phenotypes']
+                df_phenotype_names = pd.DataFrame({'Original phenotype name': df_phenotypes.columns, 'New phenotype name': df_phenotypes.columns})
+                st.write('The following table allows you to optionally rename the extracted phenotypes. Replace the values in the second column with the new phenotype name.')
+                if 'unifier__de_phenotype_names' not in st.session_state:
+                    st.session_state['unifier__de_phenotype_names'] = sde.DataframeEditor(df_name='unifier__df_phenotype_names', default_df_contents=df_phenotype_names)
+                st.session_state['unifier__de_phenotype_names'].dataframe_editor(reset_data_editor_button_text='Reset phenotype names')
+
+                # Set a flag to update the dataframe sample at the bottom of the page
+                show_dataframe_updates = True
+
+            # Get a shortcut to the concatenated dataframe
+            df = st.session_state['unifier__df']
+
+
+            
             # Allow the user to select the which columns correspond to the markers/phenotypes
             # st.header(':four: Select marker/phenotype columns')
             # st.multiselect('Optional: Select the categorical columns that correspond to the markers/phenotypes (i.e., thresholded intensities):', df_columns, key='unifier__marker_columns')
