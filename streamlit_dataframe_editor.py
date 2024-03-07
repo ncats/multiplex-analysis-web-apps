@@ -167,7 +167,6 @@ class DataframeEditor:
         current_page_name = st.session_state[current_page_key]
         previous_page_name = st.session_state[previous_page_key]
         key_for_data_editor_widget = st.session_state[df_name + '_key']
-        dataframe_to_edit = st.session_state[df_name]
 
         # If the user switches to this page, then 
         # have the data editor input be the previously saved data editor "output". 
@@ -177,7 +176,7 @@ class DataframeEditor:
             self.update_editor_contents(new_df_contents=self.reconstruct_edited_dataframe(), reset_key=False)
 
         # Output a data editor for a dataframe of interest
-        st.data_editor(dataframe_to_edit, key=key_for_data_editor_widget, on_change=save_data_editor_changes, args=(df_name + '_changes_dict', key_for_data_editor_widget, on_change), num_rows=('dynamic' if dynamic_rows else 'fixed'), hide_index=hide_index, column_config=column_config)
+        st.data_editor(st.session_state[df_name], key=key_for_data_editor_widget, on_change=save_data_editor_changes, args=(df_name + '_changes_dict', key_for_data_editor_widget, on_change), num_rows=('dynamic' if dynamic_rows else 'fixed'), hide_index=hide_index, column_config=column_config)
 
         # Debugging information
         if debug:
