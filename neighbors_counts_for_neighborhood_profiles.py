@@ -26,7 +26,7 @@ class dummySessionState:
     def __getitem__(self, key):
         return getattr(self, key)
 
-def calculate_density_matrix_for_all_images(image_names, df, phenotypes, phenotype_column_name, image_column_name, coord_column_names, radii, range_strings, debug_output=False, num_cpus_to_use=1):
+def calculate_density_matrix_for_all_images(image_names, df, phenotypes, phenotype_column_name, image_column_name, coord_column_names, radii, range_strings, debug_output=False, num_cpus_to_use=1, swap_inequalities=False):
     """
     Calculate the density matrix for all images.
 
@@ -64,7 +64,8 @@ def calculate_density_matrix_for_all_images(image_names, df, phenotypes, phenoty
                 coord_column_names,
                 radii,
                 range_strings,
-                debug_output
+                debug_output,
+                swap_inequalities
             )
         )
 
@@ -83,7 +84,7 @@ def calculate_density_matrix_for_all_images(image_names, df, phenotypes, phenoty
     # Concatenate the results into a single dataframe
     return pd.concat(results)
 
-def calculate_density_matrix_for_image(df_image, phenotypes, phenotype_column_name, image, coord_column_names, radii, range_strings, debug_output=False):
+def calculate_density_matrix_for_image(df_image, phenotypes, phenotype_column_name, image, coord_column_names, radii, range_strings, debug_output=False, swap_inequalities=False):
     """
     Calculate the density matrix for a single image.
 
@@ -164,7 +165,8 @@ def calculate_density_matrix_for_image(df_image, phenotypes, phenotype_column_na
                                                                                         radii = radii,
                                                                                         single_dist_mat_cutoff_in_mb = 200,
                                                                                         verbose = False,
-                                                                                        test = False)  # (num_centers, num_ranges)
+                                                                                        test = False,
+                                                                                        swap_inequalities=swap_inequalities)  # (num_centers, num_ranges)
 
                     # Add the number of neighbors to the dataframe
                     for irange in range(num_ranges):
@@ -207,8 +209,8 @@ def main():
     num_ranges = len(radii) - 1
     range_strings = [f'{radii[iradius]}, {radii[iradius + 1]})' for iradius in range(num_ranges)]
 
-    # Calculate the density matrix for all images
-    df_density_matrix = calculate_density_matrix_for_all_images(image_names, df, phenotypes, phenotype_column_name, image_column_name, coord_column_names, radii, range_strings, debug_output=debug_output, num_cpus_to_use=num_cpus_to_use)
+    # Calculate the density matrix for all images. For neighborhood profiles, we want to swap the inequalities to use (r1, r2] instead of the default of [r1, r2)
+    df_density_matrix = calculate_density_matrix_for_all_images(image_names, df, phenotypes, phenotype_column_name, image_column_name, coord_column_names, radii, range_strings, debug_output=debug_output, num_cpus_to_use=num_cpus_to_use, swap_inequalities=True)
 
     # Print shape of final density matrix dataframe
     print(f'Shape of final density matrix: {df_density_matrix.shape}')

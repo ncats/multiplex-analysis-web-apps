@@ -577,7 +577,7 @@ def wrap_calculate_neighbor_counts(args):
     center_coords, neighbor_coords, radii = args
     calculate_neighbor_counts(center_coords=center_coords, neighbor_coords=neighbor_coords, radii=radii, test=False)
 
-def calculate_neighbor_counts(center_coords=None, neighbor_coords=None, radii=None, test=False):
+def calculate_neighbor_counts(center_coords=None, neighbor_coords=None, radii=None, test=False, swap_inequalities=False):
     """
     calculate_neighbor_counts efficiently count neighbors around centers 
     for an arbitrary number of radius ranges
@@ -603,7 +603,10 @@ def calculate_neighbor_counts(center_coords=None, neighbor_coords=None, radii=No
     radii_sq = (radii ** 2)[np.newaxis, np.newaxis, :]  # (1, 1, num_radii)
 
     # Boolean matrix of whether the centers and neighbors are within the ranges
-    in_ranges = (radii_sq[:, :, :-1] <= dist_mat_sq) & (dist_mat_sq < radii_sq[:, :, 1:])  # (num_centers, num_neighbors, num_radii - 1) = (num_centers, num_neighbors, num_ranges)
+    if not swap_inequalities:
+        in_ranges = (radii_sq[:, :, :-1] <= dist_mat_sq) & (dist_mat_sq < radii_sq[:, :, 1:])  # (num_centers, num_neighbors, num_radii - 1) = (num_centers, num_neighbors, num_ranges)
+    else:
+        in_ranges = (radii_sq[:, :, :-1] < dist_mat_sq) & (dist_mat_sq <= radii_sq[:, :, 1:])
 
     # Get the counts of the neighbors for each center and radius range
     neighbor_counts = in_ranges.sum(axis=1)  # (num_centers, num_ranges)
@@ -611,7 +614,7 @@ def calculate_neighbor_counts(center_coords=None, neighbor_coords=None, radii=No
     # Return the neighbor counts
     return neighbor_counts
 
-def calculate_neighbor_counts_with_possible_chunking(center_coords=None, neighbor_coords=None, radii=None, single_dist_mat_cutoff_in_mb=200, test=False, verbose=False):
+def calculate_neighbor_counts_with_possible_chunking(center_coords=None, neighbor_coords=None, radii=None, single_dist_mat_cutoff_in_mb=200, test=False, verbose=False, swap_inequalities=False):
     """
     calculate_neighbor_counts_with_possible_chunking efficiently count neighbors 
     around centers for an arbitrary number of radius ranges, while ensuring that
@@ -696,7 +699,7 @@ def calculate_neighbor_counts_with_possible_chunking(center_coords=None, neighbo
                 # print(np.arange(curr_start_index, curr_stop_index))
 
             # Calculate the neighbor counts for the current chunk
-            neighbor_counts[curr_start_index:curr_stop_index, :] = calculate_neighbor_counts(center_coords=center_coords[curr_start_index:curr_stop_index, :], neighbor_coords=neighbor_coords, radii=radii)
+            neighbor_counts[curr_start_index:curr_stop_index, :] = calculate_neighbor_counts(center_coords=center_coords[curr_start_index:curr_stop_index, :], neighbor_coords=neighbor_coords, radii=radii, swap_inequalities=swap_inequalities)
             # list_of_tuple_arguments.append((center_coords[curr_start_index:curr_stop_index, :], neighbor_coords, radii))  # works using the multiprocessing function below, though never implemented the saving of the results
 
         # # Used for testing implementation of parallelism, which is incomplete per the comment above and am not using it in production
