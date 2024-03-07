@@ -16,12 +16,15 @@ from sklearn.metrics.pairwise import euclidean_distances
 from skimage import draw as skdraw, transform as sktran
 np.seterr(divide='ignore', invalid='ignore')
 
+import utils
+
 class SpatialUMAP:
-    '''SpatialUMAP is a class that handles the cell count 
+    '''
+    SpatialUMAP() is a class that handles the cell count 
     processing and concentric circle area measurements for 
     cell density analysis in SpatialUMAP studies.
 
-    It has the following methods:
+    Methods:
     * __init__
     * construct_arcs
     * process_cell_areas
@@ -136,6 +139,182 @@ class SpatialUMAP:
 
         return idx_counts[np.newaxis, :]
 
+    def calculate_density_matrix_for_all_images(self, debug_output=False):
+        """
+        Calculate the density matrix for all images.
+
+        Args:
+            image_names (numpy.ndarray): The array of image names.
+            df (pandas.DataFrame): The dataframe containing the data for all images.
+            phenotypes (numpy.ndarray): The array of phenotypes.
+            phenotype_column_name (str): The name of the column containing the phenotype information.
+            image_column_name (str): The name of the column containing the image information.
+            coord_column_names (list): The list of column names containing the coordinate information.
+            radii (numpy.ndarray): The array of radii.
+            range_strings (list): The list of range strings.
+            debug_output (bool, optional): Whether to print debug output.
+            num_cpus_to_use (int, optional): The number of CPUs to use. Defaults to 1.
+
+        Returns:
+            pandas.DataFrame: The dataframe containing the density matrix for all images.
+        """
+
+        df          = self.cells
+        phenotypes  = self.species
+        radii       = np.concatenate([[0], self.dist_bin_px])
+
+        num_cpus_to_use = int(mp.cpu_count() / 2)
+        coord_column_names = ['Cell X Position', 'Cell Y Position']
+        phenotype_column_name = 'Lineage'
+        image_column_name     = 'Slide ID'
+        image_names = df[image_column_name].unique()
+        num_ranges = len(radii) - 1
+        range_strings = [f'{radii[iradius]}, {radii[iradius + 1]})' for iradius in range(num_ranges)]
+
+        # Initialize keyword arguments
+        kwargs_list = []
+
+        # Initialize the start time
+        start_time = time.time()
+        # Loop through the images
+        for image in image_names:
+
+            # Create a dictionary for the variables
+            kwargs_list.append(
+                (
+                    df[df[image_column_name] == image][[phenotype_column_name] + coord_column_names].copy(),
+                    phenotypes,
+                    phenotype_column_name,
+                    image,
+                    coord_column_names,
+                    radii,
+                    range_strings,
+                    debug_output
+                )
+            )
+
+        # Get the number of CPUs to use
+        print(f'Using {num_cpus_to_use} CPUs')
+
+        # Create a pool of worker processes
+        with mp.Pool(processes=num_cpus_to_use) as pool:
+
+            # Apply the calculate_density_matrix_for_image function to each set of keyword arguments in kwargs_list
+            # A single call would be something like: calculate_density_matrix_for_image(**kwargs_list[4])
+            results = pool.starmap(self.calculate_density_matrix_for_image, kwargs_list)
+
+        print(f'All images took {(time.time() - start_time) / 60:.2f} minutes to complete')
+
+        df_density_matrix = pd.concat(results)
+        full_array = None
+        for ii, phenotype in enumerate(phenotypes):
+            cols2Use = np.arange(0, num_ranges, 1) + (ii*(num_ranges))
+            array_set = df_density_matrix.iloc[:, cols2Use].to_numpy()
+            if full_array is None:
+                full_array = array_set
+            else:
+                full_array = np.dstack((full_array, array_set))
+
+        # Concatenate the results into a single dataframe
+        return full_array
+
+    @staticmethod
+    def calculate_density_matrix_for_image(df_image, phenotypes, phenotype_column_name, image, coord_column_names, radii, range_strings, debug_output=False):
+        """
+        Calculate the density matrix for a single image.
+
+        Args:
+            df_image (pandas.DataFrame): The dataframe containing the data for the current image.
+            phenotypes (numpy.ndarray): The array of phenotypes.
+            phenotype_column_name (str): The name of the column containing the phenotype information.
+            image (str): The name of the current image.
+            coord_column_names (list): The list of column names containing the coordinate information.
+            radii (numpy.ndarray): The array of radii.
+            range_strings (list): The list of range strings.
+            debug_output (bool, optional): Whether to print debug output.
+
+        Returns:
+            pandas.DataFrame: The dataframe containing the density matrix for the current image.
+        """
+
+        # Initialize the start time
+        start_time = time.time()
+
+        # Get the number of range segments
+        num_ranges = len(radii) - 1
+
+        # Initialize the dataframe to store the number of neighbors for the current image
+        df_num_neighbors_image = pd.DataFrame(index=df_image.index)
+
+        # Loop through the phenotypes as center phenotypes
+        for center_phenotype in phenotypes:
+
+            # Get the locations of the current image and center phenotype in the dataframe
+            center_loc_for_image = df_image[phenotype_column_name] == center_phenotype
+
+            # Get the total number of centers of the current type in the current image
+            num_centers_in_image = center_loc_for_image.sum()
+
+            # If there are no centers of the current type in the current image, print a message
+            if num_centers_in_image == 0:
+                if debug_output:
+                    pass
+                    # print(f'No centers found for image {image} and phenotype {center_phenotype}')
+
+            # Otherwise, calculate the number of neighbors of each type in the current image, for all neighbor phenotypes and all radii
+            else:
+
+                # Get the coordinates of the centers of the current type in the current image as a numpy array
+                arr_image_center_phenotype = df_image[center_loc_for_image][coord_column_names].to_numpy()
+
+                # Loop through the phenotypes as neighbor phenotypes
+                for neighbor_phenotype in phenotypes:
+
+                    # Get the locations of the current image and neighbor phenotype in the dataframe
+                    neighbor_loc_for_image = df_image[phenotype_column_name] == neighbor_phenotype
+
+                    # Get the total number of neighbors of the current type in the current image
+                    num_neighbors_in_image = neighbor_loc_for_image.sum()
+
+                    # If there are no neighbors of the current type in the current image, print a message
+                    if num_neighbors_in_image == 0:
+                        if debug_output:
+                            pass
+                            # print(f'No neighbors found for image {image} and phenotype {neighbor_phenotype}')
+
+                    # Otherwise, calculate the number of neighbors of the current type in the current image, for all radii
+                    else:
+
+                        # Print the number of centers and neighbors found for the current image and phenotypes
+                        if debug_output:
+                            pass
+                            # print(f'Number of centers found for image {image} and phenotype {center_phenotype}: {num_centers_in_image}')
+                            # print(f'Number of neighbors found for image {image} and phenotype {neighbor_phenotype}: {num_neighbors_in_image}')
+
+                        # Get the coordinates of the neighbors of the current type in the current image as a numpy array
+                        arr_image_neighbor_phenotype = df_image[neighbor_loc_for_image][coord_column_names].to_numpy()
+
+                        # Calculate the number of neighbors around the centers of the current types in the current image, in each radii range
+                        nneighbors = utils.calculate_neighbor_counts_with_possible_chunking(center_coords = arr_image_center_phenotype,
+                                                                                            neighbor_coords = arr_image_neighbor_phenotype,
+                                                                                            radii = radii,
+                                                                                            single_dist_mat_cutoff_in_mb = 200,
+                                                                                            verbose = False,
+                                                                                            test = False)  # (num_centers, num_ranges)
+
+                        # Add the number of neighbors to the dataframe
+                        for irange in range(num_ranges):
+                            range_string = range_strings[irange]
+                            # note that since we are adding columns dynamically that the order of these columns may not be logical because sometimes there are no centers or no neighbors
+                            df_num_neighbors_image.loc[center_loc_for_image, f'Number of neighbors of type {neighbor_phenotype} in range {range_string}'] = nneighbors[:, irange]  
+
+        # Print the time taken to calculate the number of neighbors for the current image
+        if debug_output:
+            print(f'Time to calculate neighbors for image {image} ({len(df_image)} rows) on a single CPU: {(time.time() - start_time) / 60:.2f} minutes')
+
+        # Return the dataframe with the number of neighbors for the current image
+        return df_num_neighbors_image
+
     def __init__(self, dist_bin_um, um_per_px, area_downsample):
         # microns per pixel
         self.um_per_px = um_per_px
@@ -156,6 +335,7 @@ class SpatialUMAP:
         self.cell_labels = pd.DataFrame()
         self.region_ids = np.array([])
         self.pool = None
+        self.species = None
         self.counts = None
         self.areas = None
 

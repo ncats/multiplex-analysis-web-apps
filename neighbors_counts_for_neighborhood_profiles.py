@@ -26,7 +26,7 @@ class dummySessionState:
     def __getitem__(self, key):
         return getattr(self, key)
 
-def calculate_density_matrix_for_all_images(image_names, df, phenotypes, phenotype_column_name, image_column_name, coord_column_names, radii, range_strings, debug_output=False, num_cpus_to_use=1):
+def calculate_density_matrix_for_all_images(struct, debug_output=False):
     """
     Calculate the density matrix for all images.
 
@@ -45,6 +45,18 @@ def calculate_density_matrix_for_all_images(image_names, df, phenotypes, phenoty
     Returns:
         pandas.DataFrame: The dataframe containing the density matrix for all images.
     """
+
+    df          = struct.cells
+    phenotypes  = struct.species
+    radii       = np.concatenate([[0], struct.dist_bin_px])
+
+    num_cpus_to_use = int(multiprocessing.cpu_count() / 2)
+    coord_column_names = ['Cell X Position', 'Cell Y Position']
+    phenotype_column_name = 'Lineage'
+    image_column_name     = 'Slide ID'
+    image_names = df[image_column_name].unique()
+    num_ranges = len(radii) - 1
+    range_strings = [f'{radii[iradius]}, {radii[iradius + 1]})' for iradius in range(num_ranges)]
 
     # Initialize keyword arguments
     kwargs_list = []
@@ -80,8 +92,18 @@ def calculate_density_matrix_for_all_images(image_names, df, phenotypes, phenoty
 
     print(f'All images took {(time.time() - start_time) / 60:.2f} minutes to complete')
 
+    df_density_matrix = pd.concat(results)
+    full_array = None
+    for ii, phenotype in enumerate(phenotypes):
+        cols2Use = np.arange(0, num_ranges, 1) + (ii*(num_ranges))
+        array_set = df_density_matrix.iloc[:, cols2Use].to_numpy()
+        if full_array is None:
+            full_array = array_set
+        else:
+            full_array = np.dstack((full_array, array_set))
+
     # Concatenate the results into a single dataframe
-    return pd.concat(results)
+    return full_array
 
 def calculate_density_matrix_for_image(df_image, phenotypes, phenotype_column_name, image, coord_column_names, radii, range_strings, debug_output=False):
     """

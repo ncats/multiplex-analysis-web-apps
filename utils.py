@@ -581,6 +581,17 @@ def calculate_neighbor_counts(center_coords=None, neighbor_coords=None, radii=No
     """
     calculate_neighbor_counts efficiently count neighbors around centers 
     for an arbitrary number of radius ranges
+
+    Parameters
+    ----------
+    center_coords: Coordinates of the cell currently being cosnsidered
+    neighbor_coords: Coordinated of all other cells in the image
+    radii: Distances around the center cell to consider
+    test:
+
+    Returns
+    -------
+    neighbor_counts: Array of shape (num_centers, num_ranges)
     """
 
     # If using test data
@@ -617,6 +628,19 @@ def calculate_neighbor_counts_with_possible_chunking(center_coords=None, neighbo
     around centers for an arbitrary number of radius ranges, while ensuring that
     no intermediate matrices (i.e., the distance matrices) are too large in memory, 
     with the maximum cutoff in MB corresponding to single_dist_mat_cutoff_in_mb
+
+    Parameters
+    ----------
+    center_coords: Coordinates of the cell currently being cosnsidered
+    neighbor_coords: Coordinated of all other cells in the image
+    radii: Distances around the center cell to consider
+    single_dist_mat_cutoff_in_mb: Maximum size in megabytes of a single distance matrix
+    test:
+    verbose:
+
+    Returns
+    -------
+    neighbor_counts: Array of shape (num_centers, num_ranges)
     """
 
     # Constants
@@ -648,7 +672,7 @@ def calculate_neighbor_counts_with_possible_chunking(center_coords=None, neighbo
     # Get the ratio of the cutoff size to the full size
     size_ratio = single_dist_mat_cutoff_in_mb / full_dataset_dist_mat_size_in_mb
 
-    # If we should do chunking, i.e., a full dataset distance matrix is larger in size than our cutoff size...
+    # If full dataset distance matrix is larger than cutoff size -> perform chunking
     if size_ratio < 1:
 
         # Debugging output
@@ -664,8 +688,8 @@ def calculate_neighbor_counts_with_possible_chunking(center_coords=None, neighbo
 
         # Debugging output
         if verbose:
-            print('  Number of centers per chunk: {}'.format(num_centers_per_chunk))
-            print('  Chunk size smaller than cutoff? {}'.format(chunk_size_smaller_than_cutoff))
+            print(f'  Number of centers per chunk: {num_centers_per_chunk}')
+            print(f'  Chunk size smaller than cutoff? {chunk_size_smaller_than_cutoff}')
 
         # Get the number of chunks to use
         num_chunks = int(np.ceil(tot_num_centers / num_centers_per_chunk))
@@ -692,7 +716,7 @@ def calculate_neighbor_counts_with_possible_chunking(center_coords=None, neighbo
 
             # Debugging output
             if verbose:
-                print('     On chunk {} ({} centers) of {}...'.format(ichunk + 1, curr_stop_index - curr_start_index, num_chunks))
+                print(f'     On chunk {ichunk + 1} ({curr_stop_index - curr_start_index} centers) of {num_chunks}...')
                 # print(np.arange(curr_start_index, curr_stop_index))
 
             # Calculate the neighbor counts for the current chunk
