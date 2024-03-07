@@ -614,7 +614,7 @@ def calculate_neighbor_counts(center_coords=None, neighbor_coords=None, radii=No
     radii_sq = (radii ** 2)[np.newaxis, np.newaxis, :]  # (1, 1, num_radii)
 
     # Boolean matrix of whether the centers and neighbors are within the ranges
-    in_ranges = (radii_sq[:, :, :-1] <= dist_mat_sq) & (dist_mat_sq < radii_sq[:, :, 1:])  # (num_centers, num_neighbors, num_radii - 1) = (num_centers, num_neighbors, num_ranges)
+    in_ranges = (radii_sq[:, :, :-1] < dist_mat_sq) & (dist_mat_sq <= radii_sq[:, :, 1:])  # (num_centers, num_neighbors, num_radii - 1) = (num_centers, num_neighbors, num_ranges)
 
     # Get the counts of the neighbors for each center and radius range
     neighbor_counts = in_ranges.sum(axis=1)  # (num_centers, num_ranges)
