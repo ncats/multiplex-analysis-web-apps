@@ -477,6 +477,12 @@ class SpatialUMAP:
 
         return results
 
+    def get_counts_And(self):
+        '''
+        Andrew's method for getting counts
+        '''
+        self.counts = self.calculate_density_matrix_for_all_images()
+
     def get_areas(self, area_threshold, pool_size=2, save_file=None, plots_directory=None):
         self.clear_areas()
         self.cells['area_filter'] = False
