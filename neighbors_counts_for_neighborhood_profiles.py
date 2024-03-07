@@ -57,6 +57,7 @@ def calculate_density_matrix_for_all_images(struct, debug_output=False):
     image_names = df[image_column_name].unique()
     num_ranges = len(radii) - 1
     range_strings = [f'{radii[iradius]}, {radii[iradius + 1]})' for iradius in range(num_ranges)]
+    swap_inequalities = True
 
     # Initialize keyword arguments
     kwargs_list = []

@@ -721,9 +721,13 @@ def calculate_neighbor_counts_with_possible_chunking(center_coords=None, neighbo
             if verbose:
                 print(f'     On chunk {ichunk + 1} ({curr_stop_index - curr_start_index} centers) of {num_chunks}...')
                 # print(np.arange(curr_start_index, curr_stop_index))
-
             # Calculate the neighbor counts for the current chunk
-            neighbor_counts[curr_start_index:curr_stop_index, :] = calculate_neighbor_counts(center_coords=center_coords[curr_start_index:curr_stop_index, :], neighbor_coords=neighbor_coords, radii=radii, swap_inequalities=swap_inequalities)
+            neighbor_counts[curr_start_index:curr_stop_index, :] = calculate_neighbor_counts(center_coords=center_coords[curr_start_index:curr_stop_index, :],
+                                                                                             neighbor_coords=neighbor_coords,
+                                                                                             radii=radii,
+                                                                                             test = test,
+                                                                                             swap_inequalities=swap_inequalities)
+            
             # list_of_tuple_arguments.append((center_coords[curr_start_index:curr_stop_index, :], neighbor_coords, radii))  # works using the multiprocessing function below, though never implemented the saving of the results
 
         # # Used for testing implementation of parallelism, which is incomplete per the comment above and am not using it in production
@@ -740,7 +744,9 @@ def calculate_neighbor_counts_with_possible_chunking(center_coords=None, neighbo
         # Calculate the neighbor counts
         neighbor_counts = calculate_neighbor_counts(center_coords=center_coords,
                                                     neighbor_coords=neighbor_coords,
-                                                    radii=radii)
+                                                    radii=radii,
+                                                    test = test,
+                                                    swap_inequalities=swap_inequalities)
 
     # Return the neighbor counts
     return neighbor_counts

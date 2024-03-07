@@ -139,7 +139,7 @@ class SpatialUMAP:
 
         return idx_counts[np.newaxis, :]
 
-    def calculate_density_matrix_for_all_images(self, debug_output=False):
+    def calculate_density_matrix_for_all_images(self, swap_inequalities = False, debug_output=False):
         """
         Calculate the density matrix for all images.
 
@@ -189,7 +189,8 @@ class SpatialUMAP:
                     coord_column_names,
                     radii,
                     range_strings,
-                    debug_output
+                    debug_output,
+                    swap_inequalities
                 )
             )
 
@@ -219,7 +220,7 @@ class SpatialUMAP:
         return full_array
 
     @staticmethod
-    def calculate_density_matrix_for_image(df_image, phenotypes, phenotype_column_name, image, coord_column_names, radii, range_strings, debug_output=False):
+    def calculate_density_matrix_for_image(df_image, phenotypes, phenotype_column_name, image, coord_column_names, radii, range_strings, debug_output=False, swap_inequalities=False):
         """
         Calculate the density matrix for a single image.
 
@@ -299,8 +300,9 @@ class SpatialUMAP:
                                                                                             neighbor_coords = arr_image_neighbor_phenotype,
                                                                                             radii = radii,
                                                                                             single_dist_mat_cutoff_in_mb = 200,
+                                                                                            test = False,
                                                                                             verbose = False,
-                                                                                            test = False)  # (num_centers, num_ranges)
+                                                                                            swap_inequalities = swap_inequalities)  # (num_centers, num_ranges)
 
                         # Add the number of neighbors to the dataframe
                         for irange in range(num_ranges):
