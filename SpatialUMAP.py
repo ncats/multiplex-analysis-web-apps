@@ -209,12 +209,15 @@ class SpatialUMAP:
         df_density_matrix = pd.concat(results)
         full_array = None
         for ii, phenotype in enumerate(phenotypes):
-            cols2Use = np.arange(0, num_ranges, 1) + (ii*(num_ranges))
-            array_set = df_density_matrix.iloc[:, cols2Use].to_numpy()
+            cols2Use = [f'{phenotype} in range {x}' for x in range_strings]
+            array_set = df_density_matrix.loc[:, cols2Use].to_numpy()
             if full_array is None:
                 full_array = array_set
             else:
                 full_array = np.dstack((full_array, array_set))
+
+        full_array_nan = np.isnan(full_array)
+        full_array[full_array_nan] = 0
 
         # Concatenate the results into a single dataframe
         return full_array
@@ -308,7 +311,7 @@ class SpatialUMAP:
                         for irange in range(num_ranges):
                             range_string = range_strings[irange]
                             # note that since we are adding columns dynamically that the order of these columns may not be logical because sometimes there are no centers or no neighbors
-                            df_num_neighbors_image.loc[center_loc_for_image, f'Number of neighbors of type {neighbor_phenotype} in range {range_string}'] = nneighbors[:, irange]  
+                            df_num_neighbors_image.loc[center_loc_for_image, f'{neighbor_phenotype} in range {range_string}'] = nneighbors[:, irange]
 
         # Print the time taken to calculate the number of neighbors for the current image
         if debug_output:
