@@ -46,6 +46,13 @@ def main():
     # Initialization
     show_dataframe_updates = False
 
+    # Create a button to reset the Datafile Unifier
+    if st.button("Reset Datafile Unifier"):
+        # Delete all keys in the session state starting with "unifier__"
+        keys_to_delete = [key for key in st.session_state.keys() if key.startswith("unifier__")]
+        for key in keys_to_delete:
+            del st.session_state[key]
+
     # Write a message to the user
     st.write('After completing Section :one:, a sample of your dataset will be displayed at bottom. Use the sample to help you complete the rest of the sections on this page.')
 
