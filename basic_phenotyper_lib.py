@@ -17,13 +17,10 @@ from sklearn.cluster import KMeans # K-Means
 
 from benchmark_collector import benchmark_collector # Benchmark Collector Class
 
-def preprocess_df(df_orig, marker_names, marker_col_prefix):
+def preprocess_df(df_orig, marker_names, marker_col_prefix, bc):
     '''Perform some preprocessing on our dataset to apply tranforms
     and collect meta-data
     '''
-
-    # Create the bench mark collector obj
-    bc = benchmark_collector()
 
     # Set df_raw as the baseline dataframe
     df_raw = df_orig.copy()
@@ -526,6 +523,7 @@ def setup_Spatial_UMAP(df, marker_names, pheno_order, cpu_pool_size = 1):
     spatial_umap.cell_positions = spatial_umap.cells[['Cell X Position', 'Cell Y Position']].values
     # set explicitly as one hot data frame the cell labels
     spatial_umap.cell_labels = pd.get_dummies(spatial_umap.cells['Lineage'])
+    spatial_umap.cell_labels = spatial_umap.cell_labels[spatial_umap.species]
     # set the region is to be analyzed (a TMA core is treated similar to a region of a interest)
     spatial_umap.region_ids = spatial_umap.cells.TMA_core_id.unique()
     # default cluster values
@@ -548,7 +546,8 @@ def perform_density_calc(spatial_umap, bc, cpu_pool_size = 1):
     # get the counts per cell and save to pickle file
     print('Starting Cell Counts process')
     bc.startTimer()
-    spatial_umap.get_counts(pool_size=cpu_pool_size)
+    # spatial_umap.get_counts(pool_size=cpu_pool_size)
+    spatial_umap.get_counts_And()
     bc.printElapsedTime(f'Calculating Counts for {len(spatial_umap.cells)} cells')
 
     # get the areas of cells and save to pickle file
@@ -563,11 +562,9 @@ def perform_density_calc(spatial_umap, bc, cpu_pool_size = 1):
 
     return spatial_umap
 
-def perform_spatialUMAP(spatial_umap, UMAPStyle):
+def perform_spatialUMAP(spatial_umap, bc, UMAPStyle):
     import umap
-    from benchmark_collector import benchmark_collector # Benchmark Collector Class
 
-    bc = benchmark_collector()
     # set training and "test" cells for umap training and embedding, respectively
     print('Setting Train/Test Split')
     spatial_umap.set_train_test(n=2500, groupby_label = 'TMA_core_id', seed=54321)
