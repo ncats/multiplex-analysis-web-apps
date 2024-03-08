@@ -546,7 +546,8 @@ def perform_density_calc(spatial_umap, bc, cpu_pool_size = 1):
     # get the counts per cell and save to pickle file
     print('Starting Cell Counts process')
     bc.startTimer()
-    spatial_umap.get_counts(pool_size=cpu_pool_size)
+    # spatial_umap.get_counts(pool_size=cpu_pool_size)
+    spatial_umap.get_counts_And()
     bc.printElapsedTime(f'Calculating Counts for {len(spatial_umap.cells)} cells')
 
     # get the areas of cells and save to pickle file

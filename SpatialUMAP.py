@@ -486,7 +486,8 @@ class SpatialUMAP:
         '''
         Andrew's method for getting counts
         '''
-        self.counts = self.calculate_density_matrix_for_all_images()
+        print('Performing Counts using Andrews Method')
+        self.counts = self.calculate_density_matrix_for_all_images(debug_output=False, swap_inequalities=True)
 
     def get_areas(self, area_threshold, pool_size=2, save_file=None, plots_directory=None):
         self.clear_areas()
