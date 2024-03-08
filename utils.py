@@ -738,11 +738,12 @@ def dataframe_insert_possibly_existing_column(df, column_position, column_name, 
         pandas.DataFrame: The dataframe with the column added
     """
 
-    # If the column already exists, replace the column values; otherwise, add the column to the dataframe
+    # If the column already exists, delete it from the dataframe
     if column_name in df.columns:
-        df[column_name] = srs_column_values
-    else:
-        df.insert(column_position, column_name, srs_column_values)
+        df.drop(columns=column_name)
 
-    # Return the dataframe
-    return df
+    # Insert the column at the desired position
+    df.insert(column_position, column_name, srs_column_values)
+
+    # Return
+    return

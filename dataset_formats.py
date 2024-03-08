@@ -1,5 +1,13 @@
 import utils
 
+def reorder_column_in_dataframe(df, column_name, new_position):
+    if column_name not in df.columns:
+        print(f"Warning: Column '{column_name}' does not exist in the dataframe.")
+        return df
+    series = df.pop(column_name)
+    df.insert(new_position, column_name, series)
+    return df
+
 def extract_image_name(input_path):
     '''Extract the full image name from a HALO-formatted "Image Location" column.'''
     sep_char = '\\' if '\\' in input_path else '/'
@@ -1021,12 +1029,11 @@ class Standardized(Native):
 
         # Either patch up the dataset into ROIs and assign the ROI ("tag") column accordingly, or don't and assign the ROI column accordingly
         if 'ROI ID (standardized)' in df.columns:
-            df['tag'] = df['ROI ID (standardized)']
+            # df['tag'] = df['ROI ID (standardized)']
+            utils.dataframe_insert_possibly_existing_column(df, 1, 'tag', df['ROI ID (standardized)'])
         else:
             df = potentially_apply_patching(df, input_datafile, roi_width, overlap, func_coords_to_pixels, func_microns_to_pixels)
-
-        # Move the "tag" column in df to the second position
-        df = df[['Slide ID', 'tag'] + [col for col in df.columns if col != 'Slide ID' and col != 'tag']]
+            df = reorder_column_in_dataframe(df, 'tag', 1)
 
         # Overwrite the original dataframe with the one having the appended ROI column (I'd imagine this line is unnecessary)
         self.data = df
@@ -1062,8 +1069,9 @@ class Standardized(Native):
         df = df.rename(dict(zip(phenotype_columns, ['Phenotype {}'.format(x.strip()) for x in phenotype_columns])), axis='columns')
 
         # For each phenotype column, convert to -'s and +'s
-        for col in df.filter(regex='^Phenotype\ '):
+        for icolumn, col in enumerate(df.filter(regex='^Phenotype\ ')):
             df[col] = df[col].apply(lambda x: x[-1] if isinstance(x, str) else '-' if x == 0 else '+')
+            df = reorder_column_in_dataframe(df, col, 4 + icolumn)
 
         # Attribute assignments from variables
         self.data = df

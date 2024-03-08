@@ -55,7 +55,7 @@ def main():
     # In the first column...
     with main_columns[0]:
 
-        # ---- 1. Select datafiles to combine --------------------------------------------------------------------------------------------------------------------------------
+        # ---- 1. Concatenate datafiles together --------------------------------------------------------------------------------------------------------------------------------
 
         # Display a header for the datafile selection section
         st.header(':one: Select datafiles to combine')
@@ -162,7 +162,7 @@ def main():
         # In the first column...
         with main_columns[0]:
 
-            # ---- 2. (Optional) Delete null rows --------------------------------------------------------------------------------------------------------------------------------
+            # ---- 2. (Optional) Drop null rows from the dataset --------------------------------------------------------------------------------------------------------------------------------
 
             # Display a header for the null row deletion section
             st.header('(Optional) :two: Delete null rows')
@@ -184,9 +184,13 @@ def main():
                     # Render a progress spinner while the rows are being deleted
                     with st.spinner('Deleting rows...'):
 
+                        # Perform the operation
                         row_count_before = len(df)
-                        st.session_state['unifier__df'] = df.dropna(subset=st.session_state['unifier__columns_to_drop_rows_by']).reset_index(drop=True).convert_dtypes()
-                        row_count_after = len(st.session_state['unifier__df'])
+                        df = df.dropna(subset=st.session_state['unifier__columns_to_drop_rows_by']).reset_index(drop=True).convert_dtypes()
+                        row_count_after = len(df)
+
+                        # Save this dataframe to memory
+                        st.session_state['unifier__df'] = df
 
                         # Save the setting used for this operation
                         st.session_state['unifier__columns_to_drop_rows_by_actual'] = st.session_state['unifier__columns_to_drop_rows_by']
@@ -207,7 +211,7 @@ def main():
         # In the second column...
         with main_columns[1]:
 
-            # ---- 3. Identify images --------------------------------------------------------------------------------------------------------------------------------
+            # ---- 3. Add an image column to the dataset --------------------------------------------------------------------------------------------------------------------------------
 
             # Display a header for the image identification section
             st.header(':three: Identify images')
@@ -254,7 +258,7 @@ def main():
             # Get a shortcut to the concatenated dataframe
             df = st.session_state['unifier__df']
 
-            # ---- 4. Identify regions of interest (ROIs) --------------------------------------------------------------------------------------------------------------------------------
+            # ---- 4. Add or delete a ROI column in the dataset --------------------------------------------------------------------------------------------------------------------------------
 
             # Display a header for the region of interest (ROI) identification section
             st.header(':four: Identify regions of interest (ROIs)')
@@ -318,7 +322,7 @@ def main():
             # Get a shortcut to the concatenated dataframe
             df = st.session_state['unifier__df']
 
-            # ---- 5. Identify coordinates --------------------------------------------------------------------------------------------------------------------------------
+            # ---- 5. Add two coordinate columns to the dataset --------------------------------------------------------------------------------------------------------------------------------
 
             # Display a header for the coordinate identification section
             st.header(':five: Identify coordinates')
@@ -419,107 +423,121 @@ def main():
         # In the third column...
         with main_columns[2]:
 
-            # ---- 3. Identify phenotypes --------------------------------------------------------------------------------------------------------------------------------
+            # ---- 6a. Identify phenotypes --------------------------------------------------------------------------------------------------------------------------------
 
             # Display a header for the phenotype identification section
-            st.header(':six: Identify phenotypes')
+            st.header('(Optional) :six: Identify phenotypes')
 
-            # Define possible formats for the phenotyping specification
-            phenotyping_specification_formats = [
-                'One binary column per phenotype (e.g., "-" or "+" in each column)',
-                'One column for all phenotypes (e.g., "CD4", "T cell", "FOXP3", "DAPI", "MHCII", etc.)',
-                'One "Class" column for all phenotypes in QuPath format (e.g., "CD4: FOXP3: MHCII", "CD4: Other: MHCII", "Other: FOXP3", etc.)'
-                ]
+            # Create an expander for the phenotype identification section
+            with st.expander('(Optional) Click to expand:', expanded=False):
             
-            # Allow the user to select the format of the phenotyping specification
-            if 'unifier__phenotyping_specification_format' not in st.session_state:
-                st.session_state['unifier__phenotyping_specification_format'] = phenotyping_specification_formats[0]
-            st.selectbox('Select the format of the phenotyping specification:', phenotyping_specification_formats, key='unifier__phenotyping_specification_format')
-            if st.session_state['unifier__phenotyping_specification_format'] == phenotyping_specification_formats[0]:
-                if 'unifier__phenotype_columns' not in st.session_state:
-                    st.session_state['unifier__phenotype_columns'] = df.columns[0]
-                st.multiselect('Select the columns that correspond to the phenotypes:', df.columns, key='unifier__phenotype_columns')
-            else:
-                if 'unifier__phenotype_column' not in st.session_state:
-                    st.session_state['unifier__phenotype_column'] = df.columns[0]
-                st.selectbox('Select the column that corresponds to the phenotypes:', df.columns, key='unifier__phenotype_column')
+                # Write a note to the user
+                st.write('Note: This section is for identifying *categorical* phenotype columns in the dataset. If you wish to use MAWA to perform phenotyping on the intensities (such as in the Multiaxial Gater), there is no need to complete this section.')
 
-            # Create a button to assign phenotypes to the dataframe
-            if st.button(':star2: Assign phenotypes :star2:'):
+                # Define possible formats for the phenotyping specification
+                phenotyping_specification_formats = [
+                    'One binary column per phenotype (e.g., "-" or "+" in each column)',
+                    'One column for all phenotypes (e.g., "CD4", "T cell", "FOXP3", "DAPI", "MHCII", etc.)',
+                    'One "Class" column for all phenotypes in QuPath format (e.g., "CD4: FOXP3: MHCII", "CD4: Other: MHCII", "Other: FOXP3", etc.)'
+                    ]
+                
+                # Allow the user to select the format of the phenotyping specification
+                if 'unifier__phenotyping_specification_format' not in st.session_state:
+                    st.session_state['unifier__phenotyping_specification_format'] = phenotyping_specification_formats[0]
+                st.selectbox('Select the format of the phenotyping specification:', phenotyping_specification_formats, key='unifier__phenotyping_specification_format')
+                if st.session_state['unifier__phenotyping_specification_format'] == phenotyping_specification_formats[0]:
+                    if 'unifier__phenotype_columns' not in st.session_state:
+                        st.session_state['unifier__phenotype_columns'] = df.columns[0]
+                    st.multiselect('Select the columns that correspond to the phenotypes:', df.columns, key='unifier__phenotype_columns')
+                else:
+                    if 'unifier__phenotype_column' not in st.session_state:
+                        st.session_state['unifier__phenotype_column'] = df.columns[0]
+                    st.selectbox('Select the column that corresponds to the phenotypes:', df.columns, key='unifier__phenotype_column')
 
-                # Render a progress spinner while the phenotypes are being assigned
-                with st.spinner('Assigning phenotypes...'):
+                # Create a button to assign phenotypes to the dataframe
+                if st.button('Select phenotypes'):
 
-                    # Perform the operation
-                    if st.session_state['unifier__phenotyping_specification_format'] == phenotyping_specification_formats[0]:
-                        st.session_state['unifier__df_phenotypes'] = df[st.session_state['unifier__phenotype_columns']]
-                    elif st.session_state['unifier__phenotyping_specification_format'] == phenotyping_specification_formats[1]:
-                        st.session_state['unifier__df_phenotypes'] = df[st.session_state['unifier__phenotype_column']].str.get_dummies()
-                    else:
-                        st.session_state['unifier__df_phenotypes'] = df[st.session_state['unifier__phenotype_column']].str.get_dummies(sep=': ')
+                    # Render a progress spinner while the phenotypes are being assigned
+                    with st.spinner('Selecting phenotypes...'):
 
-                    # # Save this dataframe to memory
-                    # st.session_state['unifier__df'] = pd.concat([df, df_phenotypes], axis=1)
-                        
-                    # Save the settings used for this operation
-                    st.session_state['unifier__phenotyping_specification_format_actual'] = st.session_state['unifier__phenotyping_specification_format']
-                    if st.session_state['unifier__phenotyping_specification_format'] == phenotyping_specification_formats[0]:
-                        st.session_state['unifier__phenotype_columns_actual'] = st.session_state['unifier__phenotype_columns']
-                    else:
-                        st.session_state['unifier__phenotype_column_actual'] = st.session_state['unifier__phenotype_column']
+                        # Perform the operation
+                        if st.session_state['unifier__phenotyping_specification_format'] == phenotyping_specification_formats[0]:
+                            st.session_state['unifier__df_phenotypes'] = df[st.session_state['unifier__phenotype_columns']]
+                        elif st.session_state['unifier__phenotyping_specification_format'] == phenotyping_specification_formats[1]:
+                            st.session_state['unifier__df_phenotypes'] = df[st.session_state['unifier__phenotype_column']].str.get_dummies()
+                        else:
+                            # st.session_state['unifier__df_phenotypes'] = df[st.session_state['unifier__phenotype_column']].str.get_dummies(sep=': ')
+                            st.session_state['unifier__df_phenotypes'] = df[st.session_state['unifier__phenotype_column']].str.get_dummies(sep=': ').drop(columns='Other')
 
-                # Display a success message
-                st.toast('Phenotype columns extracted successfully')
+                        # Save the settings used for this operation
+                        st.session_state['unifier__phenotyping_specification_format_actual'] = st.session_state['unifier__phenotyping_specification_format']
+                        if st.session_state['unifier__phenotyping_specification_format'] == phenotyping_specification_formats[0]:
+                            st.session_state['unifier__phenotype_columns_actual'] = st.session_state['unifier__phenotype_columns']
+                        else:
+                            st.session_state['unifier__phenotype_column_actual'] = st.session_state['unifier__phenotype_column']
 
-            # If the selected columns to define phenotypes have changed since the last time phenotypes were defined, display a warning
-            display_warning = False
-            if st.session_state['unifier__phenotyping_specification_format'] == phenotyping_specification_formats[0]:
-                if ('unifier__phenotyping_specification_format_actual' in st.session_state) and any(st.session_state[key] != st.session_state[key + '_actual'] for key in ['unifier__phenotyping_specification_format', 'unifier__phenotype_columns']):
-                    display_warning = True
-            else:
-                if ('unifier__phenotyping_specification_format_actual' in st.session_state) and any(st.session_state[key] != st.session_state[key + '_actual'] for key in ['unifier__phenotyping_specification_format', 'unifier__phenotype_column']):
-                    display_warning = True
-            if display_warning:
-                st.warning('The format used to define phenotypes has changed since the last time phenotypes were defined. Please re-assign the phenotypes or adjust the settings to match the previous ones.')
+                    # Display a success message
+                    st.toast('Phenotype columns extracted successfully')
 
-            # Next steps:
-                # - Go through the following code and make sure it is all correct
-                # - Create a button to rename the phenotypes
-                # - Concatenate the result to the main dataframe
-                # - More? Add above general steps probably
-                # - Configure editability of the dataframe editor columns
+                # If the selected columns to define phenotypes have changed since the last time phenotypes were defined, display a warning
+                display_warning = False
+                if st.session_state['unifier__phenotyping_specification_format'] == phenotyping_specification_formats[0]:
+                    if ('unifier__phenotyping_specification_format_actual' in st.session_state) and any(st.session_state[key] != st.session_state[key + '_actual'] for key in ['unifier__phenotyping_specification_format', 'unifier__phenotype_columns']):
+                        display_warning = True
+                else:
+                    if ('unifier__phenotyping_specification_format_actual' in st.session_state) and any(st.session_state[key] != st.session_state[key + '_actual'] for key in ['unifier__phenotyping_specification_format', 'unifier__phenotype_column']):
+                        display_warning = True
+                if display_warning:
+                    st.warning('The format used to define phenotypes has changed since the last time phenotypes were defined. Please re-select the phenotypes or adjust the settings to match the previous ones.')
 
-            # Create a two-column editable dataframe, where both columns hold the column names of st.session_state['unifier__df_phenotypes'] but the first is not editable and the second is editable, allowing the user to rename the phenotypes
-            if 'unifier__df_phenotypes' in st.session_state:
-                df_phenotypes = st.session_state['unifier__df_phenotypes']
-                df_phenotype_names = pd.DataFrame({'Original phenotype name': df_phenotypes.columns, 'New phenotype name': df_phenotypes.columns})
-                st.write('The following table allows you to optionally rename the extracted phenotypes. Replace the values in the second column with the new phenotype name.')
-                if 'unifier__de_phenotype_names' not in st.session_state:
-                    st.session_state['unifier__de_phenotype_names'] = sde.DataframeEditor(df_name='unifier__df_phenotype_names', default_df_contents=df_phenotype_names)
-                st.session_state['unifier__de_phenotype_names'].dataframe_editor(reset_data_editor_button_text='Reset phenotype names')
+                # ---- 6b. Add phenotype columns to the dataset --------------------------------------------------------------------------------------------------------------------------------
+                    
+                # Create a two-column editable dataframe, where both columns hold the column names of st.session_state['unifier__df_phenotypes'] but the first is not editable and the second is editable, allowing the user to rename the phenotypes
+                if 'unifier__df_phenotypes' in st.session_state:
 
-                # Set a flag to update the dataframe sample at the bottom of the page
-                show_dataframe_updates = True
+                    # Display a header for the phenotype renaming section
+                    st.write('Optionally rename the phenotypes.')
 
-            # Get a shortcut to the concatenated dataframe
-            df = st.session_state['unifier__df']
+                    # Display a dataframe of phenotype names for the user to edit
+                    df_phenotypes = st.session_state['unifier__df_phenotypes']
+                    columns = [column.strip().replace('+', '-pos') for column in df_phenotypes.columns]  # replace '+' with '-pos' to avoid issues in the Phenotyper
+                    if 'unifier__de_phenotype_names' not in st.session_state:
+                        st.session_state['unifier__de_phenotype_names'] = sde.DataframeEditor(df_name='unifier__df_phenotype_names', default_df_contents=pd.DataFrame({'Original phenotype name': columns, 'New phenotype name': columns}))
+                    column_config={'Original phenotype name': st.column_config.TextColumn(disabled=True), 'New phenotype name': st.column_config.TextColumn(help='Optionally replace the values in this column with a new phenotype name.', required=True, validate='^[a-zA-Z0-9 \-_,\.()]+$')}
+                    st.session_state['unifier__de_phenotype_names'].dataframe_editor(reset_data_editor_button_text='Reset phenotype names', column_config=column_config)
 
+                    # Create a button to rename the phenotypes
+                    if st.button(':star2: Rename phenotypes :star2:'):
 
-            
-            # Allow the user to select the which columns correspond to the markers/phenotypes
-            # st.header(':four: Select marker/phenotype columns')
-            # st.multiselect('Optional: Select the categorical columns that correspond to the markers/phenotypes (i.e., thresholded intensities):', df_columns, key='unifier__marker_columns')
-            # if st.button(':star2: Set ROI identifier :star2:'):
-            #     st.session_state['unifier__roi_identifier'] = roi_identifier
-            #     st.toast('ROI identifier set successfully')
-            # if 'unifier__roi_identifier' in st.session_state:
-            #     st.write('ROI identifier column: {}'.format(st.session_state['unifier__roi_identifier']))
-            # cols_to_keep = ['Slide ID', 'tag', 'Cell X Position', 'Cell Y Position'] + df.loc[0, :].filter(regex='^Phenotype ').index.tolist()
-            # cols_to_keep = ['Slide ID', 'tag', 'Cell X Position', 'Cell Y Position'] + df.loc[0, :].filter(regex='^Phenotype ').index.tolist() + extra_cols_to_keep
-            # delete ROIs with single coordinates
-            # optionally apply patching
-            # do whatever is in HALO's pipeline
-            # pick up going through dataset_formats.py line 218
+                        # Render a progress spinner while the phenotypes are being renamed
+                        with st.spinner('Renaming phenotypes...'):
+
+                            # Perform the operation
+                            df_phenotype_names = st.session_state['unifier__de_phenotype_names'].reconstruct_edited_dataframe()
+                            df_phenotypes = df_phenotypes.rename(columns=dict(zip(df_phenotype_names['Original phenotype name'], df_phenotype_names['New phenotype name'])))
+
+                            # Prepend "Phenotype (standardized) " to the column names
+                            df_phenotypes.columns = ['Phenotype (standardized) ' + column for column in df_phenotypes.columns]
+
+                            # Add each phenotype column to the main dataframe, starting with position st.session_state['unifier__num_roi_columns_actual'] + 3
+                            for icolumn, column in enumerate(df_phenotypes.columns):
+                                utils.dataframe_insert_possibly_existing_column(df, st.session_state['unifier__num_roi_columns_actual'] + 3 + icolumn, column, df_phenotypes[column])
+
+                            # Save this dataframe to memory
+                            st.session_state['unifier__df'] = df
+
+                            # Save the settings used for this operation
+                            # Not actually setting this since I don't reconstruct the phenotype names dataframe df_phenotype_names on every page run. It's probably not that slow, but for now I'll just leave it out
+                            # st.session_state['unifier__df_phenotype_names_actual'] = df_phenotype_names
+
+                        # Display a success message
+                        st.toast(f'{df_phenotypes.shape[1]} phenotype columns added to the main dataframe successfully')
+
+                    # Set a flag to update the dataframe sample at the bottom of the page
+                    show_dataframe_updates = True
+
+                # Get a shortcut to the concatenated dataframe
+                df = st.session_state['unifier__df']
 
         # Output a sample of the concatenated dataframe
         st.divider()
