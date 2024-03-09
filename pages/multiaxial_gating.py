@@ -121,6 +121,7 @@ def add_new_phenotypes_to_main_df(df, image_for_filtering):
         print()
 
         # For each set of phenotype assignments...
+        phenotype_name_changes = dict()
         for iphenotype, row in enumerate(df_phenotype_assignments.itertuples()):
 
             # Obtain the name of the current phenotype
@@ -172,15 +173,23 @@ def add_new_phenotypes_to_main_df(df, image_for_filtering):
             print('  Phenotype object count: {}'.format(curr_phenotype_count))
 
             # Add a column to the original dataframe with the new phenotype satisfying all of its filtering criteria
-            st.session_state['mg__df'].loc[image_loc, 'Phenotype {}'.format(phenotype)] = phenotype_bools.apply(lambda x: ('+' if x else '-'))
+            old_phenotype_name = phenotype
+            new_phenotype_name = phenotype.strip().replace('+', '(pos)').replace('-', '(neg)')
+            if old_phenotype_name != new_phenotype_name:
+                phenotype_name_changes[old_phenotype_name] = new_phenotype_name
+            st.session_state['mg__df'].loc[image_loc, 'Phenotype {}'.format(new_phenotype_name)] = phenotype_bools.apply(lambda x: ('+' if x else '-'))  # since '+' and '-' are forbidden for the time being
 
         # Debugging output
         print('------------------------')
 
+        # If any phenotype names were changed, output the changes
+        if phenotype_name_changes:
+            st.info(f'These phenotype transformations were made to avoid "+" and "-" characters: {phenotype_name_changes}')
+
         # Save the gating table to disk
         gating_filename = 'gating_table_for_{}_for_datafile_{}-{}.csv'.format(filtering_section_name, '.'.join(st.session_state['mg__input_datafile_filename'].split('.')[:-1]), datetime.now().strftime("date%Y_%m_%d_time%H_%M_%S"))
         df_phenotype_assignments.to_csv(path_or_buf=os.path.join(os.path.join('.', 'output'), gating_filename), index=True)
-        st.write('File {} written to disk'.format(gating_filename))
+        st.info('File {} written to disk'.format(gating_filename))
 
 # Function to clear the session state as would be desired when loading a new dataset
 def clear_session_state(keep_keys=[]):
@@ -553,6 +562,7 @@ def main():
             st.session_state['mg__de_current_phenotype'].dataframe_editor(reset_data_editor_button_text='Reset current phenotype definition', on_change=basic_filter_column_updates)
 
             # Choose a phenotype name
+            st.write('It is fine to use "+" and "-" in the phenotype name below, but keep in mind they will be replaced with "(pos)" and "(neg)" in the final dataset.')
             st.text_input(label='Phenotype name:', key='mg__current_phenotype_name')
 
             # Add the current phenotype to the phenotype assignments table

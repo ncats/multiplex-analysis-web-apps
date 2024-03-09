@@ -454,7 +454,7 @@ def main():
                 st.selectbox('Select the format of the phenotyping specification:', phenotyping_specification_formats, key='unifier__phenotyping_specification_format')
                 if st.session_state['unifier__phenotyping_specification_format'] == phenotyping_specification_formats[0]:
                     if 'unifier__phenotype_columns' not in st.session_state:
-                        st.session_state['unifier__phenotype_columns'] = df.columns[0]
+                        st.session_state['unifier__phenotype_columns'] = []
                     st.multiselect('Select the columns that correspond to the phenotypes:', df.columns, key='unifier__phenotype_columns')
                 else:
                     if 'unifier__phenotype_column' not in st.session_state:
@@ -503,14 +503,14 @@ def main():
                 if 'unifier__df_phenotypes' in st.session_state:
 
                     # Display a header for the phenotype renaming section
-                    st.write('Optionally rename the phenotypes.')
+                    st.write('Optionally rename the phenotypes. Note: It is fine to use "+" and "-" in the phenotype names, but keep in mind they will be replaced with "(pos)" and "(neg)" in the final dataset.')
 
                     # Display a dataframe of phenotype names for the user to edit
                     df_phenotypes = st.session_state['unifier__df_phenotypes']
-                    columns = [column.strip().replace('+', '-pos') for column in df_phenotypes.columns]  # replace '+' with '-pos' to avoid issues in the Phenotyper
+                    columns = df_phenotypes.columns
                     if 'unifier__de_phenotype_names' not in st.session_state:
                         st.session_state['unifier__de_phenotype_names'] = sde.DataframeEditor(df_name='unifier__df_phenotype_names', default_df_contents=pd.DataFrame({'Original phenotype name': columns, 'New phenotype name': columns}))
-                    column_config={'Original phenotype name': st.column_config.TextColumn(disabled=True), 'New phenotype name': st.column_config.TextColumn(help='Optionally replace the values in this column with a new phenotype name.', required=True, validate='^[a-zA-Z0-9 \-_,\.()]+$')}
+                    column_config={'Original phenotype name': st.column_config.TextColumn(disabled=True), 'New phenotype name': st.column_config.TextColumn(help='Optionally replace the values in this column with a new phenotype name.', required=True)}
                     st.session_state['unifier__de_phenotype_names'].dataframe_editor(reset_data_editor_button_text='Reset phenotype names', column_config=column_config)
 
                     # Create a button to rename the phenotypes
@@ -521,7 +521,16 @@ def main():
 
                             # Perform the operation
                             df_phenotype_names = st.session_state['unifier__de_phenotype_names'].reconstruct_edited_dataframe()
-                            df_phenotypes = df_phenotypes.rename(columns=dict(zip(df_phenotype_names['Original phenotype name'], df_phenotype_names['New phenotype name'])))
+                            df_phenotypes = df_phenotypes.rename(columns=dict(zip(df_phenotypes.columns, df_phenotype_names['New phenotype name'])))
+
+                            # Remove invalid characters from the column names
+                            old_phenotype_names = df_phenotypes.columns.copy()
+                            df_phenotypes.columns = [column.strip().replace('+', '(pos)').replace('-', '(neg)') for column in df_phenotypes.columns]  # since '+' and '-' are forbidden for the time being
+
+                            # Create a dictionary holding the old and new phenotype names for only the phenotypes that were actually renamed
+                            renamed_phenotypes = {k: v for k, v in zip(old_phenotype_names, df_phenotypes.columns) if k != v}
+                            if renamed_phenotypes:
+                                st.info(f'These phenotype transformations were made to avoid "+" and "-" characters: {renamed_phenotypes}')
 
                             # Prepend "Phenotype (standardized) " to the column names
                             df_phenotypes.columns = ['Phenotype (standardized) ' + column for column in df_phenotypes.columns]
