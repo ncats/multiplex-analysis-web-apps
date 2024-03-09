@@ -556,6 +556,9 @@ def main():
                 # Get a shortcut to the concatenated dataframe
                 df = st.session_state['unifier__df']
 
+        # Split the page into three main columns again
+        main_columns = st.columns(3)
+
         # In the second column...
         with main_columns[1]:
 
@@ -573,7 +576,7 @@ def main():
             custom_text = custom_text.replace(' ', '_')
 
             # Generate the filename
-            filename = f'mawa-unified_datafile-{custom_text}-{datetime.now().strftime('date%Y_%m_%d_time%H_%M_%S')}.csv'
+            filename = f'mawa-unified_datafile-{custom_text}-{datetime.now().strftime("date%Y_%m_%d_time%H_%M_%S")}.csv'
 
             # Create a button to save the dataframe to a CSV file
             if st.button(':star2: Save dataframe to CSV :star2:'):

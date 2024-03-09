@@ -193,7 +193,7 @@ def add_new_phenotypes_to_main_df(df, image_for_filtering):
 
 # Function to clear the session state as would be desired when loading a new dataset
 def clear_session_state(keep_keys=[]):
-    for key in (set(st.session_state.keys()) - set(keep_keys)):
+    for key in (set([key for key in st.session_state.keys() if key.startswith('mg__')]) - set(keep_keys)):
         del st.session_state[key]
 
 # Callback to run every time the intensity column multiselect is modified
