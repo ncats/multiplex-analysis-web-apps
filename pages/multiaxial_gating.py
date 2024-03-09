@@ -616,8 +616,8 @@ def main():
                 # Initialize the plot of an optional cell scatter plot to the first image in the dataset
                 if 'mg__image_to_plot' not in st.session_state:
                     st.session_state['mg__image_to_plot'] = unique_images_short[0]
-                if 'mg__phenotype_to_plot' not in st.session_state:
-                    st.session_state['mg__phenotype_to_plot'] = new_phenotypes[0]
+                if ('mg__phenotype_to_plot' not in st.session_state) or (st.session_state['mg__phenotype_to_plot'] not in new_phenotypes):
+                    st.session_state['mg__phenotype_to_plot'] = new_phenotypes[0] if new_phenotypes else None
 
                 # Generate widgets for the plotting parameters
                 st.selectbox(label='Image to plot:', options=unique_images_short, key='mg__image_to_plot')

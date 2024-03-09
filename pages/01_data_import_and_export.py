@@ -46,6 +46,8 @@ def main():
     # In the second column...
     with cols[1]:
         platform.load_selected_inputs()
+        st.divider()
+        platform.save_selected_input()
 
     # In the third column...
     with cols[2]:
