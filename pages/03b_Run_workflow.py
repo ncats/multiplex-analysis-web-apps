@@ -9,6 +9,9 @@ import app_top_of_page as top
 import streamlit_dataframe_editor as sde
 
 def main():
+    '''
+    Main function for running the page
+    '''
 
     # Set a wide layout
     st.set_page_config(layout="wide")

@@ -4,6 +4,7 @@ Specifically to mark the time it takes for functions to run
 and save their values in a spreadsheet (if wanted)
 '''
 
+import os
 import time
 import numpy as np
 import pandas as pd
@@ -12,35 +13,48 @@ from datetime import datetime
 class benchmark_collector:
     '''
     benchmark_collector (bc) class. Used for timing the execution
-    of functions withing MAWA.
+    of functions within MAWA.
     '''
     def __init__(self, fiol = None):
         '''
         Initialize the benchmarking class
         '''
 
+        column_names = ['id',
+                'on_NIDAP', 
+                'file',
+                'nSlides', 
+                'nCells',
+                'CellsxSlide',
+                'time_load_data',
+                'time_to_run_counts',
+                'time_to_run_UMAP',
+                'time_to_run_cluster']
+        self.benchmarkDF = pd.DataFrame(columns = column_names)
+
         self.fiol = fiol
         if self.fiol is None:
-            on_nidap = False
+            self.on_nidap = False
         else:
-            on_nidap = self.fiol.onNIDAP
+            self.on_nidap = self.fiol.onNIDAP
 
-        self.benchmark_csv = "C:/Users/smithdaj/OneDrive - National Institutes of Health/Documents - NCATS-NCI-DMAP/MAWA/MAWA_Suite_Benchmarking.csv"
+        sharepoint_path = "C:/Users/smithdaj/OneDrive - National Institutes of Health/Documents - NCATS-NCI-DMAP/MAWA/"
+        localdir = './output'
+        if os.path.exists(sharepoint_path):
+            print('Sharepoint path found, using it for benchmarking csv file.')
+            localdir = sharepoint_path
+
+        self.benchmark_csv = os.path.join(localdir, 'MAWA_Suite_Benchmarking.csv')
+
+        if os.path.exists(self.benchmark_csv) is False:
+            print('Could not find benchmarking file, creating new one')
+            self.create_new_csv()
+
         self.benchmark_project_path = '/NIH/Data Management & Analysis Program (DMAP)/benchmarking/'
-        self.benchmark_dataset     = 'Neighborhood-Profiles-Benchmarks'
+        self.benchmark_dataset      = 'Neighborhood-Profiles-Benchmarks'
 
-        d = {'id': [datetime.now()],
-             'on_NIDAP': [on_nidap],
-             'file': [None],
-             'nSlides': [None],
-             'nCells': [None],
-             'CellsxSlide': [None],
-             'time_load_data': [None],
-             'time_to_run_counts': [None],
-             'time_to_run_UMAP': [None],
-             'time_to_run_cluster': [None]}
-        self.benchmarkDF = pd.DataFrame(data = d)
-
+        self.benchmarkDF.loc[0, 'id']       = datetime.now()
+        self.benchmarkDF.loc[0, 'on_NIDAP'] = self.on_nidap
         self.stTimer = None
         self.spTimer = None
 
@@ -84,6 +98,13 @@ class benchmark_collector:
         Add a field/value combo to the dataframe
         '''
         self.benchmarkDF[field] = value
+
+    def create_new_csv(self):
+        '''
+        Create a new csv file for benchmarking
+        '''
+        self.benchmarkDF.to_csv(self.benchmark_csv, mode='w', index=False)
+        print('Created new Benchmarking csv')
 
     def save_run_to_csv(self):
         '''

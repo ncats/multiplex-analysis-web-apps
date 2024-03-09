@@ -25,11 +25,6 @@ def main():
     # Run Top of Page (TOP) functions
     st.session_state = top.top_of_page_reqs(st.session_state)
 
-    if 'init' not in st.session_state:
-        settings_yaml_file = 'config_files/OMAL_REEC.yml'
-        # Initialize session_state values for streamlit processing
-        st.session_state = ndl.init_session_state(st.session_state, settings_yaml_file)
-
     st.header('Clusters Analyzer\nNCATS-NCI-DMAP')
 
     st.radio("Filter by Phenotypes or Markers?",

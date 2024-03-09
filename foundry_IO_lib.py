@@ -1,3 +1,6 @@
+'''
+Class for handling the Input and Output of Foundry Datasets
+'''
 import io
 import os
 import pandas as pd
@@ -15,12 +18,12 @@ class foundry_IO_lib:
     """
     def __init__(self):
         """
-        Initializes a FIOL (Foundry IO Lib) Object
+        Initializes a FIOL (Foundry Input/Output Library) Object
         """
 
-        hostN = os.environ.get('FOUNDRY_HOSTNAME', 'Not found')
+        host_name = os.environ.get('FOUNDRY_HOSTNAME', 'Not found')
         token = os.environ.get('FOUNDRY_TOKEN', 'Not found')
-        if (hostN == 'Not found') | (token == 'Not found'):
+        if (host_name == 'Not found') | (token == 'Not found'):
             # Import SDK handling library
             from palantir.datasets import dataset
             self.dataset = dataset
@@ -62,13 +65,12 @@ class foundry_IO_lib:
         """
 
         if self.onNIDAP:
-            filesDict = self.dataset.get(projectPath).files().download()
+            files_dict = self.dataset.get(projectPath).files().download()
         else:
-            files = self.dataset(projectPath).list_files()
-            fileList = list(files)
-            filePaths = [file.path for file in fileList]
-            filesDict = dict(zip(filePaths, fileList))
-        return filesDict
+            file_list = list(self.dataset(projectPath).list_files())
+            file_paths = [file.path for file in file_list]
+            files_dict = dict(zip(file_paths, file_list))
+        return files_dict
 
     def load_dataset(self, dataset_path, files_dict, file_path, loadCompass=False):
         """
@@ -100,50 +102,50 @@ class foundry_IO_lib:
         # Local Import
         else:
             return pd.read_csv(dataset_path, sep=',')
-        
-    def export_results_dataset(self, df, path, filename, saveCompass=False, type = 'S', create = True):
+
+    def export_results_dataset(self, df, path, filename, save_compass=False, ds_type = 'S', create = True):
         """
         Write a dataset and phenotype assignments to disk.
 
         Args:
             df (Pandas dataframe): Dataframe containing some data
             path (str): Name of the CSV file
-            saveCompass (bool, optional): Whether or not we are saving to NIDAP or not
-            type (string, 'S' or 'U'): (S)tructured or (U)nstructured dataset export
+            save_compass (bool, optional): Whether or not we are saving to NIDAP or not
+            ds_type (string, 'S' or 'U'): (S)tructured or (U)nstructured dataset export
         """
         # Save to Compass
-        if saveCompass:
+        if save_compass:
             if self.onNIDAP:
                 # Unstructured Dataset Export
-                if type == 'U':
+                if ds_type == 'U':
                     # First save it to a temp file
-                    foundryObj = self.dataset.get(path)
-                    fileNameFull = filename + '.csv'
-                    df.to_csv(fileNameFull, index=False)
-                    foundryObj.upload_file(fileNameFull)
-                    os.remove(fileNameFull)
+                    foundry_obj = self.dataset.get(path)
+                    filename_full = filename + '.csv'
+                    df.to_csv(filename_full, index=False)
+                    foundry_obj.upload_file(filename_full)
+                    os.remove(filename_full)
 
                 # Structured Dataset Export
-                elif type == 'S':
+                elif ds_type == 'S':
                     full_path = path + filename
                     ds = self.dataset(full_path, create=create)
                     ds.write_pandas(df)
             else:
                 # Unstructured Dataset Export
-                if type == 'U':
+                if ds_type == 'U':
                     # First save it to a temp file
                     df.to_csv('temp.csv', index=False)
                     # Next open it as binary, read it, then close
                     in_file = open('temp.csv', "rb") # opening for [r]eading as [b]inary
-                    csvData = in_file.read()
+                    csv_data = in_file.read()
                     in_file.close()
                     # Finally, ship it to NIDAP
                     self.dataset(path) \
                         .file(filename + '.csv') \
-                        .write(content = csvData)
+                        .write(content = csv_data)
                     os.remove('temp.csv')
                 # Structured Dataset Export
-                elif type == 'S':
+                elif ds_type == 'S':
                     full_path = path + filename
                     ds = self.dataset(full_path, create=create)
                     ds.write_pandas(df)
@@ -159,31 +161,34 @@ class foundry_IO_lib:
         """
 
         # File Name
-        fileNameFull = pngFileName + '.png'
+        filename_full = pngFileName + '.png'
         # Save as a png in the local directory using the Matplotlib 'savefig' method
-        pltFig.savefig(fileNameFull)
+        pltFig.savefig(filename_full)
 
         if self.onNIDAP:
-            foundryObj = self.dataset.get(datafile)
-            foundryObj.upload_file(fileNameFull)
+            foundry_obj = self.dataset.get(datafile)
+            foundry_obj.upload_file(filename_full)
 
         else:
-            in_file = open(fileNameFull, 'rb') # opening for [r]eading as [b]inary
-            pngData = in_file.read()
+            in_file = open(filename_full, 'rb') # opening for [r]eading as [b]inary
+            png_data = in_file.read()
             in_file.close()
 
             self.dataset(datafile) \
-                .file(fileNameFull) \
-                .write(content = pngData)
-        
+                .file(filename_full) \
+                .write(content = png_data)
+
         # Once Upload is complete, delete the local file
-        os.remove(fileNameFull)
-        print(f'Uploaded {fileNameFull}')
+        os.remove(filename_full)
+        print(f'Uploaded {filename_full}')
 
     def export_file_dataset(self, dataset, filename):
+        '''
+        export file to a dataset to NIDAP
+        '''
         if self.onNIDAP:
-            foundryObj = self.dataset.get(dataset)
-            foundryObj.upload_file(f'output/{filename}')
+            foundry_obj = self.dataset.get(dataset)
+            foundry_obj.upload_file(f'output/{filename}')
 
         else:
             in_file = open(f'output/{filename}', 'rb') # opening for [r]eading as [b]inary
@@ -193,4 +198,3 @@ class foundry_IO_lib:
             self.dataset(dataset) \
                 .file(filename) \
                 .write(content = file_data)
-

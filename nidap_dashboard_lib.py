@@ -4,9 +4,7 @@ that supports the types of analysis activities needed by the
 NCI researchers with their data on NIDAP.
 '''
 
-import os
 import time
-import yaml
 import numpy as np
 import pandas as pd
 import altair as alt
@@ -21,6 +19,9 @@ from foundry_IO_lib import foundry_IO_lib           # Foundry Input/Output Class
 from benchmark_collector import benchmark_collector # Benchmark Collector Class
 
 def identify_col_type(col):
+    '''
+    Quick and dirty column identifaction function
+    '''
     dtypes = col.dtypes
     unique_vals = col.unique().sort()
     print(dtypes, unique_vals)
@@ -32,7 +33,7 @@ def identify_col_type(col):
     else:
         return 'not_bool'
 
-def init_session_state(session_state, settings_yaml_file):
+def init_session_state(session_state):
     """
     Initialize session_state values for streamlit processing
     """
@@ -45,19 +46,17 @@ def init_session_state(session_state, settings_yaml_file):
     session_state.fiol = foundry_IO_lib()
     session_state.bc   = benchmark_collector(session_state.fiol)
 
-    # Set the directory configurations
-    d = os.path.dirname(os.path.abspath(__file__))
-    settings_yaml_path = os.path.join(d, settings_yaml_file)
-    with open(settings_yaml_path, mode='rt') as file:
-        settings = yaml.load(file, yaml.UnsafeLoader)
-
     # Analysis Settings
-    session_state.marker_pre  = 'Phenotype ' # settings['analysis']['marker_pre']
+    session_state.marker_pre  = 'Phenotype '
 
-    # df Default
-    df_dict = {}
-    for feature in settings['def_df']:
-        df_dict[feature] = settings['def_df'][feature]
+    # Create a default dataframe (df_default)
+    # This is a placeholder for figures/tables before
+    # real data is loaded
+    df_dict = {'Slide ID': ['imagenum_Demo'],
+               'Cell X Position': [0],
+               'Cell Y Position': [0],
+               'Index': [1],
+               'Phenotype a': [1]}
 
     df_default                = pd.DataFrame(data = df_dict)
     session_state.reqFeatures = df_default.columns[:-1]
@@ -69,24 +68,13 @@ def init_session_state(session_state, settings_yaml_file):
 
     session_state['phenotyping_micron_coordinate_units'] = 0.25
 
-    # Features for Outcomes Analysis
-    session_state.outcomes_BOOL = settings['analysis']['outcomes_BOOL']
-    session_state.outcomes_nBOOL = settings['analysis']['outcomes_nBOOL']
-    session_state.outcomes_nBOOL_thresh = settings['analysis']['outcomes_nBOOL_thresh']
-    session_state.outcomes = session_state.outcomes_BOOL + session_state.outcomes_nBOOL
-
-    # Predefined Project Paths
-    session_state.projectPaths   = settings['dir']['projectPaths']
-    session_state.usDatasetPaths = settings['dir']['usDatasetPaths']
-
     # Dataset Dictionaries of files in each unstructure dataset
     # session_state.files_dict = {}
     # for dataset in session_state.usDatasetPaths:
     #     session_state.files_dict[dataset] = load_listofFiles(session_state.fiol, dataset)
 
     # List of DataSets to save CSV to
-    session_state.OutputCSVPaths_S = settings['dir']['OutputCSVPaths_S']
-    session_state.OutputCSVPaths_U = settings['dir']['OutputCSVPaths_U']
+    session_state.OutputCSVPaths_U = './output'
 
     # List of DataSets to save PNGS to
     session_state.OutputPNGPaths = session_state.OutputCSVPaths_U
@@ -128,7 +116,7 @@ def init_session_state(session_state, settings_yaml_file):
                                        
                                    '''
     # Error message when selected csv does not include the requisite features
-    session_state.errmsg_wrongCol = ''':green[Please only select .csv files that include columns listed in the  
+    session_state.errmsg_wrongCol = ''':green[Please only select .csv files that include columns listed in the
                                        Required DATASET Features (About Page). See Dante or Andrew for help]'''
 
     # Inital Phenotyping state
@@ -203,23 +191,20 @@ def loadDataButton(session_state, df_import, projectName, fileName):
     """
     print('Loading Data')
 
-    # Create the bench mark collector obj
-    bc = benchmark_collector()
-
     # Meta Data
     session_state.selectProj = projectName # Project Name
     session_state.datafile   = fileName    # File Name
     session_state.df_update_filename_U = session_state.datafile + '_updated'
 
     # Identify Markers in the dataset
-    bc.startTimer()
+    session_state.bc.startTimer()
     session_state.marker_names = bpl.identify_marker_columns(df_import, session_state.marker_pre)
-    bc.printElapsedTime(msg = 'Identifying Marker Names')
+    session_state.bc.printElapsedTime(msg = 'Identifying Marker Names')
 
     # Set Phenotyping Elements
-    bc.startTimer()
+    session_state.bc.startTimer()
     session_state = set_phenotyping_elements(session_state, df_import)
-    bc.printElapsedTime(msg = 'Setting Phenotying Elements')
+    session_state.bc.printElapsedTime(msg = 'Setting Phenotying Elements')
 
     # Data has now undergone enough transformation to be called 'LOADED'
     session_state.data_loaded = True
@@ -237,7 +222,7 @@ def loadDataButton(session_state, df_import, projectName, fileName):
     session_state.CHK_feat_widg = []
     session_state.SEL_feat = session_state.SEL_feat_widg + ['Slide ID']
     session_state.CHK_feat = session_state.CHK_feat_widg + ['has_pos_mark']
-    
+
     # if session_state.file_format == 'REEC':
     #     session_state.SEL_feat.extend(['tNt'])
     #     session_state.CHK_feat.extend(['GOODNUC'])
@@ -264,15 +249,15 @@ def loadDataButton(session_state, df_import, projectName, fileName):
         session_state.prog_right_disabeled = True
 
     # Perform Filtering
-    bc.startTimer()
+    session_state.bc.startTimer()
     session_state.df_filt = perform_filtering(session_state)
-    # bc.printElapsedTime(msg = 'Performing Filtering')
+    # session_state.bc.printElapsedTime(msg = 'Performing Filtering')
 
     # Set Figure Objects
-    bc.startTimer()
+    session_state.bc.startTimer()
     session_state = setFigureObjs(session_state)
     session_state.pointstSliderVal_Sel = session_state.calcSliderVal
-    # bc.printElapsedTime(msg = 'Setting Figure Objects')
+    # session_state.bc.printElapsedTime(msg = 'Setting Figure Objects')
 
     session_state.bc.set_value_df('file', fileName)
     session_state.bc.set_value_df('nSlides', session_state['numSlide ID'])
@@ -290,7 +275,7 @@ def set_phenotyping_elements(session_state, df_orig):
     session_state.df_raw, \
     session_state.df, \
     session_state.spec_summ, \
-    session_state.pheno_summ = bpl.preprocess_df(df_orig, session_state.marker_names, session_state.marker_pre)
+    session_state.pheno_summ = bpl.preprocess_df(df_orig, session_state.marker_names, session_state.marker_pre, session_state.bc)
 
     # Initalize Custom Phenotyping Variables
     session_state.spec_summ_load       = session_state.spec_summ.copy() # Default version that is loaded
@@ -334,8 +319,7 @@ def updatePhenotyping(session_state):
 
     # Initalize Species Summary Table
     session_state.spec_summ    = bpl.init_pheno_assign(session_state.df)
-    # Set the data_editor species summary 
-    
+
     if 'dataeditor__do_not_persist' in session_state:
         del session_state.dataeditor__do_not_persist
 
@@ -485,7 +469,7 @@ def setFigureObjs(session_state, InSliderVal = None):
     session_state.phenoOrder = list(session_state.pheno_summ.loc[session_state.pheno_summ['phenotype_count'].index, 'phenotype'])
 
     # NumPoints
-    targCellCount = 150000 
+    targCellCount = 150000
     df_plot = session_state.df_filt.copy()
 
     # minXY = df_plot[['Cell X Position', 'Cell Y Position']].min()-1
@@ -513,8 +497,8 @@ def setFigureObjs(session_state, InSliderVal = None):
 
     # Seaborn
     session_state.phenoFig, session_state.ax = bpl.draw_scatter_fig(figsize=session_state.figsize)
-    session_state.phenoFig = bpl.scatter_plot(df_plot, session_state.phenoFig, session_state.ax, title, 
-                                              xVar = 'Cell X Position', yVar = 'Cell Y Position', hueVar='phenotype', 
+    session_state.phenoFig = bpl.scatter_plot(df_plot, session_state.phenoFig, session_state.ax, title,
+                                              xVar = 'Cell X Position', yVar = 'Cell Y Position', hueVar='phenotype',
                                               hueOrder=session_state.phenoOrder)
 
     # Altair
@@ -855,15 +839,24 @@ def read_markdown_file(markdown_file):
     return Path(markdown_file).read_text()
 
 def save_csv(df, df_name):
-    df.to_csv(f'output/{df_name}_{time.strftime("%Y%m%d-%H%M%S")}.csv')
+    '''
+    Simple method for saving csv to the output folder
+    '''
 
-def save_png(imgObj, fig_type, suffix = None):
+    output_folder = 'output'
+    df.to_csv(f'{output_folder}/{df_name}_{time.strftime("%Y%m%d-%H%M%S")}.csv')
 
+def save_png(img_obj, fig_type, suffix = None):
+    '''
+    Simple method for saving png to the output folder
+    '''
+
+    output_folder = 'output'
     if suffix is not None:
         suffix = '_' + suffix
-    fileNameFull = f'output/{fig_type}_{time.strftime("%Y%m%d-%H%M%S")}{suffix}.png'
+    file_name_full = f'{output_folder}/{fig_type}_{time.strftime("%Y%m%d-%H%M%S")}{suffix}.png'
     # Save as a png in the local directory using the Matplotlib 'savefig' method
-    imgObj.savefig(fileNameFull)
+    img_obj.savefig(file_name_full)
 
 def save_png_dataset(fiol, datafile, pngFileName, pltFig):
     """

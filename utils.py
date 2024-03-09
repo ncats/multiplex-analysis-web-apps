@@ -1,3 +1,11 @@
+"""
+Set of scripts which support the other MAWA scripts
+"""
+
+# Import relevant library
+import numpy as np
+import scipy.spatial
+
 def set_filename_corresp_to_roi(df_paths, roi_name, curr_colname, curr_dir, curr_dir_listing):
     """Update the path in a main paths-holding dataframe corresponding to a particular ROI in a particular directory.
 
@@ -568,12 +576,22 @@ def wrap_calculate_neighbor_counts(args):
     center_coords, neighbor_coords, radii = args
     calculate_neighbor_counts(center_coords=center_coords, neighbor_coords=neighbor_coords, radii=radii, test=False)
 
-# Efficiently count neighbors around centers for an arbitrary number of radius ranges
-def calculate_neighbor_counts(center_coords=None, neighbor_coords=None, radii=None, test=False):
+def calculate_neighbor_counts(center_coords=None, neighbor_coords=None, radii=None, test=False, swap_inequalities=False):
+    """
+    calculate_neighbor_counts efficiently count neighbors around centers 
+    for an arbitrary number of radius ranges
 
-    # Import relevant libraries
-    import numpy as np
-    import scipy.spatial
+    Parameters
+    ----------
+    center_coords: Coordinates of the cell currently being cosnsidered
+    neighbor_coords: Coordinated of all other cells in the image
+    radii: Distances around the center cell to consider
+    test:
+
+    Returns
+    -------
+    neighbor_counts: Array of shape (num_centers, num_ranges)
+    """
 
     # If using test data
     if test:
@@ -582,7 +600,7 @@ def calculate_neighbor_counts(center_coords=None, neighbor_coords=None, radii=No
         neighbor_coords = rng.random(size=(5, 2))  # (num_neighbors, 2)
         radii = np.arange(0, 1.1, 0.1)  # (num_ranges + 1,) = (num_radii,)
 
-    # Otherwise, check the input data just a bit
+    # Otherwise, check the input data
     else:
         if (center_coords is None) or (neighbor_coords is None) or (radii is None):
             print('ERROR: None of center_coords, neighbor_coords, or radii can be None')
@@ -596,7 +614,10 @@ def calculate_neighbor_counts(center_coords=None, neighbor_coords=None, radii=No
 
     # Boolean matrix of whether the centers and neighbors are within the ranges
     # We may be able to make this more efficient by using the fact that the radii are sorted and calculating only one inequality, but this should still be pretty reasonable
-    in_ranges = (radii_sq[:, :, :-1] <= dist_mat_sq) & (dist_mat_sq < radii_sq[:, :, 1:])  # (num_centers, num_neighbors, num_radii - 1) = (num_centers, num_neighbors, num_ranges)
+    if not swap_inequalities:
+        in_ranges = (radii_sq[:, :, :-1] <= dist_mat_sq) & (dist_mat_sq < radii_sq[:, :, 1:])  # (num_centers, num_neighbors, num_radii - 1) = (num_centers, num_neighbors, num_ranges)
+    else:
+        in_ranges = (radii_sq[:, :, :-1] < dist_mat_sq) & (dist_mat_sq <= radii_sq[:, :, 1:])
 
     # Get the counts of the neighbors for each center and radius range
     neighbor_counts = in_ranges.sum(axis=1)  # (num_centers, num_ranges)
@@ -604,9 +625,11 @@ def calculate_neighbor_counts(center_coords=None, neighbor_coords=None, radii=No
     # Return the neighbor counts
     return neighbor_counts
 
-# Efficiently count neighbors around centers for an arbitrary number of radius ranges, while ensuring that no intermediate matrices (i.e., the distance matrices) are too large in memory, with the maximum cutoff in MB corresponding to single_dist_mat_cutoff_in_mb
-def calculate_neighbor_counts_with_possible_chunking(center_coords=None, neighbor_coords=None, radii=None, single_dist_mat_cutoff_in_mb=200, test=False, verbose=False):
+def calculate_neighbor_counts_with_possible_chunking(center_coords=None, neighbor_coords=None, radii=None, single_dist_mat_cutoff_in_mb=200, test=False, verbose=False, swap_inequalities=False):
     """
+    Andrew's comments:
+    Efficiently count neighbors around centers for an arbitrary number of radius ranges, while ensuring that no intermediate matrices (i.e., the distance matrices) are too large in memory, with the maximum cutoff in MB corresponding to single_dist_mat_cutoff_in_mb
+
     This function calculates the number of neighbors around each center for each radius range, potentially chunking the centers into smaller groups to avoid creating a distance matrix that is too large in memory. The cutoff size for the distance matrix is given in megabytes. The function returns the neighbor counts for each center and radius range, as well as the number of chunks used to calculate the neighbor counts. The function also prints a warning if the chunk size is larger than the cutoff size, which is quite unlikely as long as the cutoff is large enough. E.g., as long as the cutoff size is at least 76 MB, this won't be triggered unless there are more than 10M neighbors inputted to the function. The default cutoff value of 200 MB would only trigger if there were more than 26M inputted neighbors.
 
     Args:
@@ -620,10 +643,26 @@ def calculate_neighbor_counts_with_possible_chunking(center_coords=None, neighbo
     Returns:
         np.ndarray: The neighbor counts for each center and radius range. Shape is (num_centers, num_ranges).
         int: The number of chunks used to calculate the neighbor counts.
-    """
 
-    # Import relevant library
-    import numpy as np
+    Dante's comments:
+    calculate_neighbor_counts_with_possible_chunking efficiently count neighbors 
+    around centers for an arbitrary number of radius ranges, while ensuring that
+    no intermediate matrices (i.e., the distance matrices) are too large in memory, 
+    with the maximum cutoff in MB corresponding to single_dist_mat_cutoff_in_mb
+
+    Parameters
+    ----------
+    center_coords: Coordinates of the cell currently being cosnsidered
+    neighbor_coords: Coordinated of all other cells in the image
+    radii: Distances around the center cell to consider
+    single_dist_mat_cutoff_in_mb: Maximum size in megabytes of a single distance matrix
+    test:
+    verbose:
+
+    Returns
+    -------
+    neighbor_counts: Array of shape (num_centers, num_ranges)
+    """
 
     # Constants
     element_size_in_bytes = 8  # as is the case for np.float64, the default float size. "element" refers to matrix element
@@ -654,12 +693,12 @@ def calculate_neighbor_counts_with_possible_chunking(center_coords=None, neighbo
     # Get the ratio of the cutoff size to the full size
     size_ratio = single_dist_mat_cutoff_in_mb / full_dataset_dist_mat_size_in_mb
 
-    # If we should do chunking, i.e., a full dataset distance matrix is larger in size than our cutoff size...
+    # If full dataset distance matrix is larger than cutoff size -> perform chunking
     if size_ratio < 1:
 
         # Debugging output
         if verbose:
-            print('Doing chunking')
+            print('Performing chunking')
 
         # Get the number of centers to include in each (but potentially the last) chunk. Could possibly be made more efficient by calculating the number of chunks as below, and then resetting num_centers_per_chunk so that it's as constant as possible (i.e., for 11 total centers and three corresponding chunks calculated below, instead of 5, 5, 1 centers per chunk, rebalancing to 4, 4, 3). The former allows the largest chunk size to equal single_dist_mat_cutoff_in_mb, whereas the latter does not. Not clear which is actually more efficient
         num_centers_per_chunk = max(int(np.floor(size_ratio * tot_num_centers)), 1)  # this is a proxy for the chunk data size and is what the number of chunks should depend on
@@ -670,8 +709,8 @@ def calculate_neighbor_counts_with_possible_chunking(center_coords=None, neighbo
 
         # Debugging output
         if verbose:
-            print('  Number of centers per chunk: {}'.format(num_centers_per_chunk))
-            print('  Chunk size smaller than cutoff? {}'.format(chunk_size_smaller_than_cutoff))
+            print(f'  Number of centers per chunk: {num_centers_per_chunk}')
+            print(f'  Chunk size smaller than cutoff? {chunk_size_smaller_than_cutoff}')
 
         # Get the number of chunks to use
         num_chunks = int(np.ceil(tot_num_centers / num_centers_per_chunk))
@@ -698,11 +737,15 @@ def calculate_neighbor_counts_with_possible_chunking(center_coords=None, neighbo
 
             # Debugging output
             if verbose:
-                print('On chunk {} ({} centers) of {}...'.format(ichunk + 1, curr_stop_index - curr_start_index, num_chunks))
+                print(f'     On chunk {ichunk + 1} ({curr_stop_index - curr_start_index} centers) of {num_chunks}...')
                 # print(np.arange(curr_start_index, curr_stop_index))
-
             # Calculate the neighbor counts for the current chunk
-            neighbor_counts[curr_start_index:curr_stop_index, :] = calculate_neighbor_counts(center_coords=center_coords[curr_start_index:curr_stop_index, :], neighbor_coords=neighbor_coords, radii=radii)
+            neighbor_counts[curr_start_index:curr_stop_index, :] = calculate_neighbor_counts(center_coords=center_coords[curr_start_index:curr_stop_index, :],
+                                                                                             neighbor_coords=neighbor_coords,
+                                                                                             radii=radii,
+                                                                                             test = test,
+                                                                                             swap_inequalities=swap_inequalities)
+            
             # list_of_tuple_arguments.append((center_coords[curr_start_index:curr_stop_index, :], neighbor_coords, radii))  # works using the multiprocessing function below, though never implemented the saving of the results
 
         # # Used for testing implementation of parallelism, which is incomplete per the comment above and am not using it in production
@@ -713,13 +756,15 @@ def calculate_neighbor_counts_with_possible_chunking(center_coords=None, neighbo
 
     # If the input arrays are too small to need to do chunking based on the value of single_dist_mat_cutoff_in_mb...
     else:
-
         # Debugging output
-        if verbose:
-            print('Not doing chunking')
+        if verbose: print('Not performing chunking')
 
         # Calculate the neighbor counts
-        neighbor_counts = calculate_neighbor_counts(center_coords=center_coords, neighbor_coords=neighbor_coords, radii=radii)
+        neighbor_counts = calculate_neighbor_counts(center_coords=center_coords,
+                                                    neighbor_coords=neighbor_coords,
+                                                    radii=radii,
+                                                    test = test,
+                                                    swap_inequalities=swap_inequalities)
 
     # Return the neighbor counts
     return neighbor_counts

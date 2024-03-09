@@ -22,8 +22,11 @@ def init_spatial_umap():
     with st.spinner('Calculating Cell Counts and Areas'):
         st.session_state.spatial_umap = bpl.setup_Spatial_UMAP(st.session_state.df,
                                                                st.session_state.marker_multi_sel,
-                                                               st.session_state.phenoOrder,
-                                                               st.session_state.cpu_pool_size)
+                                                               st.session_state.phenoOrder)
+
+        st.session_state.spatial_umap = bpl.perform_density_calc(st.session_state.spatial_umap,
+                                                                 st.session_state.bc,
+                                                                 st.session_state.cpu_pool_size)
     st.write('Done Calculating Cell Counts and Areas')
 
     # Record time elapsed
@@ -39,6 +42,7 @@ def apply_umap(umap_style):
     st.session_state.bc.startTimer()
     with st.spinner('Calculating UMAP'):
         st.session_state.spatial_umap = bpl.perform_spatialUMAP(st.session_state.spatial_umap,
+                                                                st.session_state.bc,
                                                                 umap_style)
     st.write('Done Calculating Spatial UMAP')
 
@@ -65,10 +69,10 @@ def apply_umap(umap_style):
     st.session_state.df_umap = st.session_state.spatial_umap.cells.loc[st.session_state.spatial_umap.cells['umap_test'], :]
 
     # Perform possible cluster variations with the completed UMAP
-    st.session_state.bc.startTimer()
-    with st.spinner('Calculating Possible Clusters'):
-        st.session_state.clust_range, st.session_state.wcss = bpl.measure_possible_clust(st.session_state.spatial_umap, clust_minmax)
-    st.session_state.bc.printElapsedTime(msg = 'Calculating possible clusters')
+    # st.session_state.bc.startTimer()
+    # with st.spinner('Calculating Possible Clusters'):
+    #     st.session_state.clust_range, st.session_state.wcss = bpl.measure_possible_clust(st.session_state.spatial_umap, clust_minmax)
+    # st.session_state.bc.printElapsedTime(msg = 'Calculating possible clusters')
 
     st.session_state.wcss_calc_completed = True
     st.session_state.umapCompleted = True
@@ -158,11 +162,6 @@ def main():
     # Run Top of Page (TOP) functions
     st.session_state = top.top_of_page_reqs(st.session_state)
 
-    if 'init' not in st.session_state:
-        settings_yaml_file = 'config_files/OMAL_REEC.yml'
-        # Initialize session_state values for streamlit processing
-        st.session_state = ndl.init_session_state(st.session_state, settings_yaml_file)
-
     st.header('Neighborhood Profiles\nNCATS-NCI-DMAP')
 
     clust_minmax = [1, 40]
@@ -186,20 +185,21 @@ def main():
 
     with neiProCols[2]:
         if st.session_state.umapCompleted:
+            pass
             ### Clustering Meta Analysis and Description ###
-            with st.expander('Cluster Meta-Analysis'):
-                wcss_cols = st.columns(2)
-                with wcss_cols[0]:
-                    st.markdown('''The within-cluster sum of squares (WCSS) is a measure of the
-                                variability of the observations within each cluster. In general, 
-                                a cluster that has a small sum of squares is more compact than a 
-                                cluster that has a large sum of squares. Clusters that have higher 
-                                values exhibit greater variability of the observations within the 
-                                cluster.''')
-                with wcss_cols[1]:
-                    if st.session_state.umapCompleted:
-                        elbowFig = bpl.draw_wcss_elbow_plot(st.session_state.clust_range, st.session_state.wcss, st.session_state.selected_nClus)
-                        st.pyplot(elbowFig)
+            # with st.expander('Cluster Meta-Analysis', ):
+            #     wcss_cols = st.columns(2)
+            #     with wcss_cols[0]:
+            #         st.markdown('''The within-cluster sum of squares (WCSS) is a measure of the
+            #                     variability of the observations within each cluster. In general, 
+            #                     a cluster that has a small sum of squares is more compact than a 
+            #                     cluster that has a large sum of squares. Clusters that have higher 
+            #                     values exhibit greater variability of the observations within the 
+            #                     cluster.''')
+            #     with wcss_cols[1]:
+            #         if st.session_state.umapCompleted:
+            #             elbowFig = bpl.draw_wcss_elbow_plot(st.session_state.clust_range, st.session_state.wcss, st.session_state.selected_nClus)
+            #             st.pyplot(elbowFig)
 
     if not st.session_state.phenotyping_completed:
         st.warning('Step 0: Please complete phentoyping analysis (See Phenotyping Page)', icon="⚠️")

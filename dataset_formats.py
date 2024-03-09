@@ -75,6 +75,17 @@ def extract_datafile_metadata(datafile_path):
         coord_cols = ['CentroidX', 'CentroidY']
         markers = None
 
+    # If the file is in Ultivue format...
+    elif 'Ultivue_DAPIPositiveClassification' in columns_list:
+        file_format = 'Ultivue'
+        image_column_str = 'ShortName'
+        image_string_processing_func = lambda x: x
+        coord_cols = ['CentroidX', 'CentroidY']
+        marker_prefix = None
+        marker_suffix = None
+        marker_cols = 'pheno_20230327_152849'
+        markers = ['CD8', 'COX2', 'NOS2']
+
     # If the file is from QuPath...
     elif tuple(columns_list[:4]) == ('Image', 'Class', 'Centroid X µm', 'Centroid Y µm'):
         file_format = 'QuPath'
@@ -116,9 +127,10 @@ def extract_datafile_metadata(datafile_path):
     # Obtain the actual markers from the marker columns and the marker prefix, and maybe a marker suffix
     if markers is None:
         if marker_cols is not None:
-            markers = [x.removeprefix(marker_prefix) for x in marker_cols]
+            markers = marker_cols
+            markers = [x.removeprefix(marker_prefix) for x in markers]
             if marker_suffix is not None:
-                markers = [x.removesuffix(marker_suffix) for x in marker_cols]
+                markers = [x.removesuffix(marker_suffix) for x in markers]
 
     # Return the the datafile metadata
     return image_column_str, image_string_processing_func, coord_cols, marker_prefix, file_format, markers
@@ -737,6 +749,134 @@ class REEC(Native):
         # For each phenotype column, convert zeros and ones to -'s and +'s
         for col in df.filter(regex='^Phenotype\ '):
             df[col] = df[col].map({0: '-', 1: '+'})
+
+        # Attribute assignments from variables
+        self.data = df
+
+    def trim_dataframe(self):
+        """Replace the Pandas dataframe with a trimmed version containing just the necessary columns
+        """
+
+        # Variable definitions from attributes
+        df = self.data
+        extra_cols_to_keep = self.extra_cols_to_keep
+
+        # Extract just the columns to keep in the trimmed dataframe
+        requested_cols_not_present = [col_to_keep for col_to_keep in extra_cols_to_keep if col_to_keep not in df.columns]
+        extra_cols_to_keep = [col_to_keep for col_to_keep in extra_cols_to_keep if col_to_keep in df.columns]
+        if len(requested_cols_not_present) > 0:
+            print('WARNING: Requested column(s) {} are not present in the dataset'.format(requested_cols_not_present))
+        cols_to_keep = ['Slide ID', 'tag', 'Cell X Position', 'Cell Y Position'] + df.loc[0, :].filter(regex='^Phenotype ').index.tolist() + extra_cols_to_keep
+
+        # Attribute assignments from variables
+        self.data = df.loc[:, cols_to_keep]
+
+    def extra_processing(self):
+
+        # Variable definitions from attributes
+        df = self.data
+
+        # Here just delete ROIs containing a single coordinate since we may have performed patching and that resulted in such situations
+        df = delete_rois_with_single_coord(df)
+
+        # Attribute assignments from variables
+        self.data = df
+
+class Ultivue(Native):
+    """Will's special Ultivue format.
+
+    Sample instantiation:
+
+        import dataset_formats
+        dataset_class = getattr(dataset_formats, 'Ultivue')
+        dataset_obj = dataset_class(input_datafile=os.path.join(input_dir, reec1_input_file), coord_units_in_microns=1, extra_cols_to_keep=['tNt', 'GOODNUC', 'HYPOXIC', 'NORMOXIC', 'NucArea', 'RelOrientation'])
+        dataset_obj.process_dataset()
+
+    Note that the units of the coordinates in input_datafile are microns.
+    """
+
+    def adhere_to_slide_id_format(self):
+        """Ensure the "Slide ID" column of the data conforms to the required format
+        """
+
+        df = self.data
+        input_datafile = self.input_datafile
+
+        # Determine the image "numbers"
+        srs_imagenum = get_image_series_in_datafile(input_datafile)
+
+        # Get the unique image numbers
+        unique_images = srs_imagenum.unique()
+
+        # Calculate a dictionary mapper that maps the unique images to integers
+        mapper = dict(zip(unique_images, [x + 1 for x in range(len(unique_images))]))
+
+        # Attribute assignments
+        df['Slide ID'] = srs_imagenum.apply(lambda x: '{}A-{}'.format(mapper[x], x))
+
+        self.data = df
+
+    def adhere_to_tag_format(self):
+        """Ensure the "tag" column of the data conforms to the required format
+        """
+
+        # Variable definitions from attributes
+        df = self.data
+        roi_width = self.roi_width
+        overlap = self.overlap
+        input_datafile = self.input_datafile
+
+        dummy_micron_per_px = 0.15  # roughly 63X I think
+        print('WARNING: Dummy conversion between microns and pixels is being used. Tag/ROI names do not actually correspond to pixels; instead of pixels we\'re using arbitrary integer units!')
+
+        # Define the function to convert the coordinate descriptors to pixels, if not already in pixels
+        func_coords_to_pixels = lambda x: (x / dummy_micron_per_px).astype(int)
+        func_microns_to_pixels = lambda x: int(x / dummy_micron_per_px)
+
+        # Either patch up the dataset into ROIs and assign the ROI ("tag") column accordingly, or don't and assign the ROI column accordingly
+        df = potentially_apply_patching(df, input_datafile, roi_width, overlap, func_coords_to_pixels, func_microns_to_pixels)
+
+        # Overwrite the original dataframe with the one having the appended ROI column (I'd imagine this line is unnecessary)
+        self.data = df
+
+    def adhere_to_cell_position_format(self):
+        """Ensure the "Cell X Position" and "Cell Y Position" columns of the data conform to the required format.
+
+        In the REEC case, the coordinates are already in microns as long as the filename ends with "_microns.csv", and even if they don't end with that, according to Will.
+        """
+
+        # Variable definitions from attributes
+        df = self.data
+
+        # Convert coordinates to microns by multiplying by coord_units_in_microns, creating the new columns for the x- and y-coordinates
+        df['Cell X Position'] = df['CentroidX']
+        df['Cell Y Position'] = df['CentroidY']
+
+        # In case the spacings/precisions of the cells in these datasets are not good (e.g., very small or arbitrary spacings), make them as good as possible
+        dummy_micron_per_px = 0.15  # roughly 63X I think
+        print('WARNING: Dummy conversion between microns and pixels is being used. Minimum coordinate spacing does not actually essentially correspond to the correct conversion between microns and pixels; instead of pixels we\'re using arbitrary integer units!')
+        microns_per_pixel = dummy_micron_per_px
+        df[['Cell X Position', 'Cell Y Position']] = (df[['Cell X Position', 'Cell Y Position']] / microns_per_pixel).astype(int) * microns_per_pixel
+
+        # Attribute assignments from variables
+        self.data = df
+
+    def adhere_to_phenotype_format(self):
+        """Ensure the "Phenotype XXXX" columns of the data conform to the required format
+        """
+
+        # Variable definitions from attributes
+        df = self.data
+        input_datafile = self.input_datafile
+
+        # Define the phenotypes of interest in the input dataset
+        _, _, _, _, _, markers = extract_datafile_metadata(input_datafile)
+        phenotype_columns = 'pheno_20230327_152849'
+
+        phenotype_unique = df[phenotype_columns].unique()
+        # Rename the phenotype columns so that they are prepended with "Phenotype "
+        for marker in markers:
+            df[f'Phenotype {marker}'] = df[phenotype_columns].apply(lambda x: '+' if f'{marker}+' in x else '-')
 
         # Attribute assignments from variables
         self.data = df
