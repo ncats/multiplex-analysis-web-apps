@@ -6,6 +6,7 @@ import app_top_of_page as top
 import streamlit_dataframe_editor as sde
 import re
 import utils
+from datetime import datetime
 
 def list_files(directory, extensions):
     """
@@ -554,6 +555,40 @@ def main():
 
                 # Get a shortcut to the concatenated dataframe
                 df = st.session_state['unifier__df']
+
+        # In the second column...
+        with main_columns[1]:
+
+            # ---- 7. Save the dataframe to a CSV file --------------------------------------------------------------------------------------------------------------------------------
+
+            # Display a header for the save dataframe section
+            st.header(':seven: Save the dataframe to the `input` directory')
+
+            # Create an input text box for the custom text to be added to the filename
+            if 'unifier__custom_text_for_output_filename' not in st.session_state:
+                st.session_state['unifier__custom_text_for_output_filename'] = ''
+            custom_text = st.text_input('Enter custom text for the filename (optional):', key='unifier__custom_text_for_output_filename')
+
+            # Remove any whitespace from the custom text
+            custom_text = custom_text.replace(' ', '_')
+
+            # Generate the filename
+            filename = f'mawa-unified_datafile-{custom_text}-{datetime.now().strftime('date%Y_%m_%d_time%H_%M_%S')}.csv'
+
+            # Create a button to save the dataframe to a CSV file
+            if st.button(':star2: Save dataframe to CSV :star2:'):
+
+                # Create the full file path
+                file_path = os.path.join('.', 'input', filename)
+
+                # Render a progress spinner while the dataframe is being saved to a CSV file
+                with st.spinner('Saving dataframe to CSV...'):
+
+                    # Save the dataframe to a CSV file
+                    df.to_csv(file_path, index=False)
+
+                # Display a success message
+                st.toast(f'The dataframe has been saved to {file_path}')
 
         # Output a sample of the concatenated dataframe
         st.divider()
