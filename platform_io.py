@@ -197,11 +197,6 @@ def account_for_stale_streamlit_values(session_state_key, possible_values):
     else:
         st.session_state[session_state_key] = None
 
-# # Define the asynchronous upload function
-# async def upload_file_nick(dataset, local_transfer_dir, zipfile_part_filename, nidap_io):
-#     loop = asyncio.get_event_loop()
-#     await loop.run_in_executor(None, nidap_io.upload_file_to_dataset(dataset, os.path.join(local_transfer_dir, zipfile_part_filename)))
-
 # Create a class that takes the platform type (e.g., local, nidap) as input and creates corresponding methods, with consisting naming, for performing the same function on different platforms
 class Platform:
 
@@ -284,20 +279,26 @@ class Platform:
                 import nidap_io
                 import sys
 
-                # Get "shortcuts" to the object properties
-                dataset_file_objects = self.dataset_file_objects_for_available_inputs
+                # # Get "shortcuts" to the object properties
+                # dataset_file_objects = self.dataset_file_objects_for_available_inputs
 
                 # Get the selected filenames
                 df_available_inputs = st.session_state['loader__de_available_inputs'].reconstruct_edited_dataframe()
                 srs_available_input_filenames = st.session_state['srs_available_input_filenames']
                 selected_input_filenames = srs_available_input_filenames[df_available_inputs['Selected']].tolist()
 
-                # For each selected available input file...
-                for selected_input_filename in selected_input_filenames:
+                # Download the selected files
+                all_downloaded_files = nidap_io.download_files_from_dataset(nidap_io.get_foundry_dataset(alias='input'), dataset_filter_func=lambda f: f.path in selected_input_filenames, limit=15)
 
-                    # Download the file and get its local download path
-                    dataset_file_object = nidap_io.get_dataset_file_object(dataset_file_objects, selected_filename=selected_input_filename)
-                    local_download_path = nidap_io.download_file_from_dataset(dataset_file_object)  # slow
+                # For each downloaded file, move it to the local input directory
+                for selected_input_filename, local_download_path in all_downloaded_files.items():
+
+                # # For each selected available input file...
+                # for selected_input_filename in selected_input_filenames:
+
+                    # # Download the file and get its local download path
+                    # dataset_file_object = nidap_io.get_dataset_file_object(dataset_file_objects, selected_filename=selected_input_filename)
+                    # local_download_path = nidap_io.download_file_from_dataset(dataset_file_object)  # slow
 
                     # Populate the local input directory with the current selection
                     # Rules:
@@ -357,8 +358,8 @@ class Platform:
                     # Transfer the zipped file to NIDAP
                     import nidap_io
                     dataset = nidap_io.get_foundry_dataset(alias='input')
-                    # upload_single_file_to_dataset(dataset, local_input_dir, selected_mawa_unified_datafile + '.zip')
-                    nidap_io.upload_file_to_dataset(dataset, selected_filepath=os.path.join(local_input_dir, selected_mawa_unified_datafile + '.zip'))
+                    upload_single_file_to_dataset(dataset, local_input_dir, selected_mawa_unified_datafile + '.zip')
+                    # nidap_io.upload_file_to_dataset(dataset, selected_filepath=os.path.join(local_input_dir, selected_mawa_unified_datafile + '.zip'))
 
                     # Delete the zipped file from the local input directory
                     os.remove(os.path.join(local_input_dir, selected_mawa_unified_datafile + '.zip'))
@@ -481,7 +482,8 @@ class Platform:
                 st.rerun()  # this may change outputs so refresh
     
     # Load the selected results archives so calculations can be resumed or results can be visualized
-    def load_selected_archive(self, nworkers_for_data_transfer=8):
+    # def load_selected_archive(self, nworkers_for_data_transfer=8):
+    def load_selected_archive(self):
 
         st.subheader(':tractor: Load results')
 
@@ -518,8 +520,8 @@ class Platform:
 
                 # Import relevant libraries
                 import nidap_io
-                import utils
-                import multiprocessing
+                # import utils
+                # import multiprocessing
 
                 # Delete all files currently present in the output results directory
                 delete_selected_files_and_dirs(local_output_dir, self.get_local_results_listing())
@@ -535,10 +537,12 @@ class Platform:
                 # If it's a single normal zip file, download and unzip it
                 if not selected_archive_with_proper_extension.endswith('.'):
 
-                    dataset_file_object = nidap_io.get_dataset_file_object(self.dataset_file_objects_for_available_archives, selected_filename=selected_archive_with_proper_extension)
+                    # dataset_file_object = nidap_io.get_dataset_file_object(self.dataset_file_objects_for_available_archives, selected_filename=selected_archive_with_proper_extension)
 
                     start_time = time.time()
-                    local_download_path = nidap_io.download_file_from_dataset(dataset_file_object)
+                    # local_download_path = nidap_io.download_file_from_dataset(dataset_file_object)
+                    all_downloaded_files = nidap_io.download_files_from_dataset(nidap_io.get_foundry_dataset(alias='output'), dataset_filter_func=lambda f: f.path == selected_archive_with_proper_extension, limit=15)
+                    local_download_path = all_downloaded_files[selected_archive_with_proper_extension]
                     filesize = os.path.getsize(local_download_path) / 1024 ** 2
                     duration = time.time() - start_time
                     print('  Download of {} ({:5.3f} MB) from Compass to Workspaces took {:3.1f} seconds --> {:3.1f} MB/s'.format(selected_archive_with_proper_extension, filesize, duration, filesize / duration))
@@ -551,20 +555,25 @@ class Platform:
                     # Obtain the corresponding chunked set of zip files
                     matching_archives_files = sorted([x for x in nidap_io.list_files_in_dataset(self.dataset_file_objects_for_available_archives) if x.startswith(selected_archive_with_proper_extension)])  # there must be at least one
 
-                    # Initialize a dictionary that spans across all processes
-                    manager = multiprocessing.Manager()
-                    local_download_paths_dict = manager.dict()
+                    # Use parallelization from Palantir instead of my custom parallelization below
+                    all_downloaded_files = nidap_io.download_files_from_dataset(nidap_io.get_foundry_dataset(alias='output'), dataset_filter_func=lambda f: f.path in matching_archives_files, limit=15)
+                    local_download_paths = [all_downloaded_files[zip_file_chunk] for zip_file_chunk in matching_archives_files]
 
-                    # Download the zip file parts from the output dataset on NIDAP
-                    list_of_tuple_arguments = [(self.dataset_file_objects_for_available_archives, local_download_paths_dict) + (zip_file_chunk,) for zip_file_chunk in matching_archives_files]
-                    utils.execute_data_parallelism_potentially(function=download_single_file_from_dataset, list_of_tuple_arguments=list_of_tuple_arguments, nworkers=nworkers_for_data_transfer, task_description='download of zip file chunks from the NIDAP dataset', do_benchmarking=True)
-                    local_download_paths = [local_download_paths_dict[zip_file_chunk] for zip_file_chunk in matching_archives_files]
+                    # # Initialize a dictionary that spans across all processes
+                    # manager = multiprocessing.Manager()
+                    # local_download_paths_dict = manager.dict()
+
+                    # # Download the zip file parts from the output dataset on NIDAP
+                    # list_of_tuple_arguments = [(self.dataset_file_objects_for_available_archives, local_download_paths_dict) + (zip_file_chunk,) for zip_file_chunk in matching_archives_files]
+                    # utils.execute_data_parallelism_potentially(function=download_single_file_from_dataset, list_of_tuple_arguments=list_of_tuple_arguments, nworkers=nworkers_for_data_transfer, task_description='download of zip file chunks from the NIDAP dataset', do_benchmarking=True)
+                    # local_download_paths = [local_download_paths_dict[zip_file_chunk] for zip_file_chunk in matching_archives_files]
 
                     # Extract all downloaded parts
                     extract_zipfile_to_directory(filepaths=local_download_paths, extraction_path=local_output_dir)
     
     # Save the currently loaded results to a results archive
-    def save_results_to_archive(self, nworkers_for_data_transfer=1):
+    # def save_results_to_archive(self, nworkers_for_data_transfer=1):
+    def save_results_to_archive(self):
 
         st.subheader(':tractor: Save results')
 
@@ -595,7 +604,7 @@ class Platform:
                 # Import relevant library
                 import nidap_io
                 from datetime import datetime
-                import utils
+                # import utils
 
                 # Create a temporary transfer directory to hold the generated zip file
                 local_transfer_dir = os.path.join('.', 'transfer')
@@ -608,7 +617,7 @@ class Platform:
                 create_zipfile_from_files_in_dir(
                     zipfile_part_prefix,
                     local_output_dir,
-                    chunksize_in_mb=500,  # note that 750 MB is the largest chunk filesize that can be reliably transferred without timeout issues on NIDAP's end. Making this much smaller (to 250 MB) though since I'm about to implement parallelization of file transfers between NIDAP and Workspaces and probably the more files, the better. Note I recently saw the timeout issue with 750 MB so I'm splitting the difference and calling it 500 MB for now
+                    chunksize_in_mb=500,  # note that 750 MB is the largest chunk filesize that can be reliably transferred without timeout issues on NIDAP's end. Making this much smaller (to 250 MB) though since I'm about to implement parallelization of file transfers between NIDAP and Workspaces and probably the more files, the better. Note I recently saw the timeout issue with 750 MB so I'm splitting the difference and calling it 500 MB for now. Note that on 3/[9-10]/24, I no longer such a network-related limit, and instead a more filesystem-y one at 2000 MB, so we could potentially increase this.
                     dirpath_prefixes_to_exclude=('output_archive-',)
                     )
                 
@@ -619,8 +628,12 @@ class Platform:
                 dataset = nidap_io.get_foundry_dataset(alias='output')
                 
                 # Upload the created zip file parts to the output dataset on NIDAP
-                list_of_tuple_arguments = [(dataset, local_transfer_dir) + (zipfile_part_filename,) for zipfile_part_filename in zipfile_part_filenames]
-                utils.execute_data_parallelism_potentially(function=upload_single_file_to_dataset, list_of_tuple_arguments=list_of_tuple_arguments, nworkers=nworkers_for_data_transfer, task_description='upload of zip file chunks to the NIDAP dataset', do_benchmarking=True)
+                for zipfile_part_filename in zipfile_part_filenames:
+                    upload_single_file_to_dataset((dataset, local_transfer_dir, zipfile_part_filename))
+
+                # # Upload the created zip file parts to the output dataset on NIDAP
+                # list_of_tuple_arguments = [(dataset, local_transfer_dir) + (zipfile_part_filename,) for zipfile_part_filename in zipfile_part_filenames]
+                # utils.execute_data_parallelism_potentially(function=upload_single_file_to_dataset, list_of_tuple_arguments=list_of_tuple_arguments, nworkers=nworkers_for_data_transfer, task_description='upload of zip file chunks to the NIDAP dataset', do_benchmarking=True)
 
                 # Delete the temporary transfer directory and its contents
                 shutil.rmtree(local_transfer_dir)

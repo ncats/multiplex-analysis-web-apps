@@ -45,6 +45,7 @@ def download_files_from_dataset(dataset, dataset_filter_func=lambda f: f.path.st
     This is otherwise slow.
     """
     # limit=15 seems to be the best value for downloading 60 200MB files. It's unclear to me exactly what this limit is doing. But in this situation, I get an overall download speed of about 800 MB/s!
+    # If I had to guess, without the limit keyword I believe all matching files are downloaded in a single batch (so e.g. the loop below is iterated once and is unnecessary), and with the limit keyword, the files are downloaded in batches of size limit (so each batch has limit files). I believe that each batch is downloaded sequentially, but within each batch, multiple CPUs are used to download files in the batch in parallel. So I think you want to have at least as many files in each batch (i.e., limit) as there are CPUs available to download files in parallel. It's a bit unclear why a single batch with all the files isn't fastest because I'd think it'd parallelize the file downloads efficiently, but e.g. limit=15 was faster than limit=20, which was faster than larger limits. Likewise, smaller limit values (than 15) were slower.
     specific_files = dataset.files().filter(dataset_filter_func)
     all_downloaded_files = dict()
     while True:
@@ -57,6 +58,7 @@ def download_files_from_dataset(dataset, dataset_filter_func=lambda f: f.path.st
 
 
 # ---- These are likely supplanted by download_files_from_dataset() ----------------------------------------------------------------
+# Actually, not necessarily. For downloads/uploads, yes, but for ultimately getting file listings, no.
 def get_file_objects_from_dataset(dataset):
     """Get a list of file objects in a dataset.
     This is likely supplanted by download_files_from_dataset().
