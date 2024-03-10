@@ -617,7 +617,7 @@ class Platform:
                 create_zipfile_from_files_in_dir(
                     zipfile_part_prefix,
                     local_output_dir,
-                    chunksize_in_mb=500,  # note that 750 MB is the largest chunk filesize that can be reliably transferred without timeout issues on NIDAP's end. Making this much smaller (to 250 MB) though since I'm about to implement parallelization of file transfers between NIDAP and Workspaces and probably the more files, the better. Note I recently saw the timeout issue with 750 MB so I'm splitting the difference and calling it 500 MB for now. Note that on 3/[9-10]/24, I no longer such a network-related limit, and instead a more filesystem-y one at 2000 MB, so we could potentially increase this.
+                    chunksize_in_mb=200,  # note that 750 MB is the largest chunk filesize that can be reliably transferred without timeout issues on NIDAP's end. Making this much smaller (to 250 MB) though since I'm about to implement parallelization of file transfers between NIDAP and Workspaces and probably the more files, the better. Note I recently saw the timeout issue with 750 MB so I'm splitting the difference and calling it 500 MB for now. Note that on 3/[9-10]/24, I no longer such a network-related limit, and instead a more filesystem-y one at 2000 MB, so we could potentially increase this. However, decreasing it to 200 MB to create more files and utilize more parallelism.
                     dirpath_prefixes_to_exclude=('output_archive-',)
                     )
                 
