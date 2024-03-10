@@ -404,73 +404,80 @@ def main():
     # Convert widget settings above to those compatible with the original SIT API
     orig_settings = dict()
     orig_settings['dataset'], orig_settings['analysis'], orig_settings['plotting'], orig_settings['annotation'], orig_settings['phenotyping'] = dict(), dict(), dict(), dict(), dict()
-    orig_settings['dataset']['input_datafile'] = os.path.join('.', 'input', st.session_state['settings__input_datafile__filename'])
-    orig_settings['dataset']['format'] = dict(zip(['HALO', 'Native', 'GMBSecondGeneration', 'QuPath', 'Steinbock'], ['OMAL', 'Native', 'GMBSecondGeneration', 'QuPath', 'Steinbock']))[st.session_state['settings__input_datafile__format']]
-    orig_settings['dataset']['coord_units_in_microns'] = st.session_state['settings__input_datafile__coordinate_units']
-    orig_settings['dataset']['sep'] = (',' if orig_settings['dataset']['input_datafile'].endswith('.csv') else '\t')
-    orig_settings['phenotyping']['method'] = st.session_state['settings__phenotyping__method']
-    orig_settings['analysis']['allow_compound_species'] = (False if orig_settings['phenotyping']['method'] == 'Marker' else True)
-    orig_settings['dataset']['phenotype_identification_tsv_file'] = (os.path.join(input_directory, 'phenotypes', st.session_state['settings__phenotyping__phenotype_identification_file']) if orig_settings['phenotyping']['method'] == 'Custom' else None)
-    orig_settings['dataset']['roi_width'] = (st.session_state['settings__analysis__roi_width'] if st.session_state['settings__analysis__partition_slides_into_rois'] else None)
-    orig_settings['dataset']['overlap'] = (st.session_state['settings__analysis__roi_overlap'] if st.session_state['settings__analysis__partition_slides_into_rois'] else 0)
-    orig_settings['analysis']['thickness'] = st.session_state['settings__analysis__neighbor_radius']
-    orig_settings['analysis']['use_analytical_significance'] = (True if st.session_state['settings__analysis__significance_calculation_method'] == 'Poisson (radius)' else False)
-    orig_settings['analysis']['n_neighs'] = (st.session_state['settings__analysis__n_neighs'] if st.session_state['settings__analysis__significance_calculation_method'] == 'Permutation (k-nearest neighbors)' else -1)
-    orig_settings['analysis']['radius_instead_of_knn'] = (True if st.session_state['settings__analysis__significance_calculation_method'] == 'Permutation (radius)' else False)
-    orig_settings['plotting']['num_valid_centers_minimum'] = st.session_state['settings__analysis__min_num_valid_centers']
-    orig_settings['plotting']['weight_rois_by_num_valid_centers'] = st.session_state['settings__analysis__weight_by_num_valid_centers']
-    orig_settings['plotting']['log_pval_range'] = (st.session_state['settings__analysis__log_pval_minimum'], st.session_state['settings__analysis__log_pval_maximum'])  # used for analysis and plotting both, except for the annotation-specific plots
-    orig_settings['annotation']['csv_files'] = st.session_state['settings__annotation__used_annotation_files']
-    orig_settings['annotation']['annotation_coord_units_in_microns'] = st.session_state['settings__annotation__coordinate_units']
-    orig_settings['annotation']['annotation_microns_per_integer_unit'] = st.session_state['settings__annotation__microns_per_integer_unit']
-    orig_settings['analysis']['images_to_analyze'] = st.session_state['settings__analysis__images_to_analyze']
-    orig_settings['plotting']['min_log_pval'] = st.session_state['settings__plotting__min_log_pval']
 
-    # Save the currently selected settings, in the original API format, to memory
-    st.session_state['sit__workflow_settings'] = orig_settings
+    # Don't do anything if there are no available datafiles
+    if st.session_state['settings__input_datafile__filename'] is None:
+        st.info('Please ensure at least one input datafile has been made available to the app via the Data Import and Export tool at left.')
 
-    # Print the settings to screen in both the new and old formats
-    print('Selected settings for the workflow (new format):')
-    pprint.pprint(streamlit_utils.get_current_settings(), sort_dicts=False)
-    print('Selected settings for the workflow (old format):')
-    pprint.pprint(orig_settings, sort_dicts=False)
-
-    # Get dataset loading columns for the button and an output message
-    dataset_loading_cols = st.columns(3)
-
-    # Assess whether tci.preprocess_dataset() is ready to be called
-    ready_to_preprocess_data = True
-    for x in ['input_datafile', 'format', 'coord_units_in_microns', 'sep', 'phenotype_identification_tsv_file', 'roi_width', 'overlap']:
-        if x not in orig_settings['dataset']:
-            ready_to_preprocess_data = False
-            break
-    for x in ['images_to_analyze']:
-        if x not in orig_settings['analysis']:
-            ready_to_preprocess_data = False
-            break
-
-    # Determine if any checkpoints (which are directories of pickle files or images) exist
-    output_dir_listing = os.listdir(output_directory)
-    dirs_to_delete = ['checkpoints', 'images', 'logs']
-    existing_dirs_to_delete = set(dirs_to_delete).intersection(set(output_dir_listing))
-    if len(existing_dirs_to_delete) > 0:
-        checkpoints_exist = True
-        help_message = 'WARNING: Clicking this button will delete these directories in the local `output` directory: {}. If you wish, first back them up in the "Data Import and Export" tab at left.'.format(existing_dirs_to_delete)
-        potential_icon_prefix = '⚠️'
+    # Otherwise, run the rest of this app
     else:
-        checkpoints_exist = False
-        help_message = None
-        potential_icon_prefix = ''
+        orig_settings['dataset']['input_datafile'] = os.path.join(input_directory, st.session_state['settings__input_datafile__filename'])
+        orig_settings['dataset']['format'] = dict(zip(['HALO', 'Native', 'GMBSecondGeneration', 'QuPath', 'Steinbock'], ['OMAL', 'Native', 'GMBSecondGeneration', 'QuPath', 'Steinbock']))[st.session_state['settings__input_datafile__format']]
+        orig_settings['dataset']['coord_units_in_microns'] = st.session_state['settings__input_datafile__coordinate_units']
+        orig_settings['dataset']['sep'] = (',' if orig_settings['dataset']['input_datafile'].endswith('.csv') else '\t')
+        orig_settings['phenotyping']['method'] = st.session_state['settings__phenotyping__method']
+        orig_settings['analysis']['allow_compound_species'] = (False if orig_settings['phenotyping']['method'] == 'Marker' else True)
+        orig_settings['dataset']['phenotype_identification_tsv_file'] = (os.path.join(input_directory, 'phenotypes', st.session_state['settings__phenotyping__phenotype_identification_file']) if orig_settings['phenotyping']['method'] == 'Custom' else None)
+        orig_settings['dataset']['roi_width'] = (st.session_state['settings__analysis__roi_width'] if st.session_state['settings__analysis__partition_slides_into_rois'] else None)
+        orig_settings['dataset']['overlap'] = (st.session_state['settings__analysis__roi_overlap'] if st.session_state['settings__analysis__partition_slides_into_rois'] else 0)
+        orig_settings['analysis']['thickness'] = st.session_state['settings__analysis__neighbor_radius']
+        orig_settings['analysis']['use_analytical_significance'] = (True if st.session_state['settings__analysis__significance_calculation_method'] == 'Poisson (radius)' else False)
+        orig_settings['analysis']['n_neighs'] = (st.session_state['settings__analysis__n_neighs'] if st.session_state['settings__analysis__significance_calculation_method'] == 'Permutation (k-nearest neighbors)' else -1)
+        orig_settings['analysis']['radius_instead_of_knn'] = (True if st.session_state['settings__analysis__significance_calculation_method'] == 'Permutation (radius)' else False)
+        orig_settings['plotting']['num_valid_centers_minimum'] = st.session_state['settings__analysis__min_num_valid_centers']
+        orig_settings['plotting']['weight_rois_by_num_valid_centers'] = st.session_state['settings__analysis__weight_by_num_valid_centers']
+        orig_settings['plotting']['log_pval_range'] = (st.session_state['settings__analysis__log_pval_minimum'], st.session_state['settings__analysis__log_pval_maximum'])  # used for analysis and plotting both, except for the annotation-specific plots
+        orig_settings['annotation']['csv_files'] = st.session_state['settings__annotation__used_annotation_files']
+        orig_settings['annotation']['annotation_coord_units_in_microns'] = st.session_state['settings__annotation__coordinate_units']
+        orig_settings['annotation']['annotation_microns_per_integer_unit'] = st.session_state['settings__annotation__microns_per_integer_unit']
+        orig_settings['analysis']['images_to_analyze'] = st.session_state['settings__analysis__images_to_analyze']
+        orig_settings['plotting']['min_log_pval'] = st.session_state['settings__plotting__min_log_pval']
 
-    # Create a dataset (and settings) loading button
-    with dataset_loading_cols[1]:
-        if 'sit__used_settings' in st.session_state:
-            if st.session_state['sit__used_settings'] != orig_settings:
-                st.warning('The current settings differ from those used when the tool was last run. Click the button below to reload the dataset and settings, and then click the "Run workflow" button on the next page to rerun the workflow using the updated data/settings.', icon="⚠️")
-        st.button('{} Load dataset and settings'.format(potential_icon_prefix), disabled=(not ready_to_preprocess_data), help=help_message, on_click=load_dataset_and_settings, kwargs={'checkpoints_exist': checkpoints_exist, 'existing_dirs_to_delete': existing_dirs_to_delete, 'orig_settings': orig_settings}, use_container_width=True)
+        # Save the currently selected settings, in the original API format, to memory
+        st.session_state['sit__workflow_settings'] = orig_settings
 
-    # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
-    st.session_state = sde.finalize_session_state(st.session_state)
+        # Print the settings to screen in both the new and old formats
+        print('Selected settings for the workflow (new format):')
+        pprint.pprint(streamlit_utils.get_current_settings(), sort_dicts=False)
+        print('Selected settings for the workflow (old format):')
+        pprint.pprint(orig_settings, sort_dicts=False)
+
+        # Get dataset loading columns for the button and an output message
+        dataset_loading_cols = st.columns(3)
+
+        # Assess whether tci.preprocess_dataset() is ready to be called
+        ready_to_preprocess_data = True
+        for x in ['input_datafile', 'format', 'coord_units_in_microns', 'sep', 'phenotype_identification_tsv_file', 'roi_width', 'overlap']:
+            if x not in orig_settings['dataset']:
+                ready_to_preprocess_data = False
+                break
+        for x in ['images_to_analyze']:
+            if x not in orig_settings['analysis']:
+                ready_to_preprocess_data = False
+                break
+
+        # Determine if any checkpoints (which are directories of pickle files or images) exist
+        output_dir_listing = os.listdir(output_directory)
+        dirs_to_delete = ['checkpoints', 'images', 'logs']
+        existing_dirs_to_delete = set(dirs_to_delete).intersection(set(output_dir_listing))
+        if len(existing_dirs_to_delete) > 0:
+            checkpoints_exist = True
+            help_message = 'WARNING: Clicking this button will delete these directories in the local `output` directory: {}. If you wish, first back them up in the "Data Import and Export" tab at left.'.format(existing_dirs_to_delete)
+            potential_icon_prefix = '⚠️'
+        else:
+            checkpoints_exist = False
+            help_message = None
+            potential_icon_prefix = ''
+
+        # Create a dataset (and settings) loading button
+        with dataset_loading_cols[1]:
+            if 'sit__used_settings' in st.session_state:
+                if st.session_state['sit__used_settings'] != orig_settings:
+                    st.warning('The current settings differ from those used when the tool was last run. Click the button below to reload the dataset and settings, and then click the "Run workflow" button on the next page to rerun the workflow using the updated data/settings.', icon="⚠️")
+            st.button('{} Load dataset and settings'.format(potential_icon_prefix), disabled=(not ready_to_preprocess_data), help=help_message, on_click=load_dataset_and_settings, kwargs={'checkpoints_exist': checkpoints_exist, 'existing_dirs_to_delete': existing_dirs_to_delete, 'orig_settings': orig_settings}, use_container_width=True)
+
+        # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
+        st.session_state = sde.finalize_session_state(st.session_state)
 
 # Call the main function
 if __name__ == '__main__':
