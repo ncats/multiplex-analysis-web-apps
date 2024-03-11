@@ -358,7 +358,7 @@ class Platform:
                     # Transfer the zipped file to NIDAP
                     import nidap_io
                     dataset = nidap_io.get_foundry_dataset(alias='input')
-                    upload_single_file_to_dataset(dataset, local_input_dir, selected_mawa_unified_datafile + '.zip')
+                    upload_single_file_to_dataset((dataset, local_input_dir, selected_mawa_unified_datafile + '.zip'))
                     # nidap_io.upload_file_to_dataset(dataset, selected_filepath=os.path.join(local_input_dir, selected_mawa_unified_datafile + '.zip'))
 
                     # Delete the zipped file from the local input directory

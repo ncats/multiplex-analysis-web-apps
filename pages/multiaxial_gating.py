@@ -350,7 +350,15 @@ def main():
                     st.session_state['mg__unique_image_dict'] = dict(zip(st.session_state['mg__unique_images_short'], unique_images))
                     phenotype_columns = [column for column in st.session_state['mg__df'].columns if column.startswith('Phenotype ')]
                     st.session_state['mg__df'] = st.session_state['mg__df'].rename(columns=dict(zip(phenotype_columns, [column.replace('Phenotype ', 'Phenotype_orig ') for column in phenotype_columns])))
-                    st.session_state['mg__all_numeric_columns'] = st.session_state['mg__df'].select_dtypes(include='number').columns
+
+                    srs_integer_columns = st.session_state['mg__df'].select_dtypes(include=['integer']).columns.to_series()
+                    categorical_integer_columns = srs_integer_columns.loc[pd.Index([len(st.session_state['mg__df'][int_column].unique()) <= num_categorical_values_cutoff for int_column in srs_integer_columns])].to_list()
+<<<<<<< HEAD
+
+=======
+                    
+>>>>>>> b0a523d599ebedff494d712c47fd1b0d8dc488e3
+                    st.session_state['mg__all_numeric_columns'] = st.session_state['mg__df'].select_dtypes(include='number').columns.drop(categorical_integer_columns)
                     st.session_state['mg__all_columns'] = st.session_state['mg__df'].columns
                     st.session_state['mg__column_config'] = {"Corresponding thresholded marker field": st.column_config.SelectboxColumn("Corresponding thresholded marker field", help="Tresholded marker field corresponding to the intensity at left", options=st.session_state['mg__all_columns'], required=True)}
                     st.session_state['mg__df_batch_normalized'] = batch_normalization_func(st.session_state['mg__df'], st.session_state['mg__all_numeric_columns'])

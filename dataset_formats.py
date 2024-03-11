@@ -27,8 +27,19 @@ def extract_datafile_metadata(datafile_path):
     # Efficiently get just the column names in the datafiles
     columns_list = pd.read_csv(datafile_path, nrows=0, sep=sep).columns.to_list()
 
+    # If the file is in the format standardized in the dataset unifier app...
+    if 'Image ID (standardized)' in columns_list:
+        file_format = 'Standardized'
+        image_column_str = 'Image ID (standardized)'
+        marker_prefix = 'Phenotype (standardized) '
+        marker_cols = [x for x in columns_list if x.startswith(marker_prefix)]
+        coord_cols = ['Centroid X (µm) (standardized)', 'Centroid Y (µm) (standardized)']
+        image_string_processing_func = lambda x: x
+        marker_suffix = None
+        markers = None
+
     # If the file is in the newest, "HALO" format...
-    if 'Image Location' in columns_list:
+    elif 'Image Location' in columns_list:
         file_format = 'HALO'
         image_column_str = 'Image Location'
         first_dapi_positive_col = [column for column in columns_list if re.findall(r'DAPI.* Positive Classification', column)][0]
@@ -105,17 +116,6 @@ def extract_datafile_metadata(datafile_path):
         marker_cols = [x for x in columns_list if x.startswith(marker_prefix)]
         coord_cols = ['centroid-0', 'centroid-1']
         image_string_processing_func = lambda x: x.removesuffix('.tiff').lower()
-        marker_suffix = None
-        markers = None
-
-    # If the file is in the format standardized in the dataset unifier app...
-    elif 'Image ID (standardized)' in columns_list:
-        file_format = 'Standardized'
-        image_column_str = 'Image ID (standardized)'
-        marker_prefix = 'Phenotype (standardized) '
-        marker_cols = [x for x in columns_list if x.startswith(marker_prefix)]
-        coord_cols = ['Centroid X (µm) (standardized)', 'Centroid Y (µm) (standardized)']
-        image_string_processing_func = lambda x: x
         marker_suffix = None
         markers = None
 
