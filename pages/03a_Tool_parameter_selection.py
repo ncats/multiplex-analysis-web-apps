@@ -15,6 +15,17 @@ import streamlit_dataframe_editor as sde
 input_directory = os.path.join('.', 'input')
 output_directory = os.path.join('.', 'output')
 
+# Define the function to copy an input file from the output directory to the input directory
+def copy_input_file_from_output_dir_to_input_dir(input_filename, input_subdir=None):
+    import shutil
+    if input_subdir is not None:
+        input_directory2 = os.path.join(input_directory, input_subdir)
+        if not os.path.exists(input_directory2):
+            os.makedirs(input_directory2)
+    else:
+        input_directory2 = input_directory
+    shutil.copy(os.path.join(output_directory, input_filename), os.path.join(input_directory2, input_filename))
+
 def update_dependencies_of_input_datafile_filename():
 
     # Import relevant library
@@ -120,6 +131,11 @@ def create_phenotype_assignments_file_from_phenotyper(df_phenotype_assignments):
     df_phenotype_assignments_to_write = df_phenotype_assignments_to_write.drop('species_name_long', axis='columns')
     df_phenotype_assignments_to_write['species_name_short'] = df_phenotype_assignments_to_write['species_name_short'].apply(lambda x: sorted(x.rstrip('+').split('+ ')))
     df_phenotype_assignments_to_write['species_percent'] = (df_phenotype_assignments_to_write['species_count'] / df_phenotype_assignments_to_write['species_count'].sum() * 100).apply(lambda x: np.round(x, decimals=8))
+
+    # If any values in the "phenotype" column contain hyphens, output a warning that hyphens indicate compound phenotypes, which isn't (yet!) implemented in the Phenotyper and will be removed, though compound phenotypes can still be specified by modifying the TSV file manually, and note that the hyphens are being replaced with "(dash)". Perform this replacement.
+    if df_phenotype_assignments_to_write['phenotype'].apply(lambda x: '-' in x).sum() > 0:
+        st.warning('Hyphens in the assigned custom phenotype names in the Phenotyper app indicate compound phenotypes, which aren\'t (yet!) implemented in the Phenotyper and will be replaced with "(dash)". Compound phenotypes can still be specified by modifying the phenotype assignments TSV file manually. So if you don\'t want your hyphens replaced with "(dash)", please modify your custom phenotype names in the Phenotyper app and click the "Load relevant settings from Phenotyper" button again.')
+        df_phenotype_assignments_to_write['phenotype'] = df_phenotype_assignments_to_write['phenotype'].apply(lambda x: x.replace('-', '(dash)'))
 
     # Write the dataframe to disk, also making a copy in the output directory so it can optionally be saved for good
     df_phenotype_assignments_to_write.to_csv(path_or_buf=os.path.join(phenotypes_path, filename), sep='\t', header=False)
@@ -353,64 +369,70 @@ def main():
     # Logical divider
     st.divider()
 
-    # Create columns
-    parameter_columns = st.columns(3)
-
-    # Input datafile settings widgets
-    with parameter_columns[0]:
-        st.header('Input datafile settings')
-        st.selectbox('Filename:', options_for_input_datafiles, key='settings__input_datafile__filename', help='An input datafile must be present in the "input" directory and have a .csv or .tsv extension.', on_change=update_dependencies_of_input_datafile_filename)
-        st.selectbox('Format:', options_for_input_datafile_formats, key='settings__input_datafile__format')
-        st.number_input('x-y coordinate units (microns):', min_value=0.0, key='settings__input_datafile__coordinate_units', help='E.g., if the coordinates in the input datafile were pixels, this number would be a conversion to microns in units of microns/pixel.', format='%.4f', step=0.0001)
-
-    # Phenotyping settings widgets
-        st.header('Phenotyping settings')
-        st.selectbox('Method:', options_for_phenotyping_methods, key='settings__phenotyping__method', help='Species: phenotypes defined by the unique combinations of markers present in the input file. Marker: each marker is its own phenotype. Custom: custom phenotyping using a text file.', on_change=update_dependencies_of_phenotyping_method)
-        st.selectbox('Phenotype identification file:', options_for_phenotype_identification_files, key='settings__phenotyping__phenotype_identification_file', help='See [here](https://github.com/ncats/spatial-interaction-tool/blob/4e1240fba45cb3bc2290be18903af03f9d3fdf6a/config/phenotype_identifications/gmb_phenotype_ids_as_of_2022-07-05.tsv) for a sample phenotype identification file, which must be present in the input/phenotypes directory and have a .tsv extension.', disabled=st.session_state['phenotyping_phenotype_identification_file_is_disabled'])
-
-    # Analysis settings widgets
-    with parameter_columns[1]:
-        st.header('Analysis settings')
-        st.multiselect('Images to analyze:', st.session_state['options_for_images'], placeholder='', key='settings__analysis__images_to_analyze', on_change=update_dependencies_of_analysis_images_to_analyze)
-        st.checkbox('Partition slides into regions of interest (ROIs)', key='settings__analysis__partition_slides_into_rois', on_change=update_dependencies_of_analysis_partition_slides_into_rois)
-        st.number_input('ROI width (microns):', min_value=0.0, key='settings__analysis__roi_width', disabled=st.session_state['analysis_roi_width_is_disabled'])
-        st.number_input('ROI overlap (microns):', min_value=0.0, key='settings__analysis__roi_overlap', disabled=st.session_state['analysis_roi_overlap_is_disabled'], help='In order to analyze the neighbors around every cell exactly once (as you should), this should be set to twice the neighbor radius (adjusted below).')
-        st.selectbox('Significance calculation method:', options_for_significance_calculation_methods, key='settings__analysis__significance_calculation_method', on_change=update_dependencies_of_analysis_significance_calculation_method)
-        st.number_input('Neighbor radius (microns):', min_value=0.0, key='settings__analysis__neighbor_radius', help='Radius around each center cell within which to count neighboring cells.', disabled=st.session_state['analysis_neighbor_radius_is_disabled'])
-        st.number_input('Number of nearest neighbors:', min_value=0, key='settings__analysis__n_neighs', disabled=st.session_state['analysis_n_neighs_is_disabled'])
-        st.number_input('Minimum number of valid centers:', min_value=1, key='settings__analysis__min_num_valid_centers', help='Valid centers are defined as cells inside an analysis radius from the ROI edges. If a particular phenotype in a ROI has fewer than the minimum number of valid cells, it is excluded from downstream analysis as a center species (not as a neighbor species). I.e., the user may want to define a minimum sample size.')
-        st.checkbox('For just the "Display average heatmaps" page, weight by the number of valid centers', key='settings__analysis__weight_by_num_valid_centers', help='This refers to the averaging performed on the "Display average heatmaps" page, in which the rows in the density P value heatmaps for each ROI are weighted by the number of valid centers in each row. (This *is not* center-neighbor symmetric because in a given analysis, the number valid neighbors is the total number of neighbors in the ROI whereas the number of valid centers is the number of centers within an analysis radius buffer from the ROI edge.) This has no effect on the averaging done per annotation region type, i.e., the averaging performed on the "Display average heatmaps per annotation" page, in which the ROIs are uniformly weighted depending on the weighting method selected on that page, for each annotation region type. (This *is* center-neighbor symmetric because the same weight is assigned to all the center-neighbor pairs for each ROI.) So the averaging done on these two pages is fundamentally different, even aside from annotations being involved.')
-
-        # Input of clipping information
-        st.write('Clipping range of the log (base 10) density P values:')
-        subcolumns = st.columns(2)
-        with subcolumns[0]:
-            st.number_input('Minimum:', max_value=0.0, key='settings__analysis__log_pval_minimum')
-        with subcolumns[1]:
-            st.number_input('Maximum:', max_value=0.0, key='settings__analysis__log_pval_maximum', help='For density P value heatmaps for individual ROIs this does not matter and is just a plotting property. But whenever averaging is performed over the ROIs (i.e., for all ROIs in a slide or all ROIs in an annotation region type), these values matter because the clipping is deliberately performed prior to the averaging.')
-
-    # Annotations settings widgets
-    with parameter_columns[2]:
-        st.header('Annotation settings', help='We recommend averaging over annotation type because slides are generally heterogeneous. Each annotation filename (the files should reside in input/annotations) should contain the image number at the very beginning, followed by a *double* underscore "__". The annotation region name should be at the very end (aside from the arbitrary extension), preceded by a *double* underscore. E.g.: "12345__panel_3_20230913__tumor.csv". The image numbers in the annotation filenames should match those in the "Image Location" column of the original input datafile for analysis, where, as a reminder, the image number is at the very end (aside from the arbitrary extension), preceded by a *single* underscore, e.g., "\\\\\\10.1.1.1\\path\\to\\multiplex_panel_3_12345.tif".')
-        st.multiselect('Annotation files to use:', st.session_state['options_for_annotation_files'], key='settings__annotation__used_annotation_files', placeholder='', on_change=update_dependencies_of_annotation_used_annotation_files)
-        st.number_input('x-y coordinate units (microns):', min_value=0.0, key='settings__annotation__coordinate_units', help='E.g., if the coordinates in the annotation datafiles were pixels, this number would be a conversion to microns in units of microns/pixel. Note: This does not have to be the same value as for the input datafile, though it likely is.', format='%.4f', disabled=st.session_state['annotation_coordinate_units_is_disabled'], on_change=update_dependencies_of_annotation_coordinate_units, step=0.0001)
-        st.checkbox('Are pixels the units of the annotation file coordinates?', key='settings__annotation__coord_units_are_pixels', disabled=st.session_state['annotation_coord_units_are_pixels_is_disabled'], on_change=update_dependencies_of_annotation_coord_units_are_pixels)
-        st.number_input('Number of microns per integer unit (microns):', min_value=0.0, key='settings__annotation__microns_per_integer_unit', format='%.4f', disabled=(st.session_state['annotation_microns_per_integer_unit_is_disabled1'] or st.session_state['annotation_microns_per_integer_unit_is_disabled2']), help='Conversion of the coordinates in microns to an integer (not necessarily pixels). If the input coordinates are pixels (which are obviously integers), then this value ("microns_per_integer_unit") could be the same as the number of microns per coordinate unit ("coordinate_units") set above--which is basically trivial--so the box above should be checked. This is the most common case. But if, say, the input coordinate units were microns, then coordinate_units=1 and microns_per_integer_unit is most likely a different number, e.g., the number of microns per pixel. The point is to be able to convert the annotation coordinates to integer units, which don\'t necessarily need to be (but usually are) pixels.', step=0.0001)
-        st.number_input('Minimum density log P value for plotting:', max_value=0.0, key='settings__plotting__min_log_pval', disabled=st.session_state['plotting_min_log_pval_is_disabled'])
-
-    # Separate out the data loading button from the rest of the widgets above
-    st.divider()
-
-    # Convert widget settings above to those compatible with the original SIT API
-    orig_settings = dict()
-    orig_settings['dataset'], orig_settings['analysis'], orig_settings['plotting'], orig_settings['annotation'], orig_settings['phenotyping'] = dict(), dict(), dict(), dict(), dict()
-
     # Don't do anything if there are no available datafiles
-    if st.session_state['settings__input_datafile__filename'] is None:
+    if not options_for_input_datafiles:
         st.info('Please ensure at least one input datafile has been made available to the app via the Data Import and Export tool at left.')
 
     # Otherwise, run the rest of this app
     else:
+
+        # Create columns
+        parameter_columns = st.columns(3)
+
+        # Input datafile settings widgets
+        with parameter_columns[0]:
+            st.header('Input datafile settings')
+            if (not os.path.exists(os.path.join(input_directory, st.session_state['settings__input_datafile__filename']))) and (os.path.exists(os.path.join(output_directory, st.session_state['settings__input_datafile__filename']))):
+                copy_input_file_from_output_dir_to_input_dir(st.session_state['settings__input_datafile__filename'])
+                st.rerun()
+            st.selectbox('Filename:', options_for_input_datafiles, key='settings__input_datafile__filename', help='An input datafile must be present in the "input" directory and have a .csv or .tsv extension.', on_change=update_dependencies_of_input_datafile_filename)
+            st.selectbox('Format:', options_for_input_datafile_formats, key='settings__input_datafile__format')
+            st.number_input('x-y coordinate units (microns):', min_value=0.0, key='settings__input_datafile__coordinate_units', help='E.g., if the coordinates in the input datafile were pixels, this number would be a conversion to microns in units of microns/pixel.', format='%.4f', step=0.0001)
+
+        # Phenotyping settings widgets
+            st.header('Phenotyping settings')
+            st.selectbox('Method:', options_for_phenotyping_methods, key='settings__phenotyping__method', help='Species: phenotypes defined by the unique combinations of markers present in the input file. Marker: each marker is its own phenotype. Custom: custom phenotyping using a text file.', on_change=update_dependencies_of_phenotyping_method)
+            if (not os.path.exists(os.path.join(input_directory, 'phenotypes', st.session_state['settings__phenotyping__phenotype_identification_file']))) and (os.path.exists(os.path.join(output_directory, st.session_state['settings__phenotyping__phenotype_identification_file']))):
+                copy_input_file_from_output_dir_to_input_dir(st.session_state['settings__phenotyping__phenotype_identification_file'], input_subdir='phenotypes')
+                st.rerun()
+            st.selectbox('Phenotype identification file:', options_for_phenotype_identification_files, key='settings__phenotyping__phenotype_identification_file', help='See [here](https://github.com/ncats/spatial-interaction-tool/blob/4e1240fba45cb3bc2290be18903af03f9d3fdf6a/config/phenotype_identifications/gmb_phenotype_ids_as_of_2022-07-05.tsv) for a sample phenotype identification file, which must be present in the input/phenotypes directory and have a .tsv extension.', disabled=st.session_state['phenotyping_phenotype_identification_file_is_disabled'])
+
+        # Analysis settings widgets
+        with parameter_columns[1]:
+            st.header('Analysis settings')
+            st.multiselect('Images to analyze:', st.session_state['options_for_images'], placeholder='', key='settings__analysis__images_to_analyze', on_change=update_dependencies_of_analysis_images_to_analyze)
+            st.checkbox('Partition slides into regions of interest (ROIs)', key='settings__analysis__partition_slides_into_rois', on_change=update_dependencies_of_analysis_partition_slides_into_rois)
+            st.number_input('ROI width (microns):', min_value=0.0, key='settings__analysis__roi_width', disabled=st.session_state['analysis_roi_width_is_disabled'])
+            st.number_input('ROI overlap (microns):', min_value=0.0, key='settings__analysis__roi_overlap', disabled=st.session_state['analysis_roi_overlap_is_disabled'], help='In order to analyze the neighbors around every cell exactly once (as you should), this should be set to twice the neighbor radius (adjusted below).')
+            st.selectbox('Significance calculation method:', options_for_significance_calculation_methods, key='settings__analysis__significance_calculation_method', on_change=update_dependencies_of_analysis_significance_calculation_method)
+            st.number_input('Neighbor radius (microns):', min_value=0.0, key='settings__analysis__neighbor_radius', help='Radius around each center cell within which to count neighboring cells.', disabled=st.session_state['analysis_neighbor_radius_is_disabled'])
+            st.number_input('Number of nearest neighbors:', min_value=0, key='settings__analysis__n_neighs', disabled=st.session_state['analysis_n_neighs_is_disabled'])
+            st.number_input('Minimum number of valid centers:', min_value=1, key='settings__analysis__min_num_valid_centers', help='Valid centers are defined as cells inside an analysis radius from the ROI edges. If a particular phenotype in a ROI has fewer than the minimum number of valid cells, it is excluded from downstream analysis as a center species (not as a neighbor species). I.e., the user may want to define a minimum sample size.')
+            st.checkbox('For just the "Display average heatmaps" page, weight by the number of valid centers', key='settings__analysis__weight_by_num_valid_centers', help='This refers to the averaging performed on the "Display average heatmaps" page, in which the rows in the density P value heatmaps for each ROI are weighted by the number of valid centers in each row. (This *is not* center-neighbor symmetric because in a given analysis, the number valid neighbors is the total number of neighbors in the ROI whereas the number of valid centers is the number of centers within an analysis radius buffer from the ROI edge.) This has no effect on the averaging done per annotation region type, i.e., the averaging performed on the "Display average heatmaps per annotation" page, in which the ROIs are uniformly weighted depending on the weighting method selected on that page, for each annotation region type. (This *is* center-neighbor symmetric because the same weight is assigned to all the center-neighbor pairs for each ROI.) So the averaging done on these two pages is fundamentally different, even aside from annotations being involved.')
+
+            # Input of clipping information
+            st.write('Clipping range of the log (base 10) density P values:')
+            subcolumns = st.columns(2)
+            with subcolumns[0]:
+                st.number_input('Minimum:', max_value=0.0, key='settings__analysis__log_pval_minimum')
+            with subcolumns[1]:
+                st.number_input('Maximum:', max_value=0.0, key='settings__analysis__log_pval_maximum', help='For density P value heatmaps for individual ROIs this does not matter and is just a plotting property. But whenever averaging is performed over the ROIs (i.e., for all ROIs in a slide or all ROIs in an annotation region type), these values matter because the clipping is deliberately performed prior to the averaging.')
+
+        # Annotations settings widgets
+        with parameter_columns[2]:
+            st.header('Annotation settings', help='We recommend averaging over annotation type because slides are generally heterogeneous. Each annotation filename (the files should reside in input/annotations) should contain the image number at the very beginning, followed by a *double* underscore "__". The annotation region name should be at the very end (aside from the arbitrary extension), preceded by a *double* underscore. E.g.: "12345__panel_3_20230913__tumor.csv". The image numbers in the annotation filenames should match those in the "Image Location" column of the original input datafile for analysis, where, as a reminder, the image number is at the very end (aside from the arbitrary extension), preceded by a *single* underscore, e.g., "\\\\\\10.1.1.1\\path\\to\\multiplex_panel_3_12345.tif".')
+            st.multiselect('Annotation files to use:', st.session_state['options_for_annotation_files'], key='settings__annotation__used_annotation_files', placeholder='', on_change=update_dependencies_of_annotation_used_annotation_files)
+            st.number_input('x-y coordinate units (microns):', min_value=0.0, key='settings__annotation__coordinate_units', help='E.g., if the coordinates in the annotation datafiles were pixels, this number would be a conversion to microns in units of microns/pixel. Note: This does not have to be the same value as for the input datafile, though it likely is.', format='%.4f', disabled=st.session_state['annotation_coordinate_units_is_disabled'], on_change=update_dependencies_of_annotation_coordinate_units, step=0.0001)
+            st.checkbox('Are pixels the units of the annotation file coordinates?', key='settings__annotation__coord_units_are_pixels', disabled=st.session_state['annotation_coord_units_are_pixels_is_disabled'], on_change=update_dependencies_of_annotation_coord_units_are_pixels)
+            st.number_input('Number of microns per integer unit (microns):', min_value=0.0, key='settings__annotation__microns_per_integer_unit', format='%.4f', disabled=(st.session_state['annotation_microns_per_integer_unit_is_disabled1'] or st.session_state['annotation_microns_per_integer_unit_is_disabled2']), help='Conversion of the coordinates in microns to an integer (not necessarily pixels). If the input coordinates are pixels (which are obviously integers), then this value ("microns_per_integer_unit") could be the same as the number of microns per coordinate unit ("coordinate_units") set above--which is basically trivial--so the box above should be checked. This is the most common case. But if, say, the input coordinate units were microns, then coordinate_units=1 and microns_per_integer_unit is most likely a different number, e.g., the number of microns per pixel. The point is to be able to convert the annotation coordinates to integer units, which don\'t necessarily need to be (but usually are) pixels.', step=0.0001)
+            st.number_input('Minimum density log P value for plotting:', max_value=0.0, key='settings__plotting__min_log_pval', disabled=st.session_state['plotting_min_log_pval_is_disabled'])
+
+        # Separate out the data loading button from the rest of the widgets above
+        st.divider()
+
+        # Convert widget settings above to those compatible with the original SIT API
+        orig_settings = dict()
+        orig_settings['dataset'], orig_settings['analysis'], orig_settings['plotting'], orig_settings['annotation'], orig_settings['phenotyping'] = dict(), dict(), dict(), dict(), dict()
         orig_settings['dataset']['input_datafile'] = os.path.join(input_directory, st.session_state['settings__input_datafile__filename'])
         orig_settings['dataset']['format'] = dict(zip(['HALO', 'Native', 'GMBSecondGeneration', 'QuPath', 'Steinbock'], ['OMAL', 'Native', 'GMBSecondGeneration', 'QuPath', 'Steinbock']))[st.session_state['settings__input_datafile__format']]
         orig_settings['dataset']['coord_units_in_microns'] = st.session_state['settings__input_datafile__coordinate_units']

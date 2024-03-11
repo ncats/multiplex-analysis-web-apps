@@ -504,7 +504,7 @@ def main():
                 if 'unifier__df_phenotypes' in st.session_state:
 
                     # Display a header for the phenotype renaming section
-                    st.write('Optionally rename the phenotypes. Note: It is fine to use "+" and "-" in the phenotype names, but keep in mind they will be replaced with "(pos)" and "(neg)" in the final dataset.')
+                    st.write('Optionally rename the phenotypes. Note: It is fine to use "+" and "-" in the phenotype names, but keep in mind they will be replaced with "(plus)" and "(dash)" in the downstream dataset.')
 
                     # Display a dataframe of phenotype names for the user to edit
                     df_phenotypes = st.session_state['unifier__df_phenotypes']
@@ -526,7 +526,7 @@ def main():
 
                             # Remove invalid characters from the column names
                             old_phenotype_names = df_phenotypes.columns.copy()
-                            df_phenotypes.columns = [column.strip().replace('+', '(pos)').replace('-', '(neg)') for column in df_phenotypes.columns]  # since '+' and '-' are forbidden for the time being
+                            df_phenotypes.columns = [column.strip().replace('+', '(plus)').replace('-', '(dash)') for column in df_phenotypes.columns]  # since '+' and '-' are forbidden for the time being
 
                             # Create a dictionary holding the old and new phenotype names for only the phenotypes that were actually renamed
                             renamed_phenotypes = {k: v for k, v in zip(old_phenotype_names, df_phenotypes.columns) if k != v}

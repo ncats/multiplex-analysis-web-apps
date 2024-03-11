@@ -246,7 +246,7 @@ def apply_phenotyping(csv_file_path, method, phenotype_identification_file, spec
     df[species_int_colname] = df[marker_cols].apply(lambda x: int(''.join([str(y) for y in list(x)]), base=2), axis='columns')
 
     # Drop objects that aren't positive for any markers of interest
-    df = df[df[species_int_colname] != 0]
+    df = df[df[species_int_colname] != 0].copy()
 
     # Print the initial species makeup of the dataframe prior to phenotyping
     value_counts = df[species_int_colname].value_counts()

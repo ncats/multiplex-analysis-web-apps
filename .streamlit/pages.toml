@@ -1,7 +1,12 @@
 [[pages]]
 path = "Multiplex_Analysis_Web_Apps.py"
 name = "Welcome"
-icon = ""
+icon = "⭐"
+
+[[pages]]
+name = "File Handling"
+icon = "🗄️"
+is_section = true
 
 [[pages]]
 path = "pages/01_data_import_and_export.py"
@@ -14,18 +19,23 @@ name = "Datafile Unification"
 icon = ""
 
 [[pages]]
+name = "Phenotyping"
+icon = "🖊️"
+is_section = true
+
+[[pages]]
 path = "pages/multiaxial_gating.py"
-name = "Multiaxial Gating"
+name = "Raw Intensities"
 icon = ""
 
 [[pages]]
 path = "pages/02_phenotyping.py"
-name = "Phenotyping"
+name = "Thresholded Intensities"
 icon = ""
 
 [[pages]]
-name = "Spatial-Interaction Tool"
-icon = ""
+name = "Spatial Interaction Tool"
+icon = "🔥"
 is_section = true
 
 [[pages]]
@@ -60,7 +70,7 @@ icon = ""
 
 [[pages]]
 name = "Neighborhood Profiles Workflow"
-icon = ""
+icon = "🔥"
 is_section = true
 
 [[pages]]

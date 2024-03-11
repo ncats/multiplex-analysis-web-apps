@@ -174,7 +174,7 @@ def add_new_phenotypes_to_main_df(df, image_for_filtering):
 
             # Add a column to the original dataframe with the new phenotype satisfying all of its filtering criteria
             old_phenotype_name = phenotype
-            new_phenotype_name = phenotype.strip().replace('+', '(pos)').replace('-', '(neg)')
+            new_phenotype_name = phenotype.strip().replace('+', '(plus)').replace('-', '(dash)')
             if old_phenotype_name != new_phenotype_name:
                 phenotype_name_changes[old_phenotype_name] = new_phenotype_name
             st.session_state['mg__df'].loc[image_loc, 'Phenotype {}'.format(new_phenotype_name)] = phenotype_bools.apply(lambda x: ('+' if x else '-'))  # since '+' and '-' are forbidden for the time being
@@ -562,7 +562,7 @@ def main():
             st.session_state['mg__de_current_phenotype'].dataframe_editor(reset_data_editor_button_text='Reset current phenotype definition', on_change=basic_filter_column_updates)
 
             # Choose a phenotype name
-            st.write('It is fine to use "+" and "-" in the phenotype name below, but keep in mind they will be replaced with "(pos)" and "(neg)" in the final dataset.')
+            st.write('It is fine to use "+" and "-" in the phenotype name below, but keep in mind they will be replaced with "(plus)" and "(dash)" in the downstream dataset.')
             st.text_input(label='Phenotype name:', key='mg__current_phenotype_name')
 
             # Add the current phenotype to the phenotype assignments table
