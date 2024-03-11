@@ -505,6 +505,9 @@ class Platform:
                 # Copy everything from the selected output archive to the output directory
                 shutil.copytree(os.path.join(local_output_dir, st.session_state['archive_to_load']), local_output_dir, dirs_exist_ok=True)
 
+                # Mimic (sort of) callback behavior, especially because we want to see updated available session states
+                st.rerun()
+
         # If working on NIDAP...
         elif self.platform == 'nidap':
 
@@ -571,6 +574,9 @@ class Platform:
                     # Extract all downloaded parts
                     extract_zipfile_to_directory(filepaths=local_download_paths, extraction_path=local_output_dir)
     
+                # Mimic (sort of) callback behavior, especially because we want to see updated available session states
+                st.rerun()
+
     # Save the currently loaded results to a results archive
     # def save_results_to_archive(self, nworkers_for_data_transfer=1):
     def save_results_to_archive(self):

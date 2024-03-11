@@ -382,6 +382,10 @@ def main():
         # Input datafile settings widgets
         with parameter_columns[0]:
             st.header('Input datafile settings')
+            if st.session_state['settings__input_datafile__filename'] is None:
+                st.session_state['settings__input_datafile__filename'] = options_for_input_datafiles[0]
+                update_dependencies_of_input_datafile_filename()
+                st.rerun()
             if (not os.path.exists(os.path.join(input_directory, st.session_state['settings__input_datafile__filename']))) and (os.path.exists(os.path.join(output_directory, st.session_state['settings__input_datafile__filename']))):
                 copy_input_file_from_output_dir_to_input_dir(st.session_state['settings__input_datafile__filename'])
                 st.rerun()
@@ -392,9 +396,10 @@ def main():
         # Phenotyping settings widgets
             st.header('Phenotyping settings')
             st.selectbox('Method:', options_for_phenotyping_methods, key='settings__phenotyping__method', help='Species: phenotypes defined by the unique combinations of markers present in the input file. Marker: each marker is its own phenotype. Custom: custom phenotyping using a text file.', on_change=update_dependencies_of_phenotyping_method)
-            if (not os.path.exists(os.path.join(input_directory, 'phenotypes', st.session_state['settings__phenotyping__phenotype_identification_file']))) and (os.path.exists(os.path.join(output_directory, st.session_state['settings__phenotyping__phenotype_identification_file']))):
-                copy_input_file_from_output_dir_to_input_dir(st.session_state['settings__phenotyping__phenotype_identification_file'], input_subdir='phenotypes')
-                st.rerun()
+            if st.session_state['settings__phenotyping__phenotype_identification_file'] is not None:
+                if (not os.path.exists(os.path.join(input_directory, 'phenotypes', st.session_state['settings__phenotyping__phenotype_identification_file']))) and (os.path.exists(os.path.join(output_directory, st.session_state['settings__phenotyping__phenotype_identification_file']))):
+                    copy_input_file_from_output_dir_to_input_dir(st.session_state['settings__phenotyping__phenotype_identification_file'], input_subdir='phenotypes')
+                    st.rerun()
             st.selectbox('Phenotype identification file:', options_for_phenotype_identification_files, key='settings__phenotyping__phenotype_identification_file', help='See [here](https://github.com/ncats/spatial-interaction-tool/blob/4e1240fba45cb3bc2290be18903af03f9d3fdf6a/config/phenotype_identifications/gmb_phenotype_ids_as_of_2022-07-05.tsv) for a sample phenotype identification file, which must be present in the input/phenotypes directory and have a .tsv extension.', disabled=st.session_state['phenotyping_phenotype_identification_file_is_disabled'])
 
         # Analysis settings widgets
