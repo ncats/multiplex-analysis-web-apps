@@ -353,11 +353,6 @@ def main():
 
                     srs_integer_columns = st.session_state['mg__df'].select_dtypes(include=['integer']).columns.to_series()
                     categorical_integer_columns = srs_integer_columns.loc[pd.Index([len(st.session_state['mg__df'][int_column].unique()) <= num_categorical_values_cutoff for int_column in srs_integer_columns])].to_list()
-<<<<<<< HEAD
-
-=======
-                    
->>>>>>> b0a523d599ebedff494d712c47fd1b0d8dc488e3
                     st.session_state['mg__all_numeric_columns'] = st.session_state['mg__df'].select_dtypes(include='number').columns.drop(categorical_integer_columns)
                     st.session_state['mg__all_columns'] = st.session_state['mg__df'].columns
                     st.session_state['mg__column_config'] = {"Corresponding thresholded marker field": st.column_config.SelectboxColumn("Corresponding thresholded marker field", help="Tresholded marker field corresponding to the intensity at left", options=st.session_state['mg__all_columns'], required=True)}
