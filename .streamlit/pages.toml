@@ -34,6 +34,11 @@ name = "Thresholded Intensities"
 icon = ""
 
 [[pages]]
+path = "pages/automated_phenotyping.py"
+name = "Automated"
+icon = ""
+
+[[pages]]
 name = "Spatial Interaction Tool"
 icon = "🔥"
 is_section = true
