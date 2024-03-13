@@ -253,6 +253,9 @@ def load_dataset_and_settings(checkpoints_exist, existing_dirs_to_delete, orig_s
     # Filter to just the necessary columns
     dataset_obj.data = dataset_formats.trim_dataframe_basic(dataset_obj.data)  # this returns a copy of the input dataframe
 
+    # Do any extra processing, namely, deleting ROIs with just a single coordinate
+    dataset_obj.extra_processing()
+
     # Save the new dataset to the session state
     st.session_state['dataset_obj'] = dataset_obj
 

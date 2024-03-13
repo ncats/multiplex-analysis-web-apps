@@ -430,6 +430,7 @@ class Native:
             self.trim_dataframe()
 
         # Calculate and output the minimum coordinate spacing
+        # Note it doesn't make sense to do this on patched slides since the spacing in those ROIs should be more accurately described by the spacing in the whole slides. In the GMB cases, ROIs are already assigned to 'tag' so the spacing there should be correctly determined. It's probably fine to do this calculation prior to patching!
         if do_calculate_minimum_coordinate_spacing_per_roi:
             self.calculate_minimum_coordinate_spacing_per_roi()
 

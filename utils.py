@@ -820,7 +820,7 @@ def load_and_standardize_input_datafile(datafile_path, coord_units_in_microns):
     dataset_obj = dataset_class(input_datafile=datafile_path, coord_units_in_microns=coord_units_in_microns)
 
     # Load and standardize the dataset
-    dataset_obj.process_dataset(do_trimming=False)
+    dataset_obj.process_dataset(do_trimming=False, do_extra_processing=False)
 
     # Return the processed dataset
     return dataset_obj
