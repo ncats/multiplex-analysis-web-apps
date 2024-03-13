@@ -3159,6 +3159,8 @@ def preprocess_dataset(format, input_datafile, coord_units_in_microns, images_to
 
     I should probably do away with species_equivalents and mapping_dict in favor of phenotype_identification_tsv_file.
 
+    As of 3/13/24 this function should finally be completely unnecessary due to doing the equivalent more efficiently in 03a_Tool_parameter_selection.py.
+
     Args:
         format (str): Class name in dataset_formats.py describing the dataset, e.g., `Native`, `GMBSecondGeneration`, `OMAL`.
         input_datafile (str): Full pathname to the authors' original datafile.

@@ -1551,12 +1551,15 @@ def calculate_min_coord_spacing_per_slide(df):
     return detected_minimum_spacing
 
 
-def potentially_apply_patching(df, input_datafile, roi_width, overlap, func_coords_to_pixels, func_microns_to_pixels):
+def potentially_apply_patching(df, input_datafile_or_coord_cols, roi_width, overlap, func_coords_to_pixels, func_microns_to_pixels):
     '''Either patch up the dataset into ROIs and assign the ROI ("tag") column accordingly, or don't and assign the ROI column accordingly.
     '''
 
     # Obtain the coordinate-relate columns for the current datafile format type
-    coord_cols = extract_datafile_metadata(input_datafile)[2]
+    if isinstance(input_datafile_or_coord_cols, str):
+        coord_cols = extract_datafile_metadata(input_datafile_or_coord_cols)[2]
+    else:
+        coord_cols = input_datafile_or_coord_cols
 
     # Get the "Slide ID" column of the dataframe
     slide_id = df['Slide ID']

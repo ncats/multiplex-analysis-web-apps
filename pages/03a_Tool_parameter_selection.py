@@ -10,6 +10,7 @@ import time_cell_interaction_lib as tci  # import the TIME library stored in tim
 import utils
 import app_top_of_page as top
 import streamlit_dataframe_editor as sde
+import dataset_formats
 
 # Input/output directory initializations
 input_directory = os.path.join('.', 'input')
@@ -27,9 +28,6 @@ def copy_input_file_from_output_dir_to_input_dir(input_filename, input_subdir=No
     shutil.copy(os.path.join(output_directory, input_filename), os.path.join(input_directory2, input_filename))
 
 def update_dependencies_of_input_datafile_filename():
-
-    # Import relevant library
-    import dataset_formats
 
     if st.session_state['settings__input_datafile__filename'] is not None:
 
@@ -239,19 +237,23 @@ def load_dataset_and_settings(checkpoints_exist, existing_dirs_to_delete, orig_s
     # Save to memory all settings that are actually being used to run the SIT
     st.session_state['sit__used_settings'] = orig_settings.copy()
 
-    dataset_obj = st.session_state['input_dataset']
+    # Make a modified copy of the dataset object that suits the SIT
+    dataset_obj = st.session_state['input_dataset'].copy()  # making a copy since we might modify the dataset_obj.data attribute by adding rows for patching potentially, filtering to images, and trimming the columns
 
-    # Load the dataset into a dataset object defined in dataset_formats.py if the button was pressed
-    dataset_obj = tci.preprocess_dataset(
-        format=st.session_state['sit__used_settings']['dataset']['format'],
-        input_datafile=st.session_state['sit__used_settings']['dataset']['input_datafile'],
-        coord_units_in_microns=st.session_state['sit__used_settings']['dataset']['coord_units_in_microns'],
-        phenotype_identification_tsv_file=st.session_state['sit__used_settings']['dataset']['phenotype_identification_tsv_file'],
-        sep=st.session_state['sit__used_settings']['dataset']['sep'],
-        roi_width=st.session_state['sit__used_settings']['dataset']['roi_width'],
-        overlap=st.session_state['sit__used_settings']['dataset']['overlap'],
-        images_to_analyze=st.session_state['sit__used_settings']['analysis']['images_to_analyze']
-        )
+    # Set a potentially important attribute
+    dataset_obj.phenotype_identification_tsv_file = st.session_state['sit__used_settings']['dataset']['phenotype_identification_tsv_file']
+
+    # Filter to just the necessary rows
+    dataset_obj.data = dataset_obj.data.loc[dataset_obj.data['Slide ID'].apply(lambda curr_image: curr_image in st.session_state['sit__used_settings']['analysis']['images_to_analyze'])]  # this returns a copy that will overwrite dataset_obj.data
+
+    # Potentially patch the dataset into ROIs (generally increasing the number of cells)
+    if st.session_state['sit__used_settings']['dataset']['roi_width'] is not None:
+        dataset_obj.data = dataset_formats.potentially_apply_patching(dataset_obj.data, ['Cell X Position', 'Cell Y Position'], st.session_state['sit__used_settings']['dataset']['roi_width'], st.session_state['sit__used_settings']['dataset']['overlap'], lambda df_tmp: (df_tmp / 0.2).astype(int), lambda x: int(x / 0.2))  # see dataset_formats.py for 0.2 justification
+
+    # Filter to just the necessary columns
+    dataset_obj.data = dataset_formats.trim_dataframe_basic(dataset_obj.data)  # this returns a copy of the input dataframe
+
+    # Save the new dataset to the session state
     st.session_state['dataset_obj'] = dataset_obj
 
     # Reset any image path extraction in subsequent tabs
