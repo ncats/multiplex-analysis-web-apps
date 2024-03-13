@@ -240,18 +240,18 @@ def load_dataset_and_settings(checkpoints_exist, existing_dirs_to_delete, orig_s
     # Make a modified copy of the dataset object that suits the SIT
     dataset_obj = st.session_state['input_dataset'].copy()  # making a copy since we might modify the dataset_obj.data attribute by adding rows for patching potentially, filtering to images, and trimming the columns
 
-    # Set a potentially important attribute
-    dataset_obj.phenotype_identification_tsv_file = st.session_state['sit__used_settings']['dataset']['phenotype_identification_tsv_file']
+    # Filter to just the necessary columns
+    dataset_obj.data = dataset_formats.trim_dataframe_basic(dataset_obj.data)  # this returns a copy of the input dataframe
 
     # Filter to just the necessary rows
     dataset_obj.data = dataset_obj.data.loc[dataset_obj.data['Slide ID'].apply(lambda curr_image: curr_image in st.session_state['sit__used_settings']['analysis']['images_to_analyze'])]  # this returns a copy that will overwrite dataset_obj.data
 
+    # Set a potentially important attribute
+    dataset_obj.phenotype_identification_tsv_file = st.session_state['sit__used_settings']['dataset']['phenotype_identification_tsv_file']
+
     # Potentially patch the dataset into ROIs (generally increasing the number of cells)
     if st.session_state['sit__used_settings']['dataset']['roi_width'] is not None:
         dataset_obj.data = dataset_formats.potentially_apply_patching(dataset_obj.data, ['Cell X Position', 'Cell Y Position'], st.session_state['sit__used_settings']['dataset']['roi_width'], st.session_state['sit__used_settings']['dataset']['overlap'], lambda df_tmp: (df_tmp / 0.2).astype(int), lambda x: int(x / 0.2))  # see dataset_formats.py for 0.2 justification
-
-    # Filter to just the necessary columns
-    dataset_obj.data = dataset_formats.trim_dataframe_basic(dataset_obj.data)  # this returns a copy of the input dataframe
 
     # Do any extra processing, namely, deleting ROIs with just a single coordinate
     dataset_obj.extra_processing()

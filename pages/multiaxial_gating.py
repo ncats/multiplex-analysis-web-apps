@@ -273,8 +273,8 @@ def main():
     '''
 
     # Set page settings
-    st.set_page_config(layout='wide', page_title='Multiaxial Gating')
-    st.title('Multiaxial Gating')
+    st.set_page_config(layout='wide', page_title='Manual Phenotyping on Raw Intensities')
+    st.title('Manual Phenotyping on Raw Intensities')
 
     # Run streamlit-dataframe-editor library initialization tasks at the top of the page
     st.session_state = sde.initialize_session_state(st.session_state)

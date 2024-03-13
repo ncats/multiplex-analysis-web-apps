@@ -797,7 +797,7 @@ def load_and_standardize_input_datafile(datafile_path, coord_units_in_microns):
     """
     Load and standardize the input datafile.
 
-    Here, at the end, is probably where we could implement anndata.
+    Here, at the end, is probably where we could technically implement anndata.
 
     Args:
         datafile_path (str): The path to the input datafile

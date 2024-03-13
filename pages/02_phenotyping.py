@@ -5,7 +5,6 @@ import os
 import pandas as pd
 import streamlit as st
 from streamlit_extras.add_vertical_space import add_vertical_space
-import dataset_formats
 
 # Import relevant libraries
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
@@ -115,8 +114,9 @@ def main():
     '''
 
     # Set a wide layout
-    st.set_page_config(page_title="Phenotyping",
+    st.set_page_config(page_title="Manual Phenotyping on Thresholded Intensities",
                        layout="wide")
+    st.title('Manual Phenotyping on Thresholded Intensities')
 
     # Run streamlit-dataframe-editor library initialization tasks at the top of the page
     st.session_state = sde.initialize_session_state(st.session_state)
@@ -124,48 +124,23 @@ def main():
     # Run Top of Page (TOP) functions
     st.session_state = top.top_of_page_reqs(st.session_state)
 
-    st.header('Phenotyper\nNCATS-NCI-DMAP')
+    # If 'input_dataset' isn't in the session state, print an error message and return
+    if 'input_dataset' not in st.session_state:
+        st.error('An input dataset has not yet been opened. Please do so using the "Open file(s)" page in the sidebar.')
+        return
 
-    input_directory = os.path.join('.', 'input')
     output_directory = os.path.join('.', 'output')
-    options_for_input_datafiles = [x for x in os.listdir(input_directory) if x.endswith(('.csv', '.tsv'))]
     phenoFileOptions = [x for x in os.listdir(output_directory) if (x.startswith('phenotype_summary')) and (x.endswith(('.csv', '.tsv')))]
 
     data_load_cols = st.columns([2,2,2])
     with data_load_cols[0]:
-        st.selectbox(label = 'Choose a datafile', options = options_for_input_datafiles, key = 'datafileU')
-        st.number_input('x-y coordinate units (microns):', min_value=0.0, key='phenotyping_micron_coordinate_units', help='E.g., if the coordinates in the input datafile were pixels, this number would be a conversion to microns in units of microns/pixel.', format='%.4f', step=0.0001)
-
-        data_button_cols = st.columns([1, 2])
-        with data_button_cols[0]:
-            if (st.button('Load Data')) and (st.session_state.datafileU is not None):
-                st.session_state.bc.startTimer()
-                input_datafile = os.path.join('input', st.session_state.datafileU)
-                _, _, _, _, file_format, _ = dataset_formats.extract_datafile_metadata(input_datafile)
-
-                st.session_state.file_format = file_format
-                dataset_class = getattr(dataset_formats, file_format)  # done this way so that the format (e.g., “REEC”) can be select programmatically
-                dataset_obj = dataset_class(input_datafile,
-                                            coord_units_in_microns = st.session_state.phenotyping_micron_coordinate_units,
-                                            extra_cols_to_keep=['tNt', 'GOODNUC', 'HYPOXIC', 'NORMOXIC', 'NucArea', 'RelOrientation'])
-                dataset_obj.process_dataset(do_calculate_minimum_coordinate_spacing_per_roi=False)
-                st.session_state.bc.printElapsedTime(msg = f'Loading {input_datafile} into memory')
-
-                st.session_state.bc.startTimer()
-                st.session_state = ndl.loadDataButton(st.session_state, dataset_obj.data, 'Input', st.session_state.datafileU[:-4])
-                st.session_state.bc.printElapsedTime(msg = f'Performing Phenotyping on {input_datafile}')
-
-        with data_button_cols[1]:
-            if (st.button('Load Multiaxial Gating Data')) & ('mg__df' in st.session_state):
-                st.session_state.bc.startTimer()
-                st.session_state = ndl.loadDataButton(st.session_state, st.session_state['mg__df'], 'Mutli-axial Gating', st.session_state.mg__input_datafile_filename[:-4])
-
-                # if st.button('DEBUG: Save data to pkl file'):
-                #     import pickle
-                #     with open('debug_data_from_gater.pkl', 'wb') as f:
-                #         pickle.dump(st.session_state['mg__df'], f)
-
-                st.session_state.bc.printElapsedTime(msg = 'Performing Phenotyping')
+        if st.button('Load Data'):
+            st.session_state.bc.startTimer()
+            dataset_obj = st.session_state['input_dataset']
+            st.session_state.bc.printElapsedTime(msg = f'Loading {st.session_state['input_metadata']['datafile_path']} into memory, from memory')
+            st.session_state.bc.startTimer()
+            st.session_state = ndl.loadDataButton(st.session_state, dataset_obj.data, 'Input', st.session_state.datafileU[:-4])
+            st.session_state.bc.printElapsedTime(msg = f'Performing Phenotyping on {st.session_state['input_metadata']['datafile_path']}')
         st.session_state.bc.set_value_df('time_load_data', st.session_state.bc.elapsedTime())
 
     with data_load_cols[1]:
