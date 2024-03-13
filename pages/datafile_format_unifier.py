@@ -204,7 +204,7 @@ def main():
                         st.session_state['unifier__columns_to_drop_rows_by_actual'] = st.session_state['unifier__columns_to_drop_rows_by']
 
                     # Display a success message
-                    st.toast(f'{row_count_after - row_count_before} rows deleted successfully')
+                    st.toast(f'{row_count_before - row_count_after} rows deleted successfully')
 
                     # Set a flag to update the dataframe sample at the bottom of the page
                     show_dataframe_updates = True

@@ -178,6 +178,11 @@ def load_relevant_settings_from_phenotyper():
         # Get the type of text file that is the original datafile
         sep = (',' if orig_filename.endswith('.csv') else '\t')
 
+        # If the original datafile is not present in the input directory, then don't do anything
+        if not os.path.exists(os.path.join(input_directory, orig_filename)):
+            st.error(f'The input file {orig_filename} does not appear to be present in the input directory. Please ensure it is there and try again.')
+            return
+
         # Read in this original datafile from disk
         orig_df = pd.read_csv(os.path.join(input_directory, orig_filename), sep=sep)
 
@@ -197,6 +202,11 @@ def load_relevant_settings_from_phenotyper():
 
     # Otherwise, the datafile was likely read in from disk (as opposed to from memory via Streamlit), so set that filename as the input datafile
     else:
+
+        # If the Phenotyper has not been run, then don't do anything
+        if 'datafileU' not in st.session_state:
+            st.error('The Phenotyper does not appear to have been run. Please run it and try again.')
+            return
 
         # Set the filename for the SIT as that in the Phenotyper's widget
         st.session_state['settings__input_datafile__filename'] = st.session_state['datafileU']
@@ -261,7 +271,7 @@ def main():
                                                  [os.path.join(output_directory, x) for x in os.listdir(output_directory) if (x.endswith('.yml') and ('environment_as_of_' not in x))]
     options_for_input_datafiles =                [x for x in os.listdir(input_directory) if x.endswith(('.csv', '.tsv'))]
     options_for_phenotype_identification_files = ([x for x in os.listdir(os.path.join(input_directory, 'phenotypes')) if x.endswith('.tsv')] if os.path.exists(os.path.join(input_directory, 'phenotypes')) else [])
-    options_for_input_datafile_formats = ['HALO', 'Native', 'GMBSecondGeneration', 'REEC', 'QuPath', 'Steinbock']
+    options_for_input_datafile_formats = ['Standardized', 'HALO', 'Native', 'GMBSecondGeneration', 'REEC', 'QuPath', 'Steinbock']
     options_for_phenotyping_methods = ['Species', 'Marker', 'Custom']
     options_for_significance_calculation_methods = ['Poisson (radius)', 'Permutation (radius)', 'Permutation (k-nearest neighbors)']
 
@@ -439,7 +449,7 @@ def main():
         orig_settings = dict()
         orig_settings['dataset'], orig_settings['analysis'], orig_settings['plotting'], orig_settings['annotation'], orig_settings['phenotyping'] = dict(), dict(), dict(), dict(), dict()
         orig_settings['dataset']['input_datafile'] = os.path.join(input_directory, st.session_state['settings__input_datafile__filename'])
-        orig_settings['dataset']['format'] = dict(zip(['HALO', 'Native', 'GMBSecondGeneration', 'QuPath', 'Steinbock'], ['OMAL', 'Native', 'GMBSecondGeneration', 'QuPath', 'Steinbock']))[st.session_state['settings__input_datafile__format']]
+        orig_settings['dataset']['format'] = st.session_state['settings__input_datafile__format']
         orig_settings['dataset']['coord_units_in_microns'] = st.session_state['settings__input_datafile__coordinate_units']
         orig_settings['dataset']['sep'] = (',' if orig_settings['dataset']['input_datafile'].endswith('.csv') else '\t')
         orig_settings['phenotyping']['method'] = st.session_state['settings__phenotyping__method']
