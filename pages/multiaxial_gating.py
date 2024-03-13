@@ -9,7 +9,6 @@ import plotly.express as px
 import utils
 import matplotlib.pyplot as plt
 import numpy as np
-import streamlit_utils
 
 # Import relevant libraries
 import app_top_of_page as top
@@ -344,13 +343,13 @@ def main():
 
         # In the first column, create the data loading button
         with data_butt_cols[0]:
-            MaG_load_hit = st.button('Load data', use_container_width=True, on_click=clear_session_state, kwargs={'keep_keys': ['mg__input_datafile_filename', 'mg__input_datafile_coordinate_units', 'mg__do_batch_norm']})
+            MaG_load_hit = st.button('Load data', use_container_width=True, on_click=clear_session_state, kwargs={'keep_keys': ['mg__input_datafile_filename', 'mg__input_datafile_coordinate_units', 'mg__do_batch_norm', 'mg__df']})
 
         # In the second column, create the data loading spinner
         with data_butt_cols[1]:
             if MaG_load_hit:
                 with st.spinner('Loading Data'):
-                    st.session_state['mg__df'] = streamlit_utils.load_input_dataframe()  # no need to say .copy() because I think load_input_dataframe already returns a copy per my cursory tests
+                    st.session_state['mg__df'] = st.session_state['input_dataset'].data  # not making a copy because we deliberately want to modify the in-memory dataframe. Note that all is ever done to the dataframe is renaming the original phenotype columns and then adding new ones.
                     unique_images = st.session_state['mg__df']['Slide ID'].unique()
                     st.session_state['mg__unique_images_short'] = ['-'.join(x.split('-')[1:]) for x in unique_images]
                     st.session_state['mg__unique_image_dict'] = dict(zip(st.session_state['mg__unique_images_short'], unique_images))

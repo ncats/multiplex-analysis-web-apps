@@ -239,6 +239,8 @@ def load_dataset_and_settings(checkpoints_exist, existing_dirs_to_delete, orig_s
     # Save to memory all settings that are actually being used to run the SIT
     st.session_state['sit__used_settings'] = orig_settings.copy()
 
+    dataset_obj = st.session_state['input_dataset']
+
     # Load the dataset into a dataset object defined in dataset_formats.py if the button was pressed
     dataset_obj = tci.preprocess_dataset(
         format=st.session_state['sit__used_settings']['dataset']['format'],

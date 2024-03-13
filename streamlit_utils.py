@@ -74,6 +74,8 @@ def load_input_dataset(datafile_path, coord_units_in_microns, input_dataset_key=
     """
     Load and standardize the input datafile and save the settings in the session state.
 
+    This should be called from an "Open file(s)" page in the sidebar.
+
     Args:
         datafile_path (str): The path to the input datafile.
         coord_units_in_microns (float): The conversion factor from the units of the input datafile to microns.
@@ -94,32 +96,11 @@ def load_input_dataset(datafile_path, coord_units_in_microns, input_dataset_key=
         'coord_units_in_microns': coord_units_in_microns
     }
 
-    # If the data haven't yet been loaded or the datafile settings are different from the last load, load/standardize the data and save the settings
-    if (input_metadata_key not in st.session_state) or (st.session_state[input_metadata_key] != metadata):
-        st.session_state[input_dataset_key] = utils.load_and_standardize_input_datafile(datafile_path, coord_units_in_microns)
-        st.session_state[input_metadata_key] = metadata
-        st.info(f'The data have been loaded and standardized with parameters {metadata}')
+    # Load and standardize the input datafile into the session state
+    st.session_state[input_dataset_key] = utils.load_and_standardize_input_datafile(datafile_path, coord_units_in_microns)
 
-    # Otherwise, just inform the user that the data have already been loaded and standardized with the same parameters
-    else:
-        st.info(f'The data have already been loaded and standardized with parameters {metadata}')
+    # Save the metadata to the session state as well
+    st.session_state[input_metadata_key] = metadata
 
-def load_input_dataframe():
-    """
-    Load the standardized input dataframe from the session state.
-
-    Args:
-        None
-
-    Returns:
-        pandas.DataFrame: The standardized input dataframe.
-    """
-
-    # If the input datafile has been opened, return its standardized dataframe
-    if 'input_dataset' in st.session_state:
-        return st.session_state['input_dataset'].data  # pretty sure this returns a copy per my cursory tests
-    
-    # Otherwise, inform the user that the input datafile has not yet been opened
-    else:
-        st.warning('An input dataset has not yet been opened. Please do so using the "Open file(s)" page in the sidebar.')
-        return None
+    # Inform the user that the data have been loaded and standardized
+    st.info(f'The data have been loaded and standardized with parameters {metadata}')
