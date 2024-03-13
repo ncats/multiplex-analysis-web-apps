@@ -9,6 +9,7 @@ import plotly.express as px
 import utils
 import matplotlib.pyplot as plt
 import numpy as np
+import streamlit_utils
 
 # Import relevant libraries
 import app_top_of_page as top
@@ -282,6 +283,11 @@ def main():
     # Run Top of Page (TOP) functions
     st.session_state = top.top_of_page_reqs(st.session_state)
 
+    # If 'input_dataset' isn't in the session state, print an error message and return
+    if 'input_dataset' not in st.session_state:
+        st.error('An input dataset has not yet been opened. Please do so using the "Open file(s)" page in the sidebar.')
+        return
+
     # Set the default dataframes to be edited
     default_df_current_phenotype     = pd.DataFrame(columns=['Column for filtering', 'Minimum value', 'Maximum value'])
     default_df_phenotype_assignments = pd.DataFrame()
@@ -344,7 +350,7 @@ def main():
         with data_butt_cols[1]:
             if MaG_load_hit:
                 with st.spinner('Loading Data'):
-                    st.session_state['mg__df'] = load_data(os.path.join(input_directory, input_datafilename), coord_units_in_microns, dataset_formats.extract_datafile_metadata(os.path.join(input_directory, input_datafilename))[4])
+                    st.session_state['mg__df'] = streamlit_utils.load_input_dataframe()  # no need to say .copy() because I think load_input_dataframe already returns a copy per my cursory tests
                     unique_images = st.session_state['mg__df']['Slide ID'].unique()
                     st.session_state['mg__unique_images_short'] = ['-'.join(x.split('-')[1:]) for x in unique_images]
                     st.session_state['mg__unique_image_dict'] = dict(zip(st.session_state['mg__unique_images_short'], unique_images))

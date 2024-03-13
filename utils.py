@@ -792,3 +792,35 @@ def dataframe_insert_possibly_existing_column(df, column_position, column_name, 
 
     # Return
     return
+
+def load_and_standardize_input_datafile(datafile_path, coord_units_in_microns):
+    """
+    Load and standardize the input datafile.
+
+    Here, at the end, is probably where we could implement anndata.
+
+    Args:
+        datafile_path (str): The path to the input datafile
+        coord_units_in_microns (float): The number of microns per coordinate unit in the input datafile
+
+    Returns:
+        dataset_obj (one of the classes in dataset_formats.py): The standardized dataset object
+    """
+
+    # Import relevant library
+    import dataset_formats
+
+    # Get the format of the input datafile
+    dataset_format = dataset_formats.extract_datafile_metadata(datafile_path)[4]
+
+    # Get the class corresponding to the format of the input datafile
+    dataset_class = getattr(dataset_formats, dataset_format)
+
+    # Create an instance of the class corresponding to the format of the input datafile
+    dataset_obj = dataset_class(input_datafile=datafile_path, coord_units_in_microns=coord_units_in_microns)
+
+    # Load and standardize the dataset
+    dataset_obj.process_dataset(do_trimming=False)
+
+    # Return the processed dataset
+    return dataset_obj

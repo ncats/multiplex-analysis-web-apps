@@ -184,7 +184,7 @@ class Native:
     I should dig up the email/conversation/notes in which Houssein told us the units of the original input datafile were half-microns.
     """
 
-    def __init__(self, input_datafile, coord_units_in_microns, images_to_analyze=None, sep='\t', min_coord_spacing=None, species_equivalents={}, mapping_dict={}, roi_width=None, overlap=0, phenotype_identification_tsv_file=None, extra_cols_to_keep=None):
+    def __init__(self, input_datafile, coord_units_in_microns, images_to_analyze=None, min_coord_spacing=None, species_equivalents={}, mapping_dict={}, roi_width=None, overlap=0, phenotype_identification_tsv_file=None, extra_cols_to_keep=None):
         """Object initialization, which just consists of reading in the data from the datafile
 
         Args:
