@@ -109,13 +109,13 @@ def load_input_dataset(datafile_path_or_df, coord_units_in_microns, input_datase
     if dataset_obj is not None:
         st.session_state[input_dataset_key] = dataset_obj
         st.session_state[input_metadata_key] = metadata  # save the metadata to the session state as well
-        st.info(f'The data have been loaded and standardized with parameters {metadata}')
+        st.info(f'The data have been loaded and standardized with parameters {metadata}.')
 
     # If the input data is in an unsupported format, assign null values and display an error message
     else:
         st.session_state[input_dataset_key] = None
         st.session_state[input_metadata_key] = None
-        st.error('The input data is in an unsupported format.')
+        st.error('The input data are in an unsupported format.')
 
 def get_updated_dynamic_options(input_directory):
 

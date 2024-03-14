@@ -4,6 +4,7 @@ import app_top_of_page as top
 import streamlit_dataframe_editor as sde
 import os
 import streamlit_utils
+import pandas as pd
 
 def toggle_changed():
     """
@@ -31,10 +32,12 @@ def main():
 
     # Constant
     input_dir = os.path.join('.', 'input')
+    num_rows_to_sample = 100
 
     # Initialization
     show_dataframe_updates = False
 
+    # In the first third of the page, create the input file selection and loading widgets
     with st.columns(3)[0]:
 
         # Create a toggle to load the dataset from Datafile Unifier
@@ -48,7 +51,10 @@ def main():
 
         # Create a dropdown of the available files in the "input" directory
         available_input_files = [file for file in os.listdir(input_dir) if file.lower().endswith(('.csv', '.tsv'))]
-        if 'opener__selected_input_file' in st.session_state:
+        if 'opener__selected_input_file' not in st.session_state:
+            if available_input_files:
+                st.session_state['opener__selected_input_file'] = available_input_files[0]
+        else:
             if st.session_state['opener__selected_input_file'] not in available_input_files:
                 st.session_state['opener__selected_input_file'] = None
         st.selectbox('Select an available input file to load:', options=available_input_files, key='opener__selected_input_file', disabled=st.session_state['opener__load_from_datafile_unifier'])
@@ -76,12 +82,12 @@ def main():
 
         # Stop if no input file or dataframe is available
         if input_file_or_df is None:
-            st.warning('Please select a valid input source.')
+            st.info('Please select a valid input source.')
             return
         
         # Write out the selected input source, but if it is a dataframe, just say so
         if isinstance(input_file_or_df, str):
-            st.write(f'Selected input: {input_file_or_df}')
+            st.write(f'Selected input: {os.path.basename(input_file_or_df)}')
         else:
             st.write(f'Selected input: Dataset from Datafile Unifier consisting of {input_file_or_df.shape[0]} rows and {input_file_or_df.shape[1]} columns')
         st.write(f'Coordinate units: {st.session_state["opener__microns_per_coordinate_unit"]} microns')
@@ -93,24 +99,26 @@ def main():
 
         # Stop if the input dataset is not yet loaded
         if 'input_dataset' not in st.session_state:
-            st.warning('To continue, please press the button above to load an input dataset.')
+            st.info('To continue, please press the button above to load an input dataset.')
             return
 
         # Stop if the input dataset is in an unrecognized format
         if st.session_state['input_dataset'] is None:
-            st.warning('The input data is in an unsupported format.')
+            st.error('The input data are in an unsupported format.')
             return
     
-    # Now that we know all is good, print a sample of the main, input dataframe
+    # Now that we know the input dataset st.session_state['input_dataset'] is assigned and is valid, print a sample of the main, input dataframe
     st.header('Sample of loaded dataframe')
     df = st.session_state['input_dataset'].data
     resample_dataframe = st.button('Refresh dataframe sample')
     if ('opener__sampled_df' not in st.session_state) or resample_dataframe or show_dataframe_updates:
-        sampled_df = df.sample(100).sort_index()
-        st.session_state['opener__sampled_df'] = sampled_df
-    sampled_df = st.session_state['opener__sampled_df']
-    st.write(sampled_df)
-    st.write('The full loaded dataframe is of {} format and has {} rows and {} columns.'.format(type(st.session_state['input_dataset']), df.shape[0], df.shape[1]))
+        if not isinstance(df, pd.DataFrame):
+            st.error('The input data is not a dataframe.')
+            return
+        else:
+            st.session_state['opener__sampled_df'] = df.sample(min(num_rows_to_sample, len(df))).sort_index()
+    st.write(st.session_state['opener__sampled_df'])
+    st.write('The full loaded dataframe is part of the {} class and has {} rows and {} columns.'.format(type(st.session_state['input_dataset']), df.shape[0], df.shape[1]))
 
     # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
     st.session_state = sde.finalize_session_state(st.session_state)
