@@ -66,7 +66,7 @@ def init_session_state(session_state):
     session_state.SEL_feat = []
     session_state.CHK_feat = []
 
-    session_state['phenotyping_micron_coordinate_units'] = 0.25
+    # session_state['phenotyping_micron_coordinate_units'] = 0.25
 
     # Dataset Dictionaries of files in each unstructure dataset
     # session_state.files_dict = {}

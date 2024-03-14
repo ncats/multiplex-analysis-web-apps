@@ -139,7 +139,7 @@ def main():
             dataset_obj = st.session_state['input_dataset']
             st.session_state.bc.printElapsedTime(msg = f'Loading {st.session_state['input_metadata']['datafile_path']} into memory, from memory')
             st.session_state.bc.startTimer()
-            st.session_state = ndl.loadDataButton(st.session_state, dataset_obj.data, 'Input', st.session_state.datafileU[:-4])
+            st.session_state = ndl.loadDataButton(st.session_state, dataset_obj.data, 'Input', os.path.splitext(os.path.basename(st.session_state['input_metadata']['datafile_path']))[0])
             st.session_state.bc.printElapsedTime(msg = f'Performing Phenotyping on {st.session_state['input_metadata']['datafile_path']}')
         st.session_state.bc.set_value_df('time_load_data', st.session_state.bc.elapsedTime())
 
