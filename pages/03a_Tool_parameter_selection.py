@@ -311,7 +311,7 @@ def main():
 
     # If 'input_dataset' isn't in the session state, print an error message and return
     if 'input_dataset' not in st.session_state:
-        st.error('An input dataset has not yet been opened. Please do so using the "Open file(s)" page in the sidebar.')
+        st.error('An input dataset has not yet been opened. Please do so using the "Open File" page in the sidebar.')
         return
 
     # Assign default keys

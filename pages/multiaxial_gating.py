@@ -6,7 +6,6 @@ import plotly.graph_objects as go
 import os
 import dataset_formats
 import plotly.express as px
-import utils
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -187,7 +186,7 @@ def add_new_phenotypes_to_main_df(df, image_for_filtering):
             st.info(f'These phenotype transformations were made to avoid "+" and "-" characters: {phenotype_name_changes}')
 
         # Save the gating table to disk
-        gating_filename = 'gating_table_for_{}_for_datafile_{}-{}.csv'.format(filtering_section_name, '.'.join(st.session_state['mg__input_datafile_filename'].split('.')[:-1]), datetime.now().strftime("date%Y_%m_%d_time%H_%M_%S"))
+        gating_filename = 'gating_table_for_{}_for_datafile_{}-{}.csv'.format(filtering_section_name, os.path.splitext(os.path.basename(st.session_state['input_metadata']['datafile_path']))[0], datetime.now().strftime("date%Y_%m_%d_time%H_%M_%S"))
         df_phenotype_assignments.to_csv(path_or_buf=os.path.join(os.path.join('.', 'output'), gating_filename), index=True)
         st.info('File {} written to disk'.format(gating_filename))
 
@@ -284,7 +283,7 @@ def main():
 
     # If 'input_dataset' isn't in the session state, print an error message and return
     if 'input_dataset' not in st.session_state:
-        st.error('An input dataset has not yet been opened. Please do so using the "Open file(s)" page in the sidebar.')
+        st.error('An input dataset has not yet been opened. Please do so using the "Open File" page in the sidebar.')
         return
 
     # Set the default dataframes to be edited
@@ -293,12 +292,8 @@ def main():
     default_df_field_matching        = pd.DataFrame(columns=['Intensity field', 'Corresponding thresholded marker field'])
 
     # Constants
-    input_directory = os.path.join('.', 'input')
     num_categorical_values_cutoff = 10
     tol = 1e-8
-
-    # Set the options for input data filenames
-    options_for_input_datafiles = [x for x in os.listdir(input_directory) if x.endswith(('.csv', '.tsv'))]
 
     # Initialize some things in the session state
     if 'mg__current_phenotype_name' not in st.session_state:
@@ -309,10 +304,6 @@ def main():
         st.session_state['mg__de_phenotype_assignments'] = sde.DataframeEditor(df_name='mg__df_phenotype_assignments', default_df_contents=default_df_phenotype_assignments)
     if 'mg__de_field_matching' not in st.session_state:
         st.session_state['mg__de_field_matching'] = sde.DataframeEditor(df_name='mg__df_field_matching', default_df_contents=default_df_field_matching)
-    if 'mg__input_datafile_filename' not in st.session_state:
-        st.session_state['mg__input_datafile_filename'] = utils.get_first_element_or_none(options_for_input_datafiles)
-    if 'mg__input_datafile_coordinate_units' not in st.session_state:
-        st.session_state['mg__input_datafile_coordinate_units'] = 0.25
     if 'mg__do_batch_norm' not in st.session_state:
         st.session_state['mg__do_batch_norm'] = False
     if 'mg__selected_intensity_fields' not in st.session_state:
@@ -331,10 +322,6 @@ def main():
 
         # Set the load data options
         with load_data_columns[0]:
-            st.selectbox('Filename:', options_for_input_datafiles, key='mg__input_datafile_filename', help='Input datafiles must be present in the "input" directory and have a .csv or .tsv extension.')
-            input_datafilename = st.session_state['mg__input_datafile_filename']
-            st.number_input('x-y coordinate units (microns):', min_value=0.0, key='mg__input_datafile_coordinate_units', help='E.g., if the coordinates in the input datafile were pixels, this number would be a conversion to microns in units of microns/pixel.', format='%.4f', step=0.0001)  # set the input datafile coordinate units in microns
-            coord_units_in_microns = st.session_state['mg__input_datafile_coordinate_units']
             st.toggle(label='Perform batch normalization', key='mg__do_batch_norm')
             batch_normalization_func = (z_score_normalize if st.session_state['mg__do_batch_norm'] else lambda df, _: df)  # initially, create a very simple batch normalization option using the Z score, which appears to be justified in literature
 
@@ -343,7 +330,7 @@ def main():
 
         # In the first column, create the data loading button
         with data_butt_cols[0]:
-            MaG_load_hit = st.button('Load data', use_container_width=True, on_click=clear_session_state, kwargs={'keep_keys': ['mg__input_datafile_filename', 'mg__input_datafile_coordinate_units', 'mg__do_batch_norm', 'mg__df']})
+            MaG_load_hit = st.button('Load data', use_container_width=True, on_click=clear_session_state, kwargs={'keep_keys': ['mg__do_batch_norm', 'mg__df']})
 
         # In the second column, create the data loading spinner
         with data_butt_cols[1]:
