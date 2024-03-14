@@ -4,7 +4,6 @@ import app_top_of_page as top
 import streamlit_dataframe_editor as sde
 import os
 import streamlit_utils
-import pandas as pd
 
 def toggle_changed():
     """
@@ -36,6 +35,9 @@ def main():
 
     # Initialization
     show_dataframe_updates = False
+
+    # Display a header
+    st.header('Input options')
 
     # In the first third of the page, create the input file selection and loading widgets
     with st.columns(3)[0]:
@@ -85,40 +87,52 @@ def main():
             st.info('Please select a valid input source.')
             return
         
-        # Write out the selected input source, but if it is a dataframe, just say so
-        if isinstance(input_file_or_df, str):
-            st.write(f'Selected input: {os.path.basename(input_file_or_df)}')
-        else:
-            st.write(f'Selected input: Dataset from Datafile Unifier consisting of {input_file_or_df.shape[0]} rows and {input_file_or_df.shape[1]} columns')
-        st.write(f'Coordinate units: {st.session_state["opener__microns_per_coordinate_unit"]} microns')
-
         # Read in the dataset either from memory or from a file
         if st.button('Load the selected input dataset'):
-            streamlit_utils.load_input_dataset(input_file_or_df, st.session_state["opener__microns_per_coordinate_unit"])
-            show_dataframe_updates = True
+            with st.spinner('Loading the input dataset...'):
+                streamlit_utils.load_input_dataset(input_file_or_df, st.session_state['opener__microns_per_coordinate_unit'])  # this assigns the input dataset to st.session_state['input_dataset'] and the metadata to st.session_state['input_metadata']
+            if st.session_state['input_dataset'] is not None:
+                st.info('The input data have been successfully loaded and validated.')
+                show_dataframe_updates = True
+            else:
+                st.error('The input data are in an unsupported format.')
+                return
 
         # Stop if the input dataset is not yet loaded
-        if 'input_dataset' not in st.session_state:
+        if ('input_dataset' not in st.session_state) or (st.session_state['input_dataset'] is None):
             st.info('To continue, please press the button above to load an input dataset.')
             return
 
-        # Stop if the input dataset is in an unrecognized format
-        if st.session_state['input_dataset'] is None:
-            st.error('The input data are in an unsupported format.')
-            return
-    
-    # Now that we know the input dataset st.session_state['input_dataset'] is assigned and is valid, print a sample of the main, input dataframe
-    st.header('Sample of loaded dataframe')
-    df = st.session_state['input_dataset'].data
+    # Now that we know the input dataset is assigned and is valid, print out a sample of the main, input dataframe, plus some information about it
+    st.header('Loaded and validated data')
+
+    # Assign shortcuts to the loaded dataset, metadata, and dataframe
+    dataset_obj = st.session_state['input_dataset']
+    metadata = st.session_state['input_metadata']
+    df = dataset_obj.data  # this (st.session_state['input_dataset'].data) is the dataframe that should be used in the entire app suite
+
+    # Get information about the loaded dataset
+    if metadata['datafile_path'] is not None:
+        datafile_path = os.path.basename(metadata['datafile_path'])
+    else:
+        datafile_path = 'loaded from memory'
+    information = f'''
+    Loaded dataset properties:
+
+      :small_orange_diamond: Datafile: `{datafile_path}`  
+      :small_orange_diamond: Coordinate units: `{metadata['coord_units_in_microns']} microns/coord`  
+      :small_orange_diamond: Dataset format: `{type(dataset_obj)}`  
+      :small_orange_diamond: Number of rows: `{df.shape[0]}`  
+      :small_orange_diamond: Number of columns: `{df.shape[1]}`
+    '''
+
+    # Display the information and the sampled dataframe
+    st.markdown(information)
+    st.write('Sampled dataframe:')
     resample_dataframe = st.button('Refresh dataframe sample')
     if ('opener__sampled_df' not in st.session_state) or resample_dataframe or show_dataframe_updates:
-        if not isinstance(df, pd.DataFrame):
-            st.error('The input data is not a dataframe.')
-            return
-        else:
-            st.session_state['opener__sampled_df'] = df.sample(min(num_rows_to_sample, len(df))).sort_index()
+        st.session_state['opener__sampled_df'] = df.sample(min(num_rows_to_sample, len(df))).sort_index()
     st.write(st.session_state['opener__sampled_df'])
-    st.write('The full loaded dataframe is part of the {} class and has {} rows and {} columns.'.format(type(st.session_state['input_dataset']), df.shape[0], df.shape[1]))
 
     # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
     st.session_state = sde.finalize_session_state(st.session_state)
