@@ -1,11 +1,11 @@
 [[pages]]
 path = "Multiplex_Analysis_Web_Apps.py"
-name = "Welcome"
-icon = "⭐"
+name = "Welcome 🏠"
+icon = ""
 
 [[pages]]
-name = "File Handling"
-icon = "🗄️"
+name = "File Handling 🗄️"
+icon = ""
 is_section = true
 
 [[pages]]
@@ -19,8 +19,8 @@ name = "Datafile Unification"
 icon = ""
 
 [[pages]]
-name = "Phenotyping"
-icon = "🖊️"
+name = "Phenotyping 🖊️"
+icon = ""
 is_section = true
 
 [[pages]]
@@ -34,8 +34,8 @@ name = "Thresholded Intensities"
 icon = ""
 
 [[pages]]
-name = "Spatial Interaction Tool"
-icon = "🔥"
+name = "Spatial Interaction Tool 🔥"
+icon = ""
 is_section = true
 
 [[pages]]
@@ -69,8 +69,8 @@ name = "Display ROI P Values Overlaid on Slides"
 icon = ""
 
 [[pages]]
-name = "Neighborhood Profiles Workflow"
-icon = "🔥"
+name = "Neighborhood Profiles Workflow 🔥"
+icon = ""
 is_section = true
 
 [[pages]]
