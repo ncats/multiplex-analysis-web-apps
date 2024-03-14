@@ -375,6 +375,9 @@ def main():
                 with smallest_columns[1]:
                     st.selectbox('Select a column for the maximum y-coordinate:', df_numeric_columns, key='unifier__y_max_coordinate_column')
 
+            # Write a note to the user
+            st.write('Note: Clicking the button below will convert the coordinates to microns (and round them to the nearest 0.2 microns).')
+
             # Create a button to assign coordinates to the dataframe, including converting them to microns and rounding them to the nearest 0.2 microns
             if st.button(':star2: Assign coordinates :star2:'):
 

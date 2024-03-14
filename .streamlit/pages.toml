@@ -19,6 +19,11 @@ name = "Datafile Unification"
 icon = ""
 
 [[pages]]
+path = "pages/open_file.py"
+name = "Open File"
+icon = ""
+
+[[pages]]
 name = "Phenotyping 🖊️"
 icon = ""
 is_section = true

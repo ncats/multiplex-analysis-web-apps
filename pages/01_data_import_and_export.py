@@ -46,7 +46,7 @@ def main():
     # In the second column...
     with cols[1]:
         platform.load_selected_inputs()
-        st.divider()
+        # st.divider()
         platform.save_selected_input()
 
     # In the third column...
@@ -69,7 +69,7 @@ def main():
     # In the second column...
     with cols[1]:
         platform.load_selected_archive()
-        st.divider()
+        # st.divider()
         platform.save_results_to_archive()
 
     # In the third column...
