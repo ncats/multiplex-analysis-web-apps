@@ -51,7 +51,7 @@ def get_current_settings():
 
     # Initialize the dictionary holding the actual settings dictionary to be used in the workflow
     settings = dict()
-    settings['input_datafile'], settings['phenotyping'], settings['analysis'], settings['annotation'], settings['plotting'] = dict(), dict(), dict(), dict(), dict()
+    settings['phenotyping'], settings['analysis'], settings['annotation'], settings['plotting'] = dict(), dict(), dict(), dict()
 
     # Assign current values of the settings
     for key in st.session_state:
@@ -105,9 +105,11 @@ def load_input_dataset(datafile_path, coord_units_in_microns, input_dataset_key=
     # Inform the user that the data have been loaded and standardized
     st.info(f'The data have been loaded and standardized with parameters {metadata}')
 
-def get_updated_dynamic_options(input_directory, input_datafile_filename):
+def get_updated_dynamic_options(input_directory):
 
     # options_for_images, options_for_annotation_files = get_updated_dynamic_options(input_directory, input_datafile_filename)
+
+    input_datafile_filename = st.session_state['input_metadata']['datafile_path']
     
     # Import relevant library
     import os

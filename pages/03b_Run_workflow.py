@@ -182,7 +182,7 @@ def main():
                 st.write('**:sparkles: {}...**'.format(block_names[iblock]))
                 slices.average_dens_pvals_over_rois_for_each_slide(
                     weight_rois_by_num_valid_centers=st.session_state['sit__used_settings']['plotting']['weight_rois_by_num_valid_centers'],
-                    input_datafile=st.session_state['sit__used_settings']['dataset']['input_datafile']  # this is just needed to get the input data filename to save to disk along with the df_log_dens_pvals_arr_per_slide for later read-in by the correlation analyzer
+                    input_datafile=st.session_state['input_metadata']['datafile_path']  # this is just needed to get the input data filename to save to disk along with the df_log_dens_pvals_arr_per_slide for later read-in by the correlation analyzer
                 )
 
             # Plot the ROIs on each slide

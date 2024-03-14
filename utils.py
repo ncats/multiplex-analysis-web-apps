@@ -289,10 +289,10 @@ def validate_presets_and_map_to_settings(preset_settings, possible_phenotype_ide
 
     # Initialize the dictionary holding the actual settings dictionary to be used in the workflow
     settings = dict()
-    settings['input_datafile'], settings['phenotyping'], settings['analysis'], settings['annotation'], settings['plotting'] = dict(), dict(), dict(), dict(), dict()
+    settings['phenotyping'], settings['analysis'], settings['annotation'], settings['plotting'] = dict(), dict(), dict(), dict()
 
     # If the input settings file is the new format...
-    if 'input_datafile' in preset_settings:
+    if 'dataset' not in preset_settings:
 
         # Validate the settings in the phenotyping (new format) section
         settings['phenotyping']['method'] = validate_preset_setting(preset_settings, 'phenotyping', 'method', lambda x: isstr(x) and (x in possible_phenotyping_methods), 'Value is not an acceptable value (options are {})'.format(possible_phenotyping_methods))
@@ -327,7 +327,7 @@ def validate_presets_and_map_to_settings(preset_settings, possible_phenotype_ide
     else:
 
         # Extract the image and annotation file options
-        options_for_images, possible_annotation_files = streamlit_utils.get_updated_dynamic_options(input_directory, settings['input_datafile']['filename'])
+        options_for_images, possible_annotation_files = streamlit_utils.get_updated_dynamic_options(input_directory)
 
         # Validate the settings in the phenotyping (new format) section
         preset__dataset__phenotype_identification_tsv_file = validate_preset_setting(preset_settings, 'dataset', 'phenotype_identification_tsv_file', lambda x: (x is None) or (isstr(x) and (x in possible_phenotype_identification_files)), 'Value is not None or is not a string that is present in the "input" directory (present values are [{}])'.format(possible_phenotype_identification_files))
@@ -425,7 +425,6 @@ def get_unique_image_ids_from_datafile(datafile_path):
 
     # Import relevant libraries
     import pandas as pd
-    import numpy as np
     import dataset_formats
 
     # Obtain the image number extraction parameters
