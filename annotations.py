@@ -26,6 +26,8 @@ def load_annotation_data(annotations_dir, csv_files, phenotyping_method, phenoty
     # settings__phenotyping__method, settings__phenotyping__phenotype_identification_file
     """Load into dataframes and all the metadata for the files in the annotations directory.
 
+    TODO: This function should be updated to use files formatted and loaded probably in the SIT (since phenotyping method is paramount and is only specified there) the same way as in the "Open File..." page in the sidebar, i.e., the files should be run through (i.e., opened and loaded) dataset_formats there (via utils.load_and_standardize_input_datafile()) just like the main input file is. Probably combine all the annotation files into a single dataframe and do it efficiently by extracting just the necessary columns.
+
     Args:
         annotations_dir (str, optional): Name of the directory in which the annotation data reside. Defaults to 'annotations'.
         region_type_prefix (str, optional): Prefix to the region ID in the annotation filenames. Defaults to '05212021_'.
@@ -53,7 +55,7 @@ def load_annotation_data(annotations_dir, csv_files, phenotyping_method, phenoty
         _, _, _, marker_prefix, _, markers = dataset_formats.extract_datafile_metadata(csv_file_path)
         marker_column_names_list = [marker_prefix + x for x in markers]
         # df = pd.read_csv(csv_file_path)
-        df = new_phenotyping_lib.apply_phenotyping(csv_file_path=csv_file_path, method=phenotyping_method, phenotype_identification_file=phenotype_identification_file)[0]
+        df = new_phenotyping_lib.apply_phenotyping(csv_file_path_or_df=csv_file_path, method=phenotyping_method, phenotype_identification_file=phenotype_identification_file)[0]
         if marker_column_names_list != []:
             # marker_column_names_list = ast.literal_eval(marker_column_names_str)
             df = df[df[marker_column_names_list].apply(sum, axis='columns') != 0]

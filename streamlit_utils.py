@@ -104,3 +104,27 @@ def load_input_dataset(datafile_path, coord_units_in_microns, input_dataset_key=
 
     # Inform the user that the data have been loaded and standardized
     st.info(f'The data have been loaded and standardized with parameters {metadata}')
+
+def get_updated_dynamic_options(input_directory, input_datafile_filename):
+
+    # options_for_images, options_for_annotation_files = get_updated_dynamic_options(input_directory, input_datafile_filename)
+    
+    # Import relevant library
+    import os
+
+    if input_datafile_filename is not None:
+
+        # Update analysis__images_to_analyze options
+        # options_for_images = get_unique_image_ids_from_datafile(input_datafile_path)
+        # options_for_images = list(dataset_formats.get_image_series_in_datafile(input_datafile_path).unique())
+        options_for_images = st.session_state['input_dataset'].data['Slide ID'].unique()
+
+        # annotation__used_annotation_files options
+        annotations_dir_listing = ([x for x in os.listdir(os.path.join(input_directory, 'annotations')) if x.endswith('.csv')] if os.path.exists(os.path.join(input_directory, 'annotations')) else [])
+        options_for_annotation_files = [x for x in annotations_dir_listing if x.split('__')[0] in options_for_images]
+
+        return options_for_images, options_for_annotation_files
+    
+    else:
+
+        return None, None

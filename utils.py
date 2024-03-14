@@ -5,6 +5,7 @@ Set of scripts which support the other MAWA scripts
 # Import relevant library
 import numpy as np
 import scipy.spatial
+import streamlit_utils
 
 def set_filename_corresp_to_roi(df_paths, roi_name, curr_colname, curr_dir, curr_dir_listing):
     """Update the path in a main paths-holding dataframe corresponding to a particular ROI in a particular directory.
@@ -250,8 +251,7 @@ def detect_markers_in_annotation_files(selected_annotation_files):
     # Return the running list of markers in the annotation files
     return annotation_markers
 
-# def validate_presets_and_map_to_settings(preset_settings, possible_input_datafiles, possible_input_datafile_formats, possible_phenotype_identification_files, markers_in_annotation_files, possible_annotation_files, possible_phenotyping_methods, possible_significance_calculation_methods, options_for_images, message_function=print):
-def validate_presets_and_map_to_settings(preset_settings, possible_input_datafiles, possible_input_datafile_formats, possible_phenotype_identification_files, possible_annotation_files, possible_phenotyping_methods, possible_significance_calculation_methods, options_for_images, message_function=print):
+def validate_presets_and_map_to_settings(preset_settings, possible_phenotype_identification_files, possible_annotation_files, possible_phenotyping_methods, possible_significance_calculation_methods, options_for_images, message_function=print):
 
     # Import relevant libraries
     import sys
@@ -285,7 +285,6 @@ def validate_presets_and_map_to_settings(preset_settings, possible_input_datafil
             return val
         
     # Constants
-    orig_possible_dataset_formats = ['OMAL', 'Native', 'GMBSecondGeneration']  # current dataset types defined in dataset_formats.py
     input_directory = os.path.join('.', 'input')
 
     # Initialize the dictionary holding the actual settings dictionary to be used in the workflow
@@ -294,12 +293,6 @@ def validate_presets_and_map_to_settings(preset_settings, possible_input_datafil
 
     # If the input settings file is the new format...
     if 'input_datafile' in preset_settings:
-
-        # Validate the settings in the input_datafile (new format) section
-        settings['input_datafile']['filename'] = validate_preset_setting(preset_settings, 'input_datafile', 'filename', lambda x: isstr(x) and (x in possible_input_datafiles), 'Value is not present in the "input" directory (present values are [{}])'.format(possible_input_datafiles))
-        options_for_images, possible_annotation_files = get_updated_dynamic_options(input_directory, settings['input_datafile']['filename'])
-        settings['input_datafile']['format'] = validate_preset_setting(preset_settings, 'input_datafile', 'format', lambda x: isstr(x) and (x in possible_input_datafile_formats), 'Value is not an acceptable value (options are {})'.format(possible_input_datafile_formats))
-        settings['input_datafile']['coordinate_units'] = validate_preset_setting(preset_settings, 'input_datafile', 'coordinate_units', lambda x: isnum(x) and (x > 0), 'Value is not a positive number')
 
         # Validate the settings in the phenotyping (new format) section
         settings['phenotyping']['method'] = validate_preset_setting(preset_settings, 'phenotyping', 'method', lambda x: isstr(x) and (x in possible_phenotyping_methods), 'Value is not an acceptable value (options are {})'.format(possible_phenotyping_methods))
@@ -327,18 +320,14 @@ def validate_presets_and_map_to_settings(preset_settings, possible_input_datafil
             settings['annotation']['coord_units_are_pixels'] = validate_preset_setting(preset_settings, 'annotation', 'coord_units_are_pixels', lambda x: isbool(x), 'Value is not a boolean')
             if settings['annotation']['coord_units_are_pixels']:
                 settings['annotation']['microns_per_integer_unit'] = validate_preset_setting(preset_settings, 'annotation', 'microns_per_integer_unit', lambda x: isnum(x) and (x > 0), 'Value is not a positive number')
-            # settings['annotation']['markers_designating_valid_objects'] = validate_preset_setting(preset_settings, 'annotation', 'markers_designating_valid_objects', lambda x: islist(x) and (sum([(y in markers_in_annotation_files) for y in x]) == len(x)), 'Value is not a list containing marker strings that are present in the annotation files (options are {})'.format(markers_in_annotation_files))
 
         settings['plotting']['min_log_pval'] = validate_preset_setting(preset_settings, 'plotting', 'min_log_pval', lambda x: isnum(x) and (x < 0), 'Value is not a negative number')
 
     # If the input settings file is in the original format...
     else:
 
-        # Validate the settings in the input_datafile (new format) section
-        settings['input_datafile']['filename'] = validate_preset_setting(preset_settings, 'dataset', 'input_datafile', lambda x: isstr(x) and (x in possible_input_datafiles), 'Value is not a string or is not present in the "input" directory (present values are [{}])'.format(possible_input_datafiles))
-        options_for_images, possible_annotation_files = get_updated_dynamic_options(input_directory, settings['input_datafile']['filename'])
-        settings['input_datafile']['format'] = validate_preset_setting(preset_settings, 'dataset', 'format', lambda x: isstr(x) and (x in orig_possible_dataset_formats), 'Value is not a string or is not in not an acceptable value (options are {})'.format(orig_possible_dataset_formats), mapper=dict(zip(orig_possible_dataset_formats, possible_input_datafile_formats)))
-        settings['input_datafile']['coordinate_units'] = validate_preset_setting(preset_settings, 'dataset', 'coord_units_in_microns', lambda x: isnum(x) and (x > 0), 'Value is not a positive number')
+        # Extract the image and annotation file options
+        options_for_images, possible_annotation_files = streamlit_utils.get_updated_dynamic_options(input_directory, settings['input_datafile']['filename'])
 
         # Validate the settings in the phenotyping (new format) section
         preset__dataset__phenotype_identification_tsv_file = validate_preset_setting(preset_settings, 'dataset', 'phenotype_identification_tsv_file', lambda x: (x is None) or (isstr(x) and (x in possible_phenotype_identification_files)), 'Value is not None or is not a string that is present in the "input" directory (present values are [{}])'.format(possible_phenotype_identification_files))
@@ -458,33 +447,6 @@ def get_unique_image_ids_from_datafile(datafile_path):
 
         # Return None
         return None
-
-def get_updated_dynamic_options(input_directory, input_datafile_filename):
-
-    # options_for_images, options_for_annotation_files = get_updated_dynamic_options(input_directory, input_datafile_filename)
-    
-    # Import relevant libraries
-    import os
-    import dataset_formats
-
-    if input_datafile_filename is not None:
-
-        # Set full pathname to input datafile
-        input_datafile_path = os.path.join(input_directory, input_datafile_filename)
-
-        # Update analysis__images_to_analyze options
-        # options_for_images = get_unique_image_ids_from_datafile(input_datafile_path)
-        options_for_images = list(dataset_formats.get_image_series_in_datafile(input_datafile_path).unique())
-
-        # annotation__used_annotation_files options
-        annotations_dir_listing = ([x for x in os.listdir(os.path.join(input_directory, 'annotations')) if x.endswith('.csv')] if os.path.exists(os.path.join(input_directory, 'annotations')) else [])
-        options_for_annotation_files = [x for x in annotations_dir_listing if x.split('__')[0] in options_for_images]
-
-        return options_for_images, options_for_annotation_files
-    
-    else:
-
-        return None, None
 
 # Function to determine whether an n x n matrix is symmetric
 def is_symmetric(matrix):

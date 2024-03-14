@@ -201,7 +201,7 @@ def get_entity_id_to_list_mapper(df, entity_colname='Species int', entity_column
     # Return the mapper
     return entity_id_to_list_mapper
 
-def apply_phenotyping(csv_file_path, method, phenotype_identification_file, species_int_colname='species_int'):
+def apply_phenotyping(csv_file_path_or_df, method, phenotype_identification_file, species_int_colname='species_int'):
     """Load a datafile and apply one of three phenotyping methods: Species, Marker, or Custom.
     """
 
@@ -214,16 +214,16 @@ def apply_phenotyping(csv_file_path, method, phenotype_identification_file, spec
     # Print what we're doing
     print('Applying "{}" phenotyping method'.format(method))
 
-    if type(csv_file_path) == str:
+    if type(csv_file_path_or_df) == str:
 
         # Determine the field seperator
-        sep = (',' if csv_file_path.split('.')[-1] == 'csv' else '\t')
+        sep = (',' if csv_file_path_or_df.split('.')[-1] == 'csv' else '\t')
 
         # Read in the datafile
-        df = pd.read_csv(csv_file_path, sep=sep)
+        df = pd.read_csv(csv_file_path_or_df, sep=sep)
 
         # From the detected datafile format, determine the coordinate columns and the marker information
-        _, _, coord_cols, marker_prefix, _, markers_in_csv_file = dataset_formats.extract_datafile_metadata(csv_file_path)
+        _, _, coord_cols, marker_prefix, _, markers_in_csv_file = dataset_formats.extract_datafile_metadata(csv_file_path_or_df)
 
         # Determine the marker columns from the datafile
         marker_cols = [marker_prefix + marker for marker in markers_in_csv_file]
@@ -233,7 +233,7 @@ def apply_phenotyping(csv_file_path, method, phenotype_identification_file, spec
 
     # Assume it's already a dataset_formats.py-transformed dataframe
     else:
-        df = csv_file_path
+        df = csv_file_path_or_df
         marker_cols = [column for column in df.columns if column.startswith('Phenotype ')]
         markers_in_csv_file = [column.removeprefix('Phenotype ') for column in marker_cols]
 
