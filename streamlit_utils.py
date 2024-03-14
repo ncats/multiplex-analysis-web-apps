@@ -70,14 +70,14 @@ def update_session_state_keys(transformation_dict):
     for key in transformation_dict:
         st.session_state[key] = transformation_dict[key]
 
-def load_input_dataset(datafile_path, coord_units_in_microns, input_dataset_key='input_dataset', input_metadata_key='input_metadata'):
+def load_input_dataset(datafile_path_or_df, coord_units_in_microns, input_dataset_key='input_dataset', input_metadata_key='input_metadata'):
     """
     Load and standardize the input datafile and save the settings in the session state.
 
     This should be called from an "Open file(s)" page in the sidebar.
 
     Args:
-        datafile_path (str): The path to the input datafile.
+        datafile_path_or_df (str): The path to the input datafile.
         coord_units_in_microns (float): The conversion factor from the units of the input datafile to microns.
         input_dataset_key (str): The key to be used for the input dataset in the session state. Defaults to 'input_dataset'.
         input_metadata_key (str): The key to be used for the input metadata in the session state. Defaults to 'input_metadata'.
@@ -91,19 +91,31 @@ def load_input_dataset(datafile_path, coord_units_in_microns, input_dataset_key=
     import os
 
     # Define the metadata for the input data
-    metadata = {
-        'datafile_path': os.path.realpath(datafile_path),
-        'coord_units_in_microns': coord_units_in_microns
-    }
+    if isinstance(datafile_path_or_df, str):
+        metadata = {
+            'datafile_path': os.path.realpath(datafile_path_or_df),
+            'coord_units_in_microns': coord_units_in_microns
+        }
+    else:
+        metadata = {
+            'datafile_path': None,
+            'coord_units_in_microns': coord_units_in_microns
+        }
 
     # Load and standardize the input datafile into the session state
-    st.session_state[input_dataset_key] = utils.load_and_standardize_input_datafile(datafile_path, coord_units_in_microns)
+    dataset_obj = utils.load_and_standardize_input_datafile(datafile_path_or_df, coord_units_in_microns)
 
-    # Save the metadata to the session state as well
-    st.session_state[input_metadata_key] = metadata
+    # Save the input data and metadata to the session state
+    if dataset_obj is not None:
+        st.session_state[input_dataset_key] = dataset_obj
+        st.session_state[input_metadata_key] = metadata  # save the metadata to the session state as well
+        st.info(f'The data have been loaded and standardized with parameters {metadata}')
 
-    # Inform the user that the data have been loaded and standardized
-    st.info(f'The data have been loaded and standardized with parameters {metadata}')
+    # If the input data is in an unsupported format, assign null values and display an error message
+    else:
+        st.session_state[input_dataset_key] = None
+        st.session_state[input_metadata_key] = None
+        st.error('The input data is in an unsupported format.')
 
 def get_updated_dynamic_options(input_directory):
 
