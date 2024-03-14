@@ -29,7 +29,7 @@ class TIMECellInteraction:
         # Set attributes
         self.dataset_name = dataset_name
         self.project_dir = project_dir
-        self.input_data_filename = input_data_filename
+        self.input_data_filename = input_data_filename  # if this is a dataframe then that's because dataset_formats was called with an already existing dataframe, not a string path
         self.webpage_dir = webpage_dir
         self.mapping_dict = mapping_dict
         self.nslices = nslices

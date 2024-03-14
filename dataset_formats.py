@@ -1,3 +1,5 @@
+# Note, it would probably have been better to *not* have used class inheritance and to instead have multiple "classes" (i.e., a dataset_format *parameter*, not a whole class) per method, since otherwise we do lots of scrolling to look at the method definitions of previous classes. I.e., do it like we did in platform_io.py.
+
 import utils
 
 def reorder_column_in_dataframe(df, column_name, new_position):
@@ -15,17 +17,18 @@ def extract_image_name(input_path):
     basename = '.'.join(filename.split('.')[:-1])
     return basename.replace(' ', '__').replace('.', '__')
 
-def extract_datafile_metadata(datafile_path):
+def extract_datafile_metadata(datafile_path_or_df):
 
     # Import relevant libraries
     import pandas as pd
     import re
 
-    # Extract the field seperator using the filename
-    sep = (',' if datafile_path.split('.')[-1] == 'csv' else '\t')
-
     # Efficiently get just the column names in the datafiles
-    columns_list = pd.read_csv(datafile_path, nrows=0, sep=sep).columns.to_list()
+    if isinstance(datafile_path_or_df, pd.DataFrame):
+        columns_list = datafile_path_or_df.columns.to_list()
+    else:
+        sep = (',' if datafile_path_or_df.split('.')[-1] == 'csv' else '\t')
+        columns_list = pd.read_csv(datafile_path_or_df, nrows=0, sep=sep).columns.to_list()
 
     # If the file is in the format standardized in the dataset unifier app...
     if 'Image ID (standardized)' in columns_list:
@@ -106,7 +109,10 @@ def extract_datafile_metadata(datafile_path):
         marker_suffix = None
         marker_cols = 'Class'
         coord_cols = ['Centroid X µm', 'Centroid Y µm']
-        markers = list(set([item for row in [x.split(': ') for x in pd.read_csv(datafile_path, usecols=['Class'])['Class'].unique()] for item in row]) - {'Other'})
+        if isinstance(datafile_path_or_df, pd.DataFrame):
+            markers = list(set([item for row in [x.split(': ') for x in datafile_path_or_df['Class'].unique()] for item in row]) - {'Other'})
+        else:
+            markers = list(set([item for row in [x.split(': ') for x in pd.read_csv(datafile_path_or_df, usecols=['Class'], sep=sep)['Class'].unique()] for item in row]) - {'Other'})
 
     # If the file is in the Steinbock format...
     elif 'centroid-1' in columns_list:
@@ -122,7 +128,8 @@ def extract_datafile_metadata(datafile_path):
     # If the file is of unknown format...
     else:
         print('WARNING: Unregistered datafile format')
-        file_format, image_column_str, marker_prefix, marker_cols, coord_cols, image_string_processing_func = None, None, None, None, None, None
+        return None
+        # file_format, image_column_str, marker_prefix, marker_cols, coord_cols, image_string_processing_func = None, None, None, None, None, None
 
     # Obtain the actual markers from the marker columns and the marker prefix, and maybe a marker suffix
     if markers is None:
@@ -184,7 +191,7 @@ class Native:
     I should dig up the email/conversation/notes in which Houssein told us the units of the original input datafile were half-microns.
     """
 
-    def __init__(self, input_datafile, coord_units_in_microns, images_to_analyze=None, min_coord_spacing=None, species_equivalents={}, mapping_dict={}, roi_width=None, overlap=0, phenotype_identification_tsv_file=None, extra_cols_to_keep=None):
+    def __init__(self, datafile_path_or_df, coord_units_in_microns, images_to_analyze=None, min_coord_spacing=None, species_equivalents={}, mapping_dict={}, roi_width=None, overlap=0, phenotype_identification_tsv_file=None, extra_cols_to_keep=None):
         """Object initialization, which just consists of reading in the data from the datafile
 
         Args:
@@ -201,10 +208,15 @@ class Native:
         Returns:
             Spatial analysis dataset object.
         """
-        self.input_datafile = input_datafile
-        self.sep = (',' if input_datafile.split('.')[-1] == 'csv' else '\t')
         self.images_to_analyze = images_to_analyze
-        self.data = self.read_datafile()
+        if isinstance(datafile_path_or_df, str):  # reading in from a file (original case)
+            self.input_datafile = datafile_path_or_df
+            self.sep = (',' if datafile_path_or_df.split('.')[-1] == 'csv' else '\t')
+            self.data = self.read_datafile()
+        else:  # reading in from memory (new case)
+            self.input_datafile = datafile_path_or_df
+            self.sep = None
+            self.data = datafile_path_or_df
         self.coord_units_in_microns = coord_units_in_microns
         self.min_coord_spacing_ = min_coord_spacing
         self.species_equivalents = species_equivalents
@@ -1552,15 +1564,17 @@ def calculate_min_coord_spacing_per_slide(df):
     return detected_minimum_spacing
 
 
-def potentially_apply_patching(df, input_datafile_or_coord_cols, roi_width, overlap, func_coords_to_pixels, func_microns_to_pixels):
+def potentially_apply_patching(df, input_datafile_or_coord_cols_or_df, roi_width, overlap, func_coords_to_pixels, func_microns_to_pixels):
     '''Either patch up the dataset into ROIs and assign the ROI ("tag") column accordingly, or don't and assign the ROI column accordingly.
     '''
 
+    import pandas as pd
+
     # Obtain the coordinate-relate columns for the current datafile format type
-    if isinstance(input_datafile_or_coord_cols, str):
-        coord_cols = extract_datafile_metadata(input_datafile_or_coord_cols)[2]
+    if isinstance(input_datafile_or_coord_cols_or_df, (str, pd.DataFrame)):
+        coord_cols = extract_datafile_metadata(input_datafile_or_coord_cols_or_df)[2]
     else:
-        coord_cols = input_datafile_or_coord_cols
+        coord_cols = input_datafile_or_coord_cols_or_df
 
     # Get the "Slide ID" column of the dataframe
     slide_id = df['Slide ID']
@@ -1636,12 +1650,19 @@ def delete_rois_with_single_coord(df):
 
     return df
 
-def get_image_series_in_datafile(input_datafile):
+def get_image_series_in_datafile(input_datafile_or_df):
     import pandas as pd
-    relevant_column_str, string_processing_func, _, _, _, _ = extract_datafile_metadata(input_datafile)
-    sep = (',' if input_datafile.split('.')[-1] == 'csv' else '\t')
+    relevant_column_str, string_processing_func, _, _, _, _ = extract_datafile_metadata(input_datafile_or_df)
+    if isinstance(input_datafile_or_df, str):
+        sep = (',' if input_datafile_or_df.split('.')[-1] == 'csv' else '\t')
     if isinstance(relevant_column_str, str):
-        return pd.read_csv(input_datafile, sep=sep, usecols=[relevant_column_str]).iloc[:, 0].apply(lambda x: string_processing_func(x).strip())
-    else:
-        df_image_cols = pd.read_csv(input_datafile, sep=sep, usecols=relevant_column_str)[relevant_column_str]  # preseve column order with the [relevant_column_str] at the end
+        if isinstance(input_datafile_or_df, str):
+            return pd.read_csv(input_datafile_or_df, sep=sep, usecols=[relevant_column_str]).iloc[:, 0].apply(lambda x: string_processing_func(x).strip())
+        else:
+            return input_datafile_or_df[relevant_column_str].iloc[:, 0].apply(lambda x: string_processing_func(x).strip())
+    else:  # if it's I believe a list
+        if isinstance(input_datafile_or_df, str):
+            df_image_cols = pd.read_csv(input_datafile_or_df, sep=sep, usecols=relevant_column_str)[relevant_column_str]  # preseve column order with the [relevant_column_str] at the end
+        else:
+            df_image_cols = input_datafile_or_df[relevant_column_str]  # preseve column order with the [relevant_column_str] at the end
         return df_image_cols.iloc[:, 0].apply(lambda x: string_processing_func[0](x).strip()) + '__' + df_image_cols.iloc[:, 1].apply(lambda x: string_processing_func[1](x).strip())

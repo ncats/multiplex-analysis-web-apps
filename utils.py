@@ -754,7 +754,7 @@ def dataframe_insert_possibly_existing_column(df, column_position, column_name, 
     # Return
     return
 
-def load_and_standardize_input_datafile(datafile_path, coord_units_in_microns):
+def load_and_standardize_input_datafile(datafile_path_or_df, coord_units_in_microns):
     """
     Load and standardize the input datafile.
 
@@ -765,20 +765,25 @@ def load_and_standardize_input_datafile(datafile_path, coord_units_in_microns):
         coord_units_in_microns (float): The number of microns per coordinate unit in the input datafile
 
     Returns:
-        dataset_obj (one of the classes in dataset_formats.py): The standardized dataset object
+        None or dataset_obj (one of the classes in dataset_formats.py): The standardized dataset object
     """
 
     # Import relevant library
     import dataset_formats
 
     # Get the format of the input datafile
-    dataset_format = dataset_formats.extract_datafile_metadata(datafile_path)[4]
+    metadata = dataset_formats.extract_datafile_metadata(datafile_path_or_df)
+    if metadata is not None:
+        dataset_format = metadata[4]
+    else:  # the dataframe format, whether read from disk or from memory, is unknown
+        return None
 
     # Get the class corresponding to the format of the input datafile
     dataset_class = getattr(dataset_formats, dataset_format)
 
     # Create an instance of the class corresponding to the format of the input datafile
-    dataset_obj = dataset_class(input_datafile=datafile_path, coord_units_in_microns=coord_units_in_microns)
+    # dataset_obj = dataset_class(input_datafile=datafile_path_or_df, coord_units_in_microns=coord_units_in_microns)
+    dataset_obj = dataset_class(datafile_path_or_df, coord_units_in_microns)
 
     # Load and standardize the dataset
     dataset_obj.process_dataset(do_trimming=False, do_extra_processing=False)

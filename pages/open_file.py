@@ -3,8 +3,12 @@ import streamlit as st
 import app_top_of_page as top
 import streamlit_dataframe_editor as sde
 import os
+import utils
 
 def toggle_changed():
+    """
+    Function to run when the "Load dataset from Datafile Unifier" toggle is changed.
+    """
     if st.session_state['opener__load_from_datafile_unifier']:
         st.session_state['opener__opener__selected_input_file'] = None
         st.session_state['opener__microns_per_coordinate_unit'] = 1.0
@@ -67,7 +71,7 @@ def main():
 
     # Stop if no input file or dataframe is available
     if input_file_or_df is None:
-        st.info('Please select a valid input source.')
+        st.warning('Please select a valid input source.')
         return
     
     # Write out the selected input source, but if it is a dataframe, just say so
@@ -77,7 +81,24 @@ def main():
         st.write(f'Selected input: Dataset from Datafile Unifier consisting of {input_file_or_df.shape[0]} rows and {input_file_or_df.shape[1]} columns')
     st.write(f'Coordinate units: {st.session_state["opener__microns_per_coordinate_unit"]} microns')
 
-    pass
+    # Read in the dataset either from memory or from a file
+    st.session_state['input_dataset'] = utils.load_and_standardize_input_datafile(input_file_or_df, st.session_state["opener__microns_per_coordinate_unit"])
+
+    # Stop if the input dataset is in an unrecognized format
+    if st.session_state['input_dataset'] is None:
+        st.warning('The input data is in an unsupported format.')
+        return
+    
+    # Print a sample of the main, input dataset
+    st.header('Sample of loaded dataframe')
+    df = st.session_state['input_dataset']
+    resample_dataframe = st.button('Refresh dataframe sample')
+    if ('opener__sampled_df' not in st.session_state) or resample_dataframe:
+        sampled_df = df.sample(100).sort_index()
+        st.session_state['opener__sampled_df'] = sampled_df
+    sampled_df = st.session_state['opener__sampled_df']
+    st.write(sampled_df)
+    st.write('The full loaded dataframe has {} rows and {} columns.'.format(df.shape[0], df.shape[1]))
 
     # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
     st.session_state = sde.finalize_session_state(st.session_state)
