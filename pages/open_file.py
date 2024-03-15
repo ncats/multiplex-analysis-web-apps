@@ -4,6 +4,7 @@ import app_top_of_page as top
 import streamlit_dataframe_editor as sde
 import os
 import streamlit_utils
+import utils
 
 def toggle_changed():
     """
@@ -92,6 +93,7 @@ def main():
             with st.spinner('Loading the input dataset...'):
                 streamlit_utils.load_input_dataset(input_file_or_df, st.session_state['opener__microns_per_coordinate_unit'])  # this assigns the input dataset to st.session_state['input_dataset'] and the metadata to st.session_state['input_metadata']
             if st.session_state['input_dataset'] is not None:
+                st.session_state['input_dataset'].data, st.session_state['input_dataframe_memory_usage_bytes'] = utils.convert_to_category(st.session_state['input_dataset'].data, also_return_final_size=True)
                 st.info('The input data have been successfully loaded and validated.')
                 show_dataframe_updates = True
             else:
@@ -124,6 +126,7 @@ def main():
       :small_orange_diamond: Dataset format: `{type(dataset_obj)}`  
       :small_orange_diamond: Number of rows: `{df.shape[0]}`  
       :small_orange_diamond: Number of columns: `{df.shape[1]}`
+      :small_orange_diamond: Loaded memory usage: `{st.session_state['input_dataframe_memory_usage_bytes'] / 1024 ** 2:.2f} MB`
     '''
 
     # Display the information and the sampled dataframe

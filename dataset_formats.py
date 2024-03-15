@@ -214,9 +214,9 @@ class Native:
             self.sep = (',' if datafile_path_or_df.split('.')[-1] == 'csv' else '\t')
             self.data = self.read_datafile()
         else:  # reading in from memory (new case)
-            self.input_datafile = datafile_path_or_df
+            self.data = datafile_path_or_df.copy()  # making a copy here because that is what the user actually intends, e.g., if they want to go back and reassign to the unified dataframe, we want it to be the *originally* unified dataframe
+            self.input_datafile = self.data
             self.sep = None
-            self.data = datafile_path_or_df
         self.coord_units_in_microns = coord_units_in_microns
         self.min_coord_spacing_ = min_coord_spacing
         self.species_equivalents = species_equivalents
@@ -244,7 +244,7 @@ class Native:
 
         # Import the text file using Pandas
         if os.path.exists(input_datafile):
-            df = pd.read_csv(input_datafile, sep=sep)
+            df = utils.convert_to_category(pd.read_csv(input_datafile, sep=sep))  # should shrink memory usage by ~60% at cost of slower datatype
             if images_to_analyze is None:  # if this is unset, choose all images in the dataset (i.e., effectively do not filter)
                 print('Text file "{}" with separator "{}" has been successfully read (no image filtering has been performed)'.format(input_datafile, sep))
             else:
@@ -1160,7 +1160,7 @@ class Standardized(Native):
         mapper = dict(zip(unique_images, [x + 1 for x in range(len(unique_images))]))
 
         # Attribute assignments
-        utils.dataframe_insert_possibly_existing_column(self.data, 0, 'Slide ID', srs_imagenum.apply(lambda x: '{}A-{}'.format(mapper[x], x)))
+        utils.dataframe_insert_possibly_existing_column(self.data, 0, 'Slide ID', utils.convert_series_to_category(srs_imagenum.apply(lambda x: '{}A-{}'.format(mapper[x], x))))
 
     def adhere_to_tag_format(self):
         """Ensure the "tag" column of the data conforms to the required format.
@@ -1183,7 +1183,7 @@ class Standardized(Native):
         # Either patch up the dataset into ROIs and assign the ROI ("tag") column accordingly, or don't and assign the ROI column accordingly
         if 'ROI ID (standardized)' in df.columns:
             # df['tag'] = df['ROI ID (standardized)']
-            utils.dataframe_insert_possibly_existing_column(df, 1, 'tag', df['ROI ID (standardized)'])
+            utils.dataframe_insert_possibly_existing_column(df, 1, 'tag', utils.convert_series_to_category(df['ROI ID (standardized)']))
         else:
             df = potentially_apply_patching(df, input_datafile, roi_width, overlap, func_coords_to_pixels, func_microns_to_pixels)
             df = reorder_column_in_dataframe(df, 'tag', 1)
@@ -1211,6 +1211,9 @@ class Standardized(Native):
         """Ensure the "Phenotype XXXX" columns of the data conform to the required format
         """
 
+        # Import relevant library
+        import pandas as pd
+
         # Variable definitions from attributes
         df = self.data
         input_datafile = self.input_datafile
@@ -1218,12 +1221,20 @@ class Standardized(Native):
         # Define the phenotypes of interest in the input dataset
         _, _, _, _, _, phenotype_columns = extract_datafile_metadata(input_datafile)  # phenotype_columns are the actual marker names
 
+        # Since we're about to indicate the phenotypes of interest by columns that start with "Phenotype ", first detect and rename any columns that already start with "Phenotype "
+        prefix = 'Phenotype '
+        phenotype_columns_to_rename = [column for column in df.columns if column.startswith(prefix) and not column.startswith('Phenotype (standardized) ')]
+        for col in phenotype_columns_to_rename:
+            df = df.rename(columns={col: 'Phenotype_renamed_in_dataset_formats_py ' + col[len(prefix):]})
+
         # Rename the phenotype columns so that they are prepended with "Phenotype "
-        df = df.rename(dict(zip(phenotype_columns, ['Phenotype {}'.format(x.strip()) for x in phenotype_columns])), axis='columns')
+        transformation = dict(zip(['Phenotype (standardized) {}'.format(x.strip()) for x in phenotype_columns], ['Phenotype {}'.format(x.strip()) for x in phenotype_columns]))
+        df_phenotype_cols = df[[column for column in df.columns if column.startswith('Phenotype (standardized) ')]]
+        df = pd.concat([df, df_phenotype_cols.rename(transformation, axis='columns')])
 
         # For each phenotype column, convert to -'s and +'s
         for icolumn, col in enumerate(df.filter(regex='^Phenotype\ ')):
-            df[col] = df[col].apply(lambda x: x[-1] if isinstance(x, str) else '-' if x == 0 else '+')
+            df[col] = utils.convert_series_to_category(df[col].apply(lambda x: x[-1] if isinstance(x, str) else '-' if x == 0 else '+'))
             df = reorder_column_in_dataframe(df, col, 4 + icolumn)
 
         # Attribute assignments from variables
@@ -1596,7 +1607,7 @@ def potentially_apply_patching(df, input_datafile_or_coord_cols_or_df, roi_width
         if roi_width is None:  # i.e., if we don't want to do any patching
             print('No patching will be done')
             XMin, XMax, YMin, YMax, _, _ = get_coord_descriptors(curr_df, coord_cols)
-            df.loc[curr_loc, 'tag'] = curr_df['Slide ID'] + '_roi_' + '[{},{}]'.format(int((XMin.min() + XMax.max()) / 2 + 0.5), int((YMin.min() + YMax.max()) / 2 + 0.5))  # populate the "tag" column with the slide ID appended with the coordinate centroids
+            df.loc[curr_loc, 'tag'] = curr_df['Slide ID'].astype(str) + '_roi_' + '[{},{}]'.format(int((XMin.min() + XMax.max()) / 2 + 0.5), int((YMin.min() + YMax.max()) / 2 + 0.5))  # populate the "tag" column with the slide ID appended with the coordinate centroids
         else:
             print('Patching will be performed...')
             curr_df[coord_cols] = func_coords_to_pixels(curr_df[coord_cols])

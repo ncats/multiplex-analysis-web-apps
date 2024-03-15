@@ -145,7 +145,11 @@ def main():
                     # If the columns are equal for all input files, concatenate all files into a single dataframe
                     if columns_equal:
                         sep = (',' if input_files[0].split('.')[-1] == 'csv' else '\t')
-                        st.session_state['unifier__df'] = pd.concat([pd.read_csv(os.path.join(directory, input_file), sep=sep) for input_file in input_files], ignore_index=True)
+                        st.session_state['unifier__df'] = pd.concat([utils.convert_to_category(pd.read_csv(os.path.join(directory, input_file), sep=sep)) for input_file in input_files], ignore_index=True)
+                        
+                        # Calculate the memory usage of the concatenated dataframe
+                        memory_usage = st.session_state['unifier__df'].memory_usage(deep=True).sum()
+                        st.write('The concatenated dataframe uses approximately {:.2f} MB of memory.'.format(memory_usage / (1024 * 1024)))
 
                         # Save the setting used for this operation
                         st.session_state['unifier__input_files_actual'] = input_files
@@ -245,7 +249,7 @@ def main():
                     for column in subset_columns:
                         if df_subset[column].dtype not in ['string', 'object']:
                             df_subset[column] = df_subset[column].apply(str)
-                    utils.dataframe_insert_possibly_existing_column(df, 0, 'Image ID (standardized)', df_subset.apply(lambda x: transformation['__'.join(x)], axis='columns'))
+                    utils.dataframe_insert_possibly_existing_column(df, 0, 'Image ID (standardized)', utils.convert_series_to_category(df_subset.apply(lambda x: transformation['__'.join(x)], axis='columns')))
 
                     # Save this dataframe to memory
                     st.session_state['unifier__df'] = df
@@ -295,7 +299,7 @@ def main():
 
                     # Perform the operation
                     if st.session_state['unifier__roi_explicitly_defined']:
-                        utils.dataframe_insert_possibly_existing_column(df, 1, 'ROI ID (standardized)', df[st.session_state['unifier__roi_column']])
+                        utils.dataframe_insert_possibly_existing_column(df, 1, 'ROI ID (standardized)', utils.convert_series_to_category(df[st.session_state['unifier__roi_column']]))
                         toast_message = '"ROI ID (standardized)" column created successfully'
                         num_roi_columns = 1
                     else:
@@ -348,7 +352,7 @@ def main():
             with smallest_columns[1]:
                 if 'unifier__microns_per_coordinate_unit' not in st.session_state:
                     st.session_state['unifier__microns_per_coordinate_unit'] = 1.0
-                st.number_input('Enter the number of microns per coordinate unit in the columns below:', key='unifier__microns_per_coordinate_unit')
+                st.number_input('Enter the number of microns per coordinate unit in the columns below:', key='unifier__microns_per_coordinate_unit', min_value=0.0, format='%.4f', step=0.0001)
             if st.session_state['unifier__number_of_coordinate_columns'] == coordinate_options[0]:
                 if 'unifier__x_coordinate_column' not in st.session_state:
                     st.session_state['unifier__x_coordinate_column'] = df_numeric_columns[0]
@@ -459,7 +463,9 @@ def main():
                 if st.session_state['unifier__phenotyping_specification_format'] == phenotyping_specification_formats[0]:
                     if 'unifier__phenotype_columns' not in st.session_state:
                         st.session_state['unifier__phenotype_columns'] = []
-                    st.multiselect('Select the columns that correspond to the phenotypes:', df.columns, key='unifier__phenotype_columns')
+                    if 'unifier__binary_column_names' not in st.session_state:
+                        st.session_state['unifier__binary_column_names'] = [column for column in df.columns if df[column].nunique() <= 2]
+                    st.multiselect('Select the columns that correspond to the phenotypes:', st.session_state['unifier__binary_column_names'], key='unifier__phenotype_columns')
                 else:
                     if 'unifier__phenotype_column' not in st.session_state:
                         st.session_state['unifier__phenotype_column'] = df.columns[0]
@@ -541,7 +547,7 @@ def main():
 
                             # Add each phenotype column to the main dataframe, starting with position st.session_state['unifier__num_roi_columns_actual'] + 3
                             for icolumn, column in enumerate(df_phenotypes.columns):
-                                utils.dataframe_insert_possibly_existing_column(df, st.session_state['unifier__num_roi_columns_actual'] + 3 + icolumn, column, df_phenotypes[column])
+                                utils.dataframe_insert_possibly_existing_column(df, st.session_state['unifier__num_roi_columns_actual'] + 3 + icolumn, column, utils.convert_series_to_category(df_phenotypes[column]))
 
                             # Save this dataframe to memory
                             st.session_state['unifier__df'] = df
@@ -553,12 +559,15 @@ def main():
                         # Display a success message
                         st.toast(f'{df_phenotypes.shape[1]} phenotype columns added to the main dataframe successfully')
 
-                    # Set a flag to update the dataframe sample at the bottom of the page
-                    show_dataframe_updates = True
+                        # Set a flag to update the dataframe sample at the bottom of the page
+                        show_dataframe_updates = True
 
                 # Get a shortcut to the concatenated dataframe
                 df = st.session_state['unifier__df']
 
+        # Create a divider
+        st.divider()
+        
         # Split the page into three main columns again
         main_columns = st.columns(3)
 
@@ -572,8 +581,8 @@ def main():
 
             # Create an input text box for the custom text to be added to the filename
             if 'unifier__custom_text_for_output_filename' not in st.session_state:
-                st.session_state['unifier__custom_text_for_output_filename'] = ''
-            custom_text = st.text_input('Enter custom text for the filename (optional):', key='unifier__custom_text_for_output_filename')
+                st.session_state['unifier__custom_text_for_output_filename'] = 'files_1_and_3'
+            custom_text = st.text_input('Enter custom text for the basename of the filename (optional):', key='unifier__custom_text_for_output_filename')
 
             # Remove any whitespace from the custom text
             custom_text = custom_text.replace(' ', '_')

@@ -746,7 +746,7 @@ def dataframe_insert_possibly_existing_column(df, column_position, column_name, 
 
     # If the column already exists, delete it from the dataframe
     if column_name in df.columns:
-        df.drop(columns=column_name)
+        df.drop(columns=column_name, inplace=True)
 
     # Insert the column at the desired position
     df.insert(column_position, column_name, srs_column_values)
@@ -790,3 +790,71 @@ def load_and_standardize_input_datafile(datafile_path_or_df, coord_units_in_micr
 
     # Return the processed dataset
     return dataset_obj
+
+def convert_to_category(df, also_return_final_size=False):
+    """
+    Convert all columns with fewer than 5% unique values to the category data type.
+
+    Credit to GitHub Copilot.
+
+    Args:
+        df (pandas.DataFrame): The dataframe to convert
+
+    Returns:
+        pandas.DataFrame: The dataframe with the specified columns converted to the category data type
+    """
+
+    # Print memory usage before conversion
+    original_memory = df.memory_usage(deep=True).sum()
+    print('Memory usage before conversion: {:.2f} MB'.format(original_memory / 1024 ** 2))
+
+    # Convert columns with fewer than 5% unique values to the category data type
+    for col in df.columns:
+        if df[col].nunique() < 0.05 * len(df[col]):
+            df[col] = df[col].astype('category')
+
+    # Print memory usage after conversion
+    new_memory = df.memory_usage(deep=True).sum()
+    print('Memory usage after conversion: {:.2f} MB'.format(new_memory / 1024 ** 2))
+
+    # Print the percent reduction in memory footprint
+    percent_reduction = (original_memory - new_memory) / original_memory * 100
+    print('Percent reduction in memory footprint: {:.2f}%'.format(percent_reduction))
+
+    # Return the dataframe
+    if also_return_final_size:
+        return df, new_memory
+    else:
+        return df
+
+import pandas as pd
+
+def convert_series_to_category(s):
+    """
+    Convert a Series to the category data type if it has fewer than 5% unique values.
+
+    Args:
+        s (pandas.Series): The series to convert
+
+    Returns:
+        pandas.Series: The series converted to the category data type, if applicable
+    """
+
+    # Print memory usage before conversion
+    original_memory = s.memory_usage(deep=True)
+    print('Memory usage before conversion (series, not dataframe): {:.2f} MB'.format(original_memory / 1024 ** 2))
+
+    # Convert series to category data type if it has fewer than 5% unique values
+    if s.nunique() < 0.05 * len(s):
+        s = s.astype('category')
+
+    # Print memory usage after conversion
+    new_memory = s.memory_usage(deep=True)
+    print('Memory usage after conversion (series, not dataframe): {:.2f} MB'.format(new_memory / 1024 ** 2))
+
+    # Print the percent reduction in memory footprint
+    percent_reduction = (original_memory - new_memory) / original_memory * 100
+    print('Percent reduction in memory footprint (series, not dataframe): {:.2f}%'.format(percent_reduction))
+
+    # Return the series
+    return s
