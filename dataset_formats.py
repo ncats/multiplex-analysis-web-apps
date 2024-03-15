@@ -1183,10 +1183,13 @@ class Standardized(Native):
         # Either patch up the dataset into ROIs and assign the ROI ("tag") column accordingly, or don't and assign the ROI column accordingly
         if 'ROI ID (standardized)' in df.columns:
             # df['tag'] = df['ROI ID (standardized)']
-            utils.dataframe_insert_possibly_existing_column(df, 1, 'tag', utils.downcast_series_dtype(df['ROI ID (standardized)']))
+            utils.dataframe_insert_possibly_existing_column(df, 1, 'tag', df['ROI ID (standardized)'])
         else:
             df = potentially_apply_patching(df, input_datafile, roi_width, overlap, func_coords_to_pixels, func_microns_to_pixels)
             df = reorder_column_in_dataframe(df, 'tag', 1)
+
+        # Downcast ROI ID column, 'tag'
+        df['tag'] = utils.downcast_series_dtype(df['tag'])
 
         # Overwrite the original dataframe with the one having the appended ROI column (I'd imagine this line is unnecessary)
         self.data = df
@@ -1199,9 +1202,12 @@ class Standardized(Native):
         # Variable definitions from attributes
         df = self.data
 
+
         # Create the new columns for the x- and y-coordinates
-        utils.dataframe_insert_possibly_existing_column(df, 2, 'Cell X Position', df['Centroid X (µm) (standardized)'])
-        utils.dataframe_insert_possibly_existing_column(df, 3, 'Cell Y Position', df['Centroid Y (µm) (standardized)'])
+        print(f'Memory usage 9999: {self.data.memory_usage(deep=True).sum() / 1024 ** 2} MB; {self.data.shape} shape')
+        utils.dataframe_insert_possibly_existing_column(df, 2, 'Cell X Position', utils.downcast_series_dtype(df['Centroid X (µm) (standardized)']))
+        utils.dataframe_insert_possibly_existing_column(df, 3, 'Cell Y Position', utils.downcast_series_dtype(df['Centroid Y (µm) (standardized)']))
+        print(f'Memory usage 0000: {self.data.memory_usage(deep=True).sum() / 1024 ** 2} MB; {self.data.shape} shape')
 
         # Attribute assignments from variables
         self.data = df

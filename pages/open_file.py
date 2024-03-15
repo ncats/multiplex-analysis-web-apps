@@ -106,7 +106,7 @@ def main():
     if metadata['datafile_path'] is not None:
         datafile_path = os.path.basename(metadata['datafile_path'])
     else:
-        datafile_path = 'loaded from memory'
+        datafile_path = 'loaded from Datafile Unifier'
     information = f'''
     Loaded dataset properties:
 
