@@ -834,7 +834,7 @@ def convert_dataframe_to_category(df, also_return_final_size=False, frac_cutoff=
 
     # Convert columns with fewer than 5% unique values to the category data type
     for col in df.columns:
-        convert_series_to_category(df[col], frac_cutoff=frac_cutoff, number_cutoff=number_cutoff)
+        df[col] = convert_series_to_category(df[col], frac_cutoff=frac_cutoff, number_cutoff=number_cutoff)
 
     # Print memory usage after conversion
     new_memory = df.memory_usage(deep=True).sum()
