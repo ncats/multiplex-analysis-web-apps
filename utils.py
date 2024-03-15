@@ -788,15 +788,44 @@ def load_and_standardize_input_datafile(datafile_path_or_df, coord_units_in_micr
     # Return the processed dataset
     return dataset_obj
 
-def convert_dataframe_to_category(df, also_return_final_size=False, frac_cutoff=0.05, number_cutoff=10):
+def convert_series_to_category(ser, frac_cutoff=0.05, number_cutoff=10):
     """
-    Convert all columns with fewer than 5% unique values to the category data type.
+    Convert a series to the category data type based on the number of unique values.
 
     Args:
-        df (pandas.DataFrame): The dataframe to convert
+        ser (pandas.Series): The series to convert
+        frac_cutoff (float): The fraction cutoff for unique values (default: 0.05)
+        number_cutoff (int): The number cutoff for unique values (default: 10)
 
     Returns:
-        pandas.DataFrame: The dataframe with the specified columns converted to the category data type
+        pandas.Series: The converted series
+    """
+
+    # Check if the series dtype is 'object'
+    if ser.dtype == 'object':
+        cutoff = frac_cutoff * len(ser)  # Calculate the cutoff based on the fraction of unique values
+    else:
+        cutoff = number_cutoff  # Use the number cutoff for non-object dtypes
+
+    # Check if the number of unique values is less than or equal to the cutoff
+    if ser.nunique() <= cutoff:
+        ser = ser.astype('category')  # Convert the series to the category data type
+
+    # Return the converted series
+    return ser
+
+def convert_dataframe_to_category(df, also_return_final_size=False, frac_cutoff=0.05, number_cutoff=10):
+    """
+    Convert columns in a pandas DataFrame to the "category" data type if they have fewer than a specified percentage or number of unique values, in order to reduce memory usage.
+
+    Args:
+        df (pandas.DataFrame): The dataframe to convert.
+        also_return_final_size (bool, optional): Whether to return the final size of the dataframe after conversion. Defaults to False.
+        frac_cutoff (float, optional): The cutoff fraction for the number of unique values in a column to be considered for conversion. Defaults to 0.05.
+        number_cutoff (int, optional): The cutoff number for the number of unique values in a column to be considered for conversion. Defaults to 10.
+
+    Returns:
+        pandas.DataFrame or tuple: The dataframe with the specified columns converted to the category data type. If `also_return_final_size` is True, a tuple containing the dataframe and its final size in memory is returned.
     """
 
     # Print memory usage before conversion
@@ -805,12 +834,7 @@ def convert_dataframe_to_category(df, also_return_final_size=False, frac_cutoff=
 
     # Convert columns with fewer than 5% unique values to the category data type
     for col in df.columns:
-        if df[col].dtype == 'object':
-            cutoff = frac_cutoff * len(df[col])
-        else:
-            cutoff = number_cutoff
-        if df[col].nunique() <= cutoff:
-            df[col] = df[col].astype('category')
+        convert_series_to_category(df[col], frac_cutoff=frac_cutoff, number_cutoff=number_cutoff)
 
     # Print memory usage after conversion
     new_memory = df.memory_usage(deep=True).sum()
@@ -825,33 +849,3 @@ def convert_dataframe_to_category(df, also_return_final_size=False, frac_cutoff=
         return df, new_memory
     else:
         return df
-
-def convert_series_to_category(s):
-    """
-    Convert a Series to the category data type if it has fewer than 5% unique values.
-
-    Args:
-        s (pandas.Series): The series to convert
-
-    Returns:
-        pandas.Series: The series converted to the category data type, if applicable
-    """
-
-    # Print memory usage before conversion
-    original_memory = s.memory_usage(deep=True)
-    print('Memory usage before conversion (series, not dataframe): {:.2f} MB'.format(original_memory / 1024 ** 2))
-
-    # Convert series to category data type if it has fewer than 5% unique values
-    if s.nunique() < 0.05 * len(s):
-        s = s.astype('category')
-
-    # Print memory usage after conversion
-    new_memory = s.memory_usage(deep=True)
-    print('Memory usage after conversion (series, not dataframe): {:.2f} MB'.format(new_memory / 1024 ** 2))
-
-    # Print the percent reduction in memory footprint
-    percent_reduction = (original_memory - new_memory) / original_memory * 100
-    print('Percent reduction in memory footprint (series, not dataframe): {:.2f}%'.format(percent_reduction))
-
-    # Return the series
-    return s
