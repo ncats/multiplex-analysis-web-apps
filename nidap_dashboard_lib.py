@@ -311,7 +311,7 @@ def updatePhenotyping(session_state):
         session_state: Streamlit data structure
     '''
 
-    # Create the session_state.df which is ostensibly 
+    # Create session_state.df
     session_state.df = assign_phenotype_col(session_state.df_raw,
                                             session_state.spec_summ_load,
                                             session_state.selected_phenoMeth,
