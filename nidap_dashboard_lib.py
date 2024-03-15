@@ -278,8 +278,8 @@ def set_phenotyping_elements(session_state, df_orig):
     session_state.pheno_summ = bpl.preprocess_df(df_orig, session_state.marker_names, session_state.marker_pre, session_state.bc)
 
     # Initalize Custom Phenotyping Variables
-    session_state.spec_summ_load       = session_state.spec_summ.copy() # Default version that is loaded
-    session_state.spec_summ_dataeditor = session_state.spec_summ.copy() # Default version that is used for custom phenotyping table
+    session_state.spec_summ_load       = session_state.spec_summ # Default version that is loaded
+    session_state.spec_summ_dataeditor = session_state.spec_summ # Default version that is used for custom phenotyping table
 
     if 'dataeditor__do_not_persist' in session_state:
         del session_state.dataeditor__do_not_persist
@@ -323,8 +323,8 @@ def updatePhenotyping(session_state):
     if 'dataeditor__do_not_persist' in session_state:
         del session_state.dataeditor__do_not_persist
 
-    # session_state.spec_summ_load       = session_state.spec_summ.copy()
-    session_state.spec_summ_dataeditor = session_state.spec_summ.copy()
+    # session_state.spec_summ_load       = session_state.spec_summ
+    session_state.spec_summ_dataeditor = session_state.spec_summ
 
     # Create Phenotypes Summary Table based on 'phenotype' column in df
     session_state.pheno_summ = bpl.init_pheno_summ(session_state.df)
@@ -343,8 +343,6 @@ def assign_phenotype_col(df_raw, spec_summ_load, phenoMeth, marker_names):
     phenotyping method selected. The returned dataset (df) is considered 
     """
 
-    df = df_raw.copy()
-
     if phenoMeth != 'Custom':
         if phenoMeth == 'Species':
             allow_compound_species=True
@@ -355,13 +353,13 @@ def assign_phenotype_col(df_raw, spec_summ_load, phenoMeth, marker_names):
         # then we have Will's "exclusive" case; otherwise, it's possible cells are
         # overlapping and we must duplicate the coordinates for the rows having
         # multiple positive markers
-        df = bpl.remove_compound_species(df, marker_names, allow_compound_species=allow_compound_species)
+        df = bpl.remove_compound_species(df_raw, marker_names, allow_compound_species=allow_compound_species)
 
         # Assign phenotype column to dataframe based on species name
-        df = bpl.assign_phenotype_species(df)
+        df = bpl.assign_phenotype_species(df_raw)
     else:
         # Assign phenotype column to dataframe based on species summary
-        df = bpl.assign_phenotype_custom(df, spec_summ_load)
+        df = bpl.assign_phenotype_custom(df_raw, spec_summ_load)
 
     return df
 
@@ -414,7 +412,7 @@ def filter_dataset(df, SELdict, CHKdict):
     TRUE or ignored based on a checkbox
     """
 
-    df_filt = df.copy()
+    df_filt = df
 
     # Select box filters
     for selfilt in SELdict:
