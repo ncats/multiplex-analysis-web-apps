@@ -156,7 +156,7 @@ def main():
 
                 # Display a success message
                 if columns_equal:
-                    st.toast('Files combined successfully')
+                    st.success(f'{len(input_files)} files combined')
 
                 # Set a flag to update the dataframe sample at the bottom of the page
                 show_dataframe_updates = True
@@ -208,7 +208,7 @@ def main():
                         st.session_state['unifier__columns_to_drop_rows_by_actual'] = st.session_state['unifier__columns_to_drop_rows_by']
 
                     # Display a success message
-                    st.toast(f'{row_count_before - row_count_after} rows deleted successfully')
+                    st.success(f'{row_count_before - row_count_after} rows deleted')
 
                     # Set a flag to update the dataframe sample at the bottom of the page
                     show_dataframe_updates = True
@@ -258,7 +258,7 @@ def main():
                     st.session_state['unifier__columns_to_combine_to_uniquely_define_slides_actual'] = subset_columns
 
                 # Display a success message
-                st.toast('Columns combined into a "Image ID (standardized)" column successfully')
+                st.success('Columns combined into a "Image ID (standardized)" column')
 
                 # Set a flag to update the dataframe sample at the bottom of the page
                 show_dataframe_updates = True
@@ -300,12 +300,12 @@ def main():
                     # Perform the operation
                     if st.session_state['unifier__roi_explicitly_defined']:
                         utils.dataframe_insert_possibly_existing_column(df, 1, 'ROI ID (standardized)', utils.downcast_series_dtype(df[st.session_state['unifier__roi_column']]))
-                        toast_message = '"ROI ID (standardized)" column created successfully'
+                        success_message = '"ROI ID (standardized)" column added or updated'
                         num_roi_columns = 1
                     else:
                         if 'ROI ID (standardized)' in df.columns:
                             del df['ROI ID (standardized)']
-                        toast_message = 'We have successfully ensured that the "ROI ID (standardized)" column is not present in the dataset'
+                        success_message = 'We have ensured that the "ROI ID (standardized)" column is not present in the dataset'
                         num_roi_columns = 0
 
                     # Save this dataframe to memory
@@ -318,7 +318,7 @@ def main():
                     st.session_state['unifier__num_roi_columns_actual'] = num_roi_columns
 
                 # Display a success message
-                st.toast(toast_message)
+                st.success(success_message)
 
                 # Set a flag to update the dataframe sample at the bottom of the page
                 show_dataframe_updates = True
@@ -397,8 +397,8 @@ def main():
                         centroid_y = (df[st.session_state['unifier__y_min_coordinate_column']] + df[st.session_state['unifier__y_max_coordinate_column']]) / 2
                     centroid_x = centroid_x * st.session_state['unifier__microns_per_coordinate_unit']
                     centroid_y = centroid_y * st.session_state['unifier__microns_per_coordinate_unit']
-                    utils.dataframe_insert_possibly_existing_column(df, st.session_state['unifier__num_roi_columns_actual'] + 1, 'Centroid X (µm) (standardized)', (centroid_x / 0.2).round() * 0.2)  # round to the nearest 0.2 microns, which is also assumed in the appropriate class in dataset_formats.py
-                    utils.dataframe_insert_possibly_existing_column(df, st.session_state['unifier__num_roi_columns_actual'] + 2, 'Centroid Y (µm) (standardized)', (centroid_y / 0.2).round() * 0.2)
+                    utils.dataframe_insert_possibly_existing_column(df, st.session_state['unifier__num_roi_columns_actual'] + 1, 'Centroid X (µm) (standardized)', utils.downcast_series_dtype((centroid_x / 0.2).round() * 0.2))  # round to the nearest 0.2 microns, which is also assumed in the appropriate class in dataset_formats.py
+                    utils.dataframe_insert_possibly_existing_column(df, st.session_state['unifier__num_roi_columns_actual'] + 2, 'Centroid Y (µm) (standardized)', utils.downcast_series_dtype((centroid_y / 0.2).round() * 0.2))
 
                     # Save this dataframe to memory
                     st.session_state['unifier__df'] = df
@@ -416,7 +416,7 @@ def main():
                         st.session_state['unifier__y_max_coordinate_column_actual'] = st.session_state['unifier__y_max_coordinate_column']
 
                 # Display a success message
-                st.toast('Coordinate columns created successfully')
+                st.success('Two coordinate centroid columns added or updated')
 
                 # Set a flag to update the dataframe sample at the bottom of the page
                 show_dataframe_updates = True
@@ -485,6 +485,8 @@ def main():
                         else:
                             # st.session_state['unifier__df_phenotypes'] = df[st.session_state['unifier__phenotype_column']].str.get_dummies(sep=': ')
                             st.session_state['unifier__df_phenotypes'] = df[st.session_state['unifier__phenotype_column']].str.get_dummies(sep=': ').drop(columns='Other')
+                        if 'unifier__de_phenotype_names' in st.session_state:
+                            del st.session_state['unifier__de_phenotype_names']
 
                         # Save the settings used for this operation
                         st.session_state['unifier__phenotyping_specification_format_actual'] = st.session_state['unifier__phenotyping_specification_format']
@@ -494,7 +496,7 @@ def main():
                             st.session_state['unifier__phenotype_column_actual'] = st.session_state['unifier__phenotype_column']
 
                     # Display a success message
-                    st.toast('Phenotype columns extracted successfully')
+                    st.success(f'{st.session_state["unifier__df_phenotypes"].shape[1]} phenotype columns extracted')
 
                 # If the selected columns to define phenotypes have changed since the last time phenotypes were defined, display a warning
                 display_warning = False
@@ -557,7 +559,7 @@ def main():
                             # st.session_state['unifier__df_phenotype_names_actual'] = df_phenotype_names
 
                         # Display a success message
-                        st.toast(f'{df_phenotypes.shape[1]} phenotype columns added to the main dataframe successfully')
+                        st.success(f'{df_phenotypes.shape[1]} phenotype columns added or updated in the main dataframe')
 
                         # Set a flag to update the dataframe sample at the bottom of the page
                         show_dataframe_updates = True
@@ -603,7 +605,7 @@ def main():
                     df.to_csv(file_path, index=False)
 
                 # Display a success message
-                st.toast(f'The dataframe has been saved to {file_path}')
+                st.success(f'The dataframe has been saved to {file_path}')
 
         # Add a divider
         st.divider()

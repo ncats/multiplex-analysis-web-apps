@@ -848,6 +848,7 @@ def downcast_dataframe_dtypes(df, also_return_final_size=False, frac_cutoff=0.05
 
     # Print memory usage before conversion
     original_memory = df.memory_usage(deep=True).sum()
+    print('----')
     print('Memory usage before conversion: {:.2f} MB'.format(original_memory / 1024 ** 2))
 
     # Potentially convert the columns to more efficient formats
