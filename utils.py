@@ -6,6 +6,7 @@ Set of scripts which support the other MAWA scripts
 import numpy as np
 import scipy.spatial
 import streamlit_utils
+import pandas as pd
 
 def set_filename_corresp_to_roi(df_paths, roi_name, curr_colname, curr_dir, curr_dir_listing):
     """Update the path in a main paths-holding dataframe corresponding to a particular ROI in a particular directory.
@@ -53,7 +54,6 @@ def get_paths_for_rois():
 
     # Import relevant libraries
     import os
-    import pandas as pd
 
     # Obtain the directory holding the subdirectories containing various types of plots (in this case, three types)
     # plots_dir = os.path.join(os.getcwd(), '..', 'results', 'webpage', 'slices_1x{}'.format(radius_in_microns), 'real')
@@ -111,7 +111,6 @@ def get_paths_for_slides():
 
     # Import relevant libraries
     import os
-    import pandas as pd
 
     # Obtain the directory holding the subdirectories containing various types of plots (in this case, two types)
     # plots_dir = os.path.join(os.getcwd(), '..', 'results', 'webpage', 'slices_1x{}'.format(radius_in_microns), 'real')
@@ -174,7 +173,6 @@ def get_overlay_info():
 
     # Import relevant libraries
     import os
-    import pandas as pd
 
     # Obtain the directory holding the subdirectory of interest
     # plots_dir = os.path.join(os.getcwd(), '..', 'results', 'webpage', 'slices_1x{}'.format(radius_in_microns), 'real')
@@ -424,7 +422,6 @@ def get_settings_defaults(options_for_input_datafiles, options_for_phenotype_ide
 def get_unique_image_ids_from_datafile(datafile_path):
 
     # Import relevant libraries
-    import pandas as pd
     import dataset_formats
 
     # Obtain the image number extraction parameters
@@ -791,11 +788,9 @@ def load_and_standardize_input_datafile(datafile_path_or_df, coord_units_in_micr
     # Return the processed dataset
     return dataset_obj
 
-def convert_dataframe_to_category(df, also_return_final_size=False):
+def convert_dataframe_to_category(df, also_return_final_size=False, frac_cutoff=0.05, number_cutoff=10):
     """
     Convert all columns with fewer than 5% unique values to the category data type.
-
-    Credit to GitHub Copilot.
 
     Args:
         df (pandas.DataFrame): The dataframe to convert
@@ -810,7 +805,11 @@ def convert_dataframe_to_category(df, also_return_final_size=False):
 
     # Convert columns with fewer than 5% unique values to the category data type
     for col in df.columns:
-        if df[col].nunique() < 0.05 * len(df[col]):
+        if df[col].dtype == 'object':
+            cutoff = frac_cutoff * len(df[col])
+        else:
+            cutoff = number_cutoff
+        if df[col].nunique() <= cutoff:
             df[col] = df[col].astype('category')
 
     # Print memory usage after conversion
@@ -826,8 +825,6 @@ def convert_dataframe_to_category(df, also_return_final_size=False):
         return df, new_memory
     else:
         return df
-
-import pandas as pd
 
 def convert_series_to_category(s):
     """
