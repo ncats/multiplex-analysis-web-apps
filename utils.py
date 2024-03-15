@@ -791,7 +791,7 @@ def load_and_standardize_input_datafile(datafile_path_or_df, coord_units_in_micr
     # Return the processed dataset
     return dataset_obj
 
-def convert_to_category(df, also_return_final_size=False):
+def convert_dataframe_to_category(df, also_return_final_size=False):
     """
     Convert all columns with fewer than 5% unique values to the category data type.
 

@@ -244,7 +244,7 @@ class Native:
 
         # Import the text file using Pandas
         if os.path.exists(input_datafile):
-            df = utils.convert_to_category(pd.read_csv(input_datafile, sep=sep))  # should shrink memory usage by ~60% at cost of slower datatype
+            df = utils.convert_dataframe_to_category(pd.read_csv(input_datafile, sep=sep))
             if images_to_analyze is None:  # if this is unset, choose all images in the dataset (i.e., effectively do not filter)
                 print('Text file "{}" with separator "{}" has been successfully read (no image filtering has been performed)'.format(input_datafile, sep))
             else:

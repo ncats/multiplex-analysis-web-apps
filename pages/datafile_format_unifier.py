@@ -145,7 +145,7 @@ def main():
                     # If the columns are equal for all input files, concatenate all files into a single dataframe
                     if columns_equal:
                         sep = (',' if input_files[0].split('.')[-1] == 'csv' else '\t')
-                        st.session_state['unifier__df'] = pd.concat([utils.convert_to_category(pd.read_csv(os.path.join(directory, input_file), sep=sep)) for input_file in input_files], ignore_index=True)
+                        st.session_state['unifier__df'] = pd.concat([utils.convert_dataframe_to_category(pd.read_csv(os.path.join(directory, input_file), sep=sep)) for input_file in input_files], ignore_index=True)
                         
                         # Calculate the memory usage of the concatenated dataframe
                         memory_usage = st.session_state['unifier__df'].memory_usage(deep=True).sum()
