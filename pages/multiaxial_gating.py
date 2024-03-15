@@ -271,16 +271,6 @@ def main():
     Main function for running the page
     '''
 
-    # Set page settings
-    st.set_page_config(layout='wide', page_title='Manual Phenotyping on Raw Intensities')
-    st.title('Manual Phenotyping on Raw Intensities')
-
-    # Run streamlit-dataframe-editor library initialization tasks at the top of the page
-    st.session_state = sde.initialize_session_state(st.session_state)
-
-    # Run Top of Page (TOP) functions
-    st.session_state = top.top_of_page_reqs(st.session_state)
-
     # If 'input_dataset' isn't in the session state, print an error message and return
     if 'input_dataset' not in st.session_state:
         st.error('An input dataset has not yet been opened. Please do so using the "Open File" page in the sidebar.')
@@ -625,9 +615,20 @@ def main():
                     fig.update_xaxes(scaleanchor='y')
                     st.plotly_chart(fig)
 
-    # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
-    st.session_state = sde.finalize_session_state(st.session_state)
-
 # Call the main function
 if __name__ == '__main__':
+
+    # Set page settings
+    st.set_page_config(layout='wide', page_title='Manual Phenotyping on Raw Intensities')
+    st.title('Manual Phenotyping on Raw Intensities')
+
+    # Run streamlit-dataframe-editor library initialization tasks at the top of the page
+    st.session_state = sde.initialize_session_state(st.session_state)
+
+    # Run Top of Page (TOP) functions
+    st.session_state = top.top_of_page_reqs(st.session_state)
+
     main()
+
+    # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
+    st.session_state = sde.finalize_session_state(st.session_state)

@@ -299,16 +299,6 @@ def main():
     options_for_phenotyping_methods = ['Species', 'Marker', 'Custom']
     options_for_significance_calculation_methods = ['Poisson (radius)', 'Permutation (radius)', 'Permutation (k-nearest neighbors)']
 
-    # Set page settings
-    st.set_page_config(layout="wide", page_title='Tool parameter selection')
-    st.title('Tool parameter selection')
-
-    # Run streamlit-dataframe-editor library initialization tasks at the top of the page
-    st.session_state = sde.initialize_session_state(st.session_state)
-
-    # Run Top of Page (TOP) functions
-    st.session_state = top.top_of_page_reqs(st.session_state)
-
     # If 'input_dataset' isn't in the session state, print an error message and return
     if 'input_dataset' not in st.session_state:
         st.error('An input dataset has not yet been opened. Please do so using the "Open File" page in the sidebar.')
@@ -505,9 +495,20 @@ def main():
                 st.warning('The current settings differ from those used when the tool was last run. Click the button below to reload the dataset and settings, and then click the "Run workflow" button on the next page to rerun the workflow using the updated data/settings.', icon="⚠️")
         st.button('{} Load dataset and settings'.format(potential_icon_prefix), disabled=(not ready_to_preprocess_data), help=help_message, on_click=load_dataset_and_settings, kwargs={'checkpoints_exist': checkpoints_exist, 'existing_dirs_to_delete': existing_dirs_to_delete, 'orig_settings': orig_settings}, use_container_width=True)
 
-    # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
-    st.session_state = sde.finalize_session_state(st.session_state)
-
 # Call the main function
 if __name__ == '__main__':
+
+    # Set page settings
+    st.set_page_config(layout="wide", page_title='Tool parameter selection')
+    st.title('Tool parameter selection')
+
+    # Run streamlit-dataframe-editor library initialization tasks at the top of the page
+    st.session_state = sde.initialize_session_state(st.session_state)
+
+    # Run Top of Page (TOP) functions
+    st.session_state = top.top_of_page_reqs(st.session_state)
+
     main()
+
+    # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
+    st.session_state = sde.finalize_session_state(st.session_state)
