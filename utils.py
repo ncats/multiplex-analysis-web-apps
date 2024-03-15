@@ -788,9 +788,9 @@ def load_and_standardize_input_datafile(datafile_path_or_df, coord_units_in_micr
     # Return the processed dataset
     return dataset_obj
 
-def convert_series_to_category(ser, frac_cutoff=0.05, number_cutoff=10):
+def downcast_series_dtype(ser, frac_cutoff=0.05, number_cutoff=10):
     """
-    Convert a series to the category data type based on the number of unique values.
+    Potentially convert a series to a more efficient datatype for our purposes.
 
     Args:
         ser (pandas.Series): The series to convert
@@ -798,8 +798,11 @@ def convert_series_to_category(ser, frac_cutoff=0.05, number_cutoff=10):
         number_cutoff (int): The number cutoff for unique values (default: 10)
 
     Returns:
-        pandas.Series: The converted series
+        pandas.Series: The potentially converted series
     """
+
+    # Get the initial dtype
+    initial_dtype = ser.dtype
 
     # Check if the series dtype is 'object'
     if ser.dtype == 'object':
@@ -811,10 +814,25 @@ def convert_series_to_category(ser, frac_cutoff=0.05, number_cutoff=10):
     if ser.nunique() <= cutoff:
         ser = ser.astype('category')  # Convert the series to the category data type
 
+    # Halve the precision of integers and floats
+    if ser.dtype == 'int64':
+        ser = ser.astype('int32')
+    elif ser.dtype == 'float64':
+        ser = ser.astype('float32')
+
+    # Get the final dtype
+    final_dtype = ser.dtype
+
+    # Print the result of the conversion
+    if initial_dtype != final_dtype:
+        print(f'Column {ser.name} was compressed from {initial_dtype} to {final_dtype}')
+    else:
+        print(f'Column {ser.name} remains as {final_dtype}')
+
     # Return the converted series
     return ser
 
-def convert_dataframe_to_category(df, also_return_final_size=False, frac_cutoff=0.05, number_cutoff=10):
+def downcast_dataframe_dtypes(df, also_return_final_size=False, frac_cutoff=0.05, number_cutoff=10):
     """
     Convert columns in a pandas DataFrame to the "category" data type if they have fewer than a specified percentage or number of unique values, in order to reduce memory usage.
 
@@ -832,9 +850,9 @@ def convert_dataframe_to_category(df, also_return_final_size=False, frac_cutoff=
     original_memory = df.memory_usage(deep=True).sum()
     print('Memory usage before conversion: {:.2f} MB'.format(original_memory / 1024 ** 2))
 
-    # Convert columns with fewer than 5% unique values to the category data type
+    # Potentially convert the columns to more efficient formats
     for col in df.columns:
-        df[col] = convert_series_to_category(df[col], frac_cutoff=frac_cutoff, number_cutoff=number_cutoff)
+        df[col] = downcast_series_dtype(df[col], frac_cutoff=frac_cutoff, number_cutoff=number_cutoff)
 
     # Print memory usage after conversion
     new_memory = df.memory_usage(deep=True).sum()

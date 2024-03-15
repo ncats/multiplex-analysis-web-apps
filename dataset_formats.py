@@ -244,7 +244,7 @@ class Native:
 
         # Import the text file using Pandas
         if os.path.exists(input_datafile):
-            df = utils.convert_dataframe_to_category(pd.read_csv(input_datafile, sep=sep))
+            df = utils.downcast_dataframe_dtypes(pd.read_csv(input_datafile, sep=sep))
             if images_to_analyze is None:  # if this is unset, choose all images in the dataset (i.e., effectively do not filter)
                 print('Text file "{}" with separator "{}" has been successfully read (no image filtering has been performed)'.format(input_datafile, sep))
             else:
@@ -1160,7 +1160,7 @@ class Standardized(Native):
         mapper = dict(zip(unique_images, [x + 1 for x in range(len(unique_images))]))
 
         # Attribute assignments
-        utils.dataframe_insert_possibly_existing_column(self.data, 0, 'Slide ID', utils.convert_series_to_category(srs_imagenum.apply(lambda x: '{}A-{}'.format(mapper[x], x))))
+        utils.dataframe_insert_possibly_existing_column(self.data, 0, 'Slide ID', utils.downcast_series_dtype(srs_imagenum.apply(lambda x: '{}A-{}'.format(mapper[x], x))))
 
     def adhere_to_tag_format(self):
         """Ensure the "tag" column of the data conforms to the required format.
@@ -1183,7 +1183,7 @@ class Standardized(Native):
         # Either patch up the dataset into ROIs and assign the ROI ("tag") column accordingly, or don't and assign the ROI column accordingly
         if 'ROI ID (standardized)' in df.columns:
             # df['tag'] = df['ROI ID (standardized)']
-            utils.dataframe_insert_possibly_existing_column(df, 1, 'tag', utils.convert_series_to_category(df['ROI ID (standardized)']))
+            utils.dataframe_insert_possibly_existing_column(df, 1, 'tag', utils.downcast_series_dtype(df['ROI ID (standardized)']))
         else:
             df = potentially_apply_patching(df, input_datafile, roi_width, overlap, func_coords_to_pixels, func_microns_to_pixels)
             df = reorder_column_in_dataframe(df, 'tag', 1)
@@ -1234,7 +1234,7 @@ class Standardized(Native):
 
         # For each phenotype column, convert to -'s and +'s
         for icolumn, col in enumerate(df.filter(regex='^Phenotype\ ')):
-            df[col] = utils.convert_series_to_category(df[col].apply(lambda x: x[-1] if isinstance(x, str) else '-' if x == 0 else '+'))
+            df[col] = utils.downcast_series_dtype(df[col].apply(lambda x: x[-1] if isinstance(x, str) else '-' if x == 0 else '+'))
             df = reorder_column_in_dataframe(df, col, 4 + icolumn)
 
         # Attribute assignments from variables

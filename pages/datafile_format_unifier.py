@@ -145,7 +145,7 @@ def main():
                     # If the columns are equal for all input files, concatenate all files into a single dataframe
                     if columns_equal:
                         sep = (',' if input_files[0].split('.')[-1] == 'csv' else '\t')
-                        st.session_state['unifier__df'] = pd.concat([utils.convert_dataframe_to_category(pd.read_csv(os.path.join(directory, input_file), sep=sep)) for input_file in input_files], ignore_index=True)
+                        st.session_state['unifier__df'] = utils.downcast_dataframe_dtypes(pd.concat([pd.read_csv(os.path.join(directory, input_file), sep=sep) for input_file in input_files], ignore_index=True))
                         
                         # Calculate the memory usage of the concatenated dataframe
                         memory_usage = st.session_state['unifier__df'].memory_usage(deep=True).sum()
@@ -198,7 +198,7 @@ def main():
 
                         # Perform the operation
                         row_count_before = len(df)
-                        df = df.dropna(subset=st.session_state['unifier__columns_to_drop_rows_by']).reset_index(drop=True).convert_dtypes()
+                        df = df.dropna(subset=st.session_state['unifier__columns_to_drop_rows_by']).reset_index(drop=True)
                         row_count_after = len(df)
 
                         # Save this dataframe to memory
@@ -249,7 +249,7 @@ def main():
                     for column in subset_columns:
                         if df_subset[column].dtype not in ['string', 'object']:
                             df_subset[column] = df_subset[column].apply(str)
-                    utils.dataframe_insert_possibly_existing_column(df, 0, 'Image ID (standardized)', utils.convert_series_to_category(df_subset.apply(lambda x: transformation['__'.join(x)], axis='columns')))
+                    utils.dataframe_insert_possibly_existing_column(df, 0, 'Image ID (standardized)', utils.downcast_series_dtype(df_subset.apply(lambda x: transformation['__'.join(x)], axis='columns')))
 
                     # Save this dataframe to memory
                     st.session_state['unifier__df'] = df
@@ -299,7 +299,7 @@ def main():
 
                     # Perform the operation
                     if st.session_state['unifier__roi_explicitly_defined']:
-                        utils.dataframe_insert_possibly_existing_column(df, 1, 'ROI ID (standardized)', utils.convert_series_to_category(df[st.session_state['unifier__roi_column']]))
+                        utils.dataframe_insert_possibly_existing_column(df, 1, 'ROI ID (standardized)', utils.downcast_series_dtype(df[st.session_state['unifier__roi_column']]))
                         toast_message = '"ROI ID (standardized)" column created successfully'
                         num_roi_columns = 1
                     else:
@@ -547,7 +547,7 @@ def main():
 
                             # Add each phenotype column to the main dataframe, starting with position st.session_state['unifier__num_roi_columns_actual'] + 3
                             for icolumn, column in enumerate(df_phenotypes.columns):
-                                utils.dataframe_insert_possibly_existing_column(df, st.session_state['unifier__num_roi_columns_actual'] + 3 + icolumn, column, utils.convert_series_to_category(df_phenotypes[column]))
+                                utils.dataframe_insert_possibly_existing_column(df, st.session_state['unifier__num_roi_columns_actual'] + 3 + icolumn, column, utils.downcast_series_dtype(df_phenotypes[column]))
 
                             # Save this dataframe to memory
                             st.session_state['unifier__df'] = df
@@ -605,8 +605,24 @@ def main():
                 # Display a success message
                 st.toast(f'The dataframe has been saved to {file_path}')
 
-        # Output a sample of the concatenated dataframe
+        # Add a divider
         st.divider()
+
+        # Display the information and the sampled dataframe
+        if show_dataframe_updates:  # only calculate when a significant change occurs in the app
+            st.session_state['unifier__main_df_usage_mb'] = df.memory_usage(deep=True).sum() / 1024 ** 2  # store the memory usage of the dataframe in the session state
+        usage_str = f'{st.session_state["unifier__main_df_usage_mb"]:.2f} MB' if 'unifier__main_df_usage_mb' in st.session_state else 'Not yet calculated'
+        information = f'''
+        Loaded dataset properties:
+
+        :small_orange_diamond: Number of rows: `{df.shape[0]}`  
+        :small_orange_diamond: Number of columns: `{df.shape[1]}`  
+        :small_orange_diamond: Coordinate units: `{st.session_state['unifier__microns_per_coordinate_unit'] if 'unifier__microns_per_coordinate_unit' in st.session_state else None} microns/coord`  
+        :small_orange_diamond: Loaded memory usage: `{usage_str}`
+        '''
+        st.markdown(information)
+    
+        # Output a sample of the concatenated dataframe
         st.header('Sample of unified dataframe')
         resample_dataframe = st.button('Refresh dataframe sample')
         if ('sampled_df' not in st.session_state) or resample_dataframe or show_dataframe_updates:

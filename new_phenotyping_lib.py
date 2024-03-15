@@ -222,7 +222,7 @@ def apply_phenotyping(csv_file_path_or_df, method, phenotype_identification_file
         sep = (',' if csv_file_path_or_df.split('.')[-1] == 'csv' else '\t')
 
         # Read in the datafile
-        df = utils.convert_dataframe_to_category(pd.read_csv(csv_file_path_or_df, sep=sep))
+        df = utils.downcast_dataframe_dtypes(pd.read_csv(csv_file_path_or_df, sep=sep))
 
         # From the detected datafile format, determine the coordinate columns and the marker information
         _, _, coord_cols, marker_prefix, _, markers_in_csv_file = dataset_formats.extract_datafile_metadata(csv_file_path_or_df)
