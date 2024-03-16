@@ -3,6 +3,7 @@
 import utils
 
 def reorder_column_in_dataframe(df, column_name, new_position):
+    # Note that in this function df is modified in place!
     if column_name not in df.columns:
         print(f"Warning: Column '{column_name}' does not exist in the dataframe.")
         return df
@@ -1202,12 +1203,9 @@ class Standardized(Native):
         # Variable definitions from attributes
         df = self.data
 
-
         # Create the new columns for the x- and y-coordinates
-        print(f'Memory usage 9999: {self.data.memory_usage(deep=True).sum() / 1024 ** 2} MB; {self.data.shape} shape')
         utils.dataframe_insert_possibly_existing_column(df, 2, 'Cell X Position', utils.downcast_series_dtype(df['Centroid X (µm) (standardized)']))
         utils.dataframe_insert_possibly_existing_column(df, 3, 'Cell Y Position', utils.downcast_series_dtype(df['Centroid Y (µm) (standardized)']))
-        print(f'Memory usage 0000: {self.data.memory_usage(deep=True).sum() / 1024 ** 2} MB; {self.data.shape} shape')
 
         # Attribute assignments from variables
         self.data = df
@@ -1228,23 +1226,27 @@ class Standardized(Native):
         _, _, _, _, _, phenotype_columns = extract_datafile_metadata(input_datafile)  # phenotype_columns are the actual marker names
 
         # Since we're about to indicate the phenotypes of interest by columns that start with "Phenotype ", first detect and rename any columns that already start with "Phenotype "
+        # I.e., rename "Phenotype AA" to "Phenotype_renamed_in_dataset_formats_py AA"
         prefix = 'Phenotype '
         phenotype_columns_to_rename = [column for column in df.columns if column.startswith(prefix) and not column.startswith('Phenotype (standardized) ')]
         for col in phenotype_columns_to_rename:
             df = df.rename(columns={col: 'Phenotype_renamed_in_dataset_formats_py ' + col[len(prefix):]})
 
         # Rename the phenotype columns so that they are prepended with "Phenotype "
+        # I.e., go from a df with columns like 'Phenotype (standardized) AA' to one with both that column and another one with the same data but named 'Phenotype AA'
         transformation = dict(zip(['Phenotype (standardized) {}'.format(x.strip()) for x in phenotype_columns], ['Phenotype {}'.format(x.strip()) for x in phenotype_columns]))
-        df_phenotype_cols = df[[column for column in df.columns if column.startswith('Phenotype (standardized) ')]]
-        df = pd.concat([df, df_phenotype_cols.rename(transformation, axis='columns')])
+        df_phenotype_cols = df[[column for column in df.columns if column.startswith('Phenotype (standardized) ')]]  # this creates a copy of the "Phenotype (standardized) " columns as a new dataframe
+        self.data = pd.concat([df, df_phenotype_cols.rename(columns=transformation)], axis='columns')  # this concatenates the original dataframe with the phenotype columns named like 'Phenotype AA' and assigns it back to the original dataframe
+        df = self.data  # we must do it in two steps because Pandas doesn't want to overwrite the originally referenced data (i.e., self.data) in the assignment in the previous line, in order to prevent unexpected side effects. I suppose this makes sense, i.e., df = df_stored; df = df_new should not replace df_stored with df_new
 
-        # For each phenotype column, convert to -'s and +'s
-        for icolumn, col in enumerate(df.filter(regex='^Phenotype\ ')):
+        # In each new "Phenotype " (not "Phenotype (standardized) ") column, convert to -'s and +'s
+        phenotype_cols_without_standardized = [col for col in df.columns if col.startswith('Phenotype ') and not col.startswith('Phenotype (standardized) ')]
+        for icolumn, col in enumerate(phenotype_cols_without_standardized):
             df[col] = utils.downcast_series_dtype(df[col].apply(lambda x: x[-1] if isinstance(x, str) else '-' if x == 0 else '+'))
             df = reorder_column_in_dataframe(df, col, 4 + icolumn)
 
-        # Attribute assignments from variables
-        self.data = df
+        # Attribute assignments from variables. This is completely unnecessary, and am leaving it commented out for posterity for now
+        # self.data = df
 
     def calculate_minimum_coordinate_spacing(self):
         """Calculate the minimum spacing (aside from zero) in the data coordinates after conversion to microns. Not sure this is ever used anymore.
