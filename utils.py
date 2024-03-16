@@ -868,3 +868,12 @@ def downcast_dataframe_dtypes(df, also_return_final_size=False, frac_cutoff=0.05
         return df, new_memory
     else:
         return df
+
+def memory_usage_in_mb():
+    # Use like: print(f"Memory usage: {memory_usage_in_mb()} MB")
+    import psutil
+    import os
+    pid = os.getpid()
+    process = psutil.Process(pid)
+    mem_info = process.memory_info()
+    return pid, mem_info.rss / (1024 * 1024)  # Convert bytes to MB

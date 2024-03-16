@@ -1,6 +1,7 @@
 # Import relevant libraries
 import streamlit as st
-import pickle
+# import pickle
+import dill as pickle
 import os
 from datetime import datetime
 import os
