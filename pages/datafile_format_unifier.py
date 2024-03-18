@@ -397,7 +397,7 @@ def main():
                         centroid_y = (df[st.session_state['unifier__y_min_coordinate_column']] + df[st.session_state['unifier__y_max_coordinate_column']]) / 2
                     centroid_x = centroid_x * st.session_state['unifier__microns_per_coordinate_unit']
                     centroid_y = centroid_y * st.session_state['unifier__microns_per_coordinate_unit']
-                    utils.dataframe_insert_possibly_existing_column(df, st.session_state['unifier__num_roi_columns_actual'] + 1, 'Centroid X (µm) (standardized)', utils.downcast_series_dtype((centroid_x / 0.2).round() * 0.2))  # round to the nearest 0.2 microns, which is also assumed in the appropriate class in dataset_formats.py
+                    utils.dataframe_insert_possibly_existing_column(df, st.session_state['unifier__num_roi_columns_actual'] + 1, 'Centroid X (µm) (standardized)', utils.downcast_series_dtype((centroid_x / 0.2).round() * 0.2))  # round to the nearest 0.2 microns, which is also assumed in the appropriate class in dataset_formats.py. If we ever want to change this, search for 0.2 in the codebase, I think there may be three files where it's currently hardcoded
                     utils.dataframe_insert_possibly_existing_column(df, st.session_state['unifier__num_roi_columns_actual'] + 2, 'Centroid Y (µm) (standardized)', utils.downcast_series_dtype((centroid_y / 0.2).round() * 0.2))
 
                     # Save this dataframe to memory
@@ -632,7 +632,7 @@ def main():
             st.session_state['sampled_df'] = sampled_df
         sampled_df = st.session_state['sampled_df']
         st.write(sampled_df)
-        st.write('The full combined dataframe has {} rows and {} columns.'.format(df.shape[0], df.shape[1]))
+        st.dataframe(pd.DataFrame(st.session_state['unifier__input_files_actual'], columns=["Input files included in the combined dataset"]), hide_index=True)
 
     # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
     st.session_state = sde.finalize_session_state(st.session_state)
