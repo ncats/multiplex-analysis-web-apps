@@ -22,12 +22,9 @@ def preprocess_df(df_orig, marker_names, marker_col_prefix, bc):
     and collect meta-data
     '''
 
-    # Set df_raw as the baseline dataframe
-    df_raw = df_orig.copy()
-
     # Step 1: Initalize the columns needed for phenotyping
     bc.startTimer()
-    df_raw = init_pheno_cols(df_raw, marker_names, marker_col_prefix)
+    df_raw = init_pheno_cols(df_orig, marker_names, marker_col_prefix)
     bc.printElapsedTime(msg = '     Initializing Phenotyping Columns')
 
     # Step 2: Intialize Phenotying Assignments dataframe
@@ -40,10 +37,7 @@ def preprocess_df(df_orig, marker_names, marker_col_prefix, bc):
     pheno_summ = init_pheno_summ(df_raw)
     bc.printElapsedTime(msg = '     Initializing Phenotype Summary Table')
 
-    # Make a copy of df_raw as df
-    df = df_raw.copy()
-
-    return df_raw, df, pheno_assign, pheno_summ
+    return df_raw, df_raw, pheno_assign, pheno_summ
 
 def identify_marker_columns(df, marker_col_prefix):
     '''
@@ -255,7 +249,7 @@ def incorporate_phenotype_identifications(df_objects_orig, tsv_file=None):
             # Check that the current number of object matches is consistent with what was previously calculated using the value_counts() method
             assert curr_num_objects == orig_species_value_counts[species_id], 'ERROR: Current number of species matches is inconsistent! ({}, {})'.format(curr_num_objects, orig_species_value_counts[species_id])
 
-            # Store a copy of the object data for the current species ID... copy is indeed needed or else I'd get a typical Pandas warning!
+            # Store a copy of the object data for the current species ID
             curr_object_data = df_objects_orig[object_is_species].copy()
 
             # Update the total number of original and new objects
@@ -274,9 +268,7 @@ def incorporate_phenotype_identifications(df_objects_orig, tsv_file=None):
                 # Overwrite the species IDs for the current data dataframe with the new species ID
                 curr_object_data[species_id_col] = id_to_map
 
-                # Save the current object data with updated species ID to the dataframe holder that we will later combine
-                # into the final dataset... note the .copy() is absolutely needed or else when there are multiple phenotypes 
-                # per set of surface markers, copies of the dataframes are added to list_objects_new instead of ones with different species IDs!!
+                # Save the current object data with updated species ID to the dataframe
                 list_objects_new.append(curr_object_data.copy())
 
         # Create new dataframe with the new phenotypes
