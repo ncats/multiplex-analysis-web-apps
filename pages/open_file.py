@@ -95,7 +95,7 @@ def main():
             return
 
     # Now that we know the input dataset is assigned and is valid, print out a sample of the main, input dataframe, plus some information about it
-    st.header('Loaded and validated data')
+    st.header('Loaded dataset')
 
     # Assign shortcuts to the loaded dataset, metadata, and dataframe
     dataset_obj = st.session_state['input_dataset']
@@ -108,7 +108,7 @@ def main():
     else:
         datafile_path = 'loaded from Datafile Unifier'
     information = f'''
-    Loaded dataset properties:
+    Properties:
 
       :small_orange_diamond: Datafile: `{datafile_path}`  
       :small_orange_diamond: Coordinate units: `{metadata['coord_units_in_microns']} microns/coord`  
