@@ -249,7 +249,7 @@ def detect_markers_in_annotation_files(selected_annotation_files):
     # Return the running list of markers in the annotation files
     return annotation_markers
 
-def validate_presets_and_map_to_settings(preset_settings, possible_phenotype_identification_files, possible_annotation_files, possible_phenotyping_methods, possible_significance_calculation_methods, options_for_images, message_function=print):
+def validate_presets_and_map_to_settings(preset_settings, possible_phenotype_identification_files, possible_annotation_files, possible_phenotyping_methods, possible_significance_calculation_methods, options_for_images, options_for_phenotypes, message_function=print):
 
     # Import relevant libraries
     import sys
@@ -298,11 +298,12 @@ def validate_presets_and_map_to_settings(preset_settings, possible_phenotype_ide
             settings['phenotyping']['phenotype_identification_file'] = validate_preset_setting(preset_settings, 'phenotyping', 'phenotype_identification_file', lambda x: isstr(x) and (x in possible_phenotype_identification_files), 'Value is not present in the "input" directory (present values are [{}])'.format(possible_phenotype_identification_files))
 
         # Validate the settings in the analysis (new format) section
-        settings['analysis']['images_to_analyze'] = validate_preset_setting(preset_settings, 'analysis', 'images_to_analyze', lambda x: islist(x) and (sum([(y in options_for_images) for y in x]) == len(x)), 'Value is not a list containing images that are present in the selected input datafile (options are {})'.format(options_for_images))
+        settings['analysis']['images_to_analyze'] = validate_preset_setting(preset_settings, 'analysis', 'images_to_analyze', lambda x: islist(x) and (sum([(y in options_for_images) for y in x]) == len(x)), 'Value is not a list containing images that are present in the input dataset (options are {})'.format(options_for_images))
         settings['analysis']['partition_slides_into_rois'] = validate_preset_setting(preset_settings, 'analysis', 'partition_slides_into_rois', lambda x: isbool(x), 'Value is not a boolean')
         if settings['analysis']['partition_slides_into_rois']:
             settings['analysis']['roi_width'] = validate_preset_setting(preset_settings, 'analysis', 'roi_width', lambda x: isnum(x) and (x > 0), 'Value is not a positive number')
             settings['analysis']['roi_overlap'] = validate_preset_setting(preset_settings, 'analysis', 'roi_overlap', lambda x: isnum(x), 'Value is not a number')
+        settings['analysis']['phenotypes_to_analyze'] = validate_preset_setting(preset_settings, 'analysis', 'phenotypes_to_analyze', lambda x: islist(x) and (sum([(y in options_for_phenotypes) for y in x]) == len(x)), 'Value is not a list containing phenotypes that are present in the input dataset (options are {})'.format(options_for_phenotypes))
         settings['analysis']['neighbor_radius'] = validate_preset_setting(preset_settings, 'analysis', 'neighbor_radius', lambda x: isnum(x) and (x > 0), 'Value is not a positive number')
         settings['analysis']['significance_calculation_method'] = validate_preset_setting(preset_settings, 'analysis', 'significance_calculation_method', lambda x: isstr(x) and (x in possible_significance_calculation_methods), 'Value is not an acceptable value (options are {})'.format(possible_significance_calculation_methods))
         settings['analysis']['n_neighs'] = validate_preset_setting(preset_settings, 'analysis', 'n_neighs', lambda x: isint(x) and (x >= 0), 'Value is not a non-negative integer')
@@ -323,6 +324,8 @@ def validate_presets_and_map_to_settings(preset_settings, possible_phenotype_ide
 
     # If the input settings file is in the original format...
     else:
+
+        print('WARNING: In the block in utils.py where it\'s assumed the input settings file is in the original format. This is old and e.g. lacks options_for_phenotypes being returned by streamlit_utils.get_updated_dynamic_options(input_directory) below, and elsewhere (options_for_phenotypes should mirror options_for_images).')
 
         # Extract the image and annotation file options
         options_for_images, possible_annotation_files = streamlit_utils.get_updated_dynamic_options(input_directory)
@@ -382,6 +385,8 @@ def get_first_element_or_none(options):
 
 # def get_settings_defaults(options_for_input_datafiles, options_for_phenotype_identification_files, options_for_annotation_files, options_for_input_datafile_formats, options_for_phenotyping_methods, options_for_significance_calculation_methods, options_for_markers_in_annotation_files, options_for_images):
 def get_settings_defaults(options_for_input_datafiles, options_for_phenotype_identification_files, options_for_annotation_files, options_for_input_datafile_formats, options_for_phenotyping_methods, options_for_significance_calculation_methods, options_for_images):
+
+    # At least as of 3/19/24, and likely much much earlier, this doesn't appear to be called from anywhere.
 
     # Initialize the dictionary holding the actual settings dictionary to be used in the workflow
     settings = dict()

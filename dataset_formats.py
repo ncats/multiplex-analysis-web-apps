@@ -192,7 +192,7 @@ class Native:
     I should dig up the email/conversation/notes in which Houssein told us the units of the original input datafile were half-microns.
     """
 
-    def __init__(self, datafile_path_or_df, coord_units_in_microns, images_to_analyze=None, min_coord_spacing=None, species_equivalents={}, mapping_dict={}, roi_width=None, overlap=0, phenotype_identification_tsv_file=None, extra_cols_to_keep=None):
+    def __init__(self, datafile_path_or_df, coord_units_in_microns, images_to_analyze=None, phenotypes_to_analyze=None, min_coord_spacing=None, species_equivalents={}, mapping_dict={}, roi_width=None, overlap=0, phenotype_identification_tsv_file=None, extra_cols_to_keep=None):
         """Object initialization, which just consists of reading in the data from the datafile
 
         Args:
@@ -210,6 +210,7 @@ class Native:
             Spatial analysis dataset object.
         """
         self.images_to_analyze = images_to_analyze
+        self.phenotypes_to_analyze = phenotypes_to_analyze
         if isinstance(datafile_path_or_df, str):  # reading in from a file (original case)
             self.input_datafile = datafile_path_or_df
             self.sep = (',' if datafile_path_or_df.split('.')[-1] == 'csv' else '\t')
