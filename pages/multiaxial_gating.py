@@ -154,7 +154,7 @@ def add_new_phenotypes_to_main_df(df, image_for_filtering):
 
                 # Set the booleans if the boolean column filter is categorical (values = [items])
                 else:
-                    column_filter_bools = df[column].apply(lambda x: x in values[0])
+                    column_filter_bools = df[column].apply(lambda x: x in values[0]).astype('bool')
                     print('  Column #{} (categorical): {}'.format(ifilter_col + 1, column))
                     print('    items: {}'.format(values[0]))
 
@@ -186,7 +186,11 @@ def add_new_phenotypes_to_main_df(df, image_for_filtering):
             st.info(f'These phenotype transformations were made to avoid "+" and "-" characters: {phenotype_name_changes}')
 
         # Save the gating table to disk
-        gating_filename = 'gating_table_for_{}_for_datafile_{}-{}.csv'.format(filtering_section_name, os.path.splitext(os.path.basename(st.session_state['input_metadata']['datafile_path']))[0], datetime.now().strftime("date%Y_%m_%d_time%H_%M_%S"))
+        if st.session_state['input_metadata']['datafile_path'] is not None:
+            datafile_name = os.path.splitext(os.path.basename(st.session_state['input_metadata']['datafile_path']))[0]
+        else:
+            datafile_name = 'from_memory'
+        gating_filename = 'gating_table_for_{}_for_datafile_{}-{}.csv'.format(filtering_section_name, datafile_name, datetime.now().strftime("date%Y_%m_%d_time%H_%M_%S"))
         df_phenotype_assignments.to_csv(path_or_buf=os.path.join(os.path.join('.', 'output'), gating_filename), index=True)
         st.info('File {} written to disk'.format(gating_filename))
 

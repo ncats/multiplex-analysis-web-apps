@@ -110,6 +110,11 @@ def init_pheno_assign(df):
 
     spec_summ['species_count'] = spec_summ['species_name_short'].groupby(spec_summ['species_name_short']).transform('count')
     spec_summ = spec_summ.drop_duplicates().reset_index(drop=True)
+
+    # The above seems a bit inefficient and shouuld probably be replaced with something like this:
+    # spec_summ = spec_summ['species_name_short'].value_counts().reset_index()
+    # spec_summ.columns = ['species_name_short', 'species_count']
+
     sp_species_count = time.time()
     elapsed_counts = round(sp_species_count - sp_init_species, 3)
     print(f'        Phenotying Assignments Counts Calculations: {elapsed_counts}s')

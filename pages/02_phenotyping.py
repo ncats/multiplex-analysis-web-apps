@@ -128,7 +128,11 @@ def main():
             dataset_obj = st.session_state['input_dataset']
             st.session_state.bc.printElapsedTime(msg = f'Loading {st.session_state["input_metadata"]["datafile_path"]} into memory, Datafile Unifier')
             st.session_state.bc.startTimer()
-            st.session_state = ndl.loadDataButton(st.session_state, dataset_obj.data, 'Input', os.path.splitext(os.path.basename(st.session_state['input_metadata']['datafile_path']))[0])
+            if st.session_state['input_metadata']['datafile_path'] is not None:
+                datafile_name = os.path.splitext(os.path.basename(st.session_state['input_metadata']['datafile_path']))[0]
+            else:
+                datafile_name = 'from_memory'
+            st.session_state = ndl.loadDataButton(st.session_state, dataset_obj.data, 'Input', datafile_name)
             st.session_state.bc.printElapsedTime(msg = f'Performing Phenotyping on {st.session_state["input_metadata"]["datafile_path"]}')
         st.session_state.bc.set_value_df('time_load_data', st.session_state.bc.elapsedTime())
 
