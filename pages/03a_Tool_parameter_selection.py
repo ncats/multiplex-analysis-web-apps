@@ -39,6 +39,9 @@ def set_dataset_specific_options():
     st.session_state['sit__slide_ids_parsed_to_original_dict'] = parsed_to_original
 
 
+    #### TODO: Pick up here with processing the phenotypes just like above
+
+
     # Update the image options
     st.session_state['options_for_images'] = list(dataset_formats.get_image_series_in_datafile(input_datafile_path).unique())
 

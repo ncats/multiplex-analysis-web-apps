@@ -245,7 +245,7 @@ def main():
                     for column in subset_columns:
                         if df_subset[column].dtype not in ['string', 'object']:
                             df_subset[column] = df_subset[column].apply(str)
-                    utils.dataframe_insert_possibly_existing_column(df, 0, 'Image ID (standardized)', utils.downcast_series_dtype(df_subset.apply(lambda x: transformation['__'.join(x)], axis='columns')))
+                    utils.dataframe_insert_possibly_existing_column(df, 0, 'Image ID_(standardized)', utils.downcast_series_dtype(df_subset.apply(lambda x: transformation['__'.join(x)], axis='columns')))
 
                     # Save this dataframe to memory
                     st.session_state['unifier__df'] = df
@@ -254,7 +254,7 @@ def main():
                     st.session_state['unifier__columns_to_combine_to_uniquely_define_slides_actual'] = subset_columns
 
                 # Display a success message
-                st.success('Columns combined into a "Image ID (standardized)" column')
+                st.success('Columns combined into a "Image ID_(standardized)" column')
 
                 # Set a flag to update the dataframe sample at the bottom of the page
                 show_dataframe_updates = True
@@ -295,13 +295,13 @@ def main():
 
                     # Perform the operation
                     if st.session_state['unifier__roi_explicitly_defined']:
-                        utils.dataframe_insert_possibly_existing_column(df, 1, 'ROI ID (standardized)', utils.downcast_series_dtype(df[st.session_state['unifier__roi_column']]))
-                        success_message = '"ROI ID (standardized)" column added or updated'
+                        utils.dataframe_insert_possibly_existing_column(df, 1, 'ROI ID_(standardized)', utils.downcast_series_dtype(df[st.session_state['unifier__roi_column']]))
+                        success_message = '"ROI ID_(standardized)" column added or updated'
                         num_roi_columns = 1
                     else:
-                        if 'ROI ID (standardized)' in df.columns:
-                            del df['ROI ID (standardized)']
-                        success_message = 'We have ensured that the "ROI ID (standardized)" column is not present in the dataset'
+                        if 'ROI ID_(standardized)' in df.columns:
+                            del df['ROI ID_(standardized)']
+                        success_message = 'We have ensured that the "ROI ID_(standardized)" column is not present in the dataset'
                         num_roi_columns = 0
 
                     # Save this dataframe to memory
@@ -393,8 +393,8 @@ def main():
                         centroid_y = (df[st.session_state['unifier__y_min_coordinate_column']] + df[st.session_state['unifier__y_max_coordinate_column']]) / 2
                     centroid_x = centroid_x * st.session_state['unifier__microns_per_coordinate_unit']
                     centroid_y = centroid_y * st.session_state['unifier__microns_per_coordinate_unit']
-                    utils.dataframe_insert_possibly_existing_column(df, st.session_state['unifier__num_roi_columns_actual'] + 1, 'Centroid X (µm) (standardized)', utils.downcast_series_dtype((centroid_x / 0.2).round() * 0.2))  # round to the nearest 0.2 microns, which is also assumed in the appropriate class in dataset_formats.py. If we ever want to change this, search for 0.2 in the codebase, I think there may be three files where it's currently hardcoded
-                    utils.dataframe_insert_possibly_existing_column(df, st.session_state['unifier__num_roi_columns_actual'] + 2, 'Centroid Y (µm) (standardized)', utils.downcast_series_dtype((centroid_y / 0.2).round() * 0.2))
+                    utils.dataframe_insert_possibly_existing_column(df, st.session_state['unifier__num_roi_columns_actual'] + 1, 'Centroid X (µm)_(standardized)', utils.downcast_series_dtype((centroid_x / 0.2).round() * 0.2))  # round to the nearest 0.2 microns, which is also assumed in the appropriate class in dataset_formats.py. If we ever want to change this, search for 0.2 in the codebase, I think there may be three files where it's currently hardcoded
+                    utils.dataframe_insert_possibly_existing_column(df, st.session_state['unifier__num_roi_columns_actual'] + 2, 'Centroid Y (µm)_(standardized)', utils.downcast_series_dtype((centroid_y / 0.2).round() * 0.2))
 
                     # Save this dataframe to memory
                     st.session_state['unifier__df'] = df
@@ -540,8 +540,8 @@ def main():
                             if renamed_phenotypes:
                                 st.info(f'These phenotype transformations were made to avoid "+" and "-" characters: {renamed_phenotypes}')
 
-                            # Prepend "Phenotype (standardized) " to the column names
-                            df_phenotypes.columns = ['Phenotype (standardized) ' + column for column in df_phenotypes.columns]
+                            # Prepend "Phenotype_(standardized) " to the column names
+                            df_phenotypes.columns = ['Phenotype_(standardized) ' + column for column in df_phenotypes.columns]
 
                             # Add each phenotype column to the main dataframe, starting with position st.session_state['unifier__num_roi_columns_actual'] + 3
                             for icolumn, column in enumerate(df_phenotypes.columns):

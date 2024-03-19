@@ -32,12 +32,12 @@ def extract_datafile_metadata(datafile_path_or_df):
         columns_list = pd.read_csv(datafile_path_or_df, nrows=0, sep=sep).columns.to_list()
 
     # If the file is in the format standardized in the dataset unifier app...
-    if 'Image ID (standardized)' in columns_list:
+    if 'Image ID_(standardized)' in columns_list:
         file_format = 'Standardized'
-        image_column_str = 'Image ID (standardized)'
-        marker_prefix = 'Phenotype (standardized) '
+        image_column_str = 'Image ID_(standardized)'
+        marker_prefix = 'Phenotype_(standardized) '
         marker_cols = [x for x in columns_list if x.startswith(marker_prefix)]
-        coord_cols = ['Centroid X (µm) (standardized)', 'Centroid Y (µm) (standardized)']
+        coord_cols = ['Centroid X (µm)_(standardized)', 'Centroid Y (µm)_(standardized)']
         image_string_processing_func = lambda x: x
         marker_suffix = None
         markers = None
@@ -885,7 +885,7 @@ class Ultivue(Native):
 
         # Define the phenotypes of interest in the input dataset
         _, _, _, _, _, markers = extract_datafile_metadata(input_datafile)
-        phenotype_columns = 'pheno_20230327_152849'
+        phenotype_columns = 'pheno_20230327_152849'  # this is not a great hardcode but we will use the unifier going forward anyway
 
         phenotype_unique = df[phenotype_columns].unique()
         # Rename the phenotype columns so that they are prepended with "Phenotype "
@@ -1152,7 +1152,7 @@ class Standardized(Native):
         """
 
         # Determine the series holding the image IDs
-        srs_imagenum = self.data['Image ID (standardized)']
+        srs_imagenum = self.data['Image ID_(standardized)']
 
         # Get the unique image names
         unique_images = srs_imagenum.unique()
@@ -1182,9 +1182,9 @@ class Standardized(Native):
         func_microns_to_pixels = lambda x: int(x / min_coord_spacing)
 
         # Either patch up the dataset into ROIs and assign the ROI ("tag") column accordingly, or don't and assign the ROI column accordingly
-        if 'ROI ID (standardized)' in df.columns:
-            # df['tag'] = df['ROI ID (standardized)']
-            utils.dataframe_insert_possibly_existing_column(df, 1, 'tag', df['ROI ID (standardized)'])
+        if 'ROI ID_(standardized)' in df.columns:
+            # df['tag'] = df['ROI ID_(standardized)']
+            utils.dataframe_insert_possibly_existing_column(df, 1, 'tag', df['ROI ID_(standardized)'])
         else:
             df = potentially_apply_patching(df, input_datafile, roi_width, overlap, func_coords_to_pixels, func_microns_to_pixels)
             df = reorder_column_in_dataframe(df, 'tag', 1)
@@ -1204,8 +1204,8 @@ class Standardized(Native):
         df = self.data
 
         # Create the new columns for the x- and y-coordinates
-        utils.dataframe_insert_possibly_existing_column(df, 2, 'Cell X Position', utils.downcast_series_dtype(df['Centroid X (µm) (standardized)']))
-        utils.dataframe_insert_possibly_existing_column(df, 3, 'Cell Y Position', utils.downcast_series_dtype(df['Centroid Y (µm) (standardized)']))
+        utils.dataframe_insert_possibly_existing_column(df, 2, 'Cell X Position', utils.downcast_series_dtype(df['Centroid X (µm)_(standardized)']))
+        utils.dataframe_insert_possibly_existing_column(df, 3, 'Cell Y Position', utils.downcast_series_dtype(df['Centroid Y (µm)_(standardized)']))
 
         # Attribute assignments from variables
         self.data = df
@@ -1228,19 +1228,19 @@ class Standardized(Native):
         # Since we're about to indicate the phenotypes of interest by columns that start with "Phenotype ", first detect and rename any columns that already start with "Phenotype "
         # I.e., rename "Phenotype AA" to "Phenotype_renamed_in_dataset_formats_py AA"
         prefix = 'Phenotype '
-        phenotype_columns_to_rename = [column for column in df.columns if column.startswith(prefix) and not column.startswith('Phenotype (standardized) ')]
+        phenotype_columns_to_rename = [column for column in df.columns if column.startswith(prefix) and not column.startswith('Phenotype_(standardized) ')]
         for col in phenotype_columns_to_rename:
             df = df.rename(columns={col: 'Phenotype_renamed_in_dataset_formats_py ' + col[len(prefix):]})
 
         # Rename the phenotype columns so that they are prepended with "Phenotype "
-        # I.e., go from a df with columns like 'Phenotype (standardized) AA' to one with both that column and another one with the same data but named 'Phenotype AA'
-        transformation = dict(zip(['Phenotype (standardized) {}'.format(x.strip()) for x in phenotype_columns], ['Phenotype {}'.format(x.strip()) for x in phenotype_columns]))
-        df_phenotype_cols = df[[column for column in df.columns if column.startswith('Phenotype (standardized) ')]]  # this creates a copy of the "Phenotype (standardized) " columns as a new dataframe
+        # I.e., go from a df with columns like 'Phenotype_(standardized) AA' to one with both that column and another one with the same data but named 'Phenotype AA'
+        transformation = dict(zip(['Phenotype_(standardized) {}'.format(x.strip()) for x in phenotype_columns], ['Phenotype {}'.format(x.strip()) for x in phenotype_columns]))
+        df_phenotype_cols = df[[column for column in df.columns if column.startswith('Phenotype_(standardized) ')]]  # this creates a copy of the "Phenotype_(standardized) " columns as a new dataframe
         self.data = pd.concat([df, df_phenotype_cols.rename(columns=transformation)], axis='columns')  # this concatenates the original dataframe with the phenotype columns named like 'Phenotype AA' and assigns it back to the original dataframe
         df = self.data  # we must do it in two steps because Pandas doesn't want to overwrite the originally referenced data (i.e., self.data) in the assignment in the previous line, in order to prevent unexpected side effects. I suppose this makes sense, i.e., df = df_stored; df = df_new should not replace df_stored with df_new
 
-        # In each new "Phenotype " (not "Phenotype (standardized) ") column, convert to -'s and +'s
-        phenotype_cols_without_standardized = [col for col in df.columns if col.startswith('Phenotype ') and not col.startswith('Phenotype (standardized) ')]
+        # In each new "Phenotype " (not "Phenotype_(standardized) ") column, convert to -'s and +'s
+        phenotype_cols_without_standardized = [col for col in df.columns if col.startswith('Phenotype ') and not col.startswith('Phenotype_(standardized) ')]
         for icolumn, col in enumerate(phenotype_cols_without_standardized):
             df[col] = utils.downcast_series_dtype(df[col].apply(lambda x: x[-1] if isinstance(x, str) else '-' if x == 0 else '+'))
             df = reorder_column_in_dataframe(df, col, 4 + icolumn)
