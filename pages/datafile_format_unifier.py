@@ -146,10 +146,6 @@ def main():
                     if columns_equal:
                         sep = (',' if input_files[0].split('.')[-1] == 'csv' else '\t')
                         st.session_state['unifier__df'] = utils.downcast_dataframe_dtypes(pd.concat([pd.read_csv(os.path.join(directory, input_file), sep=sep) for input_file in input_files], ignore_index=True))
-                        
-                        # Calculate the memory usage of the concatenated dataframe
-                        memory_usage = st.session_state['unifier__df'].memory_usage(deep=True).sum()
-                        st.write('The concatenated dataframe uses approximately {:.2f} MB of memory.'.format(memory_usage / (1024 * 1024)))
 
                         # Save the setting used for this operation
                         st.session_state['unifier__input_files_actual'] = input_files
