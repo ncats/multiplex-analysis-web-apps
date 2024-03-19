@@ -16,6 +16,38 @@ import dataset_formats
 input_directory = os.path.join('.', 'input')
 output_directory = os.path.join('.', 'output')
 
+def set_dataset_specific_options():
+
+    # st.session_state['input_dataset']
+
+
+    # GEt the unique slide IDs
+    slide_ids_orig = st.session_state['input_dataset'].data['Slide ID'].unique()
+
+    # Extract the text after the first hyphen in each value
+    slide_ids_without_shortcut_prefix = [slide_id.split('-', 1)[1] for slide_id in slide_ids_orig]
+
+    # Strip out common prefixes and suffixes
+    common_prefix = os.path.commonprefix(slide_ids_without_shortcut_prefix)
+    common_suffix = os.path.commonprefix([part[::-1] for part in slide_ids_without_shortcut_prefix])[::-1]
+    parsed_strings = [part[len(common_prefix):-len(common_suffix)] for part in slide_ids_without_shortcut_prefix]
+
+    # Create a dictionary mapping the parsed-out strings back to the slide IDs
+    parsed_to_original = {parsed: original for parsed, original in zip(parsed_strings, slide_ids_orig)}
+
+    # Save the dictionary to the session state
+    st.session_state['sit__slide_ids_parsed_to_original_dict'] = parsed_to_original
+
+
+    # Update the image options
+    st.session_state['options_for_images'] = list(dataset_formats.get_image_series_in_datafile(input_datafile_path).unique())
+
+    # Update analysis__images_to_analyze value
+    st.session_state['settings__analysis__images_to_analyze'] = st.session_state['options_for_images']
+    update_dependencies_of_analysis_images_to_analyze()
+
+    # Also select the phenotypes here
+
 def load_phenotyping_settings_from_thresholded_phenotyper():
     """
     Load the settings from the thresholded Phenotyper and map them to the corresponding ones in the session state.
@@ -308,7 +340,7 @@ def main():
     streamlit_utils.assign_default_values_in_session_state('preset_parameter_file', utils.get_first_element_or_none(options_for_parameter_files))
 
     # Load or reload default settings
-    if st.button('Reload default settings'):
+    if st.button('Reload default settings') or ('settings__phenotyping__method' not in st.session_state):
         st.session_state['settings__phenotyping__method'] = utils.get_first_element_or_none(options_for_phenotyping_methods)
         update_dependencies_of_phenotyping_method()
         st.session_state['settings__phenotyping__phenotype_identification_file'] = utils.get_first_element_or_none(options_for_phenotype_identification_files)
@@ -326,7 +358,7 @@ def main():
         st.session_state['settings__analysis__n_neighs'] = 6
         st.session_state['settings__analysis__min_num_valid_centers'] = 10
         st.session_state['settings__analysis__weight_by_num_valid_centers'] = False
-        st.session_state['settings__analysis__log_pval_minimum'] = -50
+        st.session_state['settings__analysis__log_pval_minimum'] = -25
         st.session_state['settings__analysis__log_pval_maximum'] = 0
         if 'settings__annotation__used_annotation_files' not in st.session_state:
             st.session_state['options_for_annotation_files'] = []
