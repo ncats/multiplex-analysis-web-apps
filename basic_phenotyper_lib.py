@@ -527,6 +527,17 @@ def perform_density_calc(spatial_umap, bc, cpu_pool_size = 1):
     '''
     Calculate the cell counts, cell areas,
     perform the cell densities and cell proportions analyses.
+
+    This is using Andrew's code to calculate the cell counts
+
+    Args:
+        spatial_umap (SpatialUMAP): SpatialUMAP object
+        bc (benchmark_collector): Benchmark Collector object
+        cpu_pool_size (int): Number of CPUs to use for parallel processing
+
+    Returns:
+        SpatialUMAP: SpatialUMAP object with the cell counts, cell areas, 
+                    cell densities and cell proportions analyses performed
     '''
 
     # clear metrics
@@ -538,7 +549,6 @@ def perform_density_calc(spatial_umap, bc, cpu_pool_size = 1):
     # get the counts per cell and save to pickle file
     print('Starting Cell Counts process')
     bc.startTimer()
-    # spatial_umap.get_counts(pool_size=cpu_pool_size)
     spatial_umap.get_counts_And()
     bc.printElapsedTime(f'Calculating Counts for {len(spatial_umap.cells)} cells')
 
@@ -722,22 +732,39 @@ def neighProfileDraw(spatial_umap, sel_clus, figsize=(14, 16)):
 
     return neipro_fig
 
-def preprocess_weighted_umap(w, dfUMAP):
+def preprocess_weighted_umap(w, df_umap):
+    '''
+    Perform perprocessing on UMAP data and weights
 
-    # Raise everything about 0
+    w will be the values from a specific feature, 
+    not any and all features
+
+    Weights are essentially any chosen feature of the data beyond
+    the x/y coordinates, lineage, and cluster number
+
+    Args:
+        w (numpy array): Weights for the UMAP data
+        df_umap (Pandas dataframe): UMAP data
+
+    Returns:
+        w (numpy array): Preprocessed weights
+        df_umap (Pandas dataframe): Preprocessed UMAP data2003
+    '''
+
+    # Check for NaN in the w and remove them
+    not_nan = ~np.isnan(w)
+    w = w[not_nan]                    # Remove NaNs from w
+    df_umap = df_umap.loc[not_nan, :] # Remove NaNs from df_umap
+
+    # Raise all values of w about 0
     if np.any(w < 0):
         w = w + min(w)*-1.2
 
-    # Check for NaN in the w and remove them
-    notNAN = ~np.isnan(w)
-    w = w[notNAN]
-    dfUMAP = dfUMAP.loc[notNAN, :]
-
-    # Apply the log
+    # Apply the log to the weights
     w = np.log(0.1 * w + 0.1)
     w -= np.min(w)
 
-    return w, dfUMAP
+    return w, df_umap
 
 def UMAPdraw_density(df, bins, w, n_pad, vlim, feat = None, diff = False, figsize=(12, 12)):
     import PlottingTools as umPT
