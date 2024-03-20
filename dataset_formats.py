@@ -1653,31 +1653,28 @@ def potentially_apply_patching(df, input_datafile_or_coord_cols_or_df, roi_width
     return df
 
 def delete_rois_with_single_coord(df):
-    """Delete any ROIs that contain only a single spatial coordinate, regardless of whether the objects are compound species or if there are simply different species located as the same coordinate
+    """Delete any ROIs that contain only a single spatial coordinate, regardless of whether the objects are compound species or if there are simply different species located as the same coordinate.
 
-    In hindsight I should have also eliminated 1D ROIs instead of only 0D ROIs as I do here. I do this later though in time_cell_interaction_lib.py.
+    In hindsight we should have also eliminated 1D ROIs instead of only 0D ROIs as we do here. We do this later though in time_cell_interaction_lib.py.
     """
 
-    # Obtain just the phenotype columns and get the number of phenotypes
-    df_phenotypes = df.filter(regex='^Phenotype\ ')
-    num_phenotypes = df_phenotypes.shape[1]
+    # Obtain just the phenotype columns
+    df_phenotypes = df[df.columns[df.columns.str.startswith('Phenotype ')]]
 
     # Delete empty objects
-    df_pared = df[df_phenotypes.apply(lambda x: ''.join(x), axis='columns') != '-' * num_phenotypes]
+    df_pared = df[(df_phenotypes != '-').any(axis='columns')]
 
-    # Get a Series containing the number of unique coordinates in every ROI, in which we first group by ROI and coordinates, and then group by just ROI, counting the number of unique coordinates within
-    num_unique_coords_per_roi = df_pared.groupby(by=['tag', 'Cell X Position', 'Cell Y Position']).size().index.to_frame(index=False).groupby(by='tag').count().iloc[:, 0]
+    # Get a Series containing the number of unique coordinates in every ROI i.e. "tag"
+    num_unique_coords_per_roi = df_pared.groupby('tag', observed=False).apply(lambda x: x[['Cell X Position', 'Cell Y Position']].drop_duplicates().shape[0], include_groups=False)
 
     # Get the set of ROIs containing a single unique coordinate
-    rois_with_single_unique_coord = set(num_unique_coords_per_roi[num_unique_coords_per_roi == 1].index.to_list())
+    rois_with_single_unique_coord = set(num_unique_coords_per_roi.loc[num_unique_coords_per_roi == 1].index)
 
     # Drop these ROIs from the dataset
-    print('Dropping {} ROIs with valid objects that have only a single unique spatial coordinate'.format(len(rois_with_single_unique_coord)))
-    df = df.loc[df['tag'].apply(lambda x: x not in rois_with_single_unique_coord), :]
+    print('Dropping {} ROIs with valid objects that have only a single unique spatial coordinate: {}'.format(len(rois_with_single_unique_coord), rois_with_single_unique_coord))
+    df = df.loc[~df['tag'].isin(rois_with_single_unique_coord), :]
 
-    # # Add .reset_index(drop=True) to just *make sure* the SIP code in general doesn't assume the data index is already in sorted order
-    # df = df.reset_index(drop=True)
-
+    # Return the pared-down dataframe
     return df
 
 def get_image_series_in_datafile(input_datafile_or_df):
