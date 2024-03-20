@@ -1651,9 +1651,14 @@ def potentially_apply_patching(df, input_datafile_or_coord_cols_or_df, roi_width
     return df
 
 def delete_rois_with_single_coord(df):
-    """Delete any ROIs that contain only a single spatial coordinate, regardless of whether the objects are compound species or if there are simply different species located as the same coordinate.
+    """Delete any ROIs that contain only a single spatial coordinate (i.e., 0D ROIs), regardless of whether the objects are compound species or if there are simply different species located as the same coordinate.
 
-    In hindsight we should have also eliminated 1D ROIs instead of only 0D ROIs as we do here. We do this later though in time_cell_interaction_lib.py.
+    No unique coordinates: The ROI doesn't exist at all and this probably shouldn't occur
+    One unique coordinate: The ROI is 0D
+    Two unique coordinates: The ROI is 1D
+    Three or more unique coordinates: The ROI is 1D or 2D depending on colinearity of the points
+
+    It technically doesn't make much sense to delete 1D ROIs as we do later in time_cell_interaction_lib.py (though *practically*, it's probably reasonable). That's because we *generally* want to get results that are rotationally invariant. E.g., if the coordinates were in a line, then we'd want to keep the ROI, even though it if the line were along the x- or y-axis, the ROI would appear to have zero area. This might be solved by no longer defining a ROI based on the their span in the x- and y-directions and instead defining it independent of the cell locations themselves. However, the drawback to that is that we'd need to determine a reasonable way to do this which isn't trivial because then we could artificially create empty space which would skew the results. So doing it the way we do it is probably still quite a reasonable way to go.
     """
 
     # Obtain just the phenotype columns
