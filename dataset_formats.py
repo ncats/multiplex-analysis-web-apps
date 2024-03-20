@@ -1602,6 +1602,14 @@ def potentially_apply_patching(df, input_datafile_or_coord_cols_or_df, roi_width
     # Determine the unique slides in the dataset
     unique_slides = slide_id.unique()
 
+    # Check whether the dtype of df['tag'] is category, and if so, cast to "object"
+    if df['tag'].dtype.name == 'category':
+        print('Casting "tag" column from "category" to "object"')
+        doing_casting = True
+        df['tag'] = df['tag'].astype('object')
+    else:
+        doing_casting = False
+
     # For each slide...
     for unique_slide in unique_slides:
 
@@ -1637,8 +1645,9 @@ def potentially_apply_patching(df, input_datafile_or_coord_cols_or_df, roi_width
         # Print the length of the new dataframe
         print('Length of duplicated dataframe: {}'.format(len(df)))
 
-    # # Sort the data by slide and then by ROI
-    # df = df.sort_values(by=['Slide ID', 'tag']).reset_index(drop=True)  # adding .reset_index(drop=True) to just *make sure* the SIP code in general doesn't assume the data index is already in sorted order
+    # Potentially cast the "tag" column back to category
+    if doing_casting:
+        df['tag'] = utils.downcast_series_dtype(df['tag'])
 
     return df
 

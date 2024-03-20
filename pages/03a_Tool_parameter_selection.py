@@ -11,6 +11,7 @@ import utils
 import app_top_of_page as top
 import streamlit_dataframe_editor as sde
 import dataset_formats
+import copy
 
 # Input/output directory initializations
 input_directory = os.path.join('.', 'input')
@@ -28,7 +29,7 @@ def set_dataset_specific_options():
     # Strip out common prefixes and suffixes
     common_prefix = os.path.commonprefix(slide_ids_without_shortcut_prefix)
     common_suffix = os.path.commonprefix([part[::-1] for part in slide_ids_without_shortcut_prefix])[::-1]
-    parsed_strings = [part[len(common_prefix):-len(common_suffix)] for part in slide_ids_without_shortcut_prefix]
+    parsed_strings = [part[len(common_prefix):-len(common_suffix)] if len(common_suffix) != 0 else part[len(common_prefix):] for part in slide_ids_without_shortcut_prefix]
 
     # Create a dictionary mapping the parsed-out strings back to the slide IDs
     parsed_to_original_slide_ids = {parsed: original for parsed, original in zip(parsed_strings, slide_ids_orig)}
@@ -37,7 +38,7 @@ def set_dataset_specific_options():
     st.session_state['sit__slide_ids_parsed_to_original_dict'] = parsed_to_original_slide_ids
 
     # Update widget options
-    st.session_state['options_for_images'] = st.session_state['sit__slide_ids_parsed_to_original_dict'].keys()
+    st.session_state['options_for_images'] = list(st.session_state['sit__slide_ids_parsed_to_original_dict'].keys())
     st.session_state['options_for_phenotypes'] = [column.removeprefix('Phenotype ') for column in st.session_state['input_dataset'].data.columns if column.startswith('Phenotype ')]
 
     # Update the actual keys
@@ -303,7 +304,7 @@ def load_dataset_and_settings(checkpoints_exist, existing_dirs_to_delete, orig_s
     st.session_state['sit__used_settings'] = orig_settings.copy()
 
     # Make a modified copy of the dataset object that suits the SIT
-    dataset_obj = st.session_state['input_dataset'].copy()  # making a copy since we might modify the dataset_obj.data attribute by adding rows for patching potentially, filtering to images, and trimming the columns
+    dataset_obj = copy.deepcopy(st.session_state['input_dataset'])  # making a copy since we might modify the dataset_obj.data attribute by adding rows for patching potentially, filtering to images, and trimming the columns
 
     # Filter to just the necessary columns
     dataset_obj.data = dataset_formats.trim_dataframe_basic(dataset_obj.data)  # this returns a copy of the input dataframe
@@ -331,7 +332,9 @@ def load_dataset_and_settings(checkpoints_exist, existing_dirs_to_delete, orig_s
     dataset_obj.extra_processing()
 
     # Save the new dataset to the session state
+    print('before')
     st.session_state['dataset_obj'] = dataset_obj
+    print('after')
 
     # Reset any image path extraction in subsequent tabs
     if 'df_paths_per_roi' in st.session_state:
