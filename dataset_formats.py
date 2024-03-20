@@ -1259,8 +1259,6 @@ class Standardized(Native):
 
     def extra_processing(self):
 
-        print('bbbb')
-
         # Variable definitions from attributes
         df = self.data
 
