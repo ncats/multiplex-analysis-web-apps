@@ -329,12 +329,14 @@ def load_dataset_and_settings(checkpoints_exist, existing_dirs_to_delete, orig_s
         dataset_obj.data = dataset_formats.potentially_apply_patching(dataset_obj.data, ['Cell X Position', 'Cell Y Position'], st.session_state['sit__used_settings']['dataset']['roi_width'], st.session_state['sit__used_settings']['dataset']['overlap'], lambda df_tmp: (df_tmp / 0.2).astype(int), lambda x: int(x / 0.2))  # see dataset_formats.py for 0.2 justification
 
     # Do any extra processing, namely, deleting ROIs with just a single coordinate
+    print('aaaa')
+    print(type(dataset_obj))
+    st.session_state['input_dataset'].extra_processing()  # not what we want but here for testing
+    print('cccc')
     dataset_obj.extra_processing()
 
     # Save the new dataset to the session state
-    print('before')
     st.session_state['dataset_obj'] = dataset_obj
-    print('after')
 
     # Reset any image path extraction in subsequent tabs
     if 'df_paths_per_roi' in st.session_state:

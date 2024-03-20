@@ -1259,6 +1259,8 @@ class Standardized(Native):
 
     def extra_processing(self):
 
+        print('bbbb')
+
         # Variable definitions from attributes
         df = self.data
 
@@ -1603,12 +1605,11 @@ def potentially_apply_patching(df, input_datafile_or_coord_cols_or_df, roi_width
     unique_slides = slide_id.unique()
 
     # Check whether the dtype of df['tag'] is category, and if so, cast to "object"
-    if df['tag'].dtype.name == 'category':
+    doing_casting = False
+    if 'tag' in df.columns and df['tag'].dtype.name == 'category':
         print('Casting "tag" column from "category" to "object"')
         doing_casting = True
         df['tag'] = df['tag'].astype('object')
-    else:
-        doing_casting = False
 
     # For each slide...
     for unique_slide in unique_slides:
