@@ -512,6 +512,9 @@ def execute_data_parallelism_potentially(function=(lambda x: x), list_of_tuple_a
         use_multiprocessing = True
         if mp_start_method is None:
             mp_start_method = mp.get_start_method()
+        if mp_start_method == 'fork':
+            mp_start_method = 'forkserver'
+            print(f'Note: We are forcing the multiprocessing module to use the "forkserver" start method instead of the automatically (or manually) chosen "fork" start method.')
 
     # Record the start time
     if do_benchmarking:
@@ -519,7 +522,7 @@ def execute_data_parallelism_potentially(function=(lambda x: x), list_of_tuple_a
 
     # Farm out the function execution to multiple CPUs on different parts of the data
     if use_multiprocessing:
-        print('Running {} function calls using {} workers for the {}'.format(len(list_of_tuple_arguments), nworkers, task_description))
+        print('Running {} function calls using the "{}" protocol with {} workers for the {}'.format(len(list_of_tuple_arguments), mp_start_method, nworkers, task_description))
         with mp.get_context(mp_start_method).Pool(nworkers) as pool:
             pool.map(function, list_of_tuple_arguments)
 

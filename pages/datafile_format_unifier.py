@@ -575,33 +575,35 @@ def main():
             # ---- 7. Save the dataframe to a CSV file --------------------------------------------------------------------------------------------------------------------------------
 
             # Display a header for the save dataframe section
-            st.header(':seven: Save the dataframe to the `input` directory')
+            st.header('(Optional) :seven: Save the dataframe to the `input` directory')
 
-            # Create an input text box for the custom text to be added to the filename
-            if 'unifier__custom_text_for_output_filename' not in st.session_state:
-                st.session_state['unifier__custom_text_for_output_filename'] = 'files_1_and_3'
-            custom_text = st.text_input('Enter custom text for the basename of the filename (optional):', key='unifier__custom_text_for_output_filename')
+            with st.expander('(Optional) Click to expand:', expanded=False):
 
-            # Remove any whitespace from the custom text
-            custom_text = custom_text.replace(' ', '_')
+                # Create an input text box for the custom text to be added to the filename
+                if 'unifier__custom_text_for_output_filename' not in st.session_state:
+                    st.session_state['unifier__custom_text_for_output_filename'] = 'files_1_and_3'
+                custom_text = st.text_input('Enter custom text for the basename of the filename (optional):', key='unifier__custom_text_for_output_filename')
 
-            # Generate the filename
-            filename = f'mawa-unified_datafile-{custom_text}-{datetime.now().strftime("date%Y_%m_%d_time%H_%M_%S")}.csv'
+                # Remove any whitespace from the custom text
+                custom_text = custom_text.replace(' ', '_')
 
-            # Create a button to save the dataframe to a CSV file
-            if st.button(':star2: Save dataframe to CSV :star2:'):
+                # Generate the filename
+                filename = f'mawa-unified_datafile-{custom_text}-{datetime.now().strftime("date%Y_%m_%d_time%H_%M_%S")}.csv'
 
-                # Create the full file path
-                file_path = os.path.join('.', 'input', filename)
+                # Create a button to save the dataframe to a CSV file
+                if st.button(':star2: Save dataframe to CSV :star2:'):
 
-                # Render a progress spinner while the dataframe is being saved to a CSV file
-                with st.spinner('Saving dataframe to CSV...'):
+                    # Create the full file path
+                    file_path = os.path.join('.', 'input', filename)
 
-                    # Save the dataframe to a CSV file
-                    df.to_csv(file_path, index=False)
+                    # Render a progress spinner while the dataframe is being saved to a CSV file
+                    with st.spinner('Saving dataframe to CSV...'):
 
-                # Display a success message
-                st.success(f'The dataframe has been saved to {file_path}')
+                        # Save the dataframe to a CSV file
+                        df.to_csv(file_path, index=False)
+
+                    # Display a success message
+                    st.success(f'The dataframe has been saved to {file_path}')
 
         # Add a divider
         st.divider()

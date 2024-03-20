@@ -1710,7 +1710,10 @@ class TIMECellInteraction:
         pickle_file = 'data_for_input_into_correlation_analyzer.pkl'
 
         # Extract the basename of the input datafile
-        input_datafile_basename = os.path.basename(input_datafile).split(os.path.extsep)[0]
+        if input_datafile is not None:
+            input_datafile_basename = os.path.basename(input_datafile).split(os.path.extsep)[0]
+        else:
+            input_datafile_basename = 'from_memory'
 
         # Determine the slides in the full dataset
         unique_slides = df_data_by_roi['unique_slide'].unique()
