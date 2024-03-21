@@ -199,6 +199,8 @@ def app_session_management(saved_streamlit_session_states_dir, saved_streamlit_s
 
     # Create the dropdown to select the checkpoint to load
     session_basenames_in_reverse_order = sorted([f.removeprefix(saved_streamlit_session_state_prefix).removesuffix('.pkl') for f in files], reverse=True)
+    if st.session_state[saved_streamlit_session_state_key] not in session_basenames_in_reverse_order:
+        st.session_state[saved_streamlit_session_state_key] = session_basenames_in_reverse_order[0] if session_basenames_in_reverse_order else None
     st.sidebar.selectbox('Session to load:', session_basenames_in_reverse_order, key=saved_streamlit_session_state_key)
 
     # Write to screen the session state files in the output directory
