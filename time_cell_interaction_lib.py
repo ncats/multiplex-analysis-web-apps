@@ -2032,7 +2032,7 @@ class TIMECellInteraction:
                 curr_df = df[df['Slide ID'] == unique_slide]
 
                 # Get the ROIs and the coordinates of the objects grouped by ROI
-                grouped_rois = curr_df[['tag', 'Cell X Position', 'Cell Y Position']].groupby(by='tag')
+                grouped_rois = curr_df[['tag', 'Cell X Position', 'Cell Y Position']].groupby(by='tag', observed=True)
 
                 # Save the smallest coordinates of each ROI since this will be used twice below
                 roi_min_coords = grouped_rois.min()
