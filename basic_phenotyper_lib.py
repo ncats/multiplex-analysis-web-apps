@@ -7,6 +7,7 @@ required for phenotyping
 import time
 import numpy as np
 import pandas as pd
+import umap
 import warnings
 warnings.simplefilter(action='ignore', category= FutureWarning)
 warnings.filterwarnings("ignore", message=".*The 'nopython' keyword.*")
@@ -565,49 +566,98 @@ def perform_density_calc(spatial_umap, bc, cpu_pool_size = 1):
     return spatial_umap
 
 def perform_spatialUMAP(spatial_umap, bc, UMAPStyle):
-    import umap
+    '''
+    Perform the spatial UMAP analysis
+
+    Args:
+        spatial_umap (spatial_umap): spatial_umap object
+        bc (benchmark_collector): Benchmark Collector object
+        UMAPStyle (str): Style of UMAP to use
+    
+    Returns:
+        spatial_umap: spatial_umap object with the UMAP analysis performed
+    '''
 
     # set training and "test" cells for umap training and embedding, respectively
     print('Setting Train/Test Split')
     spatial_umap.set_train_test(n=2500, groupby_label = 'TMA_core_id', seed=54321)
-    
+
     # fit umap on training cells
     bc.startTimer()
     print('Fitting Model')
     spatial_umap.umap_fit = umap.UMAP().fit(spatial_umap.density[spatial_umap.cells['umap_train'].values].reshape((spatial_umap.cells['umap_train'].sum(), -1)))
     bc.printElapsedTime(f'      Fitting {np.sum(spatial_umap.cells["umap_train"] == 1)} points to a model')
-    
-    # apply umap embedding on test cells
+
+    # Transform test cells based on fitted model
     bc.startTimer()
     print('Transforming Data')
     spatial_umap.umap_test = spatial_umap.umap_fit.transform(spatial_umap.density[spatial_umap.cells['umap_test'].values].reshape((spatial_umap.cells['umap_test'].sum(), -1)))
     bc.printElapsedTime(f'      Transforming {np.sum(spatial_umap.cells["umap_test"] == 1)} points with the model')
+
     return spatial_umap
 
-def KMeans_calc(spatial_umap, nClus):
+def KMeans_calc(spatial_umap, n_clusters = 5):
+    '''
+    Perform KMeans clustering on the spatial UMAP data
+
+    Args:
+        spatial_umap (spatial_umap): spatial_umap object
+        nClus (int): Number of clusters to use
+    
+    Returns:
+        kmeans_obj: KMeans obj created from KMeans
+    '''
     # Create KMeans object for a chosen cluster
-    kmeansObj = KMeans(n_clusters = nClus, init ='k-means++', max_iter=300, n_init=10, random_state=42)
+    kmeans_obj = KMeans(n_clusters = n_clusters,
+                        init ='k-means++',
+                        max_iter = 300,
+                        n_init = 10,
+                        random_state = 42)
     # Fit the data to the KMeans object
-    kmeansObj.fit(spatial_umap.umap_test)
-    # Extract out the labels of trained data from the fit model
-    return kmeansObj
+    kmeans_obj.fit(spatial_umap.umap_test)
+
+    return kmeans_obj
 
 def measure_possible_clust(spatial_umap, clust_minmax):
+    '''
+    method for measuring the within-cluster sum of squares for
+    a range of cluster values
+
+    Args:
+        spatial_umap (spatial_umap): spatial_umap object
+        clust_minmax (list): List of min and max cluster values to use
+
+    Returns:
+        clust_range (list): List of cluster values
+        wcss (list): List of within-cluster sum of squares
+    '''
     clust_range = range(clust_minmax[0], clust_minmax[1])
     wcss = [] # Within-Cluster Sum of Squares
-    for nClus in clust_range: 
-        # Perform clustering for chosen 
-        kmeansObj = KMeans_calc(spatial_umap, nClus)
+    for n_clusters in clust_range:
+        # Perform clustering for chosen
+        kmeans_obj = KMeans_calc(spatial_umap, n_clusters)
         # Append Within-Cluster Sum of Squares measurement
-        wcss.append(kmeansObj.inertia_)
+        wcss.append(kmeans_obj.inertia_)
     return list(clust_range), wcss
 
-def perform_clusteringUMAP(spatial_umap, nClus):
+def perform_clusteringUMAP(spatial_umap, n_clusters):
+    '''
+    perform clustering for the UMAP data using KMeans
 
-    # Reperform clustering for chosen 
-    kmeansObj = KMeans_calc(spatial_umap, nClus)
+    Args:
+        spatial_umap (spatial_umap): spatial_umap object
+        n_clusters (int): Number of clusters to use
+
+    Returns:
+        spatial_umap: spatial_umap object with the clustering performed
+    '''
+
+    # Reperform clustering for chosen
+    kmeans_obj = KMeans_calc(spatial_umap, n_clusters)
     # Add cluster label column to cells dataframe
-    spatial_umap.cells.loc[spatial_umap.cells.loc[:, 'umap_test'] == True, 'clust_label'] = kmeansObj.labels_
+    spatial_umap.df_umap.loc[:, 'clust_label'] = kmeans_obj.labels_
+    spatial_umap.df_umap.loc[:, 'cluster'] = kmeans_obj.labels_
+    spatial_umap.df_umap.loc[:, 'Cluster'] = kmeans_obj.labels_
     # With the cluster labels assigned, perform mean calculations
     spatial_umap.mean_measures()
 
