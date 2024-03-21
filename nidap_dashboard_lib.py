@@ -281,8 +281,8 @@ def set_phenotyping_elements(session_state, df_orig):
     session_state.spec_summ_load       = session_state.spec_summ # Default version that is loaded
     session_state.spec_summ_dataeditor = session_state.spec_summ # Default version that is used for custom phenotyping table
 
-    if 'dataeditor__do_not_persist' in session_state:
-        del session_state.dataeditor__do_not_persist
+    # if 'dataeditor__do_not_persist' in session_state:
+    #     del session_state.dataeditor__do_not_persist
 
     # Initalize Phenotyping Settings (Radio BUttons)
     session_state.noPhenoOpt = 'Not Selected'
@@ -320,8 +320,8 @@ def updatePhenotyping(session_state):
     # Initalize Species Summary Table
     session_state.spec_summ    = bpl.init_pheno_assign(session_state.df)
 
-    if 'dataeditor__do_not_persist' in session_state:
-        del session_state.dataeditor__do_not_persist
+    # if 'dataeditor__do_not_persist' in session_state:
+    #     del session_state.dataeditor__do_not_persist
 
     # session_state.spec_summ_load       = session_state.spec_summ
     session_state.spec_summ_dataeditor = session_state.spec_summ

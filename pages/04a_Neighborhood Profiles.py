@@ -66,7 +66,9 @@ def apply_umap(umap_style):
     st.session_state.inciOutcomes = [st.session_state.definciOutcomes]
     st.session_state.inciOutcomes.extend(st.session_state.outcomes)
 
-    st.session_state.df_umap = st.session_state.spatial_umap.cells.loc[st.session_state.spatial_umap.cells['umap_test'], :]
+    st.session_state.spatial_umap.prepare_df_umap_plotting(st.session_state.outcomes)
+
+    st.session_state.df_umap = st.session_state.spatial_umap.df_umap
 
     # Perform possible cluster variations with the completed UMAP
     # st.session_state.bc.startTimer()
@@ -95,6 +97,8 @@ def set_clusters():
     st.session_state.bc.set_value_df('time_to_run_cluster', st.session_state.bc.elapsedTime())
 
     st.session_state.clustering_completed = True
+
+    st.session_state.df_umap = st.session_state.spatial_umap.df_umap
 
     filter_and_plot()
 
@@ -143,7 +147,7 @@ def filter_and_plot():
         st.session_state.prog_right_disabeled = True
 
     if st.session_state.umapCompleted:
-        st.session_state.df_umap_filt = st.session_state.spatial_umap.cells.loc[st.session_state.spatial_umap.cells['Slide ID'] == st.session_state['selSlide ID'], :]
+        st.session_state.df_umap_filt = st.session_state.df_umap.loc[st.session_state.df_umap['Slide ID'] == st.session_state['selSlide ID'], :]
         st.session_state = ndl.setFigureObjs_UMAP(st.session_state)
 
 def main():
@@ -261,7 +265,7 @@ def main():
         if 'spatial_umap' in st.session_state:
             selNeighFig = st.selectbox('Select a cluster to view',
                                        list(range(st.session_state.selected_nClus)))
-            if hasattr(st.session_state.spatial_umap, 'dens_df'):
+            if st.session_state.clustering_completed:
 
                 NeiProFig = bpl.neighProfileDraw(st.session_state.spatial_umap, selNeighFig)
                 st.pyplot(fig=NeiProFig)

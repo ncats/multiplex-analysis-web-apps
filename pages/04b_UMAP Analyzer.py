@@ -1,12 +1,17 @@
+'''
+Streamlit page for showing UMAP difference figures
+'''
 import streamlit as st
 
 # Import relevant libraries
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
-import basic_phenotyper_lib as bpl  # Useful functions for phenotyping collections of cells
 import app_top_of_page as top
 import streamlit_dataframe_editor as sde
 
 def reset_phenotype_selection():
+    '''
+    Quick function to visualization of the UMAP differences
+    '''
     st.session_state.umapInspect_Ver = st.session_state.defLineageOpt
     st.session_state.diffUMAPSel_Ver = st.session_state.defLineageOpt
 
@@ -54,16 +59,16 @@ def main():
         st.warning('No spatial UMAP analysis detected. Please complete Neighborhood Profiles')
 
     # Large UMAP Columns
-    umapViz1, umapViz2 = st.columns(2)
+    umap_viz = st.columns(2)
 
     # FULL UMAP
-    with umapViz1:
+    with umap_viz[0]:
         st.header('Full Spatial UMAP')
         if st.session_state.umapCompleted:
             st.pyplot(st.session_state.UMAPFig)
 
     # Inspection UMAP
-    with umapViz2:
+    with umap_viz[1]:
         umapInsCol1, umapInsCol2 = st.columns(2)
 
         with umapInsCol1:
