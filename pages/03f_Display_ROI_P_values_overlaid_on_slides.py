@@ -6,6 +6,8 @@ import os
 import app_top_of_page as top
 import streamlit_dataframe_editor as sde
 
+save_image_ext = 'jpg'
+
 def main():
 
     # Create functions to update correlated widgets
@@ -93,10 +95,10 @@ def main():
         # Display the left and right P values for the current analysis selections
         with display_col1:
             st.subheader('Left P value')
-            st.image(os.path.join(overlay_dir, '{}-with_log_dens_pvals_per_roi__center_{}__neighbor_{}__left_pvals.png'.format(st.session_state['slide_name_to_visualize'], st.session_state['center_species_name_to_visualize'], st.session_state['neighbor_species_name_to_visualize'])))
+            st.image(os.path.join(overlay_dir, '{}-with_log_dens_pvals_per_roi__center_{}__neighbor_{}__left_pvals.{}'.format(st.session_state['slide_name_to_visualize'], st.session_state['center_species_name_to_visualize'], st.session_state['neighbor_species_name_to_visualize'], save_image_ext)))
         with display_col2:
             st.subheader('Right P value')
-            st.image(os.path.join(overlay_dir, '{}-with_log_dens_pvals_per_roi__center_{}__neighbor_{}__right_pvals.png'.format(st.session_state['slide_name_to_visualize'], st.session_state['center_species_name_to_visualize'], st.session_state['neighbor_species_name_to_visualize'])))
+            st.image(os.path.join(overlay_dir, '{}-with_log_dens_pvals_per_roi__center_{}__neighbor_{}__right_pvals.{}'.format(st.session_state['slide_name_to_visualize'], st.session_state['center_species_name_to_visualize'], st.session_state['neighbor_species_name_to_visualize'], save_image_ext)))
 
     else:
         st.warning('The component "Plot density P values for each ROI over slide spatial plot" of the workflow does not appear to have been run; please select it on the "Run workflow" page', icon='⚠️')

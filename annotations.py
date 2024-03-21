@@ -1,3 +1,5 @@
+save_image_ext = 'jpg'
+
 def full_df_to_just_coords_in_microns(df_full, coord_units_in_microns):
     """Create a function to take in the full set of columns, extract just the spatial bounds columns, calculate the midpoints, and convert to microns.
 
@@ -968,7 +970,7 @@ def average_over_rois_per_annotation_region_for_all_slides_and_annotations(df_da
     print('Plotting overall annotation data plot')
     fig_all_annotation_data = plot_annotation_data(df_annotations, generate_single_figure=True, coord_units_in_microns=annotation_coord_units_in_microns, alpha=alpha, buffer_frac=axis_buffer_frac, figsize=figsize)
     if save_figures:
-        fig_all_annotation_data.savefig(os.path.join(webpage_dir, 'all_annotation_data.png'), bbox_inches='tight')
+        fig_all_annotation_data.savefig(os.path.join(webpage_dir, f'all_annotation_data.{save_image_ext}'), bbox_inches='tight')
     plt.close(fig_all_annotation_data)
 
     # Determine the image IDs and region types present in the annotation data
@@ -1001,7 +1003,7 @@ def average_over_rois_per_annotation_region_for_all_slides_and_annotations(df_da
                     savedir = os.path.join(webpage_dir, 'analysis_overlaid_on_annotation')
                     if not os.path.exists(savedir):
                         os.makedirs(savedir)
-                    fig_analysis_overlaid_on_annotation.savefig(os.path.join(savedir, 'analysis_overlaid_on_annotation-{}-{}.png'.format(image_id, region_type)), bbox_inches='tight')
+                    fig_analysis_overlaid_on_annotation.savefig(os.path.join(savedir, 'analysis_overlaid_on_annotation-{}-{}.{}'.format(image_id, region_type, save_image_ext)), bbox_inches='tight')
                 plt.close(fig_analysis_overlaid_on_annotation)
 
                 # Transform the annotation data to integers (which could be pixels if that's what they are)
@@ -1016,7 +1018,7 @@ def average_over_rois_per_annotation_region_for_all_slides_and_annotations(df_da
                     savedir = os.path.join(webpage_dir, 'pixel_plot')
                     if not os.path.exists(savedir):
                         os.makedirs(savedir)
-                    fig_pixel_plot.savefig(os.path.join(savedir, 'pixel_plot-{}-{}.png'.format(image_id, region_type)), bbox_inches='tight', dpi=pixel_plot_dpi)
+                    fig_pixel_plot.savefig(os.path.join(savedir, 'pixel_plot-{}-{}.{}'.format(image_id, region_type, save_image_ext)), bbox_inches='tight', dpi=pixel_plot_dpi)
                     plt.close(fig_pixel_plot)
 
                 # Add to df_data_by_roi the raw weights data for the current slide/annotation
@@ -1037,7 +1039,7 @@ def average_over_rois_per_annotation_region_for_all_slides_and_annotations(df_da
             savedir = os.path.join(webpage_dir, 'raw_weights_check')
             if not os.path.exists(savedir):
                 os.makedirs(savedir)
-            fig_raw_weights_check.savefig(os.path.join(savedir, 'raw_weights_check-log_transform__{}.png'.format(do_log_transform)), bbox_inches='tight')
+            fig_raw_weights_check.savefig(os.path.join(savedir, 'raw_weights_check-log_transform__{}.{}'.format(do_log_transform, save_image_ext)), bbox_inches='tight')
         plt.close(fig_raw_weights_check)
 
     # Overplot the annotation weights on the annotation data
@@ -1062,7 +1064,7 @@ def average_over_rois_per_annotation_region_for_all_slides_and_annotations(df_da
                     if not os.path.exists(savedir):
                         os.makedirs(savedir)
                     for curr_fig, curr_weight_column_prefix, curr_do_log_transform in zip(fig_weight_heatmaps_on_annot, weight_column_prefix_holder, do_log_transform_holder):
-                        curr_fig.savefig(os.path.join(savedir, 'annotation_weights_on_annotation_data-{}-{}-{}-{}.png'.format(image_id, region_type, curr_weight_column_prefix, curr_do_log_transform)), dpi=heatmap_dpi, bbox_inches='tight')  # removing bbox_inches='tight' will make everything the expected number of pixels. Adding bbox_inches='tight' will make the number of pixels appear arbitrary and it would be very difficult to make sense of scales and such
+                        curr_fig.savefig(os.path.join(savedir, 'annotation_weights_on_annotation_data-{}-{}-{}-{}.{}'.format(image_id, region_type, curr_weight_column_prefix, curr_do_log_transform, save_image_ext)), dpi=heatmap_dpi, bbox_inches='tight')  # removing bbox_inches='tight' will make everything the expected number of pixels. Adding bbox_inches='tight' will make the number of pixels appear arbitrary and it would be very difficult to make sense of scales and such
                 for curr_fig in fig_weight_heatmaps_on_annot:
                     plt.close(curr_fig)
 
@@ -1083,16 +1085,16 @@ def get_annotation_plots_paths(top_plot_dir='../results/webpage/slices_1x40/real
     list_paths = []
 
     # Raw weights scatter plots
-    glob_result = glob.glob(os.path.join(top_plot_dir, 'raw_weights_check', 'raw_weights_check-log_transform__*.png'))
+    glob_result = glob.glob(os.path.join(top_plot_dir, 'raw_weights_check', f'raw_weights_check-log_transform__*.{save_image_ext}'))
     list_paths.append([{'plot_type': 'raw_weights_scatter_plots',
                         'image_id': None,
                         'region_type': None,
                         'weight_column_prefix': None,
-                        'do_log_transform': path.split(os.path.sep)[-1].removesuffix('.png').split('__')[-1] == 'True',
+                        'do_log_transform': path.split(os.path.sep)[-1].removesuffix(f'.{save_image_ext}').split('__')[-1] == 'True',
                         'path': path} for path in glob_result])
 
     # All annotation data
-    glob_result = glob.glob(os.path.join(top_plot_dir, 'all_annotation_data.png'))
+    glob_result = glob.glob(os.path.join(top_plot_dir, f'all_annotation_data.{save_image_ext}'))
     list_paths.append([{'plot_type': 'all_annotation_data',
                         'image_id': None,
                         'region_type': None,
@@ -1101,39 +1103,39 @@ def get_annotation_plots_paths(top_plot_dir='../results/webpage/slices_1x40/real
                         'path': path} for path in glob_result])
 
     # Annotation weights heatmaps overlaid on annotation data
-    glob_result = glob.glob(os.path.join(top_plot_dir, 'weight_heatmaps_on_annot', 'annotation_weights_on_annotation_data-*-*-*-*.png'))
+    glob_result = glob.glob(os.path.join(top_plot_dir, 'weight_heatmaps_on_annot', f'annotation_weights_on_annotation_data-*-*-*-*.{save_image_ext}'))
     list_paths.append([{'plot_type': 'weights_heatmap_overlay',
-                        'image_id': path.split(os.path.sep)[-1].removesuffix('.png').split('-')[1],
-                        'region_type': path.split(os.path.sep)[-1].removesuffix('.png').split('-')[2],
-                        'weight_column_prefix': path.split(os.path.sep)[-1].removesuffix('.png').split('-')[3],
-                        'do_log_transform': path.split(os.path.sep)[-1].removesuffix('.png').split('-')[4] == 'True',
+                        'image_id': path.split(os.path.sep)[-1].removesuffix(f'.{save_image_ext}').split('-')[1],
+                        'region_type': path.split(os.path.sep)[-1].removesuffix(f'.{save_image_ext}').split('-')[2],
+                        'weight_column_prefix': path.split(os.path.sep)[-1].removesuffix(f'.{save_image_ext}').split('-')[3],
+                        'do_log_transform': path.split(os.path.sep)[-1].removesuffix(f'.{save_image_ext}').split('-')[4] == 'True',
                         'path': path} for path in glob_result])
 
     # Per-pixel "images" of annotation data
-    glob_result = glob.glob(os.path.join(top_plot_dir, 'pixel_plot', 'pixel_plot-*-*.png'))
+    glob_result = glob.glob(os.path.join(top_plot_dir, 'pixel_plot', f'pixel_plot-*-*.{save_image_ext}'))
     list_paths.append([{'plot_type': 'pixel_plot',
-                        'image_id': path.split(os.path.sep)[-1].removesuffix('.png').split('-')[1],
-                        'region_type': path.split(os.path.sep)[-1].removesuffix('.png').split('-')[2],
+                        'image_id': path.split(os.path.sep)[-1].removesuffix(f'.{save_image_ext}').split('-')[1],
+                        'region_type': path.split(os.path.sep)[-1].removesuffix(f'.{save_image_ext}').split('-')[2],
                         'weight_column_prefix': None,
                         'do_log_transform': None,
                         'path': path} for path in glob_result])
 
     # Analysis data overlaid on annotation data
-    glob_result = glob.glob(os.path.join(top_plot_dir, 'analysis_overlaid_on_annotation', 'analysis_overlaid_on_annotation-*-*.png'))
+    glob_result = glob.glob(os.path.join(top_plot_dir, 'analysis_overlaid_on_annotation', f'analysis_overlaid_on_annotation-*-*.{save_image_ext}'))
     list_paths.append([{'plot_type': 'analysis_overlay',
-                        'image_id': path.split(os.path.sep)[-1].removesuffix('.png').split('-')[1],
-                        'region_type': path.split(os.path.sep)[-1].removesuffix('.png').split('-')[2],
+                        'image_id': path.split(os.path.sep)[-1].removesuffix(f'.{save_image_ext}').split('-')[1],
+                        'region_type': path.split(os.path.sep)[-1].removesuffix(f'.{save_image_ext}').split('-')[2],
                         'weight_column_prefix': None,
                         'do_log_transform': None,
                         'path': path} for path in glob_result])
 
     # Average density P value heatmaps
-    glob_result = glob.glob(os.path.join(top_plot_dir, 'dens_pvals_per_annotation', 'density_pvals-real-*-*-*-*-slice_01_of_01-annotation_index_-1.png'))
+    glob_result = glob.glob(os.path.join(top_plot_dir, 'dens_pvals_per_annotation', f'density_pvals-real-*-*-*-*-slice_01_of_01-annotation_index_-1.{save_image_ext}'))
     list_paths.append([{'plot_type': 'average_p_value_heatmap',
-                        'image_id': path.split(os.path.sep)[-1].removesuffix('.png').split('-')[3].split('_')[-1],
-                        'region_type': path.split(os.path.sep)[-1].removesuffix('.png').split('-')[4],
-                        'weight_column_prefix': path.split(os.path.sep)[-1].removesuffix('.png').split('-')[5],
-                        'do_log_transform': path.split(os.path.sep)[-1].removesuffix('.png').split('-')[6] == 'True',
+                        'image_id': path.split(os.path.sep)[-1].removesuffix(f'.{save_image_ext}').split('-')[3].split('_')[-1],
+                        'region_type': path.split(os.path.sep)[-1].removesuffix(f'.{save_image_ext}').split('-')[4],
+                        'weight_column_prefix': path.split(os.path.sep)[-1].removesuffix(f'.{save_image_ext}').split('-')[5],
+                        'do_log_transform': path.split(os.path.sep)[-1].removesuffix(f'.{save_image_ext}').split('-')[6] == 'True',
                         'path': path} for path in glob_result])
 
     # Flatten the list of lists

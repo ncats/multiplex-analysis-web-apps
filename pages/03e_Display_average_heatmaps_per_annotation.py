@@ -7,6 +7,8 @@ import streamlit_utils
 import app_top_of_page as top
 import streamlit_dataframe_editor as sde
 
+save_image_ext = 'jpg'
+
 def main():
 
     # Set a wide layout
@@ -21,7 +23,7 @@ def main():
     # Display page heading
     st.title('Annotation plots')
 
-    if os.path.exists(os.path.join('.', 'output', 'images', 'raw_weights_check')) and os.path.exists(os.path.join('.', 'output', 'images', 'all_annotation_data.png')) and os.path.exists(os.path.join('.', 'output', 'images', 'weight_heatmaps_on_annot')) and os.path.exists(os.path.join('.', 'output', 'images', 'pixel_plot')) and os.path.exists(os.path.join('.', 'output', 'images', 'analysis_overlaid_on_annotation')) and os.path.exists(os.path.join('.', 'output', 'images', 'dens_pvals_per_annotation')):
+    if os.path.exists(os.path.join('.', 'output', 'images', 'raw_weights_check')) and os.path.exists(os.path.join('.', 'output', 'images', f'all_annotation_data.{save_image_ext}')) and os.path.exists(os.path.join('.', 'output', 'images', 'weight_heatmaps_on_annot')) and os.path.exists(os.path.join('.', 'output', 'images', 'pixel_plot')) and os.path.exists(os.path.join('.', 'output', 'images', 'analysis_overlaid_on_annotation')) and os.path.exists(os.path.join('.', 'output', 'images', 'dens_pvals_per_annotation')):
 
         # Constant: annotation-dependent plot types (there are two more that are annotation-independent; see the "Optional plots" section)
         annotation_dependent_plot_types = ['Average density P value heatmaps', 'Per-pixel "images" of annotation data', 'Annotation weights heatmaps overlaid on annotation data', 'Analysis data overlaid on annotation data']

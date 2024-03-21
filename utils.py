@@ -70,7 +70,7 @@ def get_paths_for_rois():
     heatmaps_dir_listing = os.listdir(heatmaps_dir)
 
     # Initialize an empty Pandas dataframe holding the full image pathnames where the index is the core ROI name
-    df_paths = pd.DataFrame([x.rstrip('.png') for x in os.listdir(outlines_dir)], columns=['roi_name']).set_index('roi_name')
+    df_paths = pd.DataFrame([os.path.splitext(x)[0] for x in os.listdir(outlines_dir)], columns=['roi_name']).set_index('roi_name')
 
     # Determine the filenames in the various subdirectories corresponding to each ROI and store them in the df_paths dataframe
     df_paths['roi'] = ''
@@ -122,11 +122,12 @@ def get_paths_for_slides():
 
     # List the contents of each directory
     slides_listing = os.listdir(slides_dir)
-    slides_listing = [y for y in slides_listing if '-patched.png' not in y]
+    slides_listing = [y for y in slides_listing if '-patched.' not in y]
     heatmaps_listing = os.listdir(heatmaps_dir)
 
     # Initialize an empty Pandas dataframe holding the full image pathnames where the index is the core slide name
-    df_paths = pd.DataFrame([x.rstrip('.png') for x in slides_listing], columns=['slide_name']).set_index('slide_name')
+    file_extension = os.path.splitext(slides_listing[0])[1]
+    df_paths = pd.DataFrame([os.path.splitext(x)[0] for x in slides_listing], columns=['slide_name']).set_index('slide_name')
 
     # Determine the filenames of each of the image types corresponding to each slide name
     corresp_slide_filename = []
@@ -136,7 +137,7 @@ def get_paths_for_slides():
         for slide_filename, heatmap_filename in zip(slides_listing, heatmaps_listing):
             if slide_name in slide_filename:
                 corresp_slide_filename.append(os.path.join(plots_dir, 'whole_slide_patches', slide_filename))
-                corresp_slide_filename_patched.append(os.path.join(plots_dir, 'whole_slide_patches', '{}-patched.png'.format(slide_filename.rstrip('.png'))))
+                corresp_slide_filename_patched.append(os.path.join(plots_dir, 'whole_slide_patches', '{}-patched.{}'.format(os.path.splitext(slide_filename)[0], file_extension)))
             if slide_name in heatmap_filename:
                 corresp_heatmap_filename.append(os.path.join(plots_dir, 'dens_pvals_per_slide', heatmap_filename))
 
@@ -208,7 +209,8 @@ def get_overlay_info():
     center_species.sort()
     neighbor_species = list(set([x.split('__')[2].removeprefix('neighbor_') for x in overlays_less_slide_name]))
     neighbor_species.sort()
-    pval_types = list(set([x.split('__')[3].removesuffix('_pvals.png') for x in overlays_less_slide_name]))
+    file_extension = os.path.splitext(overlays_less_slide_name[0])[1]
+    pval_types = list(set([x.split('__')[3].removesuffix(f'_pvals.{file_extension}') for x in overlays_less_slide_name]))
     pval_types.sort()
 
     # Return the needed path and lists as a single dictionary

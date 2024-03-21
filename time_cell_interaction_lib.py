@@ -1,6 +1,8 @@
 import utils
 import new_phenotyping_lib
 
+save_image_ext = 'jpg'
+
 class TIMECellInteraction:
     '''
     Instantiation of this class mainly loads Consolidata_data.txt into a Pandas dataframe (or reads in a simulated one in the case of simulated data) and performs some preprocessing on it
@@ -467,8 +469,8 @@ class TIMECellInteraction:
         default_marker_size = matplotlib.rcParams['lines.markersize'] * default_marker_size_fac
 
         # Determine the ROIs whose figures need to be plotted based on those whose corresponding image files are not present on the filesystem
-        retval = subprocess.run(['ls {}/roi_plot_*.png'.format(savedir)], shell=True, capture_output=True)
-        roi_ids_not_present = set(range(len(df_data_by_roi))) - set([int(x.split('.png')[0].split('_')[-1]) for x in retval.stdout.decode().split('\n')[:-1]])
+        retval = subprocess.run(['ls {}/roi_plot_*.{}'.format(savedir, save_image_ext)], shell=True, capture_output=True)
+        roi_ids_not_present = set(range(len(df_data_by_roi))) - set([int(x.split(f'.{save_image_ext}')[0].split('_')[-1]) for x in retval.stdout.decode().split('\n')[:-1]])
 
         # Generate a list of tuple arguments each of which is inputted into plot_single_roi() to be run by a single worker
         constant_tuple = (plotting_map, roi_figsize, colors, marker_size_step, default_marker_size, roi_dpi, mapping_dict, coord_units_in_microns, alpha, edgecolors, yaxis_dir, savedir, df_data_by_roi)
@@ -657,7 +659,7 @@ class TIMECellInteraction:
 
     def average_over_rois(self, plot_real_data=True, log_pval_range=(-200, 0), figsize=(14, 4), dpi=150, img_file_suffix='', regular_pval_figsize=(8, 12), square=True, yticklabels=2, pval_dpi=150, plot_summary_dens_pvals=True, plot_main_pvals=True, write_csv_files=True, write_pickle_datafile=True, start_slide=None, num_slides=None):
         '''
-        Perform a weighted geometric mean of the density and PMF P values over the valid ROIs, saving the corresponding figures as PNG files and data as CSV files.
+        Perform a weighted geometric mean of the density and PMF P values over the valid ROIs, saving the corresponding figures as PNG/JPG files and data as CSV files.
 
         Old:
 
@@ -780,7 +782,7 @@ class TIMECellInteraction:
                     for islide in range(nunique_slides):
 
                         # Determine the filename of the figure
-                        filename = os.path.join(webpage_dir, 'average_density_pvals-{}-{}-slice_{:02d}_of_{:02d}{}.png'.format(('real' if plot_real_data else 'simulated'), unique_slides[islide], islice + 1, nslices, img_file_suffix))
+                        filename = os.path.join(webpage_dir, 'average_density_pvals-{}-{}-slice_{:02d}_of_{:02d}{}.{}'.format(('real' if plot_real_data else 'simulated'), unique_slides[islide], islice + 1, nslices, img_file_suffix, save_image_ext))
 
                         # Reset the figure/axes
                         fig.clf()
@@ -850,7 +852,7 @@ class TIMECellInteraction:
                             fig.suptitle(figure_title)
 
                             # Save the figure
-                            pvals_fig_filename = 'averaged_pvals_{}_center-{}_neighbor-{}.png'.format(slide_name, all_species_ids[icenter], all_species_ids[ineighbor])
+                            pvals_fig_filename = 'averaged_pvals_{}_center-{}_neighbor-{}.{}'.format(slide_name, all_species_ids[icenter], all_species_ids[ineighbor], save_image_ext)
                             pvals_fig_dirname = os.path.join(webpage_dir, slide_name)
                             pvals_fig_pathname = os.path.join(pvals_fig_dirname, pvals_fig_filename)
                             os.makedirs(pvals_fig_dirname, exist_ok=True)
@@ -914,7 +916,7 @@ class TIMECellInteraction:
     # def average_over_rois2(self, plot_real_data=True, log_pval_range=(-200, 0), figsize=(14, 4), dpi=150, img_file_suffix='', regular_pval_figsize=(8, 12), square=True, yticklabels=2, pval_dpi=150, plot_summary_dens_pvals=True, plot_main_pvals=True, write_csv_files=True, write_pickle_datafile=True, start_slide=None, num_slides=None, min_num_valid_centers=1):
     def average_over_rois2(self, plot_real_data=True, log_pval_range=(-200, 0), figsize=(14, 4), dpi=150, img_file_suffix='', plot_summary_dens_pvals=True, write_pickle_datafile=True, start_slide=None, min_num_valid_centers=1, weight_rois_by_num_valid_centers=False):
         '''
-        Perform a weighted geometric mean of the density and PMF P values over the valid ROIs, saving the corresponding figures as PNG files and data as CSV files.
+        Perform a weighted geometric mean of the density and PMF P values over the valid ROIs, saving the corresponding figures as PNG/JPG files and data as CSV files.
 
         Old:
 
@@ -1048,7 +1050,7 @@ class TIMECellInteraction:
                         print('Plotting slide {}'.format(islide + 1))
 
                         # Determine the filename of the figure
-                        filename = os.path.join(webpage_dir, 'average_density_pvals-{}-{}-slice_{:02d}_of_{:02d}{}.png'.format(('real' if plot_real_data else 'simulated'), unique_slides[islide], islice + 1, nslices, img_file_suffix))
+                        filename = os.path.join(webpage_dir, 'average_density_pvals-{}-{}-slice_{:02d}_of_{:02d}{}.{}'.format(('real' if plot_real_data else 'simulated'), unique_slides[islide], islice + 1, nslices, img_file_suffix, save_image_ext))
 
                         # Reset the figure/axes
                         fig.clf()
@@ -1297,9 +1299,9 @@ class TIMECellInteraction:
         # Get a reasonable title suffix
         title_suffix = ' - min # valid centers: {}'.format(num_valid_centers_minimum)
 
-        # Determine the ROIs whose density P values need to be plotted, i.e., those whose corresponding PNG files are not present on the filesystem
-        retval = subprocess.run(['ls {}/density_pvals-*-slice_*-roi_index_*.png'.format(webpage_dir_for_dens_pvals_per_roi)], shell=True, capture_output=True)
-        roi_ids_not_present = roi_indexes_with_any_heatmap_data_set - set([int(x.split('.png')[0].split('_')[-1]) for x in retval.stdout.decode().split('\n')[:-1]])
+        # Determine the ROIs whose density P values need to be plotted, i.e., those whose corresponding PNG/JPG files are not present on the filesystem
+        retval = subprocess.run(['ls {}/density_pvals-*-slice_*-roi_index_*.{}'.format(webpage_dir_for_dens_pvals_per_roi, save_image_ext)], shell=True, capture_output=True)
+        roi_ids_not_present = roi_indexes_with_any_heatmap_data_set - set([int(x.split(f'.{save_image_ext}')[0].split('_')[-1]) for x in retval.stdout.decode().split('\n')[:-1]])
 
         # Generate a list of tuple arguments each of which is inputted into plot_single_density_pvals() to be run by a single worker
         # I am sending in df_data_by_roi now, which was totally unnecessary, but only to update the image filenames!! If things get weird or don't work, try removing this!!!!
@@ -3634,7 +3636,7 @@ def save_figs_and_corresp_data_for_roi(args_as_single_tuple):
 
         # Plot and save the current ROI
         plot_roi(fig_roi, spec2plot_roi, species_roi, x_roi, y_roi, plotting_map, colors, x_range, y_range, uroi, marker_size_step, default_marker_size, roi_dpi, mapping_dict, coord_units_in_microns, filepath=None, do_plot=True, alpha=alpha, edgecolors=edgecolors, yaxis_dir=yaxis_dir)
-        roi_fig_filename = 'roi_{}.png'.format(roi_name)
+        roi_fig_filename = 'roi_{}.{}'.format(roi_name, save_image_ext)
         roi_fig_pathname = os.path.join(webpage_dir, roi_fig_filename)
         fig_roi.savefig(roi_fig_pathname, dpi=roi_dpi, bbox_inches='tight')
 
@@ -3670,7 +3672,7 @@ def save_figs_and_corresp_data_for_roi(args_as_single_tuple):
                     if nvalid_centers_per_slice.sum(axis=0) == 0:
                         print('NOTE: Even though there are centers of species {} present in the ROI, none of them are valid; we can eliminate this species as a center (for any neighbor) from any analyses!'.format(center_name))
                     else:
-                        pvals_fig_filename = 'pvals_{}_center-{}_neighbor-{}.png'.format(roi_name, all_species_list[icenter_spec], all_species_list[ineighbor_spec])
+                        pvals_fig_filename = 'pvals_{}_center-{}_neighbor-{}.{}'.format(roi_name, all_species_list[icenter_spec], all_species_list[ineighbor_spec], save_image_ext)
                         pvals_fig_pathname = os.path.join(webpage_dir, pvals_fig_filename)
                         if save_individual_pval_plots:  # make this an option since it takes significant time in aggregate
                             fig_pvals.savefig(pvals_fig_pathname, dpi=pval_dpi, bbox_inches='tight')
@@ -4135,7 +4137,7 @@ def plot_single_roi(args_as_single_tuple):
 
     # Assign the data for the current ROI to useful variables
     roi_name = df_data_by_roi.loc[roi_index, 'unique_roi']  # df_data_by_roi.loc[roi_index, 'roi_name']
-    roi_fig_filename = 'roi_plot_{}_{}.png'.format(roi_name, roi_index)
+    roi_fig_filename = 'roi_plot_{}_{}.{}'.format(roi_name, roi_index, save_image_ext)
     roi_fig_pathname = os.path.join(savedir, roi_fig_filename)
 
     # If the image file doesn't already exist...
@@ -4279,7 +4281,7 @@ def plot_density_pvals_simple(log_dens_pvals_arr, log_pval_range, figsize, dpi, 
     for islice in range(nslices):
 
         # Determine the filename of the figure
-        filename = os.path.join(plots_dir, 'density_pvals-{}-{}-slice_{:02d}_of_{:02d}{}-{}_index_{}.png'.format(('real' if plot_real_data else 'simulated'), entity_name, islice + 1, nslices, img_file_suffix, entity, entity_index))
+        filename = os.path.join(plots_dir, 'density_pvals-{}-{}-slice_{:02d}_of_{:02d}{}-{}_index_{}.{}'.format(('real' if plot_real_data else 'simulated'), entity_name, islice + 1, nslices, img_file_suffix, entity, entity_index, save_image_ext))
 
         # Reset the figure/axes
         fig.clf()
@@ -4390,7 +4392,7 @@ def plot_and_save_roi(args_as_single_tuple):
     roi_figsize, spec2plot_roi, species_roi, x_roi, y_roi, plotting_map, colors, x_range, y_range, uroi, marker_size_step, default_marker_size, roi_dpi, mapping_dict, coord_units_in_microns, alpha, edgecolors, yaxis_dir, boxes_to_plot, pval_params, title_suffix, tag, filename_suffix, savedir = args_as_single_tuple
     fig_roi = plt.subplots(figsize=roi_figsize)[0]  # define the figures to use for plotting the ROIs and the P values
     plot_roi(fig_roi, spec2plot_roi, species_roi, x_roi, y_roi, plotting_map, colors, x_range, y_range, uroi, marker_size_step, default_marker_size, roi_dpi, mapping_dict, coord_units_in_microns, alpha=alpha, edgecolors=edgecolors, yaxis_dir=yaxis_dir, boxes_to_plot=boxes_to_plot, pval_params=pval_params, title_suffix=title_suffix)
-    roi_fig_filename = '{}{}.png'.format(tag, filename_suffix)
+    roi_fig_filename = '{}{}.{}'.format(tag, filename_suffix, save_filename_ext)
     roi_fig_pathname = os.path.join(savedir, roi_fig_filename)
     fig_roi.savefig(roi_fig_pathname.replace(' ', '_'), dpi=roi_dpi, bbox_inches='tight', facecolor='white')
     plt.close(fig_roi)  # close the figure
