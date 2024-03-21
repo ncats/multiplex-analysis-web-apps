@@ -2,6 +2,7 @@ import utils
 import new_phenotyping_lib
 
 save_image_ext = 'jpg'
+# save_image_ext = 'png'
 
 class TIMECellInteraction:
     '''
@@ -4392,7 +4393,7 @@ def plot_and_save_roi(args_as_single_tuple):
     roi_figsize, spec2plot_roi, species_roi, x_roi, y_roi, plotting_map, colors, x_range, y_range, uroi, marker_size_step, default_marker_size, roi_dpi, mapping_dict, coord_units_in_microns, alpha, edgecolors, yaxis_dir, boxes_to_plot, pval_params, title_suffix, tag, filename_suffix, savedir = args_as_single_tuple
     fig_roi = plt.subplots(figsize=roi_figsize)[0]  # define the figures to use for plotting the ROIs and the P values
     plot_roi(fig_roi, spec2plot_roi, species_roi, x_roi, y_roi, plotting_map, colors, x_range, y_range, uroi, marker_size_step, default_marker_size, roi_dpi, mapping_dict, coord_units_in_microns, alpha=alpha, edgecolors=edgecolors, yaxis_dir=yaxis_dir, boxes_to_plot=boxes_to_plot, pval_params=pval_params, title_suffix=title_suffix)
-    roi_fig_filename = '{}{}.{}'.format(tag, filename_suffix, save_filename_ext)
+    roi_fig_filename = '{}{}.{}'.format(tag, filename_suffix, save_image_ext)
     roi_fig_pathname = os.path.join(savedir, roi_fig_filename)
     fig_roi.savefig(roi_fig_pathname.replace(' ', '_'), dpi=roi_dpi, bbox_inches='tight', facecolor='white')
     plt.close(fig_roi)  # close the figure

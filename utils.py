@@ -137,7 +137,7 @@ def get_paths_for_slides():
         for slide_filename, heatmap_filename in zip(slides_listing, heatmaps_listing):
             if slide_name in slide_filename:
                 corresp_slide_filename.append(os.path.join(plots_dir, 'whole_slide_patches', slide_filename))
-                corresp_slide_filename_patched.append(os.path.join(plots_dir, 'whole_slide_patches', '{}-patched.{}'.format(os.path.splitext(slide_filename)[0], file_extension)))
+                corresp_slide_filename_patched.append(os.path.join(plots_dir, 'whole_slide_patches', '{}-patched{}'.format(os.path.splitext(slide_filename)[0], file_extension)))
             if slide_name in heatmap_filename:
                 corresp_heatmap_filename.append(os.path.join(plots_dir, 'dens_pvals_per_slide', heatmap_filename))
 
@@ -210,7 +210,7 @@ def get_overlay_info():
     neighbor_species = list(set([x.split('__')[2].removeprefix('neighbor_') for x in overlays_less_slide_name]))
     neighbor_species.sort()
     file_extension = os.path.splitext(overlays_less_slide_name[0])[1]
-    pval_types = list(set([x.split('__')[3].removesuffix(f'_pvals.{file_extension}') for x in overlays_less_slide_name]))
+    pval_types = list(set([x.split('__')[3].removesuffix(f'_pvals{file_extension}') for x in overlays_less_slide_name]))
     pval_types.sort()
 
     # Return the needed path and lists as a single dictionary
