@@ -355,7 +355,10 @@ class SpatialUMAP:
         self.areas = np.empty((self.cell_positions.shape[0], len(self.dist_bin_um)))
 
     def start_pool(self, processes):
-        self.pool = mp.get_context(mp.get_start_method()).Pool(processes)
+        start_method = mp.get_start_method()
+        if start_method == 'fork':
+            start_method = 'forkserver'  # to prevent crashing resulting in "Stopping..."
+        self.pool = mp.get_context(start_method).Pool(processes)
 
     def close_pool(self):
         self.pool.close()
