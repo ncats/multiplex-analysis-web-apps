@@ -237,15 +237,13 @@ def main():
 
                     # Perform the operation
                     subset_columns = st.session_state['unifier__columns_to_combine_to_uniquely_define_slides']
-                    unique_rows = df.drop_duplicates(subset=subset_columns)[subset_columns]
+                    unique_rows = df[subset_columns].drop_duplicates()
                     df_from = unique_rows.apply(lambda x: '__'.join(x.apply(str)), axis='columns')
                     df_to = unique_rows.apply(lambda x: '__'.join(x.apply(str).apply(lambda y: re.split(r'[/\\]', y)[-1])).replace(' ', '_').replace('.', '_'), axis='columns')
                     transformation = dict(zip(df_from, df_to))
                     df_subset = df[subset_columns]
-                    for column in subset_columns:
-                        if df_subset[column].dtype not in ['string', 'object']:
-                            df_subset[column] = df_subset[column].apply(str)
-                    utils.dataframe_insert_possibly_existing_column(df, 0, 'Image ID_(standardized)', utils.downcast_series_dtype(df_subset.apply(lambda x: transformation['__'.join(x)], axis='columns')))
+                    keys = df_subset.astype(str).apply('__'.join, axis='columns')
+                    utils.dataframe_insert_possibly_existing_column(df, 0, 'Image ID_(standardized)', utils.downcast_series_dtype(keys.map(transformation)))
 
                     # Save this dataframe to memory
                     st.session_state['unifier__df'] = df
