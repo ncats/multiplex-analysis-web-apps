@@ -1645,14 +1645,18 @@ class TIMECellInteraction:
                 species_roi_holder.append(species_roi)
                 spec2plot_roi_holder.append(spec2plot_roi)
 
+        assert len(set(roi_index_holder)) == len(roi_index_holder), 'ERROR: there are duplicate ROIs in the data; the lengths are {} and {}'.format(len(set(roi_index_holder)), len(roi_index_holder))  # if this passes, then the indices are unique
+
+        assert set(df_data_by_roi.index) == set(roi_index_holder), 'ERROR: the indices of the flattened data do not match those of the original data'
+
         # Create a Pandas dataframe holding all the per-ROI data so far
         # Columns already in the df: unique_roi, ncases, ncases_tot, unique_case, nslides, nslides_tot, unique_slide, nrois, nrois_tot, width, height, x_min_prior_to_decimation, y_min_prior_to_decimation, x_max_prior_to_decimation, y_max_prior_to_decimation
         df_data_by_roi = pd.concat(
             [
-                df_data_by_roi.sort_index(),
-                pd.DataFrame({'roi_name': roi_name_holder, 'slide_name': slide_name_holder, 'num_rois_in_slide': num_rois_in_slide_holder, 'x_roi': x_roi_holder, 'y_roi': y_roi_holder, 'x_range': x_range_holder, 'y_range': y_range_holder, 'species_roi': species_roi_holder, 'spec2plot_roi': spec2plot_roi_holder}, index=roi_index_holder).sort_index()  # new columns, but after checks just below roi_name and slide_name should be dropped
+                df_data_by_roi,
+                pd.DataFrame({'roi_name': roi_name_holder, 'slide_name': slide_name_holder, 'num_rois_in_slide': num_rois_in_slide_holder, 'x_roi': x_roi_holder, 'y_roi': y_roi_holder, 'x_range': x_range_holder, 'y_range': y_range_holder, 'species_roi': species_roi_holder, 'spec2plot_roi': spec2plot_roi_holder}, index=roi_index_holder)  # new columns, but after checks just below roi_name and slide_name should be dropped
             ], axis='columns'
-        )
+        ).sort_index()
 
         # Run some checks
         if df_data_by_roi['roi_name'].equals(df_data_by_roi['unique_roi']):
@@ -3354,7 +3358,7 @@ def generate_case_slide_roi_contents(data, roi_colname='tag', num_last_chars_in_
     contents = pd.DataFrame(data=data_holder, columns=['ncases', 'ncases_tot', 'unique_case', 'nslides', 'nslides_tot', 'unique_slide', 'nrois', 'nrois_tot', 'unique_roi'])
 
     # Group the coordinates by ROI name
-    grouped = df[[roi_colname, 'Cell X Position', 'Cell Y Position']].groupby(by=roi_colname)
+    grouped = df[[roi_colname, 'Cell X Position', 'Cell Y Position']].groupby(by=roi_colname, observed=True)
 
     # Set the original contents index name to "orig_index" so that we can later get that index back
     contents.index.name = 'orig_index'
