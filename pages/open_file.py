@@ -6,6 +6,17 @@ import os
 import streamlit_utils
 import utils
 
+def clear_session_state():
+    session_state_keys = list(st.session_state.keys())
+    for key in session_state_keys:
+        if (not key.startswith(('unifier__', 'opener__'))) and (not key in ['session_selection', 'app_has_been_run_at_least_once']):
+            del st.session_state[key]
+
+def load_input_dataset():
+    clear_session_state()
+    st.session_state['opener__load_input_dataset'] = True
+    st.session_state['input_dataset'] = None
+
 def toggle_changed():
     """
     Function to run when the "Load dataset from Datafile Unifier" toggle is changed.
@@ -78,7 +89,19 @@ def main():
             return
         
         # Read in the dataset either from memory or from a file
-        if st.button('Load the selected input dataset'):
+        if 'input_dataset' in st.session_state:
+            help_message = 'WARNING: This will clear all downstream analyses. If you want to keep them, please save them first using the Data Import and Export tool at left.'
+            button_text = '⚠️ Load the selected input dataset'
+        else:
+            help_message = None
+            button_text = 'Load the selected input dataset'
+        st.button(button_text, on_click=load_input_dataset, help=help_message)
+
+        # Not using a callback because of st.spinner() and the return statement
+        if 'opener__load_input_dataset' not in st.session_state:
+            st.session_state['opener__load_input_dataset'] = False
+        if st.session_state['opener__load_input_dataset']:
+            st.session_state['opener__load_input_dataset'] = False
             with st.spinner('Loading the input dataset...'):
                 streamlit_utils.load_input_dataset(input_file_or_df, st.session_state['opener__microns_per_coordinate_unit'])  # this assigns the input dataset to st.session_state['input_dataset'] and the metadata to st.session_state['input_metadata']
             if st.session_state['input_dataset'] is not None:
