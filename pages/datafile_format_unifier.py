@@ -520,7 +520,7 @@ def main():
                     st.session_state['unifier__de_phenotype_names'].dataframe_editor(reset_data_editor_button_text='Reset phenotype names', column_config=column_config)
 
                     # Create a button to rename the phenotypes
-                    if st.button(':star2: Rename phenotypes :star2:'):
+                    if st.button(':star2: Assign phenotypes :star2:'):
 
                         # Render a progress spinner while the phenotypes are being renamed
                         with st.spinner('Renaming phenotypes...'):
