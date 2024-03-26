@@ -1,0 +1,94 @@
+[[pages]]
+path = "Multiplex_Analysis_Web_Apps.py"
+name = "Welcome 🏠"
+icon = ""
+
+[[pages]]
+name = "File Handling 🗄️"
+icon = ""
+is_section = true
+
+[[pages]]
+path = "pages/01_data_import_and_export.py"
+name = "Data Import and Export"
+icon = ""
+
+[[pages]]
+path = "pages/datafile_format_unifier.py"
+name = "Datafile Unification"
+icon = ""
+
+[[pages]]
+path = "pages/open_file.py"
+name = "Open File"
+icon = ""
+
+[[pages]]
+name = "Phenotyping 🖊️"
+icon = ""
+is_section = true
+
+[[pages]]
+path = "pages/multiaxial_gating.py"
+name = "Raw Intensities"
+icon = ""
+
+[[pages]]
+path = "pages/02_phenotyping.py"
+name = "Thresholded Intensities"
+icon = ""
+
+[[pages]]
+name = "Spatial Interaction Tool 🔥"
+icon = ""
+is_section = true
+
+[[pages]]
+path = "pages/03a_Tool_parameter_selection.py"
+name = "Tool Parameter Selection"
+icon = ""
+
+[[pages]]
+path = "pages/03b_Run_workflow.py"
+name = "Run SIT Workflow"
+icon = ""
+
+[[pages]]
+path = "pages/03c_Display_individual_ROI_heatmaps.py"
+name = "Display Individual ROI Heatmaps"
+icon = ""
+
+[[pages]]
+path = "pages/03d_Display_average_heatmaps.py"
+name = "Display Average Heatmaps"
+icon = ""
+
+[[pages]]
+path = "pages/03e_Display_average_heatmaps_per_annotation.py"
+name = "Display Average Heatmaps per Annotations"
+icon = ""
+
+[[pages]]
+path = "pages/03f_Display_ROI_P_values_overlaid_on_slides.py"
+name = "Display ROI P Values Overlaid on Slides"
+icon = ""
+
+[[pages]]
+name = "Neighborhood Profiles Workflow 🔥"
+icon = ""
+is_section = true
+
+[[pages]]
+path = "pages/04a_Neighborhood Profiles.py"
+name = "Neighborhood Profiles"
+icon = ""
+
+[[pages]]
+path = "pages/04b_UMAP Analyzer.py"
+name = "UMAP Differences"
+icon = ""
+
+[[pages]]
+path = "pages/04c_Clusters Analyzer.py"
+name = "Clusters Analyzer"
+icon = ""

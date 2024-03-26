@@ -1,0 +1,6 @@
+﻿Phenotype,DAPI-01 Cell Intensity [[min]],DAPI-01 Cell Intensity [[max]],Ki67 Cell Intensity [[min]],Ki67 Cell Intensity [[max]],MHC II Cell Intensity [[min]],MHC II Cell Intensity [[max]],Cell Area (µm²) [[min]],Cell Area (µm²) [[max]],CD4 Cell Intensity [[min]],CD4 Cell Intensity [[max]]
+ki67 pos,1.04,10.957334454691388,0.01,3.249432855327681,,,,,,
+mhcii low,1.04,10.957334454691388,,,-1.7094430773299267,-0.04,0.15,15.017737047617352,,
+mhcii high,1.04,10.957334454691388,,,-0.02,100,0.15,15.017737047617352,,
+cd4 low,,,,,,,,,-2.608387899627314,0.52
+cd4 high,,,,,,,,,0.52,200
