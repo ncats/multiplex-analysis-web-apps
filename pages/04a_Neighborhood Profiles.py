@@ -2,6 +2,7 @@
 This is the python script which produces the NEIGHBORHOOD PROFILES PAGE
 '''
 import streamlit as st
+import numpy as np
 from streamlit_extras.add_vertical_space import add_vertical_space
 
 # Import relevant libraries
@@ -169,36 +170,57 @@ def main():
     st.header('Neighborhood Profiles\nNCATS-NCI-DMAP')
 
     clust_minmax = [1, 40]
-    neiProCols = st.columns([1, 1, 2])
-    with neiProCols[0]:
+    npf_cols = st.columns([1, 1, 2])
+    with npf_cols[0]:
         cellCountsButt = st.button('Perform Cell Counts/Areas Analysis')
-        umapButt       = st.button('Perform UMAP Analysis')
+        umap_butt       = st.button('Perform UMAP Analysis')
+        st.toggle('Perform Clustering on UMAP Density Difference', value = False, key = 'toggle_clust_diff')
         st.slider('Number of K-means clusters', min_value=clust_minmax[0], max_value=clust_minmax[1], key = 'slider_clus_val')
         clustButt      = st.button('Perform Clustering Analysis')
 
-    with neiProCols[1]:
+    with npf_cols[1]:
+        if st.session_state['toggle_clust_diff']:
+            st.selectbox('Feature', options = st.session_state.outcomes)
         if cellCountsButt:
             if st.session_state.phenotyping_completed:
                 init_spatial_umap()
-        if umapButt:
+        if umap_butt:
             if st.session_state.cell_counts_completed:
                 apply_umap(umap_style = 'Densities')
         if clustButt:
             if st.session_state.umapCompleted:
                 set_clusters()
 
-    with neiProCols[2]:
+    with npf_cols[2]:
         if st.session_state.umapCompleted:
-            pass
+            vlim = .97
+            n_bins = 200
+            xx = np.linspace(np.min(st.session_state.df_umap['X']), np.max(st.session_state.df_umap['X']), n_bins + 1)
+            yy = np.linspace(np.min(st.session_state.df_umap['Y']), np.max(st.session_state.df_umap['Y']), n_bins + 1)
+            n_pad = 40
+            st.session_state.UMAPFig = bpl.UMAPdraw_density(st.session_state.df_umap, bins = [xx, yy], w=None, n_pad=n_pad, vlim=vlim)
+
+            if st.session_state['toggle_clust_diff']:
+                exp_cols = st.columns(3)
+                with exp_cols[1]:
+                    st.pyplot(fig=st.session_state.UMAPFig)
+                diff_cols = st.columns(3)
+                with diff_cols[0]:
+                    st.pyplot(fig=st.session_state.UMAPFig)
+                with diff_cols[1]:
+                    st.pyplot(fig=st.session_state.UMAPFig)
+                with diff_cols[2]:
+                    st.pyplot(fig=st.session_state.UMAPFig)
+
             ### Clustering Meta Analysis and Description ###
             # with st.expander('Cluster Meta-Analysis', ):
             #     wcss_cols = st.columns(2)
             #     with wcss_cols[0]:
             #         st.markdown('''The within-cluster sum of squares (WCSS) is a measure of the
-            #                     variability of the observations within each cluster. In general, 
-            #                     a cluster that has a small sum of squares is more compact than a 
-            #                     cluster that has a large sum of squares. Clusters that have higher 
-            #                     values exhibit greater variability of the observations within the 
+            #                     variability of the observations within each cluster. In general,
+            #                     a cluster that has a small sum of squares is more compact than a
+            #                     cluster that has a large sum of squares. Clusters that have higher
+            #                     values exhibit greater variability of the observations within the
             #                     cluster.''')
             #     with wcss_cols[1]:
             #         if st.session_state.umapCompleted:
@@ -263,12 +285,12 @@ def main():
     with uNeighPCol:
         st.header('Neighborhood Profiles')
         if 'spatial_umap' in st.session_state:
-            selNeighFig = st.selectbox('Select a cluster to view',
+            sel_npf_fig = st.selectbox('Select a cluster to view',
                                        list(range(st.session_state.selected_nClus)))
             if st.session_state.clustering_completed:
 
-                NeiProFig = bpl.neighProfileDraw(st.session_state.spatial_umap, selNeighFig)
-                st.pyplot(fig=NeiProFig)
+                npf_fig = bpl.neighProfileDraw(st.session_state.spatial_umap, sel_npf_fig)
+                st.pyplot(fig=npf_fig)
 
                 neigh_prof_col = st.columns([2, 1])
                 with neigh_prof_col[0]:
@@ -277,7 +299,7 @@ def main():
                     add_vertical_space(2)
                     if st.button('Append Export List', key = 'appendexportbutton_neighproline__do_not_persist'):
 
-                        ndl.save_png(NeiProFig, 'Neighborhood Profiles', st.session_state.neigh_prof_line_suffix)
+                        ndl.save_png(npf_fig, 'Neighborhood Profiles', st.session_state.neigh_prof_line_suffix)
                         st.toast(f'Added {st.session_state.neigh_prof_line_suffix} to export list')
 
     # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
