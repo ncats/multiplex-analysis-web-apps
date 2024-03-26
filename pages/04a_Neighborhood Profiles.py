@@ -180,7 +180,7 @@ def main():
 
     with npf_cols[1]:
         if st.session_state['toggle_clust_diff']:
-            st.selectbox('Feature', options = st.session_state.outcomes)
+            st.selectbox('Feature', options = ['Survival_5yr'], key = 'dens_diff_feat_sel')
         if cellCountsButt:
             if st.session_state.phenotyping_completed:
                 init_spatial_umap()
@@ -201,16 +201,32 @@ def main():
             st.session_state.UMAPFig = bpl.UMAPdraw_density(st.session_state.df_umap, bins = [xx, yy], w=None, n_pad=n_pad, vlim=vlim)
 
             if st.session_state['toggle_clust_diff']:
+                w = st.session_state.df_umap[st.session_state.dens_diff_feat_sel]
+                featComp1 = '= 1'
+                featComp2 = '= 0'
+
+                feat_label0 = f'{st.session_state.dens_diff_feat_sel} {featComp1} '
+                feat_label1 = f'{st.session_state.dens_diff_feat_sel} {featComp2} '
+                feat_label2 = None
+
+                w_DiffA = w
+                w_DiffB = max(w) - w
+                w_Diff  = w_DiffA - w_DiffB
+
+                st.session_state.UMAPFigDiff0_Dens = bpl.UMAPdraw_density(st.session_state.df_umap, bins = [xx, yy], w=w_DiffA, n_pad=n_pad, vlim=vlim, feat = feat_label0)
+                st.session_state.UMAPFigDiff1_Dens = bpl.UMAPdraw_density(st.session_state.df_umap, bins = [xx, yy], w=w_DiffB, n_pad=n_pad, vlim=vlim, feat = feat_label1)
+                st.session_state.UMAPFigDiff2_Dens = bpl.UMAPdraw_density(st.session_state.df_umap, bins = [xx, yy], w=w_Diff, n_pad=n_pad, vlim=vlim, diff = True)
+
                 exp_cols = st.columns(3)
                 with exp_cols[1]:
                     st.pyplot(fig=st.session_state.UMAPFig)
                 diff_cols = st.columns(3)
                 with diff_cols[0]:
-                    st.pyplot(fig=st.session_state.UMAPFig)
+                    st.pyplot(fig=st.session_state.UMAPFigDiff0_Dens)
                 with diff_cols[1]:
-                    st.pyplot(fig=st.session_state.UMAPFig)
+                    st.pyplot(fig=st.session_state.UMAPFigDiff1_Dens)
                 with diff_cols[2]:
-                    st.pyplot(fig=st.session_state.UMAPFig)
+                    st.pyplot(fig=st.session_state.UMAPFigDiff2_Dens)
 
             ### Clustering Meta Analysis and Description ###
             # with st.expander('Cluster Meta-Analysis', ):
