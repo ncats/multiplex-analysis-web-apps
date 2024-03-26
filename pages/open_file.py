@@ -69,7 +69,7 @@ def main():
             help_message = 'Remember that the dataset coordinates were converted to microns in the Datafile Unifier.'
         else:
             help_message = None
-        st.number_input('Enter the number of microns per coordinate unit in the input:', min_value=0.0, key='opener__microns_per_coordinate_unit', format='%.4f', step=0.0001, disabled=st.session_state['opener__load_from_datafile_unifier'], help=help_message)
+        st.number_input('Enter the number of microns per coordinate unit in the input file:', min_value=0.0, key='opener__microns_per_coordinate_unit', format='%.4f', step=0.0001, disabled=st.session_state['opener__load_from_datafile_unifier'], help=help_message)
 
         # Determine the input datafile or input dataframe
         if st.session_state['opener__load_from_datafile_unifier']:
