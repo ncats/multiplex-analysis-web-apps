@@ -13,18 +13,6 @@ def main():
     Main function for running the page
     '''
 
-    # Set a wide layout
-    st.set_page_config(layout="wide")
-
-    # Run streamlit-dataframe-editor library initialization tasks at the top of the page
-    st.session_state = sde.initialize_session_state(st.session_state)
-
-    # Run Top of Page (TOP) functions
-    st.session_state = top.top_of_page_reqs(st.session_state)
-
-    # Display page heading
-    st.title('Run workflow')
-
     # If 'input_dataset' isn't in the session state, print an error message and return
     if 'input_dataset' not in st.session_state:
         st.error('An input dataset has not yet been opened. Please do so using the "Open File" page in the sidebar.')
@@ -223,9 +211,20 @@ def main():
                 print('')
                 st.write(benchmarking_message)
 
-    # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
-    st.session_state = sde.finalize_session_state(st.session_state)
-
 # Call the main function
 if __name__ == '__main__':
+
+    # Set a wide layout and display the page heading
+    st.set_page_config(layout="wide")
+    st.title('Run workflow')
+
+    # Run streamlit-dataframe-editor library initialization tasks at the top of the page
+    st.session_state = sde.initialize_session_state(st.session_state)
+
+    # Run Top of Page (TOP) functions
+    st.session_state = top.top_of_page_reqs(st.session_state)
+
     main()
+
+    # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
+    st.session_state = sde.finalize_session_state(st.session_state)

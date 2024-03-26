@@ -6,6 +6,7 @@ Set of scripts which support the other MAWA scripts
 import numpy as np
 import scipy.spatial
 import streamlit_utils
+import pandas as pd
 
 def set_filename_corresp_to_roi(df_paths, roi_name, curr_colname, curr_dir, curr_dir_listing):
     """Update the path in a main paths-holding dataframe corresponding to a particular ROI in a particular directory.
@@ -53,7 +54,6 @@ def get_paths_for_rois():
 
     # Import relevant libraries
     import os
-    import pandas as pd
 
     # Obtain the directory holding the subdirectories containing various types of plots (in this case, three types)
     # plots_dir = os.path.join(os.getcwd(), '..', 'results', 'webpage', 'slices_1x{}'.format(radius_in_microns), 'real')
@@ -70,7 +70,7 @@ def get_paths_for_rois():
     heatmaps_dir_listing = os.listdir(heatmaps_dir)
 
     # Initialize an empty Pandas dataframe holding the full image pathnames where the index is the core ROI name
-    df_paths = pd.DataFrame([x.rstrip('.png') for x in os.listdir(outlines_dir)], columns=['roi_name']).set_index('roi_name')
+    df_paths = pd.DataFrame([os.path.splitext(x)[0] for x in os.listdir(outlines_dir)], columns=['roi_name']).set_index('roi_name')
 
     # Determine the filenames in the various subdirectories corresponding to each ROI and store them in the df_paths dataframe
     df_paths['roi'] = ''
@@ -111,7 +111,6 @@ def get_paths_for_slides():
 
     # Import relevant libraries
     import os
-    import pandas as pd
 
     # Obtain the directory holding the subdirectories containing various types of plots (in this case, two types)
     # plots_dir = os.path.join(os.getcwd(), '..', 'results', 'webpage', 'slices_1x{}'.format(radius_in_microns), 'real')
@@ -123,11 +122,12 @@ def get_paths_for_slides():
 
     # List the contents of each directory
     slides_listing = os.listdir(slides_dir)
-    slides_listing = [y for y in slides_listing if '-patched.png' not in y]
+    slides_listing = [y for y in slides_listing if '-patched.' not in y]
     heatmaps_listing = os.listdir(heatmaps_dir)
 
     # Initialize an empty Pandas dataframe holding the full image pathnames where the index is the core slide name
-    df_paths = pd.DataFrame([x.rstrip('.png') for x in slides_listing], columns=['slide_name']).set_index('slide_name')
+    file_extension = os.path.splitext(slides_listing[0])[1]
+    df_paths = pd.DataFrame([os.path.splitext(x)[0] for x in slides_listing], columns=['slide_name']).set_index('slide_name')
 
     # Determine the filenames of each of the image types corresponding to each slide name
     corresp_slide_filename = []
@@ -137,7 +137,7 @@ def get_paths_for_slides():
         for slide_filename, heatmap_filename in zip(slides_listing, heatmaps_listing):
             if slide_name in slide_filename:
                 corresp_slide_filename.append(os.path.join(plots_dir, 'whole_slide_patches', slide_filename))
-                corresp_slide_filename_patched.append(os.path.join(plots_dir, 'whole_slide_patches', '{}-patched.png'.format(slide_filename.rstrip('.png'))))
+                corresp_slide_filename_patched.append(os.path.join(plots_dir, 'whole_slide_patches', '{}-patched{}'.format(os.path.splitext(slide_filename)[0], file_extension)))
             if slide_name in heatmap_filename:
                 corresp_heatmap_filename.append(os.path.join(plots_dir, 'dens_pvals_per_slide', heatmap_filename))
 
@@ -174,7 +174,6 @@ def get_overlay_info():
 
     # Import relevant libraries
     import os
-    import pandas as pd
 
     # Obtain the directory holding the subdirectory of interest
     # plots_dir = os.path.join(os.getcwd(), '..', 'results', 'webpage', 'slices_1x{}'.format(radius_in_microns), 'real')
@@ -210,7 +209,8 @@ def get_overlay_info():
     center_species.sort()
     neighbor_species = list(set([x.split('__')[2].removeprefix('neighbor_') for x in overlays_less_slide_name]))
     neighbor_species.sort()
-    pval_types = list(set([x.split('__')[3].removesuffix('_pvals.png') for x in overlays_less_slide_name]))
+    file_extension = os.path.splitext(overlays_less_slide_name[0])[1]
+    pval_types = list(set([x.split('__')[3].removesuffix(f'_pvals{file_extension}') for x in overlays_less_slide_name]))
     pval_types.sort()
 
     # Return the needed path and lists as a single dictionary
@@ -251,7 +251,7 @@ def detect_markers_in_annotation_files(selected_annotation_files):
     # Return the running list of markers in the annotation files
     return annotation_markers
 
-def validate_presets_and_map_to_settings(preset_settings, possible_phenotype_identification_files, possible_annotation_files, possible_phenotyping_methods, possible_significance_calculation_methods, options_for_images, message_function=print):
+def validate_presets_and_map_to_settings(preset_settings, possible_phenotype_identification_files, possible_annotation_files, possible_phenotyping_methods, possible_significance_calculation_methods, options_for_images, options_for_phenotypes, message_function=print):
 
     # Import relevant libraries
     import sys
@@ -300,11 +300,12 @@ def validate_presets_and_map_to_settings(preset_settings, possible_phenotype_ide
             settings['phenotyping']['phenotype_identification_file'] = validate_preset_setting(preset_settings, 'phenotyping', 'phenotype_identification_file', lambda x: isstr(x) and (x in possible_phenotype_identification_files), 'Value is not present in the "input" directory (present values are [{}])'.format(possible_phenotype_identification_files))
 
         # Validate the settings in the analysis (new format) section
-        settings['analysis']['images_to_analyze'] = validate_preset_setting(preset_settings, 'analysis', 'images_to_analyze', lambda x: islist(x) and (sum([(y in options_for_images) for y in x]) == len(x)), 'Value is not a list containing images that are present in the selected input datafile (options are {})'.format(options_for_images))
+        settings['analysis']['images_to_analyze'] = validate_preset_setting(preset_settings, 'analysis', 'images_to_analyze', lambda x: islist(x) and (sum([(y in options_for_images) for y in x]) == len(x)), 'Value is not a list containing images that are present in the input dataset (options are {})'.format(options_for_images))
         settings['analysis']['partition_slides_into_rois'] = validate_preset_setting(preset_settings, 'analysis', 'partition_slides_into_rois', lambda x: isbool(x), 'Value is not a boolean')
         if settings['analysis']['partition_slides_into_rois']:
             settings['analysis']['roi_width'] = validate_preset_setting(preset_settings, 'analysis', 'roi_width', lambda x: isnum(x) and (x > 0), 'Value is not a positive number')
             settings['analysis']['roi_overlap'] = validate_preset_setting(preset_settings, 'analysis', 'roi_overlap', lambda x: isnum(x), 'Value is not a number')
+        settings['analysis']['phenotypes_to_analyze'] = validate_preset_setting(preset_settings, 'analysis', 'phenotypes_to_analyze', lambda x: islist(x) and (sum([(y in options_for_phenotypes) for y in x]) == len(x)), 'Value is not a list containing phenotypes that are present in the input dataset (options are {})'.format(options_for_phenotypes))
         settings['analysis']['neighbor_radius'] = validate_preset_setting(preset_settings, 'analysis', 'neighbor_radius', lambda x: isnum(x) and (x > 0), 'Value is not a positive number')
         settings['analysis']['significance_calculation_method'] = validate_preset_setting(preset_settings, 'analysis', 'significance_calculation_method', lambda x: isstr(x) and (x in possible_significance_calculation_methods), 'Value is not an acceptable value (options are {})'.format(possible_significance_calculation_methods))
         settings['analysis']['n_neighs'] = validate_preset_setting(preset_settings, 'analysis', 'n_neighs', lambda x: isint(x) and (x >= 0), 'Value is not a non-negative integer')
@@ -325,6 +326,8 @@ def validate_presets_and_map_to_settings(preset_settings, possible_phenotype_ide
 
     # If the input settings file is in the original format...
     else:
+
+        print('WARNING: In the block in utils.py where it\'s assumed the input settings file is in the original format. This is old and e.g. lacks options_for_phenotypes being returned by streamlit_utils.get_updated_dynamic_options(input_directory) below, and elsewhere (options_for_phenotypes should mirror options_for_images).')
 
         # Extract the image and annotation file options
         options_for_images, possible_annotation_files = streamlit_utils.get_updated_dynamic_options(input_directory)
@@ -385,6 +388,8 @@ def get_first_element_or_none(options):
 # def get_settings_defaults(options_for_input_datafiles, options_for_phenotype_identification_files, options_for_annotation_files, options_for_input_datafile_formats, options_for_phenotyping_methods, options_for_significance_calculation_methods, options_for_markers_in_annotation_files, options_for_images):
 def get_settings_defaults(options_for_input_datafiles, options_for_phenotype_identification_files, options_for_annotation_files, options_for_input_datafile_formats, options_for_phenotyping_methods, options_for_significance_calculation_methods, options_for_images):
 
+    # At least as of 3/19/24, and likely much much earlier, this doesn't appear to be called from anywhere.
+
     # Initialize the dictionary holding the actual settings dictionary to be used in the workflow
     settings = dict()
     settings['input_datafile'], settings['phenotyping'], settings['analysis'], settings['annotation'] = dict(), dict(), dict(), dict()
@@ -424,7 +429,6 @@ def get_settings_defaults(options_for_input_datafiles, options_for_phenotype_ide
 def get_unique_image_ids_from_datafile(datafile_path):
 
     # Import relevant libraries
-    import pandas as pd
     import dataset_formats
 
     # Obtain the image number extraction parameters
@@ -510,6 +514,9 @@ def execute_data_parallelism_potentially(function=(lambda x: x), list_of_tuple_a
         use_multiprocessing = True
         if mp_start_method is None:
             mp_start_method = mp.get_start_method()
+        if mp_start_method == 'fork':
+            mp_start_method = 'forkserver'
+            print(f'Note: We are forcing the multiprocessing module to use the "forkserver" start method instead of the automatically (or manually) chosen "fork" start method.')
 
     # Record the start time
     if do_benchmarking:
@@ -517,7 +524,7 @@ def execute_data_parallelism_potentially(function=(lambda x: x), list_of_tuple_a
 
     # Farm out the function execution to multiple CPUs on different parts of the data
     if use_multiprocessing:
-        print('Running {} function calls using {} workers for the {}'.format(len(list_of_tuple_arguments), nworkers, task_description))
+        print('Running {} function calls using the "{}" protocol with {} workers for the {}'.format(len(list_of_tuple_arguments), mp_start_method, nworkers, task_description))
         with mp.get_context(mp_start_method).Pool(nworkers) as pool:
             pool.map(function, list_of_tuple_arguments)
 
@@ -746,7 +753,7 @@ def dataframe_insert_possibly_existing_column(df, column_position, column_name, 
 
     # If the column already exists, delete it from the dataframe
     if column_name in df.columns:
-        df.drop(columns=column_name)
+        df.drop(columns=column_name, inplace=True)
 
     # Insert the column at the desired position
     df.insert(column_position, column_name, srs_column_values)
@@ -790,3 +797,93 @@ def load_and_standardize_input_datafile(datafile_path_or_df, coord_units_in_micr
 
     # Return the processed dataset
     return dataset_obj
+
+def downcast_series_dtype(ser, frac_cutoff=0.05, number_cutoff=10):
+    """
+    Potentially convert a series to a more efficient datatype for our purposes.
+
+    Args:
+        ser (pandas.Series): The series to convert
+        frac_cutoff (float): The fraction cutoff for unique values (default: 0.05)
+        number_cutoff (int): The number cutoff for unique values (default: 10)
+
+    Returns:
+        pandas.Series: The potentially converted series
+    """
+
+    # Get the initial dtype
+    initial_dtype = ser.dtype
+
+    # Check if the series dtype is 'object'
+    if ser.dtype == 'object':
+        cutoff = frac_cutoff * len(ser)  # Calculate the cutoff based on the fraction of unique values
+    else:
+        cutoff = number_cutoff  # Use the number cutoff for non-object dtypes
+
+    # Check if the number of unique values is less than or equal to the cutoff
+    if ser.nunique() <= cutoff:
+        ser = ser.astype('category')  # Convert the series to the category data type
+
+    # Halve the precision of integers and floats
+    if ser.dtype == 'int64':
+        ser = ser.astype('int32')
+    elif ser.dtype == 'float64':
+        ser = ser.astype('float32')
+
+    # Get the final dtype
+    final_dtype = ser.dtype
+
+    # Print the result of the conversion
+    if initial_dtype != final_dtype:
+        print(f'Column {ser.name} was compressed from {initial_dtype} to {final_dtype}')
+    else:
+        print(f'Column {ser.name} remains as {final_dtype}')
+
+    # Return the converted series
+    return ser
+
+def downcast_dataframe_dtypes(df, also_return_final_size=False, frac_cutoff=0.05, number_cutoff=10):
+    """
+    Convert columns in a pandas DataFrame to the "category" data type if they have fewer than a specified percentage or number of unique values, in order to reduce memory usage.
+
+    Args:
+        df (pandas.DataFrame): The dataframe to convert.
+        also_return_final_size (bool, optional): Whether to return the final size of the dataframe after conversion. Defaults to False.
+        frac_cutoff (float, optional): The cutoff fraction for the number of unique values in a column to be considered for conversion. Defaults to 0.05.
+        number_cutoff (int, optional): The cutoff number for the number of unique values in a column to be considered for conversion. Defaults to 10.
+
+    Returns:
+        pandas.DataFrame or tuple: The dataframe with the specified columns converted to the category data type. If `also_return_final_size` is True, a tuple containing the dataframe and its final size in memory is returned.
+    """
+
+    # Print memory usage before conversion
+    original_memory = df.memory_usage(deep=True).sum()
+    print('----')
+    print('Memory usage before conversion: {:.2f} MB'.format(original_memory / 1024 ** 2))
+
+    # Potentially convert the columns to more efficient formats
+    for col in df.columns:
+        df[col] = downcast_series_dtype(df[col], frac_cutoff=frac_cutoff, number_cutoff=number_cutoff)
+
+    # Print memory usage after conversion
+    new_memory = df.memory_usage(deep=True).sum()
+    print('Memory usage after conversion: {:.2f} MB'.format(new_memory / 1024 ** 2))
+
+    # Print the percent reduction in memory footprint
+    percent_reduction = (original_memory - new_memory) / original_memory * 100
+    print('Percent reduction in memory footprint: {:.2f}%'.format(percent_reduction))
+
+    # Return the dataframe
+    if also_return_final_size:
+        return df, new_memory
+    else:
+        return df
+
+def memory_usage_in_mb():
+    # Use like: print(f"Memory usage: {memory_usage_in_mb()} MB")
+    import psutil
+    import os
+    pid = os.getpid()
+    process = psutil.Process(pid)
+    mem_info = process.memory_info()
+    return pid, mem_info.rss / (1024 * 1024)  # Convert bytes to MB

@@ -145,14 +145,14 @@ def main():
                     # If the columns are equal for all input files, concatenate all files into a single dataframe
                     if columns_equal:
                         sep = (',' if input_files[0].split('.')[-1] == 'csv' else '\t')
-                        st.session_state['unifier__df'] = pd.concat([pd.read_csv(os.path.join(directory, input_file), sep=sep) for input_file in input_files], ignore_index=True)
+                        st.session_state['unifier__df'] = utils.downcast_dataframe_dtypes(pd.concat([pd.read_csv(os.path.join(directory, input_file), sep=sep) for input_file in input_files], ignore_index=True))
 
                         # Save the setting used for this operation
                         st.session_state['unifier__input_files_actual'] = input_files
 
                 # Display a success message
                 if columns_equal:
-                    st.toast('Files combined successfully')
+                    st.success(f'{len(input_files)} files combined')
 
                 # Set a flag to update the dataframe sample at the bottom of the page
                 show_dataframe_updates = True
@@ -194,7 +194,7 @@ def main():
 
                         # Perform the operation
                         row_count_before = len(df)
-                        df = df.dropna(subset=st.session_state['unifier__columns_to_drop_rows_by']).reset_index(drop=True).convert_dtypes()
+                        df = df.dropna(subset=st.session_state['unifier__columns_to_drop_rows_by']).reset_index(drop=True)
                         row_count_after = len(df)
 
                         # Save this dataframe to memory
@@ -204,7 +204,7 @@ def main():
                         st.session_state['unifier__columns_to_drop_rows_by_actual'] = st.session_state['unifier__columns_to_drop_rows_by']
 
                     # Display a success message
-                    st.toast(f'{row_count_before - row_count_after} rows deleted successfully')
+                    st.success(f'{row_count_before - row_count_after} rows deleted')
 
                     # Set a flag to update the dataframe sample at the bottom of the page
                     show_dataframe_updates = True
@@ -237,15 +237,13 @@ def main():
 
                     # Perform the operation
                     subset_columns = st.session_state['unifier__columns_to_combine_to_uniquely_define_slides']
-                    unique_rows = df.drop_duplicates(subset=subset_columns)[subset_columns]
+                    unique_rows = df[subset_columns].drop_duplicates()
                     df_from = unique_rows.apply(lambda x: '__'.join(x.apply(str)), axis='columns')
                     df_to = unique_rows.apply(lambda x: '__'.join(x.apply(str).apply(lambda y: re.split(r'[/\\]', y)[-1])).replace(' ', '_').replace('.', '_'), axis='columns')
                     transformation = dict(zip(df_from, df_to))
                     df_subset = df[subset_columns]
-                    for column in subset_columns:
-                        if df_subset[column].dtype not in ['string', 'object']:
-                            df_subset[column] = df_subset[column].apply(str)
-                    utils.dataframe_insert_possibly_existing_column(df, 0, 'Image ID (standardized)', df_subset.apply(lambda x: transformation['__'.join(x)], axis='columns'))
+                    keys = df_subset.astype(str).apply('__'.join, axis='columns')
+                    utils.dataframe_insert_possibly_existing_column(df, 0, 'Image ID_(standardized)', utils.downcast_series_dtype(keys.map(transformation)))
 
                     # Save this dataframe to memory
                     st.session_state['unifier__df'] = df
@@ -254,7 +252,7 @@ def main():
                     st.session_state['unifier__columns_to_combine_to_uniquely_define_slides_actual'] = subset_columns
 
                 # Display a success message
-                st.toast('Columns combined into a "Image ID (standardized)" column successfully')
+                st.success('Columns combined into a "Image ID_(standardized)" column')
 
                 # Set a flag to update the dataframe sample at the bottom of the page
                 show_dataframe_updates = True
@@ -295,13 +293,13 @@ def main():
 
                     # Perform the operation
                     if st.session_state['unifier__roi_explicitly_defined']:
-                        utils.dataframe_insert_possibly_existing_column(df, 1, 'ROI ID (standardized)', df[st.session_state['unifier__roi_column']])
-                        toast_message = '"ROI ID (standardized)" column created successfully'
+                        utils.dataframe_insert_possibly_existing_column(df, 1, 'ROI ID_(standardized)', utils.downcast_series_dtype(df[st.session_state['unifier__roi_column']]))
+                        success_message = '"ROI ID_(standardized)" column added or updated'
                         num_roi_columns = 1
                     else:
-                        if 'ROI ID (standardized)' in df.columns:
-                            del df['ROI ID (standardized)']
-                        toast_message = 'We have successfully ensured that the "ROI ID (standardized)" column is not present in the dataset'
+                        if 'ROI ID_(standardized)' in df.columns:
+                            del df['ROI ID_(standardized)']
+                        success_message = 'We have ensured that the "ROI ID_(standardized)" column is not present in the dataset'
                         num_roi_columns = 0
 
                     # Save this dataframe to memory
@@ -314,7 +312,7 @@ def main():
                     st.session_state['unifier__num_roi_columns_actual'] = num_roi_columns
 
                 # Display a success message
-                st.toast(toast_message)
+                st.success(success_message)
 
                 # Set a flag to update the dataframe sample at the bottom of the page
                 show_dataframe_updates = True
@@ -348,7 +346,7 @@ def main():
             with smallest_columns[1]:
                 if 'unifier__microns_per_coordinate_unit' not in st.session_state:
                     st.session_state['unifier__microns_per_coordinate_unit'] = 1.0
-                st.number_input('Enter the number of microns per coordinate unit in the columns below:', key='unifier__microns_per_coordinate_unit')
+                st.number_input('Enter the number of microns per coordinate unit in the columns below:', key='unifier__microns_per_coordinate_unit', min_value=0.0, format='%.4f', step=0.0001)
             if st.session_state['unifier__number_of_coordinate_columns'] == coordinate_options[0]:
                 if 'unifier__x_coordinate_column' not in st.session_state:
                     st.session_state['unifier__x_coordinate_column'] = df_numeric_columns[0]
@@ -393,8 +391,8 @@ def main():
                         centroid_y = (df[st.session_state['unifier__y_min_coordinate_column']] + df[st.session_state['unifier__y_max_coordinate_column']]) / 2
                     centroid_x = centroid_x * st.session_state['unifier__microns_per_coordinate_unit']
                     centroid_y = centroid_y * st.session_state['unifier__microns_per_coordinate_unit']
-                    utils.dataframe_insert_possibly_existing_column(df, st.session_state['unifier__num_roi_columns_actual'] + 1, 'Centroid X (µm) (standardized)', (centroid_x / 0.2).round() * 0.2)  # round to the nearest 0.2 microns, which is also assumed in the appropriate class in dataset_formats.py
-                    utils.dataframe_insert_possibly_existing_column(df, st.session_state['unifier__num_roi_columns_actual'] + 2, 'Centroid Y (µm) (standardized)', (centroid_y / 0.2).round() * 0.2)
+                    utils.dataframe_insert_possibly_existing_column(df, st.session_state['unifier__num_roi_columns_actual'] + 1, 'Centroid X (µm)_(standardized)', utils.downcast_series_dtype((centroid_x / 0.2).round() * 0.2))  # round to the nearest 0.2 microns, which is also assumed in the appropriate class in dataset_formats.py. If we ever want to change this, search for 0.2 in the codebase, I think there may be three files where it's currently hardcoded
+                    utils.dataframe_insert_possibly_existing_column(df, st.session_state['unifier__num_roi_columns_actual'] + 2, 'Centroid Y (µm)_(standardized)', utils.downcast_series_dtype((centroid_y / 0.2).round() * 0.2))
 
                     # Save this dataframe to memory
                     st.session_state['unifier__df'] = df
@@ -412,7 +410,7 @@ def main():
                         st.session_state['unifier__y_max_coordinate_column_actual'] = st.session_state['unifier__y_max_coordinate_column']
 
                 # Display a success message
-                st.toast('Coordinate columns created successfully')
+                st.success('Two coordinate centroid columns added or updated')
 
                 # Set a flag to update the dataframe sample at the bottom of the page
                 show_dataframe_updates = True
@@ -459,7 +457,9 @@ def main():
                 if st.session_state['unifier__phenotyping_specification_format'] == phenotyping_specification_formats[0]:
                     if 'unifier__phenotype_columns' not in st.session_state:
                         st.session_state['unifier__phenotype_columns'] = []
-                    st.multiselect('Select the columns that correspond to the phenotypes:', df.columns, key='unifier__phenotype_columns')
+                    if 'unifier__binary_column_names' not in st.session_state:
+                        st.session_state['unifier__binary_column_names'] = [column for column in df.columns if df[column].nunique() <= 2]
+                    st.multiselect('Select the columns that correspond to the phenotypes:', st.session_state['unifier__binary_column_names'], key='unifier__phenotype_columns')
                 else:
                     if 'unifier__phenotype_column' not in st.session_state:
                         st.session_state['unifier__phenotype_column'] = df.columns[0]
@@ -479,6 +479,8 @@ def main():
                         else:
                             # st.session_state['unifier__df_phenotypes'] = df[st.session_state['unifier__phenotype_column']].str.get_dummies(sep=': ')
                             st.session_state['unifier__df_phenotypes'] = df[st.session_state['unifier__phenotype_column']].str.get_dummies(sep=': ').drop(columns='Other')
+                        if 'unifier__de_phenotype_names' in st.session_state:
+                            del st.session_state['unifier__de_phenotype_names']
 
                         # Save the settings used for this operation
                         st.session_state['unifier__phenotyping_specification_format_actual'] = st.session_state['unifier__phenotyping_specification_format']
@@ -488,7 +490,7 @@ def main():
                             st.session_state['unifier__phenotype_column_actual'] = st.session_state['unifier__phenotype_column']
 
                     # Display a success message
-                    st.toast('Phenotype columns extracted successfully')
+                    st.success(f'{st.session_state["unifier__df_phenotypes"].shape[1]} phenotype columns extracted')
 
                 # If the selected columns to define phenotypes have changed since the last time phenotypes were defined, display a warning
                 display_warning = False
@@ -518,7 +520,7 @@ def main():
                     st.session_state['unifier__de_phenotype_names'].dataframe_editor(reset_data_editor_button_text='Reset phenotype names', column_config=column_config)
 
                     # Create a button to rename the phenotypes
-                    if st.button(':star2: Rename phenotypes :star2:'):
+                    if st.button(':star2: Assign phenotypes :star2:'):
 
                         # Render a progress spinner while the phenotypes are being renamed
                         with st.spinner('Renaming phenotypes...'):
@@ -536,12 +538,12 @@ def main():
                             if renamed_phenotypes:
                                 st.info(f'These phenotype transformations were made to avoid "+" and "-" characters: {renamed_phenotypes}')
 
-                            # Prepend "Phenotype (standardized) " to the column names
-                            df_phenotypes.columns = ['Phenotype (standardized) ' + column for column in df_phenotypes.columns]
+                            # Prepend "Phenotype_(standardized) " to the column names
+                            df_phenotypes.columns = ['Phenotype_(standardized) ' + column for column in df_phenotypes.columns]
 
                             # Add each phenotype column to the main dataframe, starting with position st.session_state['unifier__num_roi_columns_actual'] + 3
                             for icolumn, column in enumerate(df_phenotypes.columns):
-                                utils.dataframe_insert_possibly_existing_column(df, st.session_state['unifier__num_roi_columns_actual'] + 3 + icolumn, column, df_phenotypes[column])
+                                utils.dataframe_insert_possibly_existing_column(df, st.session_state['unifier__num_roi_columns_actual'] + 3 + icolumn, column, utils.downcast_series_dtype(df_phenotypes[column]))
 
                             # Save this dataframe to memory
                             st.session_state['unifier__df'] = df
@@ -551,14 +553,17 @@ def main():
                             # st.session_state['unifier__df_phenotype_names_actual'] = df_phenotype_names
 
                         # Display a success message
-                        st.toast(f'{df_phenotypes.shape[1]} phenotype columns added to the main dataframe successfully')
+                        st.success(f'{df_phenotypes.shape[1]} phenotype columns added or updated in the main dataframe')
 
-                    # Set a flag to update the dataframe sample at the bottom of the page
-                    show_dataframe_updates = True
+                        # Set a flag to update the dataframe sample at the bottom of the page
+                        show_dataframe_updates = True
 
                 # Get a shortcut to the concatenated dataframe
                 df = st.session_state['unifier__df']
 
+        # Create a divider
+        st.divider()
+        
         # Split the page into three main columns again
         main_columns = st.columns(3)
 
@@ -568,36 +573,54 @@ def main():
             # ---- 7. Save the dataframe to a CSV file --------------------------------------------------------------------------------------------------------------------------------
 
             # Display a header for the save dataframe section
-            st.header(':seven: Save the dataframe to the `input` directory')
+            st.header('(Optional) :seven: Save the dataframe to the `input` directory')
 
-            # Create an input text box for the custom text to be added to the filename
-            if 'unifier__custom_text_for_output_filename' not in st.session_state:
-                st.session_state['unifier__custom_text_for_output_filename'] = ''
-            custom_text = st.text_input('Enter custom text for the filename (optional):', key='unifier__custom_text_for_output_filename')
+            with st.expander('(Optional) Click to expand:', expanded=False):
 
-            # Remove any whitespace from the custom text
-            custom_text = custom_text.replace(' ', '_')
+                # Create an input text box for the custom text to be added to the filename
+                if 'unifier__custom_text_for_output_filename' not in st.session_state:
+                    st.session_state['unifier__custom_text_for_output_filename'] = 'files_1_and_3'
+                custom_text = st.text_input('Enter custom text for the basename of the filename (optional):', key='unifier__custom_text_for_output_filename')
 
-            # Generate the filename
-            filename = f'mawa-unified_datafile-{custom_text}-{datetime.now().strftime("date%Y_%m_%d_time%H_%M_%S")}.csv'
+                # Remove any whitespace from the custom text
+                custom_text = custom_text.replace(' ', '_')
 
-            # Create a button to save the dataframe to a CSV file
-            if st.button(':star2: Save dataframe to CSV :star2:'):
+                # Generate the filename
+                filename = f'mawa-unified_datafile-{custom_text}-{datetime.now().strftime("date%Y_%m_%d_time%H_%M_%S")}.csv'
 
-                # Create the full file path
-                file_path = os.path.join('.', 'input', filename)
+                # Create a button to save the dataframe to a CSV file
+                if st.button(':star2: Save dataframe to CSV :star2:'):
 
-                # Render a progress spinner while the dataframe is being saved to a CSV file
-                with st.spinner('Saving dataframe to CSV...'):
+                    # Create the full file path
+                    file_path = os.path.join('.', 'input', filename)
 
-                    # Save the dataframe to a CSV file
-                    df.to_csv(file_path, index=False)
+                    # Render a progress spinner while the dataframe is being saved to a CSV file
+                    with st.spinner('Saving dataframe to CSV...'):
 
-                # Display a success message
-                st.toast(f'The dataframe has been saved to {file_path}')
+                        # Save the dataframe to a CSV file
+                        df.to_csv(file_path, index=False)
 
-        # Output a sample of the concatenated dataframe
+                    # Display a success message
+                    st.success(f'The dataframe has been saved to {file_path}')
+
+        # Add a divider
         st.divider()
+
+        # Display the information and the sampled dataframe
+        if show_dataframe_updates:  # only calculate when a significant change occurs in the app
+            st.session_state['unifier__main_df_usage_mb'] = df.memory_usage(deep=True).sum() / 1024 ** 2  # store the memory usage of the dataframe in the session state
+        usage_str = f'{st.session_state["unifier__main_df_usage_mb"]:.2f} MB' if 'unifier__main_df_usage_mb' in st.session_state else 'Not yet calculated'
+        information = f'''
+        Loaded dataset properties:
+
+        :small_orange_diamond: Number of rows: `{df.shape[0]}`  
+        :small_orange_diamond: Number of columns: `{df.shape[1]}`  
+        :small_orange_diamond: Coordinate units: `{st.session_state['unifier__microns_per_coordinate_unit'] if 'unifier__microns_per_coordinate_unit' in st.session_state else None} microns/coord`  
+        :small_orange_diamond: Loaded memory usage: `{usage_str}`
+        '''
+        st.markdown(information)
+    
+        # Output a sample of the concatenated dataframe
         st.header('Sample of unified dataframe')
         resample_dataframe = st.button('Refresh dataframe sample')
         if ('sampled_df' not in st.session_state) or resample_dataframe or show_dataframe_updates:
@@ -605,7 +628,7 @@ def main():
             st.session_state['sampled_df'] = sampled_df
         sampled_df = st.session_state['sampled_df']
         st.write(sampled_df)
-        st.write('The full combined dataframe has {} rows and {} columns.'.format(df.shape[0], df.shape[1]))
+        st.dataframe(pd.DataFrame(st.session_state['unifier__input_files_actual'], columns=["Input files included in the combined dataset"]), hide_index=True)
 
     # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
     st.session_state = sde.finalize_session_state(st.session_state)

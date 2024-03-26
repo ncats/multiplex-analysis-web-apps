@@ -154,7 +154,7 @@ def add_new_phenotypes_to_main_df(df, image_for_filtering):
 
                 # Set the booleans if the boolean column filter is categorical (values = [items])
                 else:
-                    column_filter_bools = df[column].apply(lambda x: x in values[0])
+                    column_filter_bools = df[column].apply(lambda x: x in values[0]).astype('bool')
                     print('  Column #{} (categorical): {}'.format(ifilter_col + 1, column))
                     print('    items: {}'.format(values[0]))
 
@@ -186,7 +186,11 @@ def add_new_phenotypes_to_main_df(df, image_for_filtering):
             st.info(f'These phenotype transformations were made to avoid "+" and "-" characters: {phenotype_name_changes}')
 
         # Save the gating table to disk
-        gating_filename = 'gating_table_for_{}_for_datafile_{}-{}.csv'.format(filtering_section_name, os.path.splitext(os.path.basename(st.session_state['input_metadata']['datafile_path']))[0], datetime.now().strftime("date%Y_%m_%d_time%H_%M_%S"))
+        if st.session_state['input_metadata']['datafile_path'] is not None:
+            datafile_name = os.path.splitext(os.path.basename(st.session_state['input_metadata']['datafile_path']))[0]
+        else:
+            datafile_name = 'from_memory'
+        gating_filename = 'gating_table_for_{}_for_datafile_{}-{}.csv'.format(filtering_section_name, datafile_name, datetime.now().strftime("date%Y_%m_%d_time%H_%M_%S"))
         df_phenotype_assignments.to_csv(path_or_buf=os.path.join(os.path.join('.', 'output'), gating_filename), index=True)
         st.info('File {} written to disk'.format(gating_filename))
 
@@ -233,7 +237,7 @@ def basic_filter_column_updates():
 
 # Delete specified columns in the main dataframe
 def delete_all_gated_phenotypes(new_phenotypes=[]):
-    st.session_state['mg__df'] = st.session_state['mg__df'].drop(columns=new_phenotypes)
+    st.session_state['mg__df'].drop(columns=new_phenotypes, inplace=True)
 
 # Perform simple Z score normalization
 def z_score_normalize(df, numeric_columns):
@@ -270,16 +274,6 @@ def main():
     '''
     Main function for running the page
     '''
-
-    # Set page settings
-    st.set_page_config(layout='wide', page_title='Manual Phenotyping on Raw Intensities')
-    st.title('Manual Phenotyping on Raw Intensities')
-
-    # Run streamlit-dataframe-editor library initialization tasks at the top of the page
-    st.session_state = sde.initialize_session_state(st.session_state)
-
-    # Run Top of Page (TOP) functions
-    st.session_state = top.top_of_page_reqs(st.session_state)
 
     # If 'input_dataset' isn't in the session state, print an error message and return
     if 'input_dataset' not in st.session_state:
@@ -341,7 +335,7 @@ def main():
                     st.session_state['mg__unique_images_short'] = ['-'.join(x.split('-')[1:]) for x in unique_images]
                     st.session_state['mg__unique_image_dict'] = dict(zip(st.session_state['mg__unique_images_short'], unique_images))
                     phenotype_columns = [column for column in st.session_state['mg__df'].columns if column.startswith('Phenotype ')]
-                    st.session_state['mg__df'] = st.session_state['mg__df'].rename(columns=dict(zip(phenotype_columns, [column.replace('Phenotype ', 'Phenotype_orig ') for column in phenotype_columns])))
+                    st.session_state['mg__df'].rename(columns=dict(zip(phenotype_columns, [column.replace('Phenotype ', 'Phenotype_orig ') for column in phenotype_columns])), inplace=True)
 
                     srs_integer_columns = st.session_state['mg__df'].select_dtypes(include=['integer']).columns.to_series()
                     categorical_integer_columns = srs_integer_columns.loc[pd.Index([len(st.session_state['mg__df'][int_column].unique()) <= num_categorical_values_cutoff for int_column in srs_integer_columns])].to_list()
@@ -352,7 +346,7 @@ def main():
                     
         # Warn the user that they need to load the data at least once
         if 'mg__df' not in st.session_state:
-            st.warning('Please load data from the selections above')
+            st.warning('Please load data from the selections above.')
 
     # If the data have been loaded...
     if 'mg__df' in st.session_state:
@@ -448,7 +442,7 @@ def main():
                 if st.session_state['mg__selected_column_type'] == 'numeric':
 
                     # Draw a range slider widget for selecting the range min and max
-                    st.slider(label='Selected value range:', min_value=column_range[0], max_value=column_range[1], key='mg__selected_value_range')
+                    st.slider(label='Selected value range:', min_value=float(column_range[0]), max_value=float(column_range[1]), key='mg__selected_value_range')
                     selected_min_val, selected_max_val = st.session_state['mg__selected_value_range']
 
                     # Create a view of the full dataframe that is the selected subset
@@ -625,9 +619,20 @@ def main():
                     fig.update_xaxes(scaleanchor='y')
                     st.plotly_chart(fig)
 
-    # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
-    st.session_state = sde.finalize_session_state(st.session_state)
-
 # Call the main function
 if __name__ == '__main__':
+
+    # Set page settings
+    st.set_page_config(layout='wide', page_title='Manual Phenotyping on Raw Intensities')
+    st.title('Manual Phenotyping on Raw Intensities')
+
+    # Run streamlit-dataframe-editor library initialization tasks at the top of the page
+    st.session_state = sde.initialize_session_state(st.session_state)
+
+    # Run Top of Page (TOP) functions
+    st.session_state = top.top_of_page_reqs(st.session_state)
+
     main()
+
+    # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
+    st.session_state = sde.finalize_session_state(st.session_state)

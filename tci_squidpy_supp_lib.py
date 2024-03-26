@@ -1,3 +1,5 @@
+save_image_ext = 'jpg'
+
 def get_anndata_object(coordinates=None, labels=None, seed=None, label_name='label'):
     """Obtain an AnnData object from a set of spatial coordinates and labels.
 
@@ -191,8 +193,8 @@ def calculate_squidpy_pvals(coordinates=None, labels=None, seed=None, label_name
 
     # Determine the directory and/or basename prefix if it's desired that the scatter plot and heatmap be saved
     if image_path_prefix is not None:
-        scatter_image_pathname = '{}scatter.png'.format(image_path_prefix)
-        heatmap_image_pathname = '{}heatmap.png'.format(image_path_prefix)
+        scatter_image_pathname = '{}scatter.{}'.format(image_path_prefix, save_image_ext)
+        heatmap_image_pathname = '{}heatmap.{}'.format(image_path_prefix, save_image_ext)
     else:
         scatter_image_pathname = None
         heatmap_image_pathname = None

@@ -3,6 +3,7 @@
 import utils
 
 def reorder_column_in_dataframe(df, column_name, new_position):
+    # Note that in this function df is modified in place!
     if column_name not in df.columns:
         print(f"Warning: Column '{column_name}' does not exist in the dataframe.")
         return df
@@ -31,12 +32,12 @@ def extract_datafile_metadata(datafile_path_or_df):
         columns_list = pd.read_csv(datafile_path_or_df, nrows=0, sep=sep).columns.to_list()
 
     # If the file is in the format standardized in the dataset unifier app...
-    if 'Image ID (standardized)' in columns_list:
+    if 'Image ID_(standardized)' in columns_list:
         file_format = 'Standardized'
-        image_column_str = 'Image ID (standardized)'
-        marker_prefix = 'Phenotype (standardized) '
+        image_column_str = 'Image ID_(standardized)'
+        marker_prefix = 'Phenotype_(standardized) '
         marker_cols = [x for x in columns_list if x.startswith(marker_prefix)]
-        coord_cols = ['Centroid X (µm) (standardized)', 'Centroid Y (µm) (standardized)']
+        coord_cols = ['Centroid X (µm)_(standardized)', 'Centroid Y (µm)_(standardized)']
         image_string_processing_func = lambda x: x
         marker_suffix = None
         markers = None
@@ -191,7 +192,7 @@ class Native:
     I should dig up the email/conversation/notes in which Houssein told us the units of the original input datafile were half-microns.
     """
 
-    def __init__(self, datafile_path_or_df, coord_units_in_microns, images_to_analyze=None, min_coord_spacing=None, species_equivalents={}, mapping_dict={}, roi_width=None, overlap=0, phenotype_identification_tsv_file=None, extra_cols_to_keep=None):
+    def __init__(self, datafile_path_or_df, coord_units_in_microns, images_to_analyze=None, phenotypes_to_analyze=None, min_coord_spacing=None, species_equivalents={}, mapping_dict={}, roi_width=None, overlap=0, phenotype_identification_tsv_file=None, extra_cols_to_keep=None):
         """Object initialization, which just consists of reading in the data from the datafile
 
         Args:
@@ -209,14 +210,15 @@ class Native:
             Spatial analysis dataset object.
         """
         self.images_to_analyze = images_to_analyze
+        self.phenotypes_to_analyze = phenotypes_to_analyze
         if isinstance(datafile_path_or_df, str):  # reading in from a file (original case)
             self.input_datafile = datafile_path_or_df
             self.sep = (',' if datafile_path_or_df.split('.')[-1] == 'csv' else '\t')
             self.data = self.read_datafile()
         else:  # reading in from memory (new case)
-            self.input_datafile = datafile_path_or_df
+            self.data = datafile_path_or_df.copy()  # making a copy here because that is what the user actually intends, e.g., if they want to go back and reassign to the unified dataframe, we want it to be the *originally* unified dataframe
+            self.input_datafile = self.data
             self.sep = None
-            self.data = datafile_path_or_df
         self.coord_units_in_microns = coord_units_in_microns
         self.min_coord_spacing_ = min_coord_spacing
         self.species_equivalents = species_equivalents
@@ -244,7 +246,7 @@ class Native:
 
         # Import the text file using Pandas
         if os.path.exists(input_datafile):
-            df = pd.read_csv(input_datafile, sep=sep)
+            df = utils.downcast_dataframe_dtypes(pd.read_csv(input_datafile, sep=sep))
             if images_to_analyze is None:  # if this is unset, choose all images in the dataset (i.e., effectively do not filter)
                 print('Text file "{}" with separator "{}" has been successfully read (no image filtering has been performed)'.format(input_datafile, sep))
             else:
@@ -884,7 +886,7 @@ class Ultivue(Native):
 
         # Define the phenotypes of interest in the input dataset
         _, _, _, _, _, markers = extract_datafile_metadata(input_datafile)
-        phenotype_columns = 'pheno_20230327_152849'
+        phenotype_columns = 'pheno_20230327_152849'  # this is not a great hardcode but we will use the unifier going forward anyway
 
         phenotype_unique = df[phenotype_columns].unique()
         # Rename the phenotype columns so that they are prepended with "Phenotype "
@@ -1151,7 +1153,7 @@ class Standardized(Native):
         """
 
         # Determine the series holding the image IDs
-        srs_imagenum = self.data['Image ID (standardized)']
+        srs_imagenum = self.data['Image ID_(standardized)']
 
         # Get the unique image names
         unique_images = srs_imagenum.unique()
@@ -1160,7 +1162,7 @@ class Standardized(Native):
         mapper = dict(zip(unique_images, [x + 1 for x in range(len(unique_images))]))
 
         # Attribute assignments
-        utils.dataframe_insert_possibly_existing_column(self.data, 0, 'Slide ID', srs_imagenum.apply(lambda x: '{}A-{}'.format(mapper[x], x)))
+        utils.dataframe_insert_possibly_existing_column(self.data, 0, 'Slide ID', utils.downcast_series_dtype(srs_imagenum.apply(lambda x: '{}A-{}'.format(mapper[x], x))))
 
     def adhere_to_tag_format(self):
         """Ensure the "tag" column of the data conforms to the required format.
@@ -1181,12 +1183,15 @@ class Standardized(Native):
         func_microns_to_pixels = lambda x: int(x / min_coord_spacing)
 
         # Either patch up the dataset into ROIs and assign the ROI ("tag") column accordingly, or don't and assign the ROI column accordingly
-        if 'ROI ID (standardized)' in df.columns:
-            # df['tag'] = df['ROI ID (standardized)']
-            utils.dataframe_insert_possibly_existing_column(df, 1, 'tag', df['ROI ID (standardized)'])
+        if 'ROI ID_(standardized)' in df.columns:
+            # df['tag'] = df['ROI ID_(standardized)']
+            utils.dataframe_insert_possibly_existing_column(df, 1, 'tag', df['ROI ID_(standardized)'])
         else:
             df = potentially_apply_patching(df, input_datafile, roi_width, overlap, func_coords_to_pixels, func_microns_to_pixels)
             df = reorder_column_in_dataframe(df, 'tag', 1)
+
+        # Downcast ROI ID column, 'tag'
+        df['tag'] = utils.downcast_series_dtype(df['tag'])
 
         # Overwrite the original dataframe with the one having the appended ROI column (I'd imagine this line is unnecessary)
         self.data = df
@@ -1200,8 +1205,8 @@ class Standardized(Native):
         df = self.data
 
         # Create the new columns for the x- and y-coordinates
-        utils.dataframe_insert_possibly_existing_column(df, 2, 'Cell X Position', df['Centroid X (µm) (standardized)'])
-        utils.dataframe_insert_possibly_existing_column(df, 3, 'Cell Y Position', df['Centroid Y (µm) (standardized)'])
+        utils.dataframe_insert_possibly_existing_column(df, 2, 'Cell X Position', utils.downcast_series_dtype(df['Centroid X (µm)_(standardized)']))
+        utils.dataframe_insert_possibly_existing_column(df, 3, 'Cell Y Position', utils.downcast_series_dtype(df['Centroid Y (µm)_(standardized)']))
 
         # Attribute assignments from variables
         self.data = df
@@ -1211,6 +1216,9 @@ class Standardized(Native):
         """Ensure the "Phenotype XXXX" columns of the data conform to the required format
         """
 
+        # Import relevant library
+        import pandas as pd
+
         # Variable definitions from attributes
         df = self.data
         input_datafile = self.input_datafile
@@ -1218,16 +1226,28 @@ class Standardized(Native):
         # Define the phenotypes of interest in the input dataset
         _, _, _, _, _, phenotype_columns = extract_datafile_metadata(input_datafile)  # phenotype_columns are the actual marker names
 
-        # Rename the phenotype columns so that they are prepended with "Phenotype "
-        df = df.rename(dict(zip(phenotype_columns, ['Phenotype {}'.format(x.strip()) for x in phenotype_columns])), axis='columns')
+        # Since we're about to indicate the phenotypes of interest by columns that start with "Phenotype ", first detect and rename any columns that already start with "Phenotype "
+        # I.e., rename "Phenotype AA" to "Phenotype_renamed_in_dataset_formats_py AA"
+        prefix = 'Phenotype '
+        phenotype_columns_to_rename = [column for column in df.columns if column.startswith(prefix) and not column.startswith('Phenotype_(standardized) ')]
+        for col in phenotype_columns_to_rename:
+            df = df.rename(columns={col: 'Phenotype_renamed_in_dataset_formats_py ' + col[len(prefix):]})
 
-        # For each phenotype column, convert to -'s and +'s
-        for icolumn, col in enumerate(df.filter(regex='^Phenotype\ ')):
-            df[col] = df[col].apply(lambda x: x[-1] if isinstance(x, str) else '-' if x == 0 else '+')
+        # Rename the phenotype columns so that they are prepended with "Phenotype "
+        # I.e., go from a df with columns like 'Phenotype_(standardized) AA' to one with both that column and another one with the same data but named 'Phenotype AA'
+        transformation = dict(zip(['Phenotype_(standardized) {}'.format(x.strip()) for x in phenotype_columns], ['Phenotype {}'.format(x.strip()) for x in phenotype_columns]))
+        df_phenotype_cols = df[[column for column in df.columns if column.startswith('Phenotype_(standardized) ')]]  # this creates a copy of the "Phenotype_(standardized) " columns as a new dataframe
+        self.data = pd.concat([df, df_phenotype_cols.rename(columns=transformation)], axis='columns')  # this concatenates the original dataframe with the phenotype columns named like 'Phenotype AA' and assigns it back to the original dataframe
+        df = self.data  # we must do it in two steps because Pandas doesn't want to overwrite the originally referenced data (i.e., self.data) in the assignment in the previous line, in order to prevent unexpected side effects. I suppose this makes sense, i.e., df = df_stored; df = df_new should not replace df_stored with df_new
+
+        # In each new "Phenotype " (not "Phenotype_(standardized) ") column, convert to -'s and +'s
+        phenotype_cols_without_standardized = [col for col in df.columns if col.startswith('Phenotype ') and not col.startswith('Phenotype_(standardized) ')]
+        for icolumn, col in enumerate(phenotype_cols_without_standardized):
+            df[col] = utils.downcast_series_dtype(df[col].apply(lambda x: x[-1] if isinstance(x, str) else '-' if x == 0 else '+'))
             df = reorder_column_in_dataframe(df, col, 4 + icolumn)
 
-        # Attribute assignments from variables
-        self.data = df
+        # Attribute assignments from variables. This is completely unnecessary, and am leaving it commented out for posterity for now
+        # self.data = df
 
     def calculate_minimum_coordinate_spacing(self):
         """Calculate the minimum spacing (aside from zero) in the data coordinates after conversion to microns. Not sure this is ever used anymore.
@@ -1582,6 +1602,13 @@ def potentially_apply_patching(df, input_datafile_or_coord_cols_or_df, roi_width
     # Determine the unique slides in the dataset
     unique_slides = slide_id.unique()
 
+    # Check whether the dtype of df['tag'] is category, and if so, cast to "object"
+    doing_casting = False
+    if 'tag' in df.columns and df['tag'].dtype.name == 'category':
+        print('Casting "tag" column from "category" to "object"')
+        doing_casting = True
+        df['tag'] = df['tag'].astype('object')
+
     # For each slide...
     for unique_slide in unique_slides:
 
@@ -1596,7 +1623,7 @@ def potentially_apply_patching(df, input_datafile_or_coord_cols_or_df, roi_width
         if roi_width is None:  # i.e., if we don't want to do any patching
             print('No patching will be done')
             XMin, XMax, YMin, YMax, _, _ = get_coord_descriptors(curr_df, coord_cols)
-            df.loc[curr_loc, 'tag'] = curr_df['Slide ID'] + '_roi_' + '[{},{}]'.format(int((XMin.min() + XMax.max()) / 2 + 0.5), int((YMin.min() + YMax.max()) / 2 + 0.5))  # populate the "tag" column with the slide ID appended with the coordinate centroids
+            df.loc[curr_loc, 'tag'] = curr_df['Slide ID'].astype(str) + '_roi_' + '[{},{}]'.format(int((XMin.min() + XMax.max()) / 2 + 0.5), int((YMin.min() + YMax.max()) / 2 + 0.5))  # populate the "tag" column with the slide ID appended with the coordinate centroids
         else:
             print('Patching will be performed...')
             curr_df[coord_cols] = func_coords_to_pixels(curr_df[coord_cols])
@@ -1617,37 +1644,40 @@ def potentially_apply_patching(df, input_datafile_or_coord_cols_or_df, roi_width
         # Print the length of the new dataframe
         print('Length of duplicated dataframe: {}'.format(len(df)))
 
-    # # Sort the data by slide and then by ROI
-    # df = df.sort_values(by=['Slide ID', 'tag']).reset_index(drop=True)  # adding .reset_index(drop=True) to just *make sure* the SIP code in general doesn't assume the data index is already in sorted order
+    # Potentially cast the "tag" column back to category
+    if doing_casting:
+        df['tag'] = utils.downcast_series_dtype(df['tag'])
 
     return df
 
 def delete_rois_with_single_coord(df):
-    """Delete any ROIs that contain only a single spatial coordinate, regardless of whether the objects are compound species or if there are simply different species located as the same coordinate
+    """Delete any ROIs that contain only a single spatial coordinate (i.e., 0D ROIs), regardless of whether the objects are compound species or if there are simply different species located as the same coordinate.
 
-    In hindsight I should have also eliminated 1D ROIs instead of only 0D ROIs as I do here. I do this later though in time_cell_interaction_lib.py.
+    No unique coordinates: The ROI doesn't exist at all and this probably shouldn't occur
+    One unique coordinate: The ROI is 0D
+    Two unique coordinates: The ROI is 1D
+    Three or more unique coordinates: The ROI is 1D or 2D depending on colinearity of the points
+
+    It technically doesn't make much sense to delete 1D ROIs as we do later in time_cell_interaction_lib.py (though *practically*, it's probably reasonable). That's because we *generally* want to get results that are rotationally invariant. E.g., if the coordinates were in a line, then we'd want to keep the ROI, even though it if the line were along the x- or y-axis, the ROI would appear to have zero area. This might be solved by no longer defining a ROI based on the their span in the x- and y-directions and instead defining it independent of the cell locations themselves. However, the drawback to that is that we'd need to determine a reasonable way to do this which isn't trivial because then we could artificially create empty space which would skew the results. So doing it the way we do it is probably still quite a reasonable way to go.
     """
 
-    # Obtain just the phenotype columns and get the number of phenotypes
-    df_phenotypes = df.filter(regex='^Phenotype\ ')
-    num_phenotypes = df_phenotypes.shape[1]
+    # Obtain just the phenotype columns
+    df_phenotypes = df[df.columns[df.columns.str.startswith('Phenotype ')]]
 
     # Delete empty objects
-    df_pared = df[df_phenotypes.apply(lambda x: ''.join(x), axis='columns') != '-' * num_phenotypes]
+    df_pared = df[(df_phenotypes != '-').any(axis='columns')]
 
-    # Get a Series containing the number of unique coordinates in every ROI, in which we first group by ROI and coordinates, and then group by just ROI, counting the number of unique coordinates within
-    num_unique_coords_per_roi = df_pared.groupby(by=['tag', 'Cell X Position', 'Cell Y Position']).size().index.to_frame(index=False).groupby(by='tag').count().iloc[:, 0]
+    # Get a Series containing the number of unique coordinates in every ROI i.e. "tag"
+    num_unique_coords_per_roi = df_pared.groupby('tag', observed=False).apply(lambda x: x[['Cell X Position', 'Cell Y Position']].drop_duplicates().shape[0], include_groups=False)
 
     # Get the set of ROIs containing a single unique coordinate
-    rois_with_single_unique_coord = set(num_unique_coords_per_roi[num_unique_coords_per_roi == 1].index.to_list())
+    rois_with_single_unique_coord = set(num_unique_coords_per_roi.loc[num_unique_coords_per_roi == 1].index)
 
     # Drop these ROIs from the dataset
-    print('Dropping {} ROIs with valid objects that have only a single unique spatial coordinate'.format(len(rois_with_single_unique_coord)))
-    df = df.loc[df['tag'].apply(lambda x: x not in rois_with_single_unique_coord), :]
+    print('Dropping {} ROIs with valid objects that have only a single unique spatial coordinate: {}'.format(len(rois_with_single_unique_coord), rois_with_single_unique_coord))
+    df = df.loc[~df['tag'].isin(rois_with_single_unique_coord), :]
 
-    # # Add .reset_index(drop=True) to just *make sure* the SIP code in general doesn't assume the data index is already in sorted order
-    # df = df.reset_index(drop=True)
-
+    # Return the pared-down dataframe
     return df
 
 def get_image_series_in_datafile(input_datafile_or_df):

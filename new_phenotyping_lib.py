@@ -205,6 +205,8 @@ def apply_phenotyping(csv_file_path_or_df, method, phenotype_identification_file
     """Load a datafile and apply one of three phenotyping methods: Species, Marker, or Custom.
     """
 
+    import utils
+
     # Apply some checks to the function parameters
     if phenotype_identification_file is not None:
         assert method == 'Custom', 'ERROR: The phenotype identification file is not None but it will not be used'
@@ -220,7 +222,7 @@ def apply_phenotyping(csv_file_path_or_df, method, phenotype_identification_file
         sep = (',' if csv_file_path_or_df.split('.')[-1] == 'csv' else '\t')
 
         # Read in the datafile
-        df = pd.read_csv(csv_file_path_or_df, sep=sep)
+        df = utils.downcast_dataframe_dtypes(pd.read_csv(csv_file_path_or_df, sep=sep))
 
         # From the detected datafile format, determine the coordinate columns and the marker information
         _, _, coord_cols, marker_prefix, _, markers_in_csv_file = dataset_formats.extract_datafile_metadata(csv_file_path_or_df)
@@ -240,10 +242,11 @@ def apply_phenotyping(csv_file_path_or_df, method, phenotype_identification_file
     # If the marker columns are not 1s and 0s, map their values to 1s and 0s
     marker_cols_first_row = df[marker_cols].iloc[0, :].to_list()  # get just the first row of marker values
     if (0 not in marker_cols_first_row) and (1 not in marker_cols_first_row):
-        df[marker_cols] = df[marker_cols].map(lambda x: ({'+': 1, '-': 0}[x[-1]] if isinstance(x, str) else 0))
-        
-    # Get the integer conversion of the markers lined up a base-two bits
-    df[species_int_colname] = df[marker_cols].apply(lambda x: int(''.join([str(y) for y in list(x)]), base=2), axis='columns')
+        df[marker_cols] = df[marker_cols].map(lambda x: {'+': 1, '-': 0}[x[-1]])
+
+    # Get the integer conversion of the markers lined up a base-two bits. This is much faster than the original code (<1 second instead of minutes)
+    powers_of_two = 2**np.arange(df[marker_cols].columns.size)[::-1]
+    df[species_int_colname] = df[marker_cols].dot(powers_of_two)
 
     # Drop objects that aren't positive for any markers of interest
     df = df[df[species_int_colname] != 0].copy()

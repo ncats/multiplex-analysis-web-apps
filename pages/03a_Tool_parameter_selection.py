@@ -11,10 +11,43 @@ import utils
 import app_top_of_page as top
 import streamlit_dataframe_editor as sde
 import dataset_formats
+import copy
 
 # Input/output directory initializations
 input_directory = os.path.join('.', 'input')
 output_directory = os.path.join('.', 'output')
+
+
+def set_dataset_specific_options():
+
+    # GEt the unique slide IDs
+    slide_ids_orig = st.session_state['input_dataset'].data['Slide ID'].unique()
+
+    # Extract the text after the first hyphen in each value
+    slide_ids_without_shortcut_prefix = [slide_id.split('-', 1)[1] for slide_id in slide_ids_orig]
+
+    # Strip out common prefixes and suffixes
+    common_prefix = os.path.commonprefix(slide_ids_without_shortcut_prefix)
+    common_suffix = os.path.commonprefix([part[::-1] for part in slide_ids_without_shortcut_prefix])[::-1]
+    parsed_strings = [part[len(common_prefix):-len(common_suffix)] if len(common_suffix) != 0 else part[len(common_prefix):] for part in slide_ids_without_shortcut_prefix]
+
+    # Create a dictionary mapping the parsed-out strings back to the slide IDs
+    parsed_to_original_slide_ids = {parsed: original for parsed, original in zip(parsed_strings, slide_ids_orig)}
+
+    # Save the dictionary to the session state
+    st.session_state['sit__slide_ids_parsed_to_original_dict'] = parsed_to_original_slide_ids
+
+    # Update widget options
+    st.session_state['options_for_images'] = list(st.session_state['sit__slide_ids_parsed_to_original_dict'].keys())
+    st.session_state['options_for_phenotypes'] = [column.removeprefix('Phenotype ') for column in st.session_state['input_dataset'].data.columns if column.startswith('Phenotype ')]
+
+    # Update the actual keys
+    st.session_state['settings__analysis__images_to_analyze'] = st.session_state['options_for_images']
+    st.session_state['settings__analysis__phenotypes_to_analyze'] = st.session_state['options_for_phenotypes']
+
+    # Update the dependencies of the analysis images to analyze
+    update_dependencies_of_analysis_images_to_analyze()
+
 
 def load_phenotyping_settings_from_thresholded_phenotyper():
     """
@@ -31,6 +64,7 @@ def load_phenotyping_settings_from_thresholded_phenotyper():
     st.session_state['settings__phenotyping__method'] = st.session_state['phenoMeth']
     update_dependencies_of_phenotyping_method()
 
+
 # Define the function to copy an input file from the output directory to the input directory
 def copy_input_file_from_output_dir_to_input_dir(input_filename, input_subdir=None):
     import shutil
@@ -41,6 +75,7 @@ def copy_input_file_from_output_dir_to_input_dir(input_filename, input_subdir=No
     else:
         input_directory2 = input_directory
     shutil.copy(os.path.join(output_directory, input_filename), os.path.join(input_directory2, input_filename))
+
 
 def update_dependencies_of_input_datafile_filename():
 
@@ -63,8 +98,10 @@ def update_dependencies_of_input_datafile_filename():
         st.session_state['settings__analysis__images_to_analyze'] = st.session_state['options_for_images']
         update_dependencies_of_analysis_images_to_analyze()
 
+
 def update_dependencies_of_phenotyping_method():
     st.session_state['phenotyping_phenotype_identification_file_is_disabled'] = (True if (st.session_state['settings__phenotyping__method'] in ['Species', 'Marker']) else False)
+
 
 def update_dependencies_of_analysis_images_to_analyze():
 
@@ -76,6 +113,7 @@ def update_dependencies_of_analysis_images_to_analyze():
     st.session_state['settings__annotation__used_annotation_files'] = st.session_state['options_for_annotation_files']
     update_dependencies_of_annotation_used_annotation_files()
 
+
 def update_dependencies_of_analysis_partition_slides_into_rois():
     if st.session_state['settings__analysis__partition_slides_into_rois']:
         st.session_state['analysis_roi_width_is_disabled'] = False
@@ -83,6 +121,7 @@ def update_dependencies_of_analysis_partition_slides_into_rois():
     else:
         st.session_state['analysis_roi_width_is_disabled'] = True
         st.session_state['analysis_roi_overlap_is_disabled'] = True
+
 
 def update_dependencies_of_annotation_used_annotation_files():
     if len(st.session_state['settings__annotation__used_annotation_files']) == 0:
@@ -96,9 +135,11 @@ def update_dependencies_of_annotation_used_annotation_files():
         st.session_state['annotation_microns_per_integer_unit_is_disabled1'] = False
         st.session_state['plotting_min_log_pval_is_disabled'] = False
 
+
 def update_dependencies_of_annotation_coordinate_units():
     if st.session_state['settings__annotation__coord_units_are_pixels']:
         st.session_state['settings__annotation__microns_per_integer_unit'] = st.session_state['settings__annotation__coordinate_units']
+
 
 def update_dependencies_of_annotation_coord_units_are_pixels():
     if st.session_state['settings__annotation__coord_units_are_pixels']:
@@ -106,6 +147,7 @@ def update_dependencies_of_annotation_coord_units_are_pixels():
         st.session_state['annotation_microns_per_integer_unit_is_disabled2'] = True
     else:
         st.session_state['annotation_microns_per_integer_unit_is_disabled2'] = False
+
 
 def update_dependencies_of_analysis_significance_calculation_method():
     if st.session_state['settings__analysis__significance_calculation_method'] == 'Permutation (k-nearest neighbors)':
@@ -115,9 +157,11 @@ def update_dependencies_of_analysis_significance_calculation_method():
         st.session_state['analysis_neighbor_radius_is_disabled'] = False
         st.session_state['analysis_n_neighs_is_disabled'] = True
 
+
 def set_session_state_key(settings, str1, str2):
     if str2 in settings[str1]:
         st.session_state['settings__{}__{}'.format(str1, str2)] = settings[str1][str2]
+
 
 def create_phenotype_assignments_file_from_phenotyper(df_phenotype_assignments):
 
@@ -159,6 +203,7 @@ def create_phenotype_assignments_file_from_phenotyper(df_phenotype_assignments):
     # Return the filename of the written file
     return filename
 
+
 def write_dataframe_to_disk(df, prefix='phenotyped_datafile_from_gater'):
 
     # Import relevant library
@@ -175,6 +220,7 @@ def write_dataframe_to_disk(df, prefix='phenotyped_datafile_from_gater'):
 
     # Return the filename of the written file
     return filename
+
 
 def load_relevant_settings_from_phenotyper():
 
@@ -244,6 +290,7 @@ def load_relevant_settings_from_phenotyper():
     st.session_state['settings__phenotyping__method'] = st.session_state['phenoMeth']
     update_dependencies_of_phenotyping_method()
 
+
 def load_dataset_and_settings(checkpoints_exist, existing_dirs_to_delete, orig_settings):
     '''
     Callback for when the "Load dataset and settings" button is pressed
@@ -257,13 +304,22 @@ def load_dataset_and_settings(checkpoints_exist, existing_dirs_to_delete, orig_s
     st.session_state['sit__used_settings'] = orig_settings.copy()
 
     # Make a modified copy of the dataset object that suits the SIT
-    dataset_obj = st.session_state['input_dataset'].copy()  # making a copy since we might modify the dataset_obj.data attribute by adding rows for patching potentially, filtering to images, and trimming the columns
+    dataset_obj = copy.deepcopy(st.session_state['input_dataset'])  # making a copy since we might modify the dataset_obj.data attribute by adding rows for patching potentially, filtering to images, and trimming the columns
 
     # Filter to just the necessary columns
     dataset_obj.data = dataset_formats.trim_dataframe_basic(dataset_obj.data)  # this returns a copy of the input dataframe
 
+    # Keep only the selected phenotype columns
+    all_phenotypes = [column.removeprefix('Phenotype ') for column in dataset_obj.data.columns if column.startswith('Phenotype ')]
+    selected_phenotypes = st.session_state['sit__used_settings']['analysis']['phenotypes_to_analyze']
+    phenotype_columns_to_drop = ['Phenotype ' + phenotype for phenotype in all_phenotypes if phenotype not in selected_phenotypes]
+    dataset_obj.data = dataset_obj.data.drop(columns=phenotype_columns_to_drop)
+    dataset_obj.phenotypes_to_analyze = selected_phenotypes
+
     # Filter to just the necessary rows
-    dataset_obj.data = dataset_obj.data.loc[dataset_obj.data['Slide ID'].apply(lambda curr_image: curr_image in st.session_state['sit__used_settings']['analysis']['images_to_analyze'])]  # this returns a copy that will overwrite dataset_obj.data
+    selected_images = [st.session_state['sit__slide_ids_parsed_to_original_dict'][image_short] for image_short in st.session_state['sit__used_settings']['analysis']['images_to_analyze']]
+    dataset_obj.data = dataset_obj.data.loc[dataset_obj.data['Slide ID'].apply(lambda curr_image: curr_image in selected_images)]  # this returns a copy that will overwrite dataset_obj.data
+    dataset_obj.images_to_analyze = selected_images
 
     # Set a potentially important attribute
     dataset_obj.phenotype_identification_tsv_file = st.session_state['sit__used_settings']['dataset']['phenotype_identification_tsv_file']
@@ -289,6 +345,7 @@ def load_dataset_and_settings(checkpoints_exist, existing_dirs_to_delete, orig_s
     # If the button was pressed and therefore the data was loaded, then say so
     st.toast('Dataset loaded')
 
+
 # Define the main function
 def main():
 
@@ -299,16 +356,6 @@ def main():
     options_for_phenotyping_methods = ['Species', 'Marker', 'Custom']
     options_for_significance_calculation_methods = ['Poisson (radius)', 'Permutation (radius)', 'Permutation (k-nearest neighbors)']
 
-    # Set page settings
-    st.set_page_config(layout="wide", page_title='Tool parameter selection')
-    st.title('Tool parameter selection')
-
-    # Run streamlit-dataframe-editor library initialization tasks at the top of the page
-    st.session_state = sde.initialize_session_state(st.session_state)
-
-    # Run Top of Page (TOP) functions
-    st.session_state = top.top_of_page_reqs(st.session_state)
-
     # If 'input_dataset' isn't in the session state, print an error message and return
     if 'input_dataset' not in st.session_state:
         st.error('An input dataset has not yet been opened. Please do so using the "Open File" page in the sidebar.')
@@ -318,14 +365,11 @@ def main():
     streamlit_utils.assign_default_values_in_session_state('preset_parameter_file', utils.get_first_element_or_none(options_for_parameter_files))
 
     # Load or reload default settings
-    if st.button('Reload default settings'):
+    if st.button('Reload default settings') or ('settings__phenotyping__method' not in st.session_state):
+        set_dataset_specific_options()
         st.session_state['settings__phenotyping__method'] = utils.get_first_element_or_none(options_for_phenotyping_methods)
         update_dependencies_of_phenotyping_method()
         st.session_state['settings__phenotyping__phenotype_identification_file'] = utils.get_first_element_or_none(options_for_phenotype_identification_files)
-        if 'settings__analysis__images_to_analyze' not in st.session_state:
-            st.session_state['options_for_images'] = []
-            st.session_state['settings__analysis__images_to_analyze'] = st.session_state['options_for_images']
-        update_dependencies_of_analysis_images_to_analyze()
         st.session_state['settings__analysis__partition_slides_into_rois'] = True
         update_dependencies_of_analysis_partition_slides_into_rois()
         st.session_state['settings__analysis__roi_width'] = 400
@@ -336,7 +380,7 @@ def main():
         st.session_state['settings__analysis__n_neighs'] = 6
         st.session_state['settings__analysis__min_num_valid_centers'] = 10
         st.session_state['settings__analysis__weight_by_num_valid_centers'] = False
-        st.session_state['settings__analysis__log_pval_minimum'] = -50
+        st.session_state['settings__analysis__log_pval_minimum'] = -25
         st.session_state['settings__analysis__log_pval_maximum'] = 0
         if 'settings__annotation__used_annotation_files' not in st.session_state:
             st.session_state['options_for_annotation_files'] = []
@@ -364,7 +408,7 @@ def main():
     if st.button(':arrow_down: Load selected parameter file', disabled=(st.session_state['preset_parameter_file'] is None)):
         with open(st.session_state['preset_parameter_file'], mode='rt') as file:
             preset_settings = yaml.load(file, yaml.UnsafeLoader)
-        settings = utils.validate_presets_and_map_to_settings(preset_settings, options_for_phenotype_identification_files, st.session_state['options_for_annotation_files'], options_for_phenotyping_methods, options_for_significance_calculation_methods, st.session_state['options_for_images'], message_function=streamlit_utils.streamlit_write_function)
+        settings = utils.validate_presets_and_map_to_settings(preset_settings, options_for_phenotype_identification_files, st.session_state['options_for_annotation_files'], options_for_phenotyping_methods, options_for_significance_calculation_methods, st.session_state['options_for_images'], st.session_state['options_for_phenotypes'], message_function=streamlit_utils.streamlit_write_function)
         set_session_state_key(settings, 'phenotyping', 'method')
         update_dependencies_of_phenotyping_method()
         set_session_state_key(settings, 'phenotyping', 'phenotype_identification_file')
@@ -374,6 +418,7 @@ def main():
         update_dependencies_of_analysis_partition_slides_into_rois()
         set_session_state_key(settings, 'analysis', 'roi_width')
         set_session_state_key(settings, 'analysis', 'roi_overlap')
+        set_session_state_key(settings, 'analysis', 'phenotypes_to_analyze')
         set_session_state_key(settings, 'analysis', 'significance_calculation_method')
         update_dependencies_of_analysis_significance_calculation_method()
         set_session_state_key(settings, 'analysis', 'neighbor_radius')
@@ -415,6 +460,7 @@ def main():
         st.checkbox('Partition slides into regions of interest (ROIs)', key='settings__analysis__partition_slides_into_rois', on_change=update_dependencies_of_analysis_partition_slides_into_rois)
         st.number_input('ROI width (microns):', min_value=0.0, key='settings__analysis__roi_width', disabled=st.session_state['analysis_roi_width_is_disabled'])
         st.number_input('ROI overlap (microns):', min_value=0.0, key='settings__analysis__roi_overlap', disabled=st.session_state['analysis_roi_overlap_is_disabled'], help='In order to analyze the neighbors around every cell exactly once (as you should), this should be set to twice the neighbor radius (adjusted below).')
+        st.multiselect('Phenotypes to analyze:', st.session_state['options_for_phenotypes'], key='settings__analysis__phenotypes_to_analyze', help='If you have since rerun any phenotyping, in order to see updated options here, you should press the "Reload default settings" button at top.')
         st.selectbox('Significance calculation method:', options_for_significance_calculation_methods, key='settings__analysis__significance_calculation_method', on_change=update_dependencies_of_analysis_significance_calculation_method)
         st.number_input('Neighbor radius (microns):', min_value=0.0, key='settings__analysis__neighbor_radius', help='Radius around each center cell within which to count neighboring cells.', disabled=st.session_state['analysis_neighbor_radius_is_disabled'])
         st.number_input('Number of nearest neighbors:', min_value=0, key='settings__analysis__n_neighs', disabled=st.session_state['analysis_n_neighs_is_disabled'])
@@ -460,6 +506,7 @@ def main():
     orig_settings['annotation']['annotation_coord_units_in_microns'] = st.session_state['settings__annotation__coordinate_units']
     orig_settings['annotation']['annotation_microns_per_integer_unit'] = st.session_state['settings__annotation__microns_per_integer_unit']
     orig_settings['analysis']['images_to_analyze'] = st.session_state['settings__analysis__images_to_analyze']
+    orig_settings['analysis']['phenotypes_to_analyze'] = st.session_state['settings__analysis__phenotypes_to_analyze']
     orig_settings['plotting']['min_log_pval'] = st.session_state['settings__plotting__min_log_pval']
 
     # Save the currently selected settings, in the original API format, to memory
@@ -480,7 +527,7 @@ def main():
         if x not in orig_settings['dataset']:
             ready_to_preprocess_data = False
             break
-    for x in ['images_to_analyze']:
+    for x in ['images_to_analyze', 'phenotypes_to_analyze']:
         if x not in orig_settings['analysis']:
             ready_to_preprocess_data = False
             break
@@ -505,9 +552,20 @@ def main():
                 st.warning('The current settings differ from those used when the tool was last run. Click the button below to reload the dataset and settings, and then click the "Run workflow" button on the next page to rerun the workflow using the updated data/settings.', icon="⚠️")
         st.button('{} Load dataset and settings'.format(potential_icon_prefix), disabled=(not ready_to_preprocess_data), help=help_message, on_click=load_dataset_and_settings, kwargs={'checkpoints_exist': checkpoints_exist, 'existing_dirs_to_delete': existing_dirs_to_delete, 'orig_settings': orig_settings}, use_container_width=True)
 
-    # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
-    st.session_state = sde.finalize_session_state(st.session_state)
-
 # Call the main function
 if __name__ == '__main__':
+
+    # Set page settings
+    st.set_page_config(layout="wide", page_title='Tool parameter selection')
+    st.title('Tool parameter selection')
+
+    # Run streamlit-dataframe-editor library initialization tasks at the top of the page
+    st.session_state = sde.initialize_session_state(st.session_state)
+
+    # Run Top of Page (TOP) functions
+    st.session_state = top.top_of_page_reqs(st.session_state)
+
     main()
+
+    # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
+    st.session_state = sde.finalize_session_state(st.session_state)

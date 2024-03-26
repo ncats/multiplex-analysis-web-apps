@@ -113,17 +113,6 @@ def main():
     Main function for running the page
     '''
 
-    # Set a wide layout
-    st.set_page_config(page_title="Manual Phenotyping on Thresholded Intensities",
-                       layout="wide")
-    st.title('Manual Phenotyping on Thresholded Intensities')
-
-    # Run streamlit-dataframe-editor library initialization tasks at the top of the page
-    st.session_state = sde.initialize_session_state(st.session_state)
-
-    # Run Top of Page (TOP) functions
-    st.session_state = top.top_of_page_reqs(st.session_state)
-
     # If 'input_dataset' isn't in the session state, print an error message and return
     if 'input_dataset' not in st.session_state:
         st.error('An input dataset has not yet been opened. Please do so using the "Open File" page in the sidebar.')
@@ -137,9 +126,13 @@ def main():
         if st.button('Load Data'):
             st.session_state.bc.startTimer()
             dataset_obj = st.session_state['input_dataset']
-            st.session_state.bc.printElapsedTime(msg = f'Loading {st.session_state["input_metadata"]["datafile_path"]} into memory, from memory')
+            st.session_state.bc.printElapsedTime(msg = f'Loading {st.session_state["input_metadata"]["datafile_path"]} into memory, Datafile Unifier')
             st.session_state.bc.startTimer()
-            st.session_state = ndl.loadDataButton(st.session_state, dataset_obj.data, 'Input', os.path.splitext(os.path.basename(st.session_state['input_metadata']['datafile_path']))[0])
+            if st.session_state['input_metadata']['datafile_path'] is not None:
+                datafile_name = os.path.splitext(os.path.basename(st.session_state['input_metadata']['datafile_path']))[0]
+            else:
+                datafile_name = 'from_memory'
+            st.session_state = ndl.loadDataButton(st.session_state, dataset_obj.data, 'Input', datafile_name)
             st.session_state.bc.printElapsedTime(msg = f'Performing Phenotyping on {st.session_state["input_metadata"]["datafile_path"]}')
         st.session_state.bc.set_value_df('time_load_data', st.session_state.bc.elapsedTime())
 
@@ -317,8 +310,20 @@ def main():
                 ndl.save_png(st.session_state.phenoFig, 'Phenotype Scatterplot', st.session_state.imgFileSuffixText)
                 st.toast(f'Added {st.session_state.imgFileSuffixText} to export list ')
 
+if __name__ == '__main__':
+
+    # Set a wide layout
+    st.set_page_config(page_title="Manual Phenotyping on Thresholded Intensities",
+                       layout="wide")
+    st.title('Manual Phenotyping on Thresholded Intensities')
+
+    # Run streamlit-dataframe-editor library initialization tasks at the top of the page
+    st.session_state = sde.initialize_session_state(st.session_state)
+
+    # Run Top of Page (TOP) functions
+    st.session_state = top.top_of_page_reqs(st.session_state)
+
+    main()
+
     # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
     st.session_state = sde.finalize_session_state(st.session_state)
-
-if __name__ == '__main__':
-    main()

@@ -4,6 +4,18 @@ import app_top_of_page as top
 import streamlit_dataframe_editor as sde
 import os
 import streamlit_utils
+import utils
+
+def clear_session_state():
+    session_state_keys = list(st.session_state.keys())
+    for key in session_state_keys:
+        if (not key.startswith(('unifier__', 'opener__'))) and (not key in ['session_selection', 'app_has_been_run_at_least_once']):
+            del st.session_state[key]
+
+def load_input_dataset():
+    clear_session_state()
+    st.session_state['opener__load_input_dataset'] = True
+    st.session_state['input_dataset'] = None
 
 def toggle_changed():
     """
@@ -17,17 +29,6 @@ def main():
     """
     Main function for the Open File page.
     """
-
-    # Set page settings
-    page_name = 'Open File'
-    st.set_page_config(layout='wide', page_title=page_name)
-    st.title(page_name)
-
-    # Run streamlit-dataframe-editor library initialization tasks at the top of the page
-    st.session_state = sde.initialize_session_state(st.session_state)
-
-    # Run Top of Page (TOP) functions
-    st.session_state = top.top_of_page_reqs(st.session_state)
 
     # Constant
     input_dir = os.path.join('.', 'input')
@@ -88,10 +89,23 @@ def main():
             return
         
         # Read in the dataset either from memory or from a file
-        if st.button('Load the selected input dataset'):
+        if 'input_dataset' in st.session_state:
+            help_message = 'WARNING: This will clear all downstream analyses. If you want to keep them, please save them first using the Data Import and Export tool at left.'
+            button_text = '⚠️ Load the selected input dataset'
+        else:
+            help_message = None
+            button_text = 'Load the selected input dataset'
+        st.button(button_text, on_click=load_input_dataset, help=help_message)
+
+        # Not using a callback because of st.spinner() and the return statement
+        if 'opener__load_input_dataset' not in st.session_state:
+            st.session_state['opener__load_input_dataset'] = False
+        if st.session_state['opener__load_input_dataset']:
+            st.session_state['opener__load_input_dataset'] = False
             with st.spinner('Loading the input dataset...'):
                 streamlit_utils.load_input_dataset(input_file_or_df, st.session_state['opener__microns_per_coordinate_unit'])  # this assigns the input dataset to st.session_state['input_dataset'] and the metadata to st.session_state['input_metadata']
             if st.session_state['input_dataset'] is not None:
+                st.session_state['input_dataset'].data, st.session_state['input_dataframe_memory_usage_bytes'] = utils.downcast_dataframe_dtypes(st.session_state['input_dataset'].data, also_return_final_size=True)
                 st.info('The input data have been successfully loaded and validated.')
                 show_dataframe_updates = True
             else:
@@ -104,7 +118,7 @@ def main():
             return
 
     # Now that we know the input dataset is assigned and is valid, print out a sample of the main, input dataframe, plus some information about it
-    st.header('Loaded and validated data')
+    st.header('Loaded dataset')
 
     # Assign shortcuts to the loaded dataset, metadata, and dataframe
     dataset_obj = st.session_state['input_dataset']
@@ -115,15 +129,17 @@ def main():
     if metadata['datafile_path'] is not None:
         datafile_path = os.path.basename(metadata['datafile_path'])
     else:
-        datafile_path = 'loaded from memory'
+        datafile_path = 'loaded from Datafile Unifier'
     information = f'''
-    Loaded dataset properties:
+    Properties:
 
       :small_orange_diamond: Datafile: `{datafile_path}`  
       :small_orange_diamond: Coordinate units: `{metadata['coord_units_in_microns']} microns/coord`  
       :small_orange_diamond: Dataset format: `{type(dataset_obj)}`  
       :small_orange_diamond: Number of rows: `{df.shape[0]}`  
-      :small_orange_diamond: Number of columns: `{df.shape[1]}`
+      :small_orange_diamond: Number of columns: `{df.shape[1]}`  
+      :small_orange_diamond: Minimum coordinate spacing: `{dataset_obj.min_coord_spacing_:.4f} microns`  
+      :small_orange_diamond: Loaded memory usage: `{st.session_state['input_dataframe_memory_usage_bytes'] / 1024 ** 2:.2f} MB`
     '''
 
     # Display the information and the sampled dataframe
@@ -134,9 +150,21 @@ def main():
         st.session_state['opener__sampled_df'] = df.sample(min(num_rows_to_sample, len(df))).sort_index()
     st.write(st.session_state['opener__sampled_df'])
 
-    # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
-    st.session_state = sde.finalize_session_state(st.session_state)
-
 # Run the main function
 if __name__ == '__main__':
+
+    # Set page settings
+    page_name = 'Open File'
+    st.set_page_config(layout='wide', page_title=page_name)
+    st.title(page_name)
+
+    # Run streamlit-dataframe-editor library initialization tasks at the top of the page
+    st.session_state = sde.initialize_session_state(st.session_state)
+
+    # Run Top of Page (TOP) functions
+    st.session_state = top.top_of_page_reqs(st.session_state)
+
     main()
+
+    # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
+    st.session_state = sde.finalize_session_state(st.session_state)

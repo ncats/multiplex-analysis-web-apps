@@ -140,3 +140,8 @@ def get_updated_dynamic_options(input_directory):
     else:
 
         return None, None
+
+def write_python_session_memory_usage():
+    import utils
+    pid, usage_in_mb = utils.memory_usage_in_mb()
+    st.sidebar.write(f'Memory used by current python process ({pid}): {usage_in_mb:.2f} MB')
