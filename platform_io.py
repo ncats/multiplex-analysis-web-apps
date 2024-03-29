@@ -944,6 +944,7 @@ def upload_single_file_to_dataset(args_as_single_tuple):
     print('  Upload of {} ({:5.3f} MB) from Workspaces to Compass took {:3.1f} seconds --> {:3.1f} MB/s'.format(filename, filesize, duration, filesize / duration))
 
 def download_single_file_from_dataset(args_as_single_tuple):
+    # This is not actually used anymore because we're using parallelization now (from about a month or two prior to 3/29/24)
     import nidap_io
     import time
     import os
