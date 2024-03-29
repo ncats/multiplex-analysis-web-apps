@@ -10,6 +10,7 @@ import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected 
 import basic_phenotyper_lib as bpl  # Useful functions for phenotyping collections of cells
 import app_top_of_page as top
 import streamlit_dataframe_editor as sde
+import PlottingTools as umPT
 
 def init_spatial_umap():
     '''
@@ -180,7 +181,7 @@ def main():
 
     with npf_cols[1]:
         if st.session_state['toggle_clust_diff']:
-            st.selectbox('Feature', options = ['Survival_5yr'], key = 'dens_diff_feat_sel')
+            st.selectbox('Feature', options = ['Outcome', 'Survival_5yr'], key = 'dens_diff_feat_sel')
         if cellCountsButt:
             if st.session_state.phenotyping_completed:
                 init_spatial_umap()
@@ -198,24 +199,40 @@ def main():
             xx = np.linspace(np.min(st.session_state.df_umap['X']), np.max(st.session_state.df_umap['X']), n_bins + 1)
             yy = np.linspace(np.min(st.session_state.df_umap['Y']), np.max(st.session_state.df_umap['Y']), n_bins + 1)
             n_pad = 40
-            st.session_state.UMAPFig = bpl.UMAPdraw_density(st.session_state.df_umap, bins = [xx, yy], w=None, n_pad=n_pad, vlim=vlim)
+
+            w = None
+            st.session_state.d_full = umPT.plot_2d_density(st.session_state.df_umap['X'],
+                                                           st.session_state.df_umap['Y'],
+                                                           bins=n_bins, w=w, return_matrix=True)
+
+            st.session_state.UMAPFig = bpl.UMAPdraw_density(st.session_state.d_full, bins = [xx, yy], w=None, n_pad=n_pad, vlim=vlim)
 
             if st.session_state['toggle_clust_diff']:
-                w = st.session_state.df_umap[st.session_state.dens_diff_feat_sel]
-                featComp1 = '= 1'
-                featComp2 = '= 0'
+                feat_comp1 = '= 1'
+                feat_comp2 = '= 0'
 
-                feat_label0 = f'{st.session_state.dens_diff_feat_sel} {featComp1} '
-                feat_label1 = f'{st.session_state.dens_diff_feat_sel} {featComp2} '
-                feat_label2 = None
+                feat_label0 = f'{st.session_state.dens_diff_feat_sel} {feat_comp1} '
+                feat_label1 = f'{st.session_state.dens_diff_feat_sel} {feat_comp2} '
+                feat_labeld = f'{st.session_state.dens_diff_feat_sel} Difference '
 
-                w_DiffA = w
-                w_DiffB = max(w) - w
-                w_Diff  = w_DiffA - w_DiffB
+                w = None
 
-                st.session_state.UMAPFigDiff0_Dens = bpl.UMAPdraw_density(st.session_state.df_umap, bins = [xx, yy], w=w_DiffA, n_pad=n_pad, vlim=vlim, feat = feat_label0)
-                st.session_state.UMAPFigDiff1_Dens = bpl.UMAPdraw_density(st.session_state.df_umap, bins = [xx, yy], w=w_DiffB, n_pad=n_pad, vlim=vlim, feat = feat_label1)
-                st.session_state.UMAPFigDiff2_Dens = bpl.UMAPdraw_density(st.session_state.df_umap, bins = [xx, yy], w=w_Diff, n_pad=n_pad, vlim=vlim, diff = True)
+                st.session_state.df_umap_A = st.session_state.df_umap.loc[st.session_state.df_umap[st.session_state.dens_diff_feat_sel] == 1, :]
+                st.session_state.df_umap_D = st.session_state.df_umap.loc[st.session_state.df_umap[st.session_state.dens_diff_feat_sel] == 0, :]
+
+                st.session_state.d_A = umPT.plot_2d_density(st.session_state.df_umap_A['X'],
+                                                            st.session_state.df_umap_A['Y'],
+                                                            bins=n_bins, w=w, return_matrix=True)
+                
+                st.session_state.d_D = umPT.plot_2d_density(st.session_state.df_umap_D['X'],
+                                                            st.session_state.df_umap_D['Y'],
+                                                            bins=n_bins, w=w, return_matrix=True)
+                
+                st.session_state.d_diff = st.session_state.d_A - st.session_state.d_D
+
+                st.session_state.UMAPFigDiff0_Dens = bpl.UMAPdraw_density(st.session_state.d_A, bins = [xx, yy], w=w, n_pad=n_pad, vlim=vlim, feat = feat_label0)
+                st.session_state.UMAPFigDiff1_Dens = bpl.UMAPdraw_density(st.session_state.d_D, bins = [xx, yy], w=w, n_pad=n_pad, vlim=vlim, feat = feat_label1)
+                st.session_state.UMAPFigDiff2_Dens = bpl.UMAPdraw_density(st.session_state.d_diff, bins = [xx, yy], w=w, n_pad=n_pad, vlim=vlim, feat = feat_labeld, diff = True)
 
                 exp_cols = st.columns(3)
                 with exp_cols[1]:
