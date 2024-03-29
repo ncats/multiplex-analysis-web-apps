@@ -17,6 +17,7 @@ import seaborn as sns
 from sklearn.cluster import KMeans # K-Means
 
 from benchmark_collector import benchmark_collector # Benchmark Collector Class
+import PlottingTools as umPT
 
 def preprocess_df(df_orig, marker_names, marker_col_prefix, bc):
     '''Perform some preprocessing on our dataset to apply tranforms
@@ -615,7 +616,7 @@ def perform_spatialUMAP(spatial_umap, bc, UMAPStyle):
 
     return spatial_umap
 
-def KMeans_calc(spatial_umap, n_clusters = 5):
+def KMeans_calc(umap_data, n_clusters = 5):
     '''
     Perform KMeans clustering on the spatial UMAP data
 
@@ -633,7 +634,7 @@ def KMeans_calc(spatial_umap, n_clusters = 5):
                         n_init = 10,
                         random_state = 42)
     # Fit the data to the KMeans object
-    kmeans_obj.fit(spatial_umap.umap_test)
+    kmeans_obj.fit(umap_data)
 
     return kmeans_obj
 
@@ -654,7 +655,7 @@ def measure_possible_clust(spatial_umap, clust_minmax):
     wcss = [] # Within-Cluster Sum of Squares
     for n_clusters in clust_range:
         # Perform clustering for chosen
-        kmeans_obj = KMeans_calc(spatial_umap, n_clusters)
+        kmeans_obj = KMeans_calc(spatial_umap.umap_test, n_clusters)
         # Append Within-Cluster Sum of Squares measurement
         wcss.append(kmeans_obj.inertia_)
     return list(clust_range), wcss
@@ -672,7 +673,7 @@ def perform_clusteringUMAP(spatial_umap, n_clusters):
     '''
 
     # Reperform clustering for chosen
-    kmeans_obj = KMeans_calc(spatial_umap, n_clusters)
+    kmeans_obj = KMeans_calc(spatial_umap.umap_test, n_clusters)
     # Add cluster label column to cells dataframe
     spatial_umap.df_umap.loc[:, 'clust_label'] = kmeans_obj.labels_
     spatial_umap.df_umap.loc[:, 'cluster'] = kmeans_obj.labels_
@@ -689,7 +690,7 @@ def draw_wcss_elbow_plot(clust_range, wcss, selClus):
     Sl2BgC = '#262730'  # Streamlit Secondary Background Color
 
     fig = plt.figure(figsize = (5,5), facecolor = SlBgC)
-    ax = fig.add_subplot(1,1,1, facecolor = SlBgC) 
+    ax = fig.add_subplot(1,1,1, facecolor = SlBgC)
     ax.set_xlabel('Number of Clusters', fontsize = 10, color = SlTC)
     ax.set_ylabel('WCSS', fontsize = 10, color = SlTC)
     # ax.set_xticks(np.linspace(0, 21, 22))
@@ -835,8 +836,7 @@ def preprocess_weighted_umap(w, df_umap):
 
     return w, df_umap
 
-def UMAPdraw_density(df, bins, w, n_pad, vlim, feat = None, diff = False, figsize=(12, 12)):
-    import PlottingTools as umPT
+def UMAPdraw_density(d, bins, w, n_pad, vlim, feat = None, diff = False, figsize=(12, 12)):
 
     # Streamlit Theming
     SlBgC  = '#0E1117'  # Streamlit Background Color
@@ -851,31 +851,34 @@ def UMAPdraw_density(df, bins, w, n_pad, vlim, feat = None, diff = False, figsiz
     cmap_bwr = plt.get_cmap('bwr').copy()
 
     # Set up Figure
-    UMAPFig = plt.figure(figsize=figsize, facecolor = SlBgC)
-    ax = UMAPFig.add_subplot(1, 1, 1, facecolor = SlBgC)
+    umap_fig = plt.figure(figsize=figsize, facecolor = SlBgC)
+    ax = umap_fig.add_subplot(1, 1, 1, facecolor = SlBgC)
 
-    if w is None:
+    if w is None and diff is False:
         cmap = cmap_viridis
         circle_type = None
-    elif diff == False:
+    elif diff is False:
         cmap = cmap_magma
         circle_type = None
     else:
         cmap = cmap_bwr
         circle_type = 'arch'
 
-    umPT.plot_2d_density(df['X'], df['Y'], bins=bins, w=w, n_pad=n_pad, 
-                         ax=ax, cmap=cmap, vlim = vlim, circle_type = circle_type)
-    
-    xLim = ax.get_xlim()
-    yLim = ax.get_ylim()
-    
-    ax.text(0.82*xLim[1], 0.03*yLim[1], 'Density', c = SlTC, fontsize = 25)
+    umPT.plot_2d_density(d, bins=bins, w=w, n_pad=n_pad, ax=ax, cmap=cmap,
+                         vlim = vlim, circle_type = circle_type)
+
+    x_lim = ax.get_xlim()
+    y_lim = ax.get_ylim()
+
+    ax.text(0.82*x_lim[1], 0.03*y_lim[1], 'Density', c = SlTC, fontsize = 25)
 
     if feat is not None:
-        ax.text(xLim[0], 0.93*yLim[1], feat, c = SlTC, fontsize = 30)
+        if cmap == cmap_bwr:
+            ax.text(x_lim[0], 0.93*y_lim[1], feat, c = 'black', fontsize = 30)
+        else:
+            ax.text(x_lim[0], 0.93*y_lim[1], feat, c = SlTC, fontsize = 30)
 
-    return UMAPFig
+    return umap_fig
 
 def drawIncidenceFigure(df, figTitle, phenotype = 'All Phenotypes', feature = 'Cell Counts', displayas = 'Counts Difference', compThresh = None, figsize=(12,12)):
     import PlottingTools as umPT
