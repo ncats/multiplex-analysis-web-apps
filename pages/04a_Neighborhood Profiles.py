@@ -6,7 +6,7 @@ import numpy as np
 from streamlit_extras.add_vertical_space import add_vertical_space
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.cluster import KMeans
+import pandas as pd
 
 # Import relevant libraries
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
@@ -219,9 +219,14 @@ def main():
                 n_pad = 40
 
                 w = None
-                st.session_state.d_full = umPT.plot_2d_density(st.session_state.df_umap['X'],
+                st.session_state.d_full, binnumber = umPT.plot_2d_density(st.session_state.df_umap['X'],
                                                                st.session_state.df_umap['Y'],
                                                                bins=[xx, yy], w=w, return_matrix=True)
+                
+                # IDentify where each sample was placed in a given bin
+                bin_num_df = pd.DataFrame(binnumber, columns = ['bin_num'])
+                bin_num_df['index'] = bin_num_df.index
+                bin_num_df_group = bin_num_df.groupby('bin_num')['index'].apply(list)
 
                 st.session_state.UMAPFig = bpl.UMAPdraw_density(st.session_state.d_full, bins = [xx, yy], w=w, n_pad=n_pad, vlim=vlim)
                 
@@ -236,11 +241,11 @@ def main():
                 st.session_state.df_umap_A = st.session_state.df_umap.loc[st.session_state.df_umap[st.session_state.dens_diff_feat_sel] == 1, :]
                 st.session_state.df_umap_D = st.session_state.df_umap.loc[st.session_state.df_umap[st.session_state.dens_diff_feat_sel] == 0, :]
 
-                st.session_state.d_A = umPT.plot_2d_density(st.session_state.df_umap_A['X'],
+                st.session_state.d_A, _ = umPT.plot_2d_density(st.session_state.df_umap_A['X'],
                                                             st.session_state.df_umap_A['Y'],
                                                             bins=n_bins, w=w, return_matrix=True)
                 
-                st.session_state.d_D = umPT.plot_2d_density(st.session_state.df_umap_D['X'],
+                st.session_state.d_D, _ = umPT.plot_2d_density(st.session_state.df_umap_D['X'],
                                                             st.session_state.df_umap_D['Y'],
                                                             bins=n_bins, w=w, return_matrix=True)
                 
