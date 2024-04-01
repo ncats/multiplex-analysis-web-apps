@@ -533,7 +533,7 @@ class SpatialUMAP:
             if group['area_filter'].sum() >= (cells_for_fitting * 2):
                 idx_train, idx_test, _ = np.split(np.random.default_rng(seed).permutation(group['area_filter'].sum()), [cells_for_fitting, cells_for_fitting * 2])
                 self.cells.loc[group.index[group.area_filter][idx_train], 'umap_train'] = True
-                self.cells.loc[group.index[group.area_filter], 'umap_test'] = True
+                self.cells.loc[group.index[group.area_filter][idx_test], 'umap_test'] = True
         
         print(f'{np.sum(self.cells["umap_train"] == 1)} elements assigned to training data. ~{np.round(100*np.sum(self.cells["umap_train"] == 1)/self.cells.shape[0])}%')
         print(f'{np.sum(self.cells["umap_test"] == 1)} elements assigned to testing data. ~{np.round(100*np.sum(self.cells["umap_test"] == 1)/self.cells.shape[0])}%')
