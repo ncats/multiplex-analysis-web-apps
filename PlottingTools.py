@@ -10,7 +10,6 @@ import altair as alt
 alt.data_transformers.disable_max_rows()
 from scipy import ndimage as ndi
 
-
 def plot_2d_density(X, Y=None, bins=200, n_pad=40, w=None, ax=None, gaussian_sigma=0.5, cmap=plt.get_cmap('viridis'), vlim=np.array([0.001, 0.98]), circle_type='bg', box_off=True, return_matrix=False):
     '''plot_2d_density(X, Y, bins, n_pad, w, ax, gaussian_sigma, cmap, vlim, circle_type, box_off, return_matrix)
     is a method for drawing 2D histograms figures. In this particular instance, we are plotting the outputs of the UMAP.
@@ -99,16 +98,19 @@ def plot_2d_density(X, Y=None, bins=200, n_pad=40, w=None, ax=None, gaussian_sig
             extend = 'max'
             ax.pcolormesh(np.pad(d, [n_pad, n_pad]), vmin=0, vmax=vlim[1], cmap=cmap, shading='gouraud', alpha=1)
 
+        # Create the color bar
         cax = ax.inset_axes([0.95, 0.1, 0.01, 0.85])
-        plt_cmap(ax=cax, cmap=cmap, extend=extend, width=0.01)
+        plt_cmap(ax=cax, cmap=cmap, extend=extend, width=0.01, lim = [min(d.flatten()), max(d.flatten())])
 
         if box_off is True:
             [ax.spines[sp].set_visible(False) for sp in ax.spines]
             ax.set(xticks=[], yticks=[])
 
 
-def plt_cmap(ax, cmap, extend, width, ylabel = None):
-    '''plt_cmap(ax, cmap, extend, width, ylabel) draws a colorbar for the current colormap at the correct
+def plt_cmap(ax, cmap, extend, width, lim = None, ylabel = None):
+    '''
+    plt_cmap(ax, cmap, extend, width, ylabel) draws a colorbar 
+    for the current colormap at the correct
     axes location, and with the correct label.
 
     Parameters:
@@ -127,11 +129,16 @@ def plt_cmap(ax, cmap, extend, width, ylabel = None):
     cb.set_ticks([])
     pos = ax.get_position().bounds
     ax.set_position([pos[0], pos[1], width, pos[3]])
+
+    if lim is not None:
+        cb.set_ticks([0, 1])
+        cb.set_ticklabels([lim[0], lim[1]])
+
     if ylabel is not None:
         ax.set(ylabel=ylabel)
 
 
-def plot_spatial_elem(ax, elems, title, color): 
+def plot_spatial_elem(ax, elems, title, color):
     '''Generates a scatter plot of the cell positions (X/Y) from the sample collected
     '''
     ax.set_title(title)
