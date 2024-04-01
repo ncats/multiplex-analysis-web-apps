@@ -4,6 +4,8 @@ This is the python script which produces the NEIGHBORHOOD PROFILES PAGE
 import streamlit as st
 import numpy as np
 from streamlit_extras.add_vertical_space import add_vertical_space
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 # Import relevant libraries
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
@@ -174,10 +176,13 @@ def main():
     npf_cols = st.columns([1, 1, 2])
     with npf_cols[0]:
         cellCountsButt = st.button('Perform Cell Counts/Areas Analysis')
-        umap_butt       = st.button('Perform UMAP Analysis')
+        umap_butt      = st.button('Perform UMAP Analysis')
         st.toggle('Perform Clustering on UMAP Density Difference', value = False, key = 'toggle_clust_diff')
-        st.slider('Number of K-means clusters', min_value=clust_minmax[0], max_value=clust_minmax[1], key = 'slider_clus_val')
-        clustButt      = st.button('Perform Clustering Analysis')
+        if st.session_state['toggle_clust_diff'] is False: # Run Clustering Normally
+            st.slider('Number of K-means clusters', min_value=clust_minmax[0], max_value=clust_minmax[1], key = 'slider_clus_val')
+            clust_butt = st.button('Perform Clustering Analysis')
+        else:
+            clust_butt = st.button('Perform Clustering Analysis on Density Difference')
 
     with npf_cols[1]:
         if st.session_state['toggle_clust_diff']:
@@ -188,26 +193,26 @@ def main():
         if umap_butt:
             if st.session_state.cell_counts_completed:
                 apply_umap(umap_style = 'Densities')
-        if clustButt:
+        if clust_butt:
             if st.session_state.umapCompleted:
                 set_clusters()
 
     with npf_cols[2]:
         if st.session_state.umapCompleted:
-            vlim = .97
-            n_bins = 200
-            xx = np.linspace(np.min(st.session_state.df_umap['X']), np.max(st.session_state.df_umap['X']), n_bins + 1)
-            yy = np.linspace(np.min(st.session_state.df_umap['Y']), np.max(st.session_state.df_umap['Y']), n_bins + 1)
-            n_pad = 40
-
-            w = None
-            st.session_state.d_full = umPT.plot_2d_density(st.session_state.df_umap['X'],
-                                                           st.session_state.df_umap['Y'],
-                                                           bins=n_bins, w=w, return_matrix=True)
-
-            st.session_state.UMAPFig = bpl.UMAPdraw_density(st.session_state.d_full, bins = [xx, yy], w=None, n_pad=n_pad, vlim=vlim)
-
             if st.session_state['toggle_clust_diff']:
+                vlim = .97
+                n_bins = 200
+                xx = np.linspace(np.min(st.session_state.df_umap['X']), np.max(st.session_state.df_umap['X']), n_bins + 1)
+                yy = np.linspace(np.min(st.session_state.df_umap['Y']), np.max(st.session_state.df_umap['Y']), n_bins + 1)
+                n_pad = 40
+
+                w = None
+                st.session_state.d_full = umPT.plot_2d_density(st.session_state.df_umap['X'],
+                                                               st.session_state.df_umap['Y'],
+                                                               bins= [xx, yy], w=w, return_matrix=True)
+
+                st.session_state.UMAPFig = bpl.UMAPdraw_density(st.session_state.d_full, bins = [xx, yy], w=w, n_pad=n_pad, vlim=vlim)
+
                 feat_comp1 = '= 1'
                 feat_comp2 = '= 0'
 
@@ -216,19 +221,26 @@ def main():
                 feat_labeld = f'{st.session_state.dens_diff_feat_sel} Difference '
 
                 w = None
-
                 st.session_state.df_umap_A = st.session_state.df_umap.loc[st.session_state.df_umap[st.session_state.dens_diff_feat_sel] == 1, :]
                 st.session_state.df_umap_D = st.session_state.df_umap.loc[st.session_state.df_umap[st.session_state.dens_diff_feat_sel] == 0, :]
 
                 st.session_state.d_A = umPT.plot_2d_density(st.session_state.df_umap_A['X'],
                                                             st.session_state.df_umap_A['Y'],
-                                                            bins=n_bins, w=w, return_matrix=True)
+                                                            bins= [xx, yy], w=w, return_matrix=True)
                 
                 st.session_state.d_D = umPT.plot_2d_density(st.session_state.df_umap_D['X'],
                                                             st.session_state.df_umap_D['Y'],
-                                                            bins=n_bins, w=w, return_matrix=True)
+                                                            bins= [xx, yy], w=w, return_matrix=True)
                 
-                st.session_state.d_diff = st.session_state.d_A - st.session_state.d_D
+                st.session_state.d_diff = (st.session_state.d_A - st.session_state.d_D)
+
+                min_val = np.min(st.session_state.d_diff)
+                max_val = np.max(st.session_state.d_diff)
+                minabs  = np.min([np.abs(min_val), np.abs(max_val)])
+                cutoff = 0.05*minabs
+                theseBools = (st.session_state.d_diff < cutoff) & (st.session_state.d_diff > -cutoff)
+                # st.session_state.d_diff[theseBools] = 0
+                # print(min_val, max_val, minabs)
 
                 st.session_state.UMAPFigDiff0_Dens = bpl.UMAPdraw_density(st.session_state.d_A, bins = [xx, yy], w=w, n_pad=n_pad, vlim=vlim, feat = feat_label0)
                 st.session_state.UMAPFigDiff1_Dens = bpl.UMAPdraw_density(st.session_state.d_D, bins = [xx, yy], w=w, n_pad=n_pad, vlim=vlim, feat = feat_label1)
@@ -244,6 +256,14 @@ def main():
                     st.pyplot(fig=st.session_state.UMAPFigDiff1_Dens)
                 with diff_cols[2]:
                     st.pyplot(fig=st.session_state.UMAPFigDiff2_Dens)
+
+                # hist_fig = plt.figure()
+                # ax = hist_fig.add_subplot(111)
+                # dens_values = st.session_state.d_diff.flatten()
+                # sns.histplot(data= dens_values, ax = ax)
+                # plt.yscale('log')
+                # # plt.ylim(0, 1000)
+                # st.pyplot(hist_fig)
 
             ### Clustering Meta Analysis and Description ###
             # with st.expander('Cluster Meta-Analysis', ):
