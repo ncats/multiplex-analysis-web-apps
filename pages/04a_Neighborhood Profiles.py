@@ -6,6 +6,7 @@ import numpy as np
 from streamlit_extras.add_vertical_space import add_vertical_space
 import matplotlib.pyplot as plt
 import seaborn as sns
+from sklearn.cluster import KMeans
 
 # Import relevant libraries
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
@@ -91,8 +92,19 @@ def set_clusters():
     and applying them to the UMAP/dataset
     '''
     st.session_state.bc.startTimer()
-    st.session_state.spatial_umap = bpl.perform_clusteringUMAP(st.session_state.spatial_umap,
-                                                               st.session_state.slider_clus_val)
+    if st.session_state['toggle_clust_diff']:
+        dataset_values  = st.session_state.umap_test_mask
+        dataset_indices = st.session_state.umap_test_mask_ind
+        clust_selection = 5
+    else:
+        dataset_values  = st.session_state.spatial_umap.umap_test
+        dataset_indices = np.arange(len(dataset_values))
+        clust_selection = st.session_state.slider_clus_val
+
+    st.session_state.spatial_umap = bpl.perform_clusteringUMAP(dataset_indices,
+                                                                dataset_values,
+                                                                st.session_state.spatial_umap,
+                                                                clust_selection)
     st.session_state.selected_nClus = st.session_state.slider_clus_val
     st.write('Done Calculating Clusters')
 
@@ -245,6 +257,15 @@ def main():
                 st.session_state.UMAPFigDiff0_Dens = bpl.UMAPdraw_density(st.session_state.d_A, bins = [xx, yy], w=w, n_pad=n_pad, vlim=vlim, feat = feat_label0)
                 st.session_state.UMAPFigDiff1_Dens = bpl.UMAPdraw_density(st.session_state.d_D, bins = [xx, yy], w=w, n_pad=n_pad, vlim=vlim, feat = feat_label1)
                 st.session_state.UMAPFigDiff2_Dens = bpl.UMAPdraw_density(st.session_state.d_diff, bins = [xx, yy], w=w, n_pad=n_pad, vlim=vlim, feat = feat_labeld, diff = True)
+
+                # umap_ind_list = []
+                # for ind_bin, d_bin in enumerate(st.session_state.d_diff.flatten()):
+                #     if d_bin >= min_val:
+                #         umap_ind_list.append(ind_list[ind_bin])
+                # print(len(umap_ind_list))
+
+                st.session_state.umap_test_mask = st.session_state.spatial_umap.umap_test
+                st.session_state.umap_test_mask_ind = np.arange(len(st.session_state.spatial_umap.umap_test))
 
                 exp_cols = st.columns(3)
                 with exp_cols[1]:
