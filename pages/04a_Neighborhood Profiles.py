@@ -7,6 +7,7 @@ from streamlit_extras.add_vertical_space import add_vertical_space
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
+import pickle
 
 # Import relevant libraries
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
@@ -166,6 +167,14 @@ def filter_and_plot():
         st.session_state.df_umap_filt = st.session_state.df_umap.loc[st.session_state.df_umap['Slide ID'] == st.session_state['selSlide ID'], :]
         st.session_state = ndl.setFigureObjs_UMAP(st.session_state)
 
+def save_pickle_file():
+    with open('pickle_file.pkl', 'wb') as f:
+        pickle.dump(st.session_state, f)
+
+def load_pickle_file():
+    with open('pickle_file.pkl', 'rb') as f:
+        st.session_state = pickle.load(f)
+
 def main():
     '''
     Main function for running the page
@@ -183,6 +192,9 @@ def main():
     st.session_state = top.top_of_page_reqs(st.session_state)
 
     st.header('Neighborhood Profiles\nNCATS-NCI-DMAP')
+
+    st.button('Save Pickle File', on_click=save_pickle_file)
+    st.button('Load Pickle File', on_click=load_pickle_file)
 
     clust_minmax = [1, 40]
     npf_cols = st.columns([1, 1, 2])
@@ -258,19 +270,18 @@ def main():
                 theseBools = (st.session_state.d_diff < cutoff) & (st.session_state.d_diff > -cutoff)
                 # st.session_state.d_diff[theseBools] = 0
                 # print(min_val, max_val, minabs)
+                st.session_state.d_diff_mask = st.session_state.d_diff
 
                 st.session_state.UMAPFigDiff0_Dens = bpl.UMAPdraw_density(st.session_state.d_A, bins = [xx, yy], w=w, n_pad=n_pad, vlim=vlim, feat = feat_label0)
                 st.session_state.UMAPFigDiff1_Dens = bpl.UMAPdraw_density(st.session_state.d_D, bins = [xx, yy], w=w, n_pad=n_pad, vlim=vlim, feat = feat_label1)
                 st.session_state.UMAPFigDiff2_Dens = bpl.UMAPdraw_density(st.session_state.d_diff, bins = [xx, yy], w=w, n_pad=n_pad, vlim=vlim, feat = feat_labeld, diff = True)
 
-                # umap_ind_list = []
-                # for ind_bin, d_bin in enumerate(st.session_state.d_diff.flatten()):
-                #     if d_bin >= min_val:
-                #         umap_ind_list.append(ind_list[ind_bin])
-                # print(len(umap_ind_list))
+                these_bins = (st.session_state.d_diff_mask > cutoff) | (st.session_state.d_diff_mask < -cutoff)
 
+                st.session_state.umap_test_mask_ind = [ind_set for ind_set in bin_num_df_group[these_bins]]
+                print(st.session_state.umap_test_mask_ind)
                 st.session_state.umap_test_mask = st.session_state.spatial_umap.umap_test
-                st.session_state.umap_test_mask_ind = np.arange(len(st.session_state.spatial_umap.umap_test))
+                # = np.arange(len(st.session_state.spatial_umap.umap_test))
 
                 exp_cols = st.columns(3)
                 with exp_cols[1]:
