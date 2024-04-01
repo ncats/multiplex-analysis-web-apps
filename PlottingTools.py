@@ -9,6 +9,7 @@ import seaborn as sns
 import altair as alt
 alt.data_transformers.disable_max_rows()
 from scipy import ndimage as ndi
+from scipy.stats import binned_statistic_2d
 
 def plot_2d_density(X, Y=None, bins=200, n_pad=40, w=None, ax=None, gaussian_sigma=0.5, cmap=plt.get_cmap('viridis'), vlim=np.array([0.001, 0.98]), circle_type='bg', box_off=True, return_matrix=False):
     '''plot_2d_density(X, Y, bins, n_pad, w, ax, gaussian_sigma, cmap, vlim, circle_type, box_off, return_matrix)
@@ -36,7 +37,7 @@ def plot_2d_density(X, Y=None, bins=200, n_pad=40, w=None, ax=None, gaussian_sig
             b, _, _ = np.histogram2d(X, Y, bins=bins)
             b = ndi.gaussian_filter(b.T, sigma=gaussian_sigma)
 
-            s, _, _ = np.histogram2d(X, Y, bins=bins, weights=w)
+            s, xedges, yedges = np.histogram2d(X, Y, bins=bins, weights=w)
             s = ndi.gaussian_filter(s.T, sigma=gaussian_sigma)
 
             d = np.zeros_like(b)
@@ -44,14 +45,14 @@ def plot_2d_density(X, Y=None, bins=200, n_pad=40, w=None, ax=None, gaussian_sig
             d = s
             d = ndi.gaussian_filter(d, sigma=gaussian_sigma)
         else:
-            d, _, _ = np.histogram2d(X, Y, bins=bins)
+            d, xedges, yedges, binnumber = binned_statistic_2d(X, Y, None, 'count', bins=bins)
             d /= np.sum(d)
             d = ndi.gaussian_filter(d.T, sigma=gaussian_sigma)
     else:
         d = X
 
     if return_matrix:
-        return d
+        return d, binnumber
     else:
         if d[d > 0].shape == (0,):
             vmin = 0
