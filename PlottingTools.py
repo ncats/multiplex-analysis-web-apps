@@ -32,6 +32,12 @@ def plot_2d_density(X, Y=None, bins=200, n_pad=40, w=None, ax=None, gaussian_sig
     Returns:
     
     '''
+
+    if np.isscalar(bins):
+        n_bins = bins
+    else:
+        n_bins = len(bins[0]) - 1
+
     if Y is not None:
         if w is not None:
             b, _, _ = np.histogram2d(X, Y, bins=bins)
@@ -45,14 +51,22 @@ def plot_2d_density(X, Y=None, bins=200, n_pad=40, w=None, ax=None, gaussian_sig
             d = s
             d = ndi.gaussian_filter(d, sigma=gaussian_sigma)
         else:
-            d, xedges, yedges, binnumber = binned_statistic_2d(X, Y, None, 'count', bins=bins)
+            d, xedges, yedges = np.histogram2d(X, Y, bins=bins)
             d /= np.sum(d)
             d = ndi.gaussian_filter(d.T, sigma=gaussian_sigma)
     else:
         d = X
 
     if return_matrix:
-        return d, binnumber
+        x_bin_indices = np.digitize(X, xedges[:-1])-1
+        y_bin_indices = np.digitize(Y, yedges[:-1])-1
+        bin_indices = [(indx*n_bins + indy) for (indx, indy) in zip(x_bin_indices, y_bin_indices)]
+
+        bin_indices_df = pd.DataFrame(bin_indices, columns = ['bin_num'])
+        bin_indices_df['index'] = bin_indices_df.index
+        bin_indices_df_group = bin_indices_df.groupby('bin_num')['index'].apply(list)
+
+        return d, bin_indices_df_group
     else:
         if d[d > 0].shape == (0,):
             vmin = 0
