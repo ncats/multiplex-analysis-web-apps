@@ -100,7 +100,7 @@ def plot_2d_density(X, Y=None, bins=200, n_pad=40, w=None, ax=None, gaussian_sig
 
         # Create the color bar
         cax = ax.inset_axes([0.95, 0.1, 0.01, 0.85])
-        plt_cmap(ax=cax, cmap=cmap, extend=extend, width=0.01, lim = [min(d.flatten()), max(d.flatten())])
+        plt_cmap(ax=cax, cmap=cmap, extend=extend, width=0.01, lim = [np.min(d), np.max(d)])
 
         if box_off is True:
             [ax.spines[sp].set_visible(False) for sp in ax.spines]
