@@ -9,4 +9,4 @@ set -e
 # mamba create -n my_env -y -q python==3.8 ipykernel palantir-sdk
 
 pip install scikit-learn streamlit-extras squidpy split-file-reader st-pages dill
-mamba install -y -q natsort
+mamba install -y -q natsort "foundry-transforms-lib-python>=0.578.0"

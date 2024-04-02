@@ -1,3 +1,8 @@
+import os
+import shutil
+import time
+
+
 def get_foundry_dataset(alias='input'):
     """Create a dataset object.
     This should be fast.
@@ -32,7 +37,17 @@ def upload_dir_to_dataset(dataset, path_to_dir_to_upload='../junk_files'):
     Note there is at least a single-file upload limit of about 2000 MB, which is higher than I reported in an old Issue to Palantir.
     This should be slow.
     """
-    return dataset.upload_directory(path_to_dir_to_upload)
+
+
+    print(f'Transferring {get_dir_size(path_to_dir_to_upload):.2f} MB from directory {path_to_dir_to_upload}...', end='')
+    recursive_copy(path_to_dir_to_upload, '/tmp/data/outputs')
+    start_time = time.time()
+    return_val = dataset.upload_directory(local_dir_path="/tmp/data/outputs")
+    duration_in_sec = time.time() - start_time
+    print(f'done. Transfer took {duration_in_sec:.2f} seconds.')
+
+
+    return return_val
 
 def download_files_from_dataset(dataset, dataset_filter_func=lambda f: f.path.startswith("junk-200mb"), limit=15):
     """
@@ -88,3 +103,17 @@ def download_file_from_dataset(dataset_file_object):
     return dataset_file_object.download()
     # dataset_files = dataset.files().download()  # <-- This downloads all files in the dataset per the Code Workspaces documentation, consistent with Code Workspaces snippets on 3/10/24
 # ----------------------------------------------------------------------------------------------------------------------------------
+
+
+def get_dir_size(path_to_dir_to_upload):
+    total = 0
+    for dirpath, _, filenames in os.walk(path_to_dir_to_upload):
+        for f in filenames:
+            fp = os.path.join(dirpath, f)
+            total += os.path.getsize(fp)
+    return total / (1024 * 1024)  # Convert bytes to MB
+
+
+def recursive_copy(src, dst):
+    shutil.rmtree(dst)
+    shutil.copytree(src, dst)
