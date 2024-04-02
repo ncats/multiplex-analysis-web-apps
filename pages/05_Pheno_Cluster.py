@@ -212,7 +212,7 @@ def main():
     phenocluster__default_session_state()
     
     # make layout with columns
-    adata = phenocluster__make_adata(st.session_state['unifier__df'])
+    adata = phenocluster__make_adata(st.session_state['input_dataset'].data)
     
     # options
     with phenocluster__col1:
