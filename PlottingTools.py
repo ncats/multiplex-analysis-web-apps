@@ -98,17 +98,17 @@ def plot_2d_density(X, Y=None, bins=200, n_pad=40, w=None, ax=None, gaussian_sig
             # ax.pcolormesh(np.log10(np.pad(d, [n_pad, n_pad]) + c + 1), vmin=np.log10(2), vmax=np.log10(2 + vlim[1]), cmap=cmap, shading='gouraud', alpha=1)
         elif circle_type == 'arch':
             extend = 'both'
-            if any((d<0)[0]):
-                vmin = np.quantile(d[d < 0].flatten(), 0.03)
-            else:
-                vmin = 0.03
-            if any((d>0)[0]):
-                vmax = np.quantile(d[d > 0].flatten(), 0.97)
-            else:
-                vmax = 0.97
+            # if any((d<0)[0]):
+            #     vmin = np.quantile(d[d < 0].flatten(), 0.03)
+            # else:
+            #     vmin = 0.03
+            # if any((d>0)[0]):
+            #     vmax = np.quantile(d[d > 0].flatten(), 0.97)
+            # else:
+            #     vmax = 0.97
             c = (n_bins / 2)
             ax.add_artist(plt.Circle((c + n_pad, c + n_pad), 0.95 * (c + n_pad), color='black', fill=False))
-            ax.pcolormesh(np.pad(d, [n_pad, n_pad]), vmin=vmin, vmax=vmax, cmap=cmap, shading='gouraud', alpha=1)
+            ax.pcolormesh(np.pad(d, [n_pad, n_pad]), vmin=-vlim[1], vmax=vlim[1], cmap=cmap, shading='gouraud', alpha=1)
         else:
             extend = 'max'
             ax.pcolormesh(np.pad(d, [n_pad, n_pad]), vmin=0, vmax=vlim[1], cmap=cmap, shading='gouraud', alpha=1)
