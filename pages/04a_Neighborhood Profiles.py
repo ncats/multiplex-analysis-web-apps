@@ -212,11 +212,18 @@ def main():
         cellCountsButt = st.button('Perform Cell Counts/Areas Analysis')
         umap_butt       = st.button('Perform UMAP Analysis')
         st.toggle('Perform Clustering on UMAP Density Difference', value = False, key = 'toggle_clust_diff')
-        st.slider('Number of K-means clusters', min_value=clust_minmax[0], max_value=clust_minmax[1], key = 'slider_clus_val')
         if st.session_state['toggle_clust_diff'] is False: # Run Clustering Normally
-            clust_butt = st.button('Perform Clustering Analysis')
+            st.slider('Number of K-means clusters', min_value=clust_minmax[0], max_value=clust_minmax[1], key = 'slider_clus_val')
+            clust_butt_disabled = False
         else:
-            clust_butt = st.button('Perform Clustering Analysis on Density Difference')
+            sep_clust_cols = st.columns(2)
+            with sep_clust_cols[0]:
+                st.number_input('Number of Clusters for False Condition', min_value = 1, max_value = 10, value = 3, step = 1, key = 'num_clus_0')
+            with sep_clust_cols[1]:
+                st.number_input('Number of Clusters for True Condition', min_value = 1, max_value = 10, value = 3, step = 1, key = 'num_clus_1')
+            clust_butt_disabled = True
+        clust_butt = st.button('Perform Clustering Analysis', disabled=clust_butt_disabled)
+
 
     with npf_cols[1]:
         if st.session_state['toggle_clust_diff']:
@@ -254,8 +261,6 @@ def main():
                 feat_label0 = f'{st.session_state.dens_diff_feat_sel} {feat_comp1} '
                 feat_label1 = f'{st.session_state.dens_diff_feat_sel} {feat_comp2} '
                 feat_labeld = f'{st.session_state.dens_diff_feat_sel} Difference '
-                feat_labelm = f'{st.session_state.dens_diff_feat_sel} Difference- Masked, cutoff = {st.session_state.dens_diff_cutoff}'
-                feat_labelc = f'{st.session_state.dens_diff_feat_sel} Clusters, False-{3}, True-{3}'
 
                 w = None
                 st.session_state.df_umap_A = st.session_state.df_umap.loc[st.session_state.df_umap[st.session_state.dens_diff_feat_sel] == 1, :]
@@ -297,12 +302,12 @@ def main():
                         else:
                             st.session_state.d_diff_mask[x_bin, y_bin] = 0
 
-                kmeans_obj_cond0 = KMeans(n_clusters = 3,
+                kmeans_obj_cond0 = KMeans(n_clusters = st.session_state.num_clus_0,
                                     init ='k-means++',
                                     max_iter = 300,
                                     n_init = 10,
                                     random_state = 42)
-                kmeans_obj_cond1 = KMeans(n_clusters = 3,
+                kmeans_obj_cond1 = KMeans(n_clusters = st.session_state.num_clus_1,
                                     init ='k-means++',
                                     max_iter = 300,
                                     n_init = 10,
@@ -317,8 +322,11 @@ def main():
                 kmeans_obj_cond1.fit(cells_cond1)
 
                 st.session_state.d_diff_clust = st.session_state.d_diff_mask.copy()
-                st.session_state.d_diff_clust[cond0_ind] = (-kmeans_obj_cond0.labels_ -1)*10
-                st.session_state.d_diff_clust[cond1_ind] = (kmeans_obj_cond1.labels_ + 1)*10
+                st.session_state.d_diff_clust[cond0_ind] = -kmeans_obj_cond0.labels_ -1
+                st.session_state.d_diff_clust[cond1_ind] = kmeans_obj_cond1.labels_ + 1
+
+                feat_labelm = f'{st.session_state.dens_diff_feat_sel} Difference- Masked, cutoff = {st.session_state.dens_diff_cutoff}'
+                feat_labelc = f'{st.session_state.dens_diff_feat_sel} Clusters, False-{st.session_state.num_clus_0}, True-{st.session_state.num_clus_1}'
                             
                 st.session_state.UMAPFigDiff3_Dens = bpl.UMAPdraw_density(st.session_state.d_diff_mask, bins = [xx, yy], w=w, n_pad=n_pad, vlim=vlim, feat = feat_labelm, diff = True)
                 st.session_state.UMAPFigDiff4_Dens = bpl.UMAPdraw_density(st.session_state.d_diff_clust, bins = [xx, yy], w=w, n_pad=n_pad, vlim=vlim, feat = feat_labelc, diff = True)
