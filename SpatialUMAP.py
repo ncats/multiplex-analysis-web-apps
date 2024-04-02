@@ -579,7 +579,7 @@ class SpatialUMAP:
         self.prop_df = pd.DataFrame()
         for clust_label, group in self.df_umap.groupby('clust_label'):
 
-            if clust_label != -1:
+            if clust_label != -1 and clust_label != 'No Cluster':
                 ind = group.index
 
                 smalldf_D = pd.DataFrame()
