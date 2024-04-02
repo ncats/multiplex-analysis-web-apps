@@ -254,11 +254,11 @@ def main():
             
             # umap
         if 'phenocluster__clustering_adata' in st.session_state:
-            st.write(pd.unique(st.session_state['phenocluster__clustering_adata'].obs["Cluster"]))
+            #st.write(pd.unique(st.session_state['phenocluster__clustering_adata'].obs["Cluster"]))
             
             st.session_state['phenocluster__umeta_columns'] = list(st.session_state['phenocluster__clustering_adata'].obs.columns)
             st.session_state['phenocluster__umap_color_col_index'] = st.session_state['phenocluster__umeta_columns'].index(st.session_state['phenocluster__umap_color_col'])
-            st.write(st.session_state['phenocluster__umap_color_col_index'])
+            #st.write(st.session_state['phenocluster__umap_color_col_index'])
             
             # select column for umap coloring
             st.session_state['phenocluster__umap_color_col'] = st.selectbox('Select column for UMAP coloring:', 
