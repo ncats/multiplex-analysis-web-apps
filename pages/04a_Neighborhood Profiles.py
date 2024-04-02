@@ -358,7 +358,7 @@ def main():
                         st.session_state.spatial_umap.df_umap.loc[umap_ind, 'Cluster'] = val
                 
                 # After assigning cluster labels, perform mean calculations
-                # st.session_state.spatial_umap.mean_measures()
+                st.session_state.spatial_umap.mean_measures()
                         
                 filter_and_plot()
 
@@ -451,8 +451,13 @@ def main():
     with uNeighPCol:
         st.header('Neighborhood Profiles')
         if 'spatial_umap' in st.session_state:
-            sel_npf_fig = st.selectbox('Select a cluster to view',
-                                       list(range(st.session_state.selected_nClus)))
+
+            if st.session_state['toggle_clust_diff']:
+                list_clusters = list(cluster_dict.values())
+            else:
+                list_clusters = list(range(st.session_state.selected_nClus))
+
+            sel_npf_fig = st.selectbox('Select a cluster to view', list_clusters)
             if st.session_state.clustering_completed:
 
                 npf_fig = bpl.neighProfileDraw(st.session_state.spatial_umap, sel_npf_fig)
