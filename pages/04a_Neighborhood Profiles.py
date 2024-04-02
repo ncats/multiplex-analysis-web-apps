@@ -231,14 +231,9 @@ def main():
                 n_pad = 40
 
                 w = None
-                st.session_state.d_full, binnumber = umPT.plot_2d_density(st.session_state.df_umap['X'],
-                                                               st.session_state.df_umap['Y'],
-                                                               bins=[xx, yy], w=w, return_matrix=True)
-                
-                # IDentify where each sample was placed in a given bin
-                bin_num_df = pd.DataFrame(binnumber, columns = ['bin_num'])
-                bin_num_df['index'] = bin_num_df.index
-                bin_num_df_group = bin_num_df.groupby('bin_num')['index'].apply(list)
+                st.session_state.d_full, bin_indices_df_group = umPT.plot_2d_density(st.session_state.df_umap['X'],
+                                                                                     st.session_state.df_umap['Y'],
+                                                                                     bins=[xx, yy], w=w, return_matrix=True)
 
                 st.session_state.UMAPFig = bpl.UMAPdraw_density(st.session_state.d_full, bins = [xx, yy], w=w, n_pad=n_pad, vlim=vlim)
                 
@@ -254,12 +249,12 @@ def main():
                 st.session_state.df_umap_D = st.session_state.df_umap.loc[st.session_state.df_umap[st.session_state.dens_diff_feat_sel] == 0, :]
 
                 st.session_state.d_A, _ = umPT.plot_2d_density(st.session_state.df_umap_A['X'],
-                                                            st.session_state.df_umap_A['Y'],
-                                                            bins=n_bins, w=w, return_matrix=True)
+                                                               st.session_state.df_umap_A['Y'],
+                                                               bins=[xx, yy], w=w, return_matrix=True)
                 
                 st.session_state.d_D, _ = umPT.plot_2d_density(st.session_state.df_umap_D['X'],
-                                                            st.session_state.df_umap_D['Y'],
-                                                            bins=n_bins, w=w, return_matrix=True)
+                                                               st.session_state.df_umap_D['Y'],
+                                                               bins=[xx, yy], w=w, return_matrix=True)
                 
                 st.session_state.d_diff = st.session_state.d_A - st.session_state.d_D
 
@@ -269,19 +264,30 @@ def main():
                 cutoff = 0.05*minabs
                 theseBools = (st.session_state.d_diff < cutoff) & (st.session_state.d_diff > -cutoff)
                 # st.session_state.d_diff[theseBools] = 0
-                # print(min_val, max_val, minabs)
+                # print(min_val, max_val, minabs, cutoff)
                 st.session_state.d_diff_mask = st.session_state.d_diff
 
                 st.session_state.UMAPFigDiff0_Dens = bpl.UMAPdraw_density(st.session_state.d_A, bins = [xx, yy], w=w, n_pad=n_pad, vlim=vlim, feat = feat_label0)
                 st.session_state.UMAPFigDiff1_Dens = bpl.UMAPdraw_density(st.session_state.d_D, bins = [xx, yy], w=w, n_pad=n_pad, vlim=vlim, feat = feat_label1)
                 st.session_state.UMAPFigDiff2_Dens = bpl.UMAPdraw_density(st.session_state.d_diff, bins = [xx, yy], w=w, n_pad=n_pad, vlim=vlim, feat = feat_labeld, diff = True)
 
-                these_bins = (st.session_state.d_diff_mask > cutoff) | (st.session_state.d_diff_mask < -cutoff)
+                # print(np.shape(st.session_state.d_full), np.shape(st.session_state.d_diff_mask))
+                d_flat = st.session_state.d_diff_mask
+                d_flat_shape = np.shape(d_flat)
 
-                st.session_state.umap_test_mask_ind = [ind_set for ind_set in bin_num_df_group[these_bins]]
-                print(st.session_state.umap_test_mask_ind)
-                st.session_state.umap_test_mask = st.session_state.spatial_umap.umap_test
-                # = np.arange(len(st.session_state.spatial_umap.umap_test))
+                bin_indices = list()
+                for x_bin in range(d_flat_shape[0]):
+                    for y_bin in range(d_flat_shape[1]):
+                        if d_flat[x_bin, y_bin] > cutoff or d_flat[x_bin, y_bin] < -cutoff:
+                            bin_indices.append((x_bin, y_bin))
+
+                # bin_indices = np.where((d_flat.flatten() > cutoff) | (d_flat.flatten() < -cutoff))[0]
+
+                these_input_inds = []
+                for i, tuple_i in enumerate(bin_indices):
+                    for j, tuple_j in enumerate(bin_indices_df_group):
+                        if tuple_i == tuple_j:
+                            these_input_inds.append(j)
 
                 exp_cols = st.columns(3)
                 with exp_cols[1]:
