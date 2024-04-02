@@ -254,7 +254,7 @@ def main():
                 feat_label0 = f'{st.session_state.dens_diff_feat_sel} {feat_comp1} '
                 feat_label1 = f'{st.session_state.dens_diff_feat_sel} {feat_comp2} '
                 feat_labeld = f'{st.session_state.dens_diff_feat_sel} Difference '
-                feat_labelm = f'{st.session_state.dens_diff_feat_sel} Difference- Masked'
+                feat_labelm = f'{st.session_state.dens_diff_feat_sel} Difference- Masked, cutoff = {st.session_state.dens_diff_cutoff}'
 
                 w = None
                 st.session_state.df_umap_A = st.session_state.df_umap.loc[st.session_state.df_umap[st.session_state.dens_diff_feat_sel] == 1, :]
@@ -273,10 +273,8 @@ def main():
                 min_val = np.min(st.session_state.d_diff)
                 max_val = np.max(st.session_state.d_diff)
                 minabs  = np.min([np.abs(min_val), np.abs(max_val)])
-                cutoff = 0.2*minabs
-                theseBools = (st.session_state.d_diff < cutoff) & (st.session_state.d_diff > -cutoff)
-                # st.session_state.d_diff[theseBools] = 0
-                # print(min_val, max_val, minabs, cutoff)
+                cutoff = st.session_state.dens_diff_cutoff*minabs
+
                 st.session_state.d_diff_mask = st.session_state.d_diff
                 d_diff_mask_shape = np.shape(st.session_state.d_diff_mask)
 
