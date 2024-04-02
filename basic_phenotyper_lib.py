@@ -842,7 +842,7 @@ def preprocess_weighted_umap(w, df_umap):
 
     return w, df_umap
 
-def UMAPdraw_density(d, bins, w, n_pad, vlim, feat = None, diff = False, figsize=(12, 12)):
+def UMAPdraw_density(d, bins, w, n_pad, vlim, feat = None, diff = False, legendtype = 'colorbar', figsize=(12, 12)):
 
     # Streamlit Theming
     SlBgC  = '#0E1117'  # Streamlit Background Color
@@ -871,7 +871,7 @@ def UMAPdraw_density(d, bins, w, n_pad, vlim, feat = None, diff = False, figsize
         circle_type = 'arch'
 
     umPT.plot_2d_density(d, bins=bins, w=w, n_pad=n_pad, ax=ax, cmap=cmap,
-                         vlim = vlim, circle_type = circle_type)
+                         vlim = vlim, circle_type = circle_type, legendtype = legendtype)
 
     x_lim = ax.get_xlim()
     y_lim = ax.get_ylim()

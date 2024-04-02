@@ -11,7 +11,7 @@ alt.data_transformers.disable_max_rows()
 from scipy import ndimage as ndi
 from scipy.stats import binned_statistic_2d
 
-def plot_2d_density(X, Y=None, bins=200, n_pad=40, w=None, ax=None, gaussian_sigma=0.5, cmap=plt.get_cmap('viridis'), vlim=np.array([0.001, 0.98]), circle_type='bg', box_off=True, return_matrix=False):
+def plot_2d_density(X, Y=None, bins=200, n_pad=40, w=None, ax=None, gaussian_sigma=0.5, cmap=plt.get_cmap('viridis'), vlim=np.array([0.001, 0.98]), circle_type='bg', box_off=True, return_matrix=False, legendtype = 'colorbar'):
     '''plot_2d_density(X, Y, bins, n_pad, w, ax, gaussian_sigma, cmap, vlim, circle_type, box_off, return_matrix)
     is a method for drawing 2D histograms figures. In this particular instance, we are plotting the outputs of the UMAP.
     
@@ -68,7 +68,11 @@ def plot_2d_density(X, Y=None, bins=200, n_pad=40, w=None, ax=None, gaussian_sig
 
         tuple_list = [(indx, indy) for (indx, indy) in zip(x_bin_indices, y_bin_indices)]
 
-        return d, tuple_list
+        bin_indices_df = pd.DataFrame(data = {'indx': x_bin_indices.flatten(),
+                                              'indy': y_bin_indices.flatten(),
+                                              'valx': X,
+                                              'valy': Y})
+        return d, bin_indices_df
     else:
         if d[d > 0].shape == (0,):
             vmin = 0
@@ -116,8 +120,15 @@ def plot_2d_density(X, Y=None, bins=200, n_pad=40, w=None, ax=None, gaussian_sig
             ax.pcolormesh(np.pad(d, [n_pad, n_pad]), vmin=0, vmax=vlim[1], cmap=cmap, shading='gouraud', alpha=1)
 
         # Create the color bar
-        cax = ax.inset_axes([0.95, 0.1, 0.01, 0.85])
-        plt_cmap(ax=cax, cmap=cmap, extend=extend, width=0.01, lim = [np.min(d), np.max(d)])
+        if legendtype == 'colorbar':
+            cax = ax.inset_axes([0.95, 0.1, 0.01, 0.85])
+            cmap_lim = None # [np.min(d), np.max(d)]
+            plt_cmap(ax=cax, cmap=cmap, extend=extend, width=0.01, lim = cmap_lim)
+        elif legendtype == 'legend':
+            cax = ax.inset_axes([0.95, 0.1, 0.01, 0.85])
+            cmap_lim = [-3, -2, -1, 0, 1, 2, 3]
+            plt_cmap(ax=cax, cmap=cmap, extend=extend, width=0.01, lim = cmap_lim)
+
 
         if box_off is True:
             [ax.spines[sp].set_visible(False) for sp in ax.spines]
