@@ -16,6 +16,8 @@ import numpy as np
 import scanpy.external as sce
 import plotly.express as px
 
+# make adata from unifier table
+# hard coded column names, nned to think about a better way
 def phenocluster__make_adata(df):
     colNames = list(df)
     object_index = colNames.index("Object")
@@ -64,12 +66,13 @@ def run_parc_clust(adata, n_neighbors):
     return adata
 
 # utag clustering
+# need to make image selection based on the variable
 def run_utag_clust(adata, n_neighbors, resolutions):
     sc.pp.neighbors(adata, n_neighbors=n_neighbors, n_pcs=None)
     sc.tl.umap(adata)
     adata.obsm['spatial'] = np.array(adata.obs[["Centroid X (µm)_(standardized)", "Centroid Y (µm)_(standardized)"]])
     utag_results = utag(adata,
-        slide_key="Image",
+        slide_key="Image ID_(standardized)",
         max_dist=15,
         normalization_mode='l1_norm',
         apply_clustering=True,
