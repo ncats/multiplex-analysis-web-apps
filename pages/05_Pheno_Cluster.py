@@ -33,6 +33,7 @@ def phenocluster__make_adata(df):
     #st.write(list(mat))
     adata = ad.AnnData(mat)
     adata.obs = meta
+    adata.layers["counts"] = adata.X.copy()
     return adata
 
 # scanpy clustering
