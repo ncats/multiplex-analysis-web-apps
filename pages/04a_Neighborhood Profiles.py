@@ -261,26 +261,32 @@ def main():
                 min_val = np.min(st.session_state.d_diff)
                 max_val = np.max(st.session_state.d_diff)
                 minabs  = np.min([np.abs(min_val), np.abs(max_val)])
-                cutoff = 0.05*minabs
+                cutoff = 0.2*minabs
                 theseBools = (st.session_state.d_diff < cutoff) & (st.session_state.d_diff > -cutoff)
                 # st.session_state.d_diff[theseBools] = 0
                 # print(min_val, max_val, minabs, cutoff)
                 st.session_state.d_diff_mask = st.session_state.d_diff
+                d_diff_mask_shape = np.shape(st.session_state.d_diff_mask)
 
                 st.session_state.UMAPFigDiff0_Dens = bpl.UMAPdraw_density(st.session_state.d_A, bins = [xx, yy], w=w, n_pad=n_pad, vlim=vlim, feat = feat_label0)
                 st.session_state.UMAPFigDiff1_Dens = bpl.UMAPdraw_density(st.session_state.d_D, bins = [xx, yy], w=w, n_pad=n_pad, vlim=vlim, feat = feat_label1)
                 st.session_state.UMAPFigDiff2_Dens = bpl.UMAPdraw_density(st.session_state.d_diff, bins = [xx, yy], w=w, n_pad=n_pad, vlim=vlim, feat = feat_labeld, diff = True)
 
-                # print(np.shape(st.session_state.d_full), np.shape(st.session_state.d_diff_mask))
-                d_flat = st.session_state.d_diff_mask
-                d_flat_shape = np.shape(d_flat)
-
                 bin_indices = list()
-                for x_bin in range(d_flat_shape[0]):
-                    for y_bin in range(d_flat_shape[1]):
-                        if d_flat[x_bin, y_bin] > cutoff or d_flat[x_bin, y_bin] < -cutoff:
+                for x_bin in range(d_diff_mask_shape[0]):
+                    for y_bin in range(d_diff_mask_shape[1]):
+                        
+                        if st.session_state.d_diff[x_bin, y_bin] > cutoff:
+                            st.session_state.d_diff_mask[x_bin, y_bin] = 1
                             bin_indices.append((x_bin, y_bin))
-
+                        
+                        elif st.session_state.d_diff[x_bin, y_bin] < -cutoff:
+                            st.session_state.d_diff_mask[x_bin, y_bin] = -1
+                            bin_indices.append((x_bin, y_bin))
+                        else:
+                            st.session_state.d_diff_mask[x_bin, y_bin] = 0
+                            
+                st.session_state.UMAPFigDiff3_Dens = bpl.UMAPdraw_density(st.session_state.d_diff_mask, bins = [xx, yy], w=w, n_pad=n_pad, vlim=vlim, feat = feat_labeld, diff = True)
                 # bin_indices = np.where((d_flat.flatten() > cutoff) | (d_flat.flatten() < -cutoff))[0]
 
                 these_input_inds = []
@@ -288,6 +294,9 @@ def main():
                     for j, tuple_j in enumerate(bin_indices_df_group):
                         if tuple_i == tuple_j:
                             these_input_inds.append(j)
+                        
+                st.session_state.umap_test_mask = st.session_state.spatial_umap.umap_test[these_input_inds]
+                st.session_state.umap_test_mask_ind = these_input_inds
 
                 exp_cols = st.columns(3)
                 with exp_cols[1]:
@@ -299,6 +308,9 @@ def main():
                     st.pyplot(fig=st.session_state.UMAPFigDiff1_Dens)
                 with diff_cols[2]:
                     st.pyplot(fig=st.session_state.UMAPFigDiff2_Dens)
+                mor_cols = st.columns(3)
+                with mor_cols[2]:
+                    st.pyplot(fig=st.session_state.UMAPFigDiff3_Dens)
 
                 # hist_fig = plt.figure()
                 # ax = hist_fig.add_subplot(111)
