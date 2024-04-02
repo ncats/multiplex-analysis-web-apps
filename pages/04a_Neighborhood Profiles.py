@@ -288,6 +288,7 @@ def main():
                 st.session_state.UMAPFigDiff1_Dens = bpl.UMAPdraw_density(st.session_state.d_D, bins = [xx, yy], w=w, n_pad=n_pad, vlim=vlim, feat = feat_label1)
                 st.session_state.UMAPFigDiff2_Dens = bpl.UMAPdraw_density(st.session_state.d_diff, bins = [xx, yy], w=w, n_pad=n_pad, vlim=vlim, feat = feat_labeld, diff = True)
 
+                # Filtering and Masking
                 bin_indices = list()
                 for x_bin in range(d_diff_mask_shape[0]):
                     for y_bin in range(d_diff_mask_shape[1]):
@@ -325,31 +326,41 @@ def main():
                 st.session_state.d_diff_clust[cond0_ind] = -kmeans_obj_cond0.labels_ -1
                 st.session_state.d_diff_clust[cond1_ind] = kmeans_obj_cond1.labels_ + 1
 
+                cluster_dict = dict()
+                cluster_dict[0] = 'No Cluster'
+                for i in range(st.session_state.num_clus_0):
+                    cluster_dict[-i-1] = f'False_Cluster{i+1}'
+                for i in range(st.session_state.num_clus_1):
+                    cluster_dict[i+1] = f'True_Clust{i+1}'
+
                 feat_labelm = f'{st.session_state.dens_diff_feat_sel} Difference- Masked, cutoff = {st.session_state.dens_diff_cutoff}'
                 feat_labelc = f'{st.session_state.dens_diff_feat_sel} Clusters, False-{st.session_state.num_clus_0}, True-{st.session_state.num_clus_1}'
                             
                 st.session_state.UMAPFigDiff3_Dens = bpl.UMAPdraw_density(st.session_state.d_diff_mask, bins = [xx, yy], w=w, n_pad=n_pad, vlim=vlim, feat = feat_labelm, diff = True)
-                st.session_state.UMAPFigDiff4_Dens = bpl.UMAPdraw_density(st.session_state.d_diff_clust, bins = [xx, yy], w=w, n_pad=n_pad, vlim=vlim, feat = feat_labelc, diff = True)
+                st.session_state.UMAPFigDiff4_Dens = bpl.UMAPdraw_density(st.session_state.d_diff_clust, bins = [xx, yy], w=w, n_pad=n_pad, vlim=vlim, feat = feat_labelc, diff = True, legendtype = 'legend')
 
-                these_input_inds = []
-                for i, tuple_i in enumerate(bin_indices):
-                    for j, tuple_j in enumerate(bin_indices_df_group):
-                        if tuple_i == tuple_j:
-                            these_input_inds.append(j)
+                # Add cluster label column to cells dataframe
+                st.session_state.spatial_umap.df_umap.loc[:, 'clust_label'] = 'No Cluster'
+                st.session_state.spatial_umap.df_umap.loc[:, 'cluster'] = 'No Cluster'
+                st.session_state.spatial_umap.df_umap.loc[:, 'Cluster'] = 'No Cluster'
+
+                for key, val in cluster_dict.items():
+                    if key != 0:
+                        x, y = np.where(st.session_state.d_diff_clust == key)
+                        bin_in_cluster = [(indx, indy) for (indx, indy) in zip(x, y)]
+                        # coord_df = pd.DataFrame(data = {'indx': x, 'indy': y})
+
+                        significant_groups = bin_indices_df_group[bin_indices_df_group.set_index(['indx', 'indy']).index.isin(bin_in_cluster)]
+
+                        umap_ind = significant_groups.index.values
+                        st.session_state.spatial_umap.df_umap.loc[umap_ind, 'clust_label'] = val
+                        st.session_state.spatial_umap.df_umap.loc[umap_ind, 'cluster'] = val
+                        st.session_state.spatial_umap.df_umap.loc[umap_ind, 'Cluster'] = val
+                
+                # After assigning cluster labels, perform mean calculations
+                # st.session_state.spatial_umap.mean_measures()
                         
-                st.session_state.umap_test_mask = st.session_state.spatial_umap.umap_test[these_input_inds]
-                st.session_state.umap_test_mask_ind = these_input_inds
-
-                # st.session_state.umap_test_mask_df = pd.DataFrame(st.session_state.umap_test_mask, columns = ['X', 'Y'])
-
-                # fig_size = (12,12)
-                # SlBgC  = '#0E1117'  # Streamlit Background Color
-                # SlTC   = '#FAFAFA'  # Streamlit Text Color
-                # Sl2BgC = '#262730'  # Streamlit Secondary Background Color
-
-                # cluster_fig = plt.figure(figsize=fig_size, facecolor = SlBgC)
-                # ax = cluster_fig.add_subplot(1, 1, 1)
-                # sns.scatterplot(data = st.session_state.umap_test_mask_df, x = 'X', y = 'Y', ax = ax)
+                filter_and_plot()
 
                 exp_cols = st.columns(3)
                 with exp_cols[1]:
@@ -366,14 +377,6 @@ def main():
                     st.pyplot(fig=st.session_state.UMAPFigDiff3_Dens)
                 with mor_cols[1]:
                     st.pyplot(fig=st.session_state.UMAPFigDiff4_Dens)
-
-                # hist_fig = plt.figure()
-                # ax = hist_fig.add_subplot(111)
-                # dens_values = st.session_state.d_diff.flatten()
-                # sns.histplot(data= dens_values, ax = ax)
-                # plt.yscale('log')
-                # # plt.ylim(0, 1000)
-                # st.pyplot(hist_fig)
 
             ### Clustering Meta Analysis and Description ###
             # with st.expander('Cluster Meta-Analysis', ):
