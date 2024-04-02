@@ -96,7 +96,7 @@ def set_clusters():
     if st.session_state['toggle_clust_diff']:
         dataset_values  = st.session_state.umap_test_mask
         dataset_indices = st.session_state.umap_test_mask_ind
-        clust_selection = 5
+        clust_selection = st.session_state.slider_clus_val
     else:
         dataset_values  = st.session_state.spatial_umap.umap_test
         dataset_indices = np.arange(len(dataset_values))
@@ -167,6 +167,27 @@ def filter_and_plot():
         st.session_state.df_umap_filt = st.session_state.df_umap.loc[st.session_state.df_umap['Slide ID'] == st.session_state['selSlide ID'], :]
         st.session_state = ndl.setFigureObjs_UMAP(st.session_state)
 
+# def prepare_umap_plotting():
+#     '''
+#     Prepare the UMAP plotting
+#     '''
+    
+#     vlim = .97
+#     n_bins = 200
+#     xx = np.linspace(np.min(st.session_state.df_umap['X']), np.max(st.session_state.df_umap['X']), n_bins + 1)
+#     yy = np.linspace(np.min(st.session_state.df_umap['Y']), np.max(st.session_state.df_umap['Y']), n_bins + 1)
+#     n_pad = 40
+
+#     w = None
+#     st.session_state.d_full, bin_indices_df_group = umPT.plot_2d_density(st.session_state.df_umap['X'],
+#                                                                             st.session_state.df_umap['Y'],
+#                                                                             bins=[xx, yy], w=w, return_matrix=True)
+
+#     st.session_state.UMAPFig = bpl.UMAPdraw_density(st.session_state.d_full, bins = [xx, yy], w=w, n_pad=n_pad, vlim=vlim)
+    
+#     feat_comp1 = '= 1'
+#     feat_comp2 = '= 0'
+
 def main():
     '''
     Main function for running the page
@@ -191,8 +212,8 @@ def main():
         cellCountsButt = st.button('Perform Cell Counts/Areas Analysis')
         umap_butt       = st.button('Perform UMAP Analysis')
         st.toggle('Perform Clustering on UMAP Density Difference', value = False, key = 'toggle_clust_diff')
+        st.slider('Number of K-means clusters', min_value=clust_minmax[0], max_value=clust_minmax[1], key = 'slider_clus_val')
         if st.session_state['toggle_clust_diff'] is False: # Run Clustering Normally
-            st.slider('Number of K-means clusters', min_value=clust_minmax[0], max_value=clust_minmax[1], key = 'slider_clus_val')
             clust_butt = st.button('Perform Clustering Analysis')
         else:
             clust_butt = st.button('Perform Clustering Analysis on Density Difference')
@@ -200,6 +221,7 @@ def main():
     with npf_cols[1]:
         if st.session_state['toggle_clust_diff']:
             st.selectbox('Feature', options = ['Outcome', 'Survival_5yr'], key = 'dens_diff_feat_sel')
+            st.number_input('Cutoff Percentage', min_value = 0.01, max_value = 0.99, value = 0.2, step = 0.01, key = 'dens_diff_cutoff')
         if cellCountsButt:
             if st.session_state.phenotyping_completed:
                 init_spatial_umap()
@@ -232,6 +254,7 @@ def main():
                 feat_label0 = f'{st.session_state.dens_diff_feat_sel} {feat_comp1} '
                 feat_label1 = f'{st.session_state.dens_diff_feat_sel} {feat_comp2} '
                 feat_labeld = f'{st.session_state.dens_diff_feat_sel} Difference '
+                feat_labelm = f'{st.session_state.dens_diff_feat_sel} Difference- Masked'
 
                 w = None
                 st.session_state.df_umap_A = st.session_state.df_umap.loc[st.session_state.df_umap[st.session_state.dens_diff_feat_sel] == 1, :]
@@ -275,7 +298,7 @@ def main():
                         else:
                             st.session_state.d_diff_mask[x_bin, y_bin] = 0
                             
-                st.session_state.UMAPFigDiff3_Dens = bpl.UMAPdraw_density(st.session_state.d_diff_mask, bins = [xx, yy], w=w, n_pad=n_pad, vlim=vlim, feat = feat_labeld, diff = True)
+                st.session_state.UMAPFigDiff3_Dens = bpl.UMAPdraw_density(st.session_state.d_diff_mask, bins = [xx, yy], w=w, n_pad=n_pad, vlim=vlim, feat = feat_labelm, diff = True)
                 # bin_indices = np.where((d_flat.flatten() > cutoff) | (d_flat.flatten() < -cutoff))[0]
 
                 these_input_inds = []
@@ -292,13 +315,13 @@ def main():
                     st.pyplot(fig=st.session_state.UMAPFig)
                 diff_cols = st.columns(3)
                 with diff_cols[0]:
-                    st.pyplot(fig=st.session_state.UMAPFigDiff0_Dens)
-                with diff_cols[1]:
                     st.pyplot(fig=st.session_state.UMAPFigDiff1_Dens)
-                with diff_cols[2]:
+                with diff_cols[1]:
                     st.pyplot(fig=st.session_state.UMAPFigDiff2_Dens)
-                mor_cols = st.columns(3)
-                with mor_cols[2]:
+                with diff_cols[2]:
+                    st.pyplot(fig=st.session_state.UMAPFigDiff0_Dens)
+                mor_cols = st.columns(2)
+                with mor_cols[0]:
                     st.pyplot(fig=st.session_state.UMAPFigDiff3_Dens)
 
                 # hist_fig = plt.figure()
