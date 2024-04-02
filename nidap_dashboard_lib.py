@@ -504,7 +504,7 @@ def setFigureObjs(session_state, InSliderVal = None):
 
     return session_state
 
-def setFigureObjs_UMAP(session_state):
+def setFigureObjs_UMAP(session_state, palette = 'tab20'):
     """
     Organize Figure Objects to be used in plotting but for clustering
 
@@ -524,7 +524,7 @@ def setFigureObjs_UMAP(session_state):
     session_state.seabornFig_clust, session_state.ax = bpl.draw_scatter_fig(figsize=session_state.figsize)
     session_state.seabornFig_clust = bpl.scatter_plot(session_state.df_umap_filt, session_state.seabornFig_clust, session_state.ax, title,
                                                       xVar = 'Cell X Position', yVar = 'Cell Y Position', hueVar = 'clust_label',
-                                                      hueOrder=clust_order)
+                                                      hueOrder=clust_order, palette = palette)
 
     # Altair
     session_state.altairFig_clust = drawAltairObj(session_state.df_umap_filt, title, clust_order, session_state.seabornFig_clust, session_state.ax, legendCol = 'clust_label')

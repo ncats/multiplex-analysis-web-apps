@@ -165,7 +165,11 @@ def filter_and_plot():
 
     if st.session_state.umapCompleted:
         st.session_state.df_umap_filt = st.session_state.df_umap.loc[st.session_state.df_umap['Slide ID'] == st.session_state['selSlide ID'], :]
-        st.session_state = ndl.setFigureObjs_UMAP(st.session_state)
+        if st.session_state['toggle_clust_diff']:
+            palette = 'bwr'
+        else:
+            palette = 'tab20'
+        st.session_state = ndl.setFigureObjs_UMAP(st.session_state, palette = palette)
 
 # def prepare_umap_plotting():
 #     '''

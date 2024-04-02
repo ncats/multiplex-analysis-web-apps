@@ -296,10 +296,10 @@ def plot_mean_neighborhood_profile(ax, dist_bin, dens_df, sel_clus, maxDens=0.1,
     ax.tick_params(axis='y', colors=SlTC, which='both')
 
     if legF:
-        ax.legend(bbox_to_anchor=(-0.05, -0.1), 
-                  loc='upper left', 
+        ax.legend(bbox_to_anchor=(-0.05, -0.1),
+                  loc='upper left',
                   fontsize = 12,
-                  borderaxespad=0, 
+                  borderaxespad=0,
                   ncols = 4,
                   facecolor = Sl2BgC,
                   edgecolor = Sl2BgC,
