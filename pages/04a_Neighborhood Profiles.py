@@ -7,7 +7,7 @@ from streamlit_extras.add_vertical_space import add_vertical_space
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
-import pickle
+from sklearn.cluster import KMeans # K-Means
 
 # Import relevant libraries
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
@@ -255,6 +255,7 @@ def main():
                 feat_label1 = f'{st.session_state.dens_diff_feat_sel} {feat_comp2} '
                 feat_labeld = f'{st.session_state.dens_diff_feat_sel} Difference '
                 feat_labelm = f'{st.session_state.dens_diff_feat_sel} Difference- Masked, cutoff = {st.session_state.dens_diff_cutoff}'
+                feat_labelc = f'{st.session_state.dens_diff_feat_sel} Clusters, False-{3}, True-{3}'
 
                 w = None
                 st.session_state.df_umap_A = st.session_state.df_umap.loc[st.session_state.df_umap[st.session_state.dens_diff_feat_sel] == 1, :]
@@ -295,9 +296,32 @@ def main():
                             bin_indices.append((x_bin, y_bin))
                         else:
                             st.session_state.d_diff_mask[x_bin, y_bin] = 0
+
+                kmeans_obj_cond0 = KMeans(n_clusters = 3,
+                                    init ='k-means++',
+                                    max_iter = 300,
+                                    n_init = 10,
+                                    random_state = 42)
+                kmeans_obj_cond1 = KMeans(n_clusters = 3,
+                                    init ='k-means++',
+                                    max_iter = 300,
+                                    n_init = 10,
+                                    random_state = 42)
+
+                cond0_ind = np.where(st.session_state.d_diff_mask == -1)
+                cells_cond0 = np.vstack(cond0_ind).T
+                kmeans_obj_cond0.fit(cells_cond0)
+
+                cond1_ind = np.where(st.session_state.d_diff_mask == 1)
+                cells_cond1 = np.vstack(cond1_ind).T
+                kmeans_obj_cond1.fit(cells_cond1)
+
+                st.session_state.d_diff_clust = st.session_state.d_diff_mask.copy()
+                st.session_state.d_diff_clust[cond0_ind] = (-kmeans_obj_cond0.labels_ -1)*10
+                st.session_state.d_diff_clust[cond1_ind] = (kmeans_obj_cond1.labels_ + 1)*10
                             
                 st.session_state.UMAPFigDiff3_Dens = bpl.UMAPdraw_density(st.session_state.d_diff_mask, bins = [xx, yy], w=w, n_pad=n_pad, vlim=vlim, feat = feat_labelm, diff = True)
-                # bin_indices = np.where((d_flat.flatten() > cutoff) | (d_flat.flatten() < -cutoff))[0]
+                st.session_state.UMAPFigDiff4_Dens = bpl.UMAPdraw_density(st.session_state.d_diff_clust, bins = [xx, yy], w=w, n_pad=n_pad, vlim=vlim, feat = feat_labelc, diff = True)
 
                 these_input_inds = []
                 for i, tuple_i in enumerate(bin_indices):
@@ -307,6 +331,17 @@ def main():
                         
                 st.session_state.umap_test_mask = st.session_state.spatial_umap.umap_test[these_input_inds]
                 st.session_state.umap_test_mask_ind = these_input_inds
+
+                # st.session_state.umap_test_mask_df = pd.DataFrame(st.session_state.umap_test_mask, columns = ['X', 'Y'])
+
+                # fig_size = (12,12)
+                # SlBgC  = '#0E1117'  # Streamlit Background Color
+                # SlTC   = '#FAFAFA'  # Streamlit Text Color
+                # Sl2BgC = '#262730'  # Streamlit Secondary Background Color
+
+                # cluster_fig = plt.figure(figsize=fig_size, facecolor = SlBgC)
+                # ax = cluster_fig.add_subplot(1, 1, 1)
+                # sns.scatterplot(data = st.session_state.umap_test_mask_df, x = 'X', y = 'Y', ax = ax)
 
                 exp_cols = st.columns(3)
                 with exp_cols[1]:
@@ -321,6 +356,8 @@ def main():
                 mor_cols = st.columns(2)
                 with mor_cols[0]:
                     st.pyplot(fig=st.session_state.UMAPFigDiff3_Dens)
+                with mor_cols[1]:
+                    st.pyplot(fig=st.session_state.UMAPFigDiff4_Dens)
 
                 # hist_fig = plt.figure()
                 # ax = hist_fig.add_subplot(111)
