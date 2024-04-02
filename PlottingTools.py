@@ -66,7 +66,9 @@ def plot_2d_density(X, Y=None, bins=200, n_pad=40, w=None, ax=None, gaussian_sig
         bin_indices_df['index'] = bin_indices_df.index
         bin_indices_df_group = bin_indices_df.groupby('bin_num')['index'].apply(list)
 
-        return d, bin_indices_df_group
+        tuple_list = [(indx, indy) for (indx, indy) in zip(x_bin_indices, y_bin_indices)]
+
+        return d, tuple_list
     else:
         if d[d > 0].shape == (0,):
             vmin = 0
