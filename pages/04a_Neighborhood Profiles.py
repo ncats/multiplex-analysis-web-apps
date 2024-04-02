@@ -167,14 +167,6 @@ def filter_and_plot():
         st.session_state.df_umap_filt = st.session_state.df_umap.loc[st.session_state.df_umap['Slide ID'] == st.session_state['selSlide ID'], :]
         st.session_state = ndl.setFigureObjs_UMAP(st.session_state)
 
-def save_pickle_file():
-    with open('pickle_file.pkl', 'wb') as f:
-        pickle.dump(st.session_state, f)
-
-def load_pickle_file():
-    with open('pickle_file.pkl', 'rb') as f:
-        st.session_state = pickle.load(f)
-
 def main():
     '''
     Main function for running the page
@@ -192,9 +184,6 @@ def main():
     st.session_state = top.top_of_page_reqs(st.session_state)
 
     st.header('Neighborhood Profiles\nNCATS-NCI-DMAP')
-
-    st.button('Save Pickle File', on_click=save_pickle_file)
-    st.button('Load Pickle File', on_click=load_pickle_file)
 
     clust_minmax = [1, 40]
     npf_cols = st.columns([1, 1, 2])
