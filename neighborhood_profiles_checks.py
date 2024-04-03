@@ -1,7 +1,6 @@
 # Import relevant libraries
 import numpy as np
 import pandas as pd
-import plotly.express as px
 
 
 def perform_binning(cells, edges_x, edges_y, boolean_subset_on_cells=None, spatial_x_colname='spatial_x', spatial_y_colname='spatial_y', umap_x_colname='umap_x', umap_y_colname='umap_y', property_colnames=['property_a', 'property_b']):
@@ -35,7 +34,7 @@ def perform_binning(cells, edges_x, edges_y, boolean_subset_on_cells=None, spati
     return df_test
 
 
-def generate_figures(df_test, cluster_labels, spatial_x_colname='spatial_x', spatial_y_colname='spatial_y', umap_x_colname='umap_x', umap_y_colname='umap_y', property_colnames=['property_a', 'property_b'], min_cells_per_bin=1):
+def assign_cluster_labels(df_test, cluster_labels, min_cells_per_bin=1):
 
     # Say we perform clustering on the bins and get a dictionary of cluster labels (0, 1, 2, ..., k-1) as keys and the indices of the bins in each cluster as values
     # Note these bin indices must correspond to the ones coming out of np.digitize(), this is crucial!!
@@ -67,21 +66,5 @@ def generate_figures(df_test, cluster_labels, spatial_x_colname='spatial_x', spa
     bin_means = bin_means[bin_means['num_cells'] >= min_cells_per_bin]
     bin_stds = bin_stds[bin_stds['num_cells'] >= min_cells_per_bin]
 
-    # Get the neighbor vectors for each cluster averaged over the histogram bins falling in that cluster
-    property_means_by_bin = bin_means.groupby('cluster_label').mean()[property_colnames]
-    property_means_by_bin_long = property_means_by_bin.reset_index().melt(id_vars='cluster_label', var_name='column', value_name='value')
-    fig_property_means_by_bin = px.line(property_means_by_bin_long, x='column', y='value', color='cluster_label', markers=True)
-
-    # Get the neighbor vectors for each cluster averaged over the cells falling in that cluster
-    property_means_by_cell = df_test.groupby('cluster_label').mean()[property_colnames]
-    property_means_by_cell_long = property_means_by_cell.reset_index().melt(id_vars='cluster_label', var_name='column', value_name='value')
-    fig_property_means_by_cell = px.line(property_means_by_cell_long, x='column', y='value', color='cluster_label', markers=True)
-
-    # Create some sanity check plots
-    fig_umap_by_bin = px.scatter(bin_means, x=umap_x_colname, y=umap_y_colname, color='cluster_label', title='UMAP by Bin')
-    fig_spatial_by_bin = px.scatter(bin_means, x=spatial_x_colname, y=spatial_y_colname, color='cluster_label', title='Spatial by Bin')
-    fig_umap_by_cell = px.scatter(df_test, x=umap_x_colname, y=umap_y_colname, color='cluster_label', title='UMAP by Cell')
-    fig_spatial_by_cell = px.scatter(df_test, x=spatial_x_colname, y=spatial_y_colname, color='cluster_label', title='Spatial by Cell')
-
     # Return the plotly figures
-    return fig_property_means_by_bin, fig_property_means_by_cell, fig_umap_by_bin, fig_spatial_by_bin, fig_umap_by_cell, fig_spatial_by_cell
+    return bin_means, df_test
