@@ -352,7 +352,6 @@ def main():
                     if key != 0:
                         x, y = np.where(st.session_state.d_diff_clust == key)
                         bin_in_cluster = [(indx, indy) for (indx, indy) in zip(x, y)]
-                        # coord_df = pd.DataFrame(data = {'indx': x, 'indy': y})
 
                         significant_groups = bin_indices_df_group[bin_indices_df_group.set_index(['indx', 'indy']).index.isin(bin_in_cluster)]
 
@@ -461,7 +460,15 @@ def main():
             else:
                 list_clusters = list(range(st.session_state.selected_nClus))
 
-            sel_npf_fig = st.selectbox('Select a cluster to view', list_clusters)
+            clusterSelCol = st.columns([3, 1])
+            with clusterSelCol[1]:
+                add_vertical_space(2)
+                st.toggle('Compare Cluster Neighborhoods', value = False, key = 'toggle_compare_clusters')
+
+            with clusterSelCol[0]:
+                sel_npf_fig  = st.selectbox('Select a cluster to view', list_clusters)
+                if st.session_state['toggle_compare_clusters']:
+                    sel_npf_fig2 = st.selectbox('Select a cluster to compare', list_clusters)
             if st.session_state.clustering_completed:
 
                 npf_fig = bpl.neighProfileDraw(st.session_state.spatial_umap, sel_npf_fig)
