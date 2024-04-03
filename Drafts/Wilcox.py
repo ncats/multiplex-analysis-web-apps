@@ -10,4 +10,19 @@ def find_markers(adata, umap_cur_col):
 
 find_markers(adata, "Cluster")
 
-adata.uns["rank_genes_groups"].keys()
+
+result = adata.uns["rank_genes_groups"]
+groups = result["names"].dtype.names
+difExprDf = pd.DataFrame(
+    {
+        group + "_" + key[:1]: result[key][group]
+        for group in groups
+        for key in ["names", "pvals"]
+    }
+)
+
+geneNames = pd.DataFrame(adata.uns["rank_genes_groups"]["names"])
+genePvals = pd.DataFrame(adata.uns["rank_genes_groups"]["pvals"])
+
+len(pd.unique(adata.obs["Cluster"]))
+len(geneNames.columns)
