@@ -86,6 +86,12 @@ def main():
             fig_d_diff, ax_d_diff = plt.subplots()
             PlottingTools.plot_2d_density(d_diff, bins=[edges_x, edges_y], n_pad=30, circle_type='arch', cmap=plt.get_cmap('bwr').copy(), ax=ax_d_diff)
 
+            # Plot the difference matrix manually
+            fig, ax = plt.subplots()
+            c = ax.pcolormesh(edges_x, edges_y, d_diff, cmap='bwr')
+            fig.colorbar(c, ax=ax)
+            st.session_state['fig_d_diff_manual'] = fig
+
             # Save the processed data to the session state
             st.session_state['processed_data'] = {'df': df, 'edges_x': edges_x, 'edges_y': edges_y, 'clusters': clusters}
 
@@ -115,6 +121,12 @@ def main():
             # Save the figures to the session state
             st.session_state['figs_checks'] = [fig_property_means_by_bin, fig_property_means_by_cell, fig_umap_by_bin, fig_spatial_by_bin, fig_umap_by_cell, fig_spatial_by_cell]
 
+    # In the first column...
+    with col1:
+        if 'fig_d_diff_manual' in st.session_state:
+            st.write('Difference matrix - manual')
+            st.pyplot(st.session_state['fig_d_diff_manual'])
+
     # In the second column...
     with col2:
         if 'fig_d_diff' in st.session_state:
@@ -124,14 +136,14 @@ def main():
     # If the figure checks have been generated, display them
     col1, col2 = st.columns(2)
     if 'figs_checks' in st.session_state:
-        col1.write('Property means by bin')
-        col1.plotly_chart(st.session_state['figs_checks'][0])
-        col2.write('Property means by cell')
-        col2.plotly_chart(st.session_state['figs_checks'][1])
         col1.write('UMAP by bin')
         col1.plotly_chart(st.session_state['figs_checks'][2])
         col2.write('UMAP by cell')
         col2.plotly_chart(st.session_state['figs_checks'][4])
+        col1.write('Property means by bin')
+        col1.plotly_chart(st.session_state['figs_checks'][0])
+        col2.write('Property means by cell')
+        col2.plotly_chart(st.session_state['figs_checks'][1])
         col1.write('Spatial by bin')
         col1.plotly_chart(st.session_state['figs_checks'][3])
         col2.write('Spatial by cell')
