@@ -1,12 +1,10 @@
-# I should rename df_test since it's generally a subset of test!! Well maybe not, bit confused, see Jupyter notebook, maybe I shoudl never subset?
-
 # Import relevant libraries
 import numpy as np
 import pandas as pd
 import plotly.express as px
 
 
-def get_subset_df_with_bins(cells, edges_x, edges_y, boolean_subset_on_cells, spatial_x_colname='spatial_x', spatial_y_colname='spatial_y', umap_x_colname='umap_x', umap_y_colname='umap_y', property_colnames=['property_a', 'property_b']):
+def perform_binning(cells, edges_x, edges_y, boolean_subset_on_cells, spatial_x_colname='spatial_x', spatial_y_colname='spatial_y', umap_x_colname='umap_x', umap_y_colname='umap_y', property_colnames=['property_a', 'property_b']):
 
     # Sample values of boolean_subset_on_cells:
     #   * pd.Series(True, index=cells.index)  # --> all cells
@@ -33,7 +31,7 @@ def get_subset_df_with_bins(cells, edges_x, edges_y, boolean_subset_on_cells, sp
     return df_test
 
 
-def run_checks(df_test, cluster_labels, spatial_x_colname='spatial_x', spatial_y_colname='spatial_y', umap_x_colname='umap_x', umap_y_colname='umap_y', property_colnames=['property_a', 'property_b'], min_cells_per_bin=5):
+def generate_figures(df_test, cluster_labels, spatial_x_colname='spatial_x', spatial_y_colname='spatial_y', umap_x_colname='umap_x', umap_y_colname='umap_y', property_colnames=['property_a', 'property_b'], min_cells_per_bin=1):
 
     # Say we perform clustering on the bins and get a dictionary of cluster labels (0, 1, 2, ..., k-1) as keys and the indices of the bins in each cluster as values
     # Note these bin indices must correspond to the ones coming out of np.digitize(), this is crucial!!
