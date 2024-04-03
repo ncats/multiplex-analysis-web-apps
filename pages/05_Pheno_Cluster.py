@@ -250,6 +250,8 @@ def main():
                 with st.spinner('Wait for it...'):
                     st.session_state['phenocluster__clustering_adata'] = run_utag_clust(adata=adata, 
                                                                                         n_neighbors=st.session_state['phenocluster__n_neighbors_state'], resolutions=[1])
+            # save clustering result
+            st.session_state['phenocluster__clustering_adata'].write("input/clust_dat.h5ad")
                     
             # set default values for umap color column
             if 'phenocluster__umap_color_col' not in st.session_state:
