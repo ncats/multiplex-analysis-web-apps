@@ -4,11 +4,15 @@ import pandas as pd
 import plotly.express as px
 
 
-def perform_binning(cells, edges_x, edges_y, boolean_subset_on_cells, spatial_x_colname='spatial_x', spatial_y_colname='spatial_y', umap_x_colname='umap_x', umap_y_colname='umap_y', property_colnames=['property_a', 'property_b']):
+def perform_binning(cells, edges_x, edges_y, boolean_subset_on_cells=None, spatial_x_colname='spatial_x', spatial_y_colname='spatial_y', umap_x_colname='umap_x', umap_y_colname='umap_y', property_colnames=['property_a', 'property_b']):
 
     # Sample values of boolean_subset_on_cells:
     #   * pd.Series(True, index=cells.index)  # --> all cells
     #   * cells['survival'] == 'dead'         # --> subset of cells
+
+    # If the boolean subset on cells is None, set it to all True
+    if boolean_subset_on_cells is None:
+        boolean_subset_on_cells = pd.Series(True, index=cells.index)
     
     # Subset the cells dataframe based on the boolean mask
     cells = cells[boolean_subset_on_cells]
