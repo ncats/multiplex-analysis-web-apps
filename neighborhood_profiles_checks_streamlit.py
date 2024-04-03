@@ -80,7 +80,7 @@ def main():
             d_diff[(d_diff >= -cutoff) & (d_diff <= cutoff)] = 0
 
             # Get the clusters based only on the cutoff
-            clusters = {0: [tuple(x) for x in np.transpose(np.where(d_diff == -1))], 1: [tuple(x) for x in np.transpose(np.where(d_diff == 1))]}
+            clusters = {0: [tuple([x[1], x[0]]) for x in np.transpose(np.where(np.isclose(d_diff, -1)))], 1: [tuple([x[1], x[0]]) for x in np.transpose(np.where(np.isclose(d_diff, 1)))]}
 
             # Plot the difference matrix
             fig_d_diff, ax_d_diff = plt.subplots()
