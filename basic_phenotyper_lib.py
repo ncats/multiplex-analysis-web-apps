@@ -446,13 +446,13 @@ def scatter_plot(df, fig, ax, figTitle, xVar, yVar, hueVar, hueOrder, xLim = Non
         ax.set_xlim(xLim[0], xLim[1])
     else:
         xLim = ax.get_xlim()
-    
+
     if yLim is not None:
         ax.set_ylim(yLim[0], yLim[1])
     else:
         yLim = ax.get_ylim()
 
-    if small_ver == True:
+    if small_ver is True:
         lgd_fontsize = 20
         lgd_markscale = 6
     else:
@@ -682,7 +682,7 @@ def perform_clusteringUMAP(indices, dataset, spatial_umap, n_clusters):
     spatial_umap.df_umap.loc[indices, 'clust_label'] = kmeans_obj.labels_
     spatial_umap.df_umap.loc[indices, 'cluster'] = kmeans_obj.labels_
     spatial_umap.df_umap.loc[indices, 'Cluster'] = kmeans_obj.labels_
-    
+
     # After assigning cluster labels, perform mean calculations
     spatial_umap.mean_measures()
 
@@ -803,18 +803,23 @@ def neighProfileDraw(spatial_umap, sel_clus, cmp_clus = None, figsize=(14, 16)):
     neipro_fig = plt.figure(figsize=figsize, facecolor = slc_bg)
     ax = neipro_fig.add_subplot(1, 1, 1, facecolor = slc_bg)
 
-    dens_df_clus = spatial_umap.dens_df.loc[spatial_umap.dens_df['cluster'] == sel_clus, :]
-    # print(dens_df_clus.head(15))
+    dens_df_mean_sel = spatial_umap.dens_df_mean.loc[spatial_umap.dens_df_mean['cluster'] == sel_clus, :]
+    dens_df_mean = dens_df_mean_sel
+    ylim = [0, spatial_umap.maxdens_df]
 
     if cmp_clus is not None:
-        dens_df_cmp = spatial_umap.dens_df.loc[spatial_umap.dens_df['cluster'] == cmp_clus, :]
+        dens_df_mean_cmp = spatial_umap.dens_df_mean.loc[spatial_umap.dens_df_mean['cluster'] == sel_clus, :]
 
+        dens_df_mean = dens_df_mean_cmp
+        dens_df_mean['density_mean'] = dens_df_mean_sel['density_mean'] - dens_df_mean_cmp['density_mean']
+        dens_df_mean['density_sem'] = 0
+        ylim = [min(dens_df_mean['density_mean']), max(dens_df_mean['density_mean'])]
 
     umPT.plot_mean_neighborhood_profile(ax = ax,
                                         dist_bin = spatial_umap.dist_bin_um,
-                                        npf_dens_df = dens_df_clus,
+                                        npf_dens_mean = dens_df_mean,
                                         sel_clus = sel_clus,
-                                        max_dens = spatial_umap.maxdens_df,
+                                        max_dens = ylim,
                                         leg_flag = 1)
 
     return neipro_fig

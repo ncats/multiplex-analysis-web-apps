@@ -5,6 +5,7 @@ import pandas as pd
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
+from matplotlib.colors import ListedColormap
 import seaborn as sns
 import altair as alt
 alt.data_transformers.disable_max_rows()
@@ -262,7 +263,7 @@ def plot_neighborhood_profile_propor(ax, cell_label, dist_bin, cell_propor, phen
         plt.legend()
 
     
-def plot_mean_neighborhood_profile(ax, dist_bin, npf_dens_df, sel_clus, max_dens=0.1, leg_flag=0):
+def plot_mean_neighborhood_profile(ax, dist_bin, npf_dens_mean, sel_clus, max_dens=0.1, leg_flag=0):
     '''
     This function generates the line plots of the phenotype density 
     at different distances from a given cell
@@ -272,18 +273,24 @@ def plot_mean_neighborhood_profile(ax, dist_bin, npf_dens_df, sel_clus, max_dens
     slc_text = '#FAFAFA'  # Streamlit Text Color
     slc_bg2  = '#262730'  # Streamlit Secondary Background Color
 
-    sns.lineplot(npf_dens_df,
-                 x = 'dist_bin',
-                 y = 'density',
-                 hue = 'phenotype',
-                 errorbar = 'se',
-                 err_style = 'bars',
-                 palette = 'tab20',
-                 ax = ax)
+    tab20 = plt.get_cmap('tab20')
+    tab20_new = ListedColormap(tab20(np.arange(256)))
+
+    phenotypes = npf_dens_mean['phenotype'].unique()
+    axesDict = dict()
+    for ii, phenotype in enumerate(phenotypes):
+        # Find the phenotype in the dataframe
+        npf_dens_mean_pheno = npf_dens_mean[npf_dens_mean['phenotype'] == phenotype]
+
+        plotax = ax.errorbar(x = npf_dens_mean_pheno.dist_bin,
+                             y = npf_dens_mean_pheno.density_mean,
+                             yerr=npf_dens_mean_pheno.density_sem,
+                             color=tab20_new(ii))
+        axesDict[phenotype] = plotax
 
     ax.set_xticks(dist_bin)
     ax.set_xlim([0, 225])
-    ax.set_ylim([0, max_dens])
+    ax.set_ylim(max_dens)
     ax.set_title(f'Cluster {sel_clus}: Densities', fontsize = 16, color = slc_text)
     ax.set_xlabel('Spatial Bound (\u03BCm)', fontsize = 14, color = slc_text)
     ax.set_ylabel('Cell Density', fontsize = 14, color = slc_text)
@@ -295,7 +302,8 @@ def plot_mean_neighborhood_profile(ax, dist_bin, npf_dens_df, sel_clus, max_dens
     ax.tick_params(axis='y', colors=slc_text, which='both')
 
     if leg_flag:
-        ax.legend(bbox_to_anchor=(-0.05, -0.1),
+        ax.legend(axesDict.values(), axesDict.keys(),
+                  bbox_to_anchor=(-0.05, -0.1),
                   loc='upper left',
                   fontsize = 12,
                   borderaxespad=0,

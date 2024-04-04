@@ -348,6 +348,9 @@ class SpatialUMAP:
         self.umap_test = np.array([])
         self.patients = np.array([])
 
+        self.density = None
+        self.proportion = None
+
         # Mean Densities
         self.dens_df = pd.DataFrame()
         self.prop_df = pd.DataFrame()
@@ -609,9 +612,13 @@ class SpatialUMAP:
                     self.dens_df = pd.concat([self.dens_df, smalldf_D], axis = 0).reset_index(drop=True)
                     self.prop_df = pd.concat([self.prop_df, smalldf_P], axis = 0).reset_index(drop=True)
 
+        # Perform Groupby and Mean calculations
         self.dens_df_mean = self.dens_df.groupby(['cluster', 'phenotype', 'dist_bin'], as_index=False).mean()
         self.dens_df_se   = self.dens_df.groupby(['cluster', 'phenotype', 'dist_bin'], as_index=False).sem()
-        self.maxdens_df   = 1.05*max(self.dens_df_mean['density'] + self.dens_df_se['density'])
+        self.dens_df_mean = self.dens_df_mean.rename(columns = {'density': 'density_mean'})
+        self.dens_df_se   = self.dens_df_se.rename(columns = {'density': 'density_sem'})
+        self.dens_df_mean['density_sem'] = self.dens_df_se['density_sem']
+        self.maxdens_df   = 1.05*max(self.dens_df_mean['density_mean'] + self.dens_df_mean['density_sem'])
     
     def prepare_df_umap_plotting(self, features):
         '''
