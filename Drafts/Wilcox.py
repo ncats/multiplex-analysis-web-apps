@@ -29,10 +29,20 @@ len(pd.unique(adata.obs["Cluster"]))
 len(geneNames.columns)
 
 def format_de_results(adata):
-    result = adata.uns["rank_genes_groups"]
     gene_names = pd.DataFrame(adata.uns["rank_genes_groups"]["names"])
     gene_pvals = pd.DataFrame(adata.uns["rank_genes_groups"]["pvals"])
+    combine_df = pd.DataFrame()
     for i in range(len(gene_names.columns)):
-        curCluster = gene_names.columns[i]
-        gene_names.iloc[:, i] = gene_names.iloc[:, i] + "_" + gene_pvals.iloc[:, i].astype(str)
+        cur_cluster = gene_names.columns[i]
+        cur_names = gene_names.iloc[:, i].to_list()
+        cur_pvals = gene_pvals.iloc[:, i].to_list()
+        cur_df = pd.DataFrame({"Group":cur_cluster, "Gene": cur_names, "Pval": cur_pvals})
+        combine_df = pd.concat([combine_df, cur_df])
+    return(combine_df)
+
+de_results = format_de_results(adata)
+
+# alternative based on the updated workflow 
+def format_de_results2(adata, umap_cur_col):
+    cur_vals = pd.unique(adata.obs[umap_cur_col])
     
