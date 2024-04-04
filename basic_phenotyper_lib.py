@@ -806,6 +806,7 @@ def neighProfileDraw(spatial_umap, sel_clus, cmp_clus = None, figsize=(14, 16)):
     dens_df_mean_sel = spatial_umap.dens_df_mean.loc[spatial_umap.dens_df_mean['cluster'] == sel_clus, :].reset_index(drop=True)
     ylim = [0, spatial_umap.maxdens_df]
     dens_df_mean = dens_df_mean_sel
+    cluster_title = f'Cluster {sel_clus}'
 
     if cmp_clus is not None:
         dens_df_mean_cmp = spatial_umap.dens_df_mean.loc[spatial_umap.dens_df_mean['cluster'] == cmp_clus, :].reset_index(drop=True)
@@ -813,12 +814,15 @@ def neighProfileDraw(spatial_umap, sel_clus, cmp_clus = None, figsize=(14, 16)):
         dens_df_mean = dens_df_mean_cmp
         dens_df_mean['density_mean'] = dens_df_mean_sel['density_mean'] - dens_df_mean_cmp['density_mean']
         dens_df_mean['density_sem'] = 0
-        ylim = [min(dens_df_mean['density_mean']), max(dens_df_mean['density_mean'])]
+        range_values = [min(dens_df_mean['density_mean']), max(dens_df_mean['density_mean'])]
+        top_range = 1.05*max(abs(range_values[0]), range_values[1])
+        ylim = [-top_range, top_range]
+        cluster_title = f'Cluster {sel_clus} - Cluster {cmp_clus}'
 
     umPT.plot_mean_neighborhood_profile(ax = ax,
                                         dist_bin = spatial_umap.dist_bin_um,
                                         npf_dens_mean = dens_df_mean,
-                                        sel_clus = sel_clus,
+                                        cluster_title = cluster_title,
                                         max_dens = ylim,
                                         leg_flag = 1)
 
