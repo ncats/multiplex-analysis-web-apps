@@ -287,6 +287,8 @@ def plot_mean_neighborhood_profile(ax, dist_bin, npf_dens_mean, cluster_title, m
                              color=tab20_new(ii))
         axesDict[phenotype] = plotax
 
+    plt.axhline(y=0, color='w', linestyle='--')
+
     ax.set_xticks(dist_bin)
     ax.set_xlim([0, 225])
     ax.set_ylim(max_dens)
