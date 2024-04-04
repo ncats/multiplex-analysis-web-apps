@@ -7,6 +7,7 @@ required for phenotyping
 import time
 import numpy as np
 import pandas as pd
+import umap
 import warnings
 warnings.simplefilter(action='ignore', category= FutureWarning)
 warnings.filterwarnings("ignore", message=".*The 'nopython' keyword.*")
@@ -16,6 +17,7 @@ import seaborn as sns
 from sklearn.cluster import KMeans # K-Means
 
 from benchmark_collector import benchmark_collector # Benchmark Collector Class
+import PlottingTools as umPT
 
 def preprocess_df(df_orig, marker_names, marker_col_prefix, bc):
     '''Perform some preprocessing on our dataset to apply tranforms
@@ -383,7 +385,7 @@ def draw_scatter_fig(figsize=(12, 12)):
 
     return fig, ax
 
-def scatter_plot(df, fig, ax, figTitle, xVar, yVar, hueVar, hueOrder, xLim = None, yLim = None, boxoff = False, small_ver = False, feat = None, clusters_label = None, figname='scatter_plot.png', dpi=200, saveFlag=0):
+def scatter_plot(df, fig, ax, figTitle, xVar, yVar, hueVar, hueOrder, xLim = None, yLim = None, boxoff = False, small_ver = False, feat = None, clusters_label = None, figname='scatter_plot.png', dpi=200, saveFlag=0, palette = 'tab20'):
     """Create a 2D scatter plot and color the points by a specific variable in a dataframe
 
     Args:
@@ -402,9 +404,9 @@ def scatter_plot(df, fig, ax, figTitle, xVar, yVar, hueVar, hueOrder, xLim = Non
     """
 
     figTitle = wrapTitleText(figTitle)
-    pltTitle = ''
+    plot_title = ''
     for i in figTitle:
-        pltTitle = pltTitle + i + '\n'
+        plot_title = plot_title + i + '\n'
 
     SlBgC  = '#0E1117'  # Streamlit Background Color
     SlTC   = '#FAFAFA'  # Streamlit Text Color
@@ -418,9 +420,9 @@ def scatter_plot(df, fig, ax, figTitle, xVar, yVar, hueVar, hueOrder, xLim = Non
                     hue = hueVar,
                     hue_order = hueOrder,
                     linewidth = 0,
-                    palette = 'tab20',
+                    palette = palette,
                     ax = ax)
-    
+
     bbox = ax.get_yticklabels()[-1].get_window_extent()
     x,_ = ax.transAxes.inverted().transform([bbox.x0, bbox.y0])
 
@@ -428,7 +430,7 @@ def scatter_plot(df, fig, ax, figTitle, xVar, yVar, hueVar, hueOrder, xLim = Non
     ax.set_frame_on(False) # Turn off the Frame
 
     if xVar == 'Cell X Position':
-        ax.set_title(pltTitle, fontsize = 14, color = SlTC, ha='left', x=x, wrap=True)
+        ax.set_title(plot_title, fontsize = 14, color = SlTC, ha='left', x=x, wrap=True)
         ax.set_xlabel('Centroid X ('r'$\mu m)$', fontsize = 14, color = SlTC)
         ax.set_ylabel('Centroid Y ('r'$\mu m)$', fontsize = 14, color = SlTC)
         ax.set_aspect(1)       # Set the Aspect Ratio
@@ -444,13 +446,13 @@ def scatter_plot(df, fig, ax, figTitle, xVar, yVar, hueVar, hueOrder, xLim = Non
         ax.set_xlim(xLim[0], xLim[1])
     else:
         xLim = ax.get_xlim()
-    
+
     if yLim is not None:
         ax.set_ylim(yLim[0], yLim[1])
     else:
         yLim = ax.get_ylim()
 
-    if small_ver == True:
+    if small_ver is True:
         lgd_fontsize = 20
         lgd_markscale = 6
     else:
@@ -458,7 +460,7 @@ def scatter_plot(df, fig, ax, figTitle, xVar, yVar, hueVar, hueOrder, xLim = Non
         lgd_markscale = 6
 
     # Put the legend outside of the plot
-    ax.legend(bbox_to_anchor = (-0.05, -0.1), 
+    ax.legend(bbox_to_anchor = (-0.05, -0.1),
               loc = 'upper left',
               fontsize = lgd_fontsize,
               markerscale = lgd_markscale,
@@ -473,7 +475,6 @@ def scatter_plot(df, fig, ax, figTitle, xVar, yVar, hueVar, hueOrder, xLim = Non
 
     if feat is not None:
         ax.text(xLim[0], 0.93*yLim[1], feat, c = SlTC, fontsize = 30)
-
 
     # Save the figure to disk
     if saveFlag:
@@ -546,6 +547,17 @@ def perform_density_calc(spatial_umap, bc, cpu_pool_size = 1):
     '''
     Calculate the cell counts, cell areas,
     perform the cell densities and cell proportions analyses.
+
+    This is using Andrew's code to calculate the cell counts
+
+    Args:
+        spatial_umap (SpatialUMAP): SpatialUMAP object
+        bc (benchmark_collector): Benchmark Collector object
+        cpu_pool_size (int): Number of CPUs to use for parallel processing
+
+    Returns:
+        SpatialUMAP: SpatialUMAP object with the cell counts, cell areas, 
+                    cell densities and cell proportions analyses performed
     '''
 
     # clear metrics
@@ -557,7 +569,6 @@ def perform_density_calc(spatial_umap, bc, cpu_pool_size = 1):
     # get the counts per cell and save to pickle file
     print('Starting Cell Counts process')
     bc.startTimer()
-    # spatial_umap.get_counts(pool_size=cpu_pool_size)
     spatial_umap.get_counts_And()
     bc.printElapsedTime(f'Calculating Counts for {len(spatial_umap.cells)} cells')
 
@@ -574,50 +585,105 @@ def perform_density_calc(spatial_umap, bc, cpu_pool_size = 1):
     return spatial_umap
 
 def perform_spatialUMAP(spatial_umap, bc, UMAPStyle):
-    import umap
+    '''
+    Perform the spatial UMAP analysis
+
+    Args:
+        spatial_umap (spatial_umap): spatial_umap object
+        bc (benchmark_collector): Benchmark Collector object
+        UMAPStyle (str): Style of UMAP to use
+    
+    Returns:
+        spatial_umap: spatial_umap object with the UMAP analysis performed
+    '''
 
     # set training and "test" cells for umap training and embedding, respectively
     print('Setting Train/Test Split')
     spatial_umap.set_train_test(n=2500, groupby_label = 'TMA_core_id', seed=54321)
-    
+
     # fit umap on training cells
     bc.startTimer()
     print('Fitting Model')
     spatial_umap.umap_fit = umap.UMAP().fit(spatial_umap.density[spatial_umap.cells['umap_train'].values].reshape((spatial_umap.cells['umap_train'].sum(), -1)))
     bc.printElapsedTime(f'      Fitting {np.sum(spatial_umap.cells["umap_train"] == 1)} points to a model')
-    
-    # apply umap embedding on test cells
+
+    # Transform test cells based on fitted model
     bc.startTimer()
     print('Transforming Data')
     spatial_umap.umap_test = spatial_umap.umap_fit.transform(spatial_umap.density[spatial_umap.cells['umap_test'].values].reshape((spatial_umap.cells['umap_test'].sum(), -1)))
     bc.printElapsedTime(f'      Transforming {np.sum(spatial_umap.cells["umap_test"] == 1)} points with the model')
+
     return spatial_umap
 
-def KMeans_calc(spatial_umap, nClus):
+def KMeans_calc(umap_data, n_clusters = 5):
+    '''
+    Perform KMeans clustering on the spatial UMAP data
+
+    Args:
+        spatial_umap (spatial_umap): spatial_umap object
+        nClus (int): Number of clusters to use
+    
+    Returns:
+        kmeans_obj: KMeans obj created from KMeans
+    '''
     # Create KMeans object for a chosen cluster
-    kmeansObj = KMeans(n_clusters = nClus, init ='k-means++', max_iter=300, n_init=10, random_state=42)
+    kmeans_obj = KMeans(n_clusters = n_clusters,
+                        init ='k-means++',
+                        max_iter = 300,
+                        n_init = 10,
+                        random_state = 42)
     # Fit the data to the KMeans object
-    kmeansObj.fit(spatial_umap.umap_test)
-    # Extract out the labels of trained data from the fit model
-    return kmeansObj
+    kmeans_obj.fit(umap_data)
+
+    return kmeans_obj
 
 def measure_possible_clust(spatial_umap, clust_minmax):
+    '''
+    method for measuring the within-cluster sum of squares for
+    a range of cluster values
+
+    Args:
+        spatial_umap (spatial_umap): spatial_umap object
+        clust_minmax (list): List of min and max cluster values to use
+
+    Returns:
+        clust_range (list): List of cluster values
+        wcss (list): List of within-cluster sum of squares
+    '''
     clust_range = range(clust_minmax[0], clust_minmax[1])
     wcss = [] # Within-Cluster Sum of Squares
-    for nClus in clust_range: 
-        # Perform clustering for chosen 
-        kmeansObj = KMeans_calc(spatial_umap, nClus)
+    for n_clusters in clust_range:
+        # Perform clustering for chosen
+        kmeans_obj = KMeans_calc(spatial_umap.umap_test, n_clusters)
         # Append Within-Cluster Sum of Squares measurement
-        wcss.append(kmeansObj.inertia_)
+        wcss.append(kmeans_obj.inertia_)
     return list(clust_range), wcss
 
-def perform_clusteringUMAP(spatial_umap, nClus):
+def perform_clusteringUMAP(indices, dataset, spatial_umap, n_clusters):
+    '''
+    perform clustering for the UMAP data using KMeans
 
-    # Reperform clustering for chosen 
-    kmeansObj = KMeans_calc(spatial_umap, nClus)
+    Args:
+        spatial_umap (spatial_umap): spatial_umap object
+        n_clusters (int): Number of clusters to use
+
+    Returns:
+        spatial_umap: spatial_umap object with the clustering performed
+    '''
+    # Reset the cluster labels just in case
+    spatial_umap.df_umap.loc[:, 'clust_label'] = -1
+    spatial_umap.df_umap.loc[:, 'cluster'] = -1
+    spatial_umap.df_umap.loc[:, 'Cluster'] = -1
+
+    # Perform clustering
+    kmeans_obj = KMeans_calc(dataset, n_clusters)
+
     # Add cluster label column to cells dataframe
-    spatial_umap.cells.loc[spatial_umap.cells.loc[:, 'umap_test'] == True, 'clust_label'] = kmeansObj.labels_
-    # With the cluster labels assigned, perform mean calculations
+    spatial_umap.df_umap.loc[indices, 'clust_label'] = kmeans_obj.labels_
+    spatial_umap.df_umap.loc[indices, 'cluster'] = kmeans_obj.labels_
+    spatial_umap.df_umap.loc[indices, 'Cluster'] = kmeans_obj.labels_
+
+    # After assigning cluster labels, perform mean calculations
     spatial_umap.mean_measures()
 
     return spatial_umap
@@ -629,7 +695,7 @@ def draw_wcss_elbow_plot(clust_range, wcss, selClus):
     Sl2BgC = '#262730'  # Streamlit Secondary Background Color
 
     fig = plt.figure(figsize = (5,5), facecolor = SlBgC)
-    ax = fig.add_subplot(1,1,1, facecolor = SlBgC) 
+    ax = fig.add_subplot(1,1,1, facecolor = SlBgC)
     ax.set_xlabel('Number of Clusters', fontsize = 10, color = SlTC)
     ax.set_ylabel('WCSS', fontsize = 10, color = SlTC)
     # ax.set_xticks(np.linspace(0, 21, 22))
@@ -645,7 +711,9 @@ def draw_wcss_elbow_plot(clust_range, wcss, selClus):
     return fig
 
 def createHeatMap(df, phenoList, title, normAxis = None):
-    
+    '''
+    Create a heatmap of the phenotypes and clusters
+    '''
     # Create heatmap df
     heatMapDf = pd.DataFrame()
 
@@ -722,44 +790,79 @@ def createHeatMap(df, phenoList, title, normAxis = None):
 
     return fig
 
-def neighProfileDraw(spatial_umap, sel_clus, figsize=(14, 16)):
-    import PlottingTools as umPT
+def neighProfileDraw(spatial_umap, sel_clus, cmp_clus = None, figsize=(14, 16)):
+    '''
+    neighProfileDraw is the method that draws the neighborhood profile
+    line plots
+    '''
 
-    SlBgC  = '#0E1117'  # Streamlit Background Color
-    SlTC   = '#FAFAFA'  # Streamlit Text Color
-    Sl2BgC = '#262730'  # Streamlit Secondary Background Color
+    slc_bg   = '#0E1117'  # Streamlit Background Color
+    slc_text = '#FAFAFA'  # Streamlit Text Color
+    slc_bg2  = '#262730'  # Streamlit Secondary Background Color
 
-    neipro_fig = plt.figure(figsize=figsize, facecolor = SlBgC)
-    ax = neipro_fig.add_subplot(1, 1, 1, facecolor = SlBgC)
+    neipro_fig = plt.figure(figsize=figsize, facecolor = slc_bg)
+    ax = neipro_fig.add_subplot(1, 1, 1, facecolor = slc_bg)
 
-    umPT.plot_mean_neighborhood_profile(ax,
-                                        spatial_umap.dist_bin_um,
-                                        spatial_umap.dens_df,
-                                        sel_clus,
-                                        maxDens=spatial_umap.maxdens_df,
-                                        legF=1)
+    dens_df_mean_sel = spatial_umap.dens_df_mean.loc[spatial_umap.dens_df_mean['cluster'] == sel_clus, :].reset_index(drop=True)
+    ylim = [0, spatial_umap.maxdens_df]
+    dens_df_mean = dens_df_mean_sel
+    cluster_title = f'Cluster {sel_clus}'
+
+    if cmp_clus is not None:
+        dens_df_mean_cmp = spatial_umap.dens_df_mean.loc[spatial_umap.dens_df_mean['cluster'] == cmp_clus, :].reset_index(drop=True)
+
+        dens_df_mean = dens_df_mean_cmp
+        dens_df_mean['density_mean'] = dens_df_mean_sel['density_mean'] - dens_df_mean_cmp['density_mean']
+        dens_df_mean['density_sem'] = 0
+        range_values = [min(dens_df_mean['density_mean']), max(dens_df_mean['density_mean'])]
+        top_range = 1.05*max(abs(range_values[0]), range_values[1])
+        ylim = [-top_range, top_range]
+        cluster_title = f'Cluster {sel_clus} - Cluster {cmp_clus}'
+
+    umPT.plot_mean_neighborhood_profile(ax = ax,
+                                        dist_bin = spatial_umap.dist_bin_um,
+                                        npf_dens_mean = dens_df_mean,
+                                        cluster_title = cluster_title,
+                                        max_dens = ylim,
+                                        leg_flag = 1)
 
     return neipro_fig
 
-def preprocess_weighted_umap(w, dfUMAP):
+def preprocess_weighted_umap(w, df_umap):
+    '''
+    Perform perprocessing on UMAP data and weights
 
-    # Raise everything about 0
+    w will be the values from a specific feature, 
+    not any and all features
+
+    Weights are essentially any chosen feature of the data beyond
+    the x/y coordinates, lineage, and cluster number
+
+    Args:
+        w (numpy array): Weights for the UMAP data
+        df_umap (Pandas dataframe): UMAP data
+
+    Returns:
+        w (numpy array): Preprocessed weights
+        df_umap (Pandas dataframe): Preprocessed UMAP data2003
+    '''
+
+    # Check for NaN in the w and remove them
+    not_nan = ~np.isnan(w)
+    w = w[not_nan]                    # Remove NaNs from w
+    df_umap = df_umap.loc[not_nan, :] # Remove NaNs from df_umap
+
+    # Raise all values of w about 0
     if np.any(w < 0):
         w = w + min(w)*-1.2
 
-    # Check for NaN in the w and remove them
-    notNAN = ~np.isnan(w)
-    w = w[notNAN]
-    dfUMAP = dfUMAP.loc[notNAN, :]
-
-    # Apply the log
+    # Apply the log to the weights
     w = np.log(0.1 * w + 0.1)
     w -= np.min(w)
 
-    return w, dfUMAP
+    return w, df_umap
 
-def UMAPdraw_density(df, bins, w, n_pad, vlim, feat = None, diff = False, figsize=(12, 12)):
-    import PlottingTools as umPT
+def UMAPdraw_density(d, bins, w, n_pad, vlim, feat = None, diff = False, legendtype = 'colorbar', figsize=(12, 12)):
 
     # Streamlit Theming
     SlBgC  = '#0E1117'  # Streamlit Background Color
@@ -774,31 +877,34 @@ def UMAPdraw_density(df, bins, w, n_pad, vlim, feat = None, diff = False, figsiz
     cmap_bwr = plt.get_cmap('bwr').copy()
 
     # Set up Figure
-    UMAPFig = plt.figure(figsize=figsize, facecolor = SlBgC)
-    ax = UMAPFig.add_subplot(1, 1, 1, facecolor = SlBgC)
+    umap_fig = plt.figure(figsize=figsize, facecolor = SlBgC)
+    ax = umap_fig.add_subplot(1, 1, 1, facecolor = SlBgC)
 
-    if w is None:
+    if w is None and diff is False:
         cmap = cmap_viridis
         circle_type = None
-    elif diff == False:
+    elif diff is False:
         cmap = cmap_magma
         circle_type = None
     else:
         cmap = cmap_bwr
         circle_type = 'arch'
 
-    umPT.plot_2d_density(df['X'], df['Y'], bins=bins, w=w, n_pad=n_pad, 
-                         ax=ax, cmap=cmap, vlim = vlim, circle_type = circle_type)
-    
-    xLim = ax.get_xlim()
-    yLim = ax.get_ylim()
-    
-    ax.text(0.82*xLim[1], 0.03*yLim[1], 'Density', c = SlTC, fontsize = 25)
+    umPT.plot_2d_density(d, bins=bins, w=w, n_pad=n_pad, ax=ax, cmap=cmap,
+                         vlim = vlim, circle_type = circle_type, legendtype = legendtype)
+
+    x_lim = ax.get_xlim()
+    y_lim = ax.get_ylim()
+
+    ax.text(0.82*x_lim[1], 0.03*y_lim[1], 'Density', c = SlTC, fontsize = 25)
 
     if feat is not None:
-        ax.text(xLim[0], 0.93*yLim[1], feat, c = SlTC, fontsize = 30)
+        if cmap == cmap_bwr:
+            ax.text(x_lim[0], 0.93*y_lim[1], feat, c = 'black', fontsize = 30)
+        else:
+            ax.text(x_lim[0], 0.93*y_lim[1], feat, c = SlTC, fontsize = 30)
 
-    return UMAPFig
+    return umap_fig
 
 def drawIncidenceFigure(df, figTitle, phenotype = 'All Phenotypes', feature = 'Cell Counts', displayas = 'Counts Difference', compThresh = None, figsize=(12,12)):
     import PlottingTools as umPT

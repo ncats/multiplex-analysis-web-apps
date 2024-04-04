@@ -5,13 +5,14 @@ import pandas as pd
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
+from matplotlib.colors import ListedColormap
 import seaborn as sns
 import altair as alt
 alt.data_transformers.disable_max_rows()
 from scipy import ndimage as ndi
+from scipy.stats import binned_statistic_2d
 
-
-def plot_2d_density(X, Y=None, bins=200, n_pad=40, w=None, ax=None, gaussian_sigma=0.5, cmap=plt.get_cmap('viridis'), vlim=np.array([0.001, 0.98]), circle_type='bg', box_off=True, return_matrix=False):
+def plot_2d_density(X, Y=None, bins=200, n_pad=40, w=None, ax=None, gaussian_sigma=0.5, cmap=plt.get_cmap('viridis'), vlim=np.array([0.001, 0.98]), circle_type='bg', box_off=True, return_matrix=False, legendtype = 'colorbar'):
     '''plot_2d_density(X, Y, bins, n_pad, w, ax, gaussian_sigma, cmap, vlim, circle_type, box_off, return_matrix)
     is a method for drawing 2D histograms figures. In this particular instance, we are plotting the outputs of the UMAP.
     
@@ -32,12 +33,18 @@ def plot_2d_density(X, Y=None, bins=200, n_pad=40, w=None, ax=None, gaussian_sig
     Returns:
     
     '''
+
+    if np.isscalar(bins):
+        n_bins = bins
+    else:
+        n_bins = len(bins[0]) - 1
+
     if Y is not None:
         if w is not None:
             b, _, _ = np.histogram2d(X, Y, bins=bins)
             b = ndi.gaussian_filter(b.T, sigma=gaussian_sigma)
 
-            s, _, _ = np.histogram2d(X, Y, bins=bins, weights=w)
+            s, xedges, yedges = np.histogram2d(X, Y, bins=bins, weights=w)
             s = ndi.gaussian_filter(s.T, sigma=gaussian_sigma)
 
             d = np.zeros_like(b)
@@ -45,14 +52,28 @@ def plot_2d_density(X, Y=None, bins=200, n_pad=40, w=None, ax=None, gaussian_sig
             d = s
             d = ndi.gaussian_filter(d, sigma=gaussian_sigma)
         else:
-            d, _, _ = np.histogram2d(X, Y, bins=bins)
+            d, xedges, yedges = np.histogram2d(X, Y, bins=bins)
             d /= np.sum(d)
             d = ndi.gaussian_filter(d.T, sigma=gaussian_sigma)
     else:
         d = X
 
     if return_matrix:
-        return d
+        x_bin_indices = np.digitize(X, xedges[:-1])-1
+        y_bin_indices = np.digitize(Y, yedges[:-1])-1
+        bin_indices = [(indx*n_bins + indy) for (indx, indy) in zip(x_bin_indices, y_bin_indices)]
+
+        bin_indices_df = pd.DataFrame(bin_indices, columns = ['bin_num'])
+        bin_indices_df['index'] = bin_indices_df.index
+        bin_indices_df_group = bin_indices_df.groupby('bin_num')['index'].apply(list)
+
+        tuple_list = [(indx, indy) for (indx, indy) in zip(x_bin_indices, y_bin_indices)]
+
+        bin_indices_df = pd.DataFrame(data = {'indx': x_bin_indices.flatten(),
+                                              'indy': y_bin_indices.flatten(),
+                                              'valx': X,
+                                              'valy': Y})
+        return d, bin_indices_df
     else:
         if d[d > 0].shape == (0,):
             vmin = 0
@@ -84,31 +105,41 @@ def plot_2d_density(X, Y=None, bins=200, n_pad=40, w=None, ax=None, gaussian_sig
             # ax.pcolormesh(np.log10(np.pad(d, [n_pad, n_pad]) + c + 1), vmin=np.log10(2), vmax=np.log10(2 + vlim[1]), cmap=cmap, shading='gouraud', alpha=1)
         elif circle_type == 'arch':
             extend = 'both'
-            if any((d<0)[0]):
-                vmin = np.quantile(d[d < 0].flatten(), 0.03)
-            else:
-                vmin = 0.03
-            if any((d>0)[0]):
-                vmax = np.quantile(d[d > 0].flatten(), 0.97)
-            else:
-                vmax = 0.97
+            # if any((d<0)[0]):
+            #     vmin = np.quantile(d[d < 0].flatten(), 0.03)
+            # else:
+            #     vmin = 0.03
+            # if any((d>0)[0]):
+            #     vmax = np.quantile(d[d > 0].flatten(), 0.97)
+            # else:
+            #     vmax = 0.97
             c = (n_bins / 2)
             ax.add_artist(plt.Circle((c + n_pad, c + n_pad), 0.95 * (c + n_pad), color='black', fill=False))
-            ax.pcolormesh(np.pad(d, [n_pad, n_pad]), vmin=vmin, vmax=vmax, cmap=cmap, shading='gouraud', alpha=1)
+            ax.pcolormesh(np.pad(d, [n_pad, n_pad]), vmin=-vlim[1], vmax=vlim[1], cmap=cmap, shading='gouraud', alpha=1)
         else:
             extend = 'max'
             ax.pcolormesh(np.pad(d, [n_pad, n_pad]), vmin=0, vmax=vlim[1], cmap=cmap, shading='gouraud', alpha=1)
 
-        cax = ax.inset_axes([0.95, 0.1, 0.01, 0.85])
-        plt_cmap(ax=cax, cmap=cmap, extend=extend, width=0.01)
+        # Create the color bar
+        if legendtype == 'colorbar':
+            cax = ax.inset_axes([0.95, 0.1, 0.01, 0.85])
+            cmap_lim = None # [np.min(d), np.max(d)]
+            plt_cmap(ax=cax, cmap=cmap, extend=extend, width=0.01, lim = cmap_lim)
+        elif legendtype == 'legend':
+            cax = ax.inset_axes([0.95, 0.1, 0.01, 0.85])
+            cmap_lim = [-3, -2, -1, 0, 1, 2, 3]
+            plt_cmap(ax=cax, cmap=cmap, extend=extend, width=0.01, lim = cmap_lim)
+
 
         if box_off is True:
             [ax.spines[sp].set_visible(False) for sp in ax.spines]
             ax.set(xticks=[], yticks=[])
 
 
-def plt_cmap(ax, cmap, extend, width, ylabel = None):
-    '''plt_cmap(ax, cmap, extend, width, ylabel) draws a colorbar for the current colormap at the correct
+def plt_cmap(ax, cmap, extend, width, lim = None, ylabel = None):
+    '''
+    plt_cmap(ax, cmap, extend, width, ylabel) draws a colorbar 
+    for the current colormap at the correct
     axes location, and with the correct label.
 
     Parameters:
@@ -127,11 +158,16 @@ def plt_cmap(ax, cmap, extend, width, ylabel = None):
     cb.set_ticks([])
     pos = ax.get_position().bounds
     ax.set_position([pos[0], pos[1], width, pos[3]])
+
+    if lim is not None:
+        cb.set_ticks([0, 1])
+        cb.set_ticklabels([lim[0], lim[1]])
+
     if ylabel is not None:
         ax.set(ylabel=ylabel)
 
 
-def plot_spatial_elem(ax, elems, title, color): 
+def plot_spatial_elem(ax, elems, title, color):
     '''Generates a scatter plot of the cell positions (X/Y) from the sample collected
     '''
     ax.set_title(title)
@@ -226,49 +262,56 @@ def plot_neighborhood_profile_propor(ax, cell_label, dist_bin, cell_propor, phen
     if legF:
         plt.legend()
 
-    
-def plot_mean_neighborhood_profile(ax, dist_bin, dens_df, sel_clus, maxDens=0.1, legF=0):
-    '''This function generates the line plots of the phenotype density 
+def plot_mean_neighborhood_profile(ax, dist_bin, npf_dens_mean, cluster_title, max_dens=0.1, leg_flag=0):
+    '''
+    This function generates the line plots of the phenotype density 
     at different distances from a given cell
     '''
 
-    SlBgC  = '#0E1117'  # Streamlit Background Color
-    SlTC   = '#FAFAFA'  # Streamlit Text Color
-    Sl2BgC = '#262730'  # Streamlit Secondary Background Color
+    slc_bg   = '#0E1117'  # Streamlit Background Color
+    slc_text = '#FAFAFA'  # Streamlit Text Color
+    slc_bg2  = '#262730'  # Streamlit Secondary Background Color
 
-    dens_df = dens_df.loc[dens_df['cluster'] == sel_clus, :]
+    tab20 = plt.get_cmap('tab20')
+    tab20_new = ListedColormap(tab20(np.arange(256)))
 
-    sns.lineplot(dens_df,
-                 x = 'dist_bin',
-                 y = 'density',
-                 hue = 'phenotype',
-                 errorbar = 'se',
-                 err_style = 'bars',
-                 palette = 'tab20',
-                 ax = ax)
+    phenotypes = npf_dens_mean['phenotype'].unique()
+    axesDict = dict()
+    for ii, phenotype in enumerate(phenotypes):
+        # Find the phenotype in the dataframe
+        npf_dens_mean_pheno = npf_dens_mean[npf_dens_mean['phenotype'] == phenotype]
+
+        plotax = ax.errorbar(x = npf_dens_mean_pheno.dist_bin,
+                             y = npf_dens_mean_pheno.density_mean,
+                             yerr=npf_dens_mean_pheno.density_sem,
+                             color=tab20_new(ii))
+        axesDict[phenotype] = plotax
+
+    plt.axhline(y=0, color='w', linestyle='--')
 
     ax.set_xticks(dist_bin)
     ax.set_xlim([0, 225])
-    ax.set_ylim([0, maxDens])
-    ax.set_title(f'Cluster {sel_clus}: Densities', fontsize = 16, color = SlTC)
-    ax.set_xlabel('Spatial Bound (\u03BCm)', fontsize = 14, color = SlTC)
-    ax.set_ylabel('Cell Density', fontsize = 14, color = SlTC)
+    ax.set_ylim(max_dens)
+    ax.set_title(cluster_title, fontsize = 20, color = slc_text)
+    ax.set_xlabel('Spatial Bound (\u03BCm)', fontsize = 14, color = slc_text)
+    ax.set_ylabel('Cell Density', fontsize = 14, color = slc_text)
 
     # ax.set_frame_on(False)
-    ax.spines[['left', 'bottom']].set_color(SlTC)
+    ax.spines[['left', 'bottom']].set_color(slc_text)
     ax.spines[['right', 'top']].set_visible(False)
-    ax.tick_params(axis='x', colors=SlTC, which='both')
-    ax.tick_params(axis='y', colors=SlTC, which='both')
+    ax.tick_params(axis='x', colors=slc_text, which='both')
+    ax.tick_params(axis='y', colors=slc_text, which='both')
 
-    if legF:
-        ax.legend(bbox_to_anchor=(-0.05, -0.1), 
-                  loc='upper left', 
+    if leg_flag:
+        ax.legend(axesDict.values(), axesDict.keys(),
+                  bbox_to_anchor=(-0.05, -0.1),
+                  loc='upper left',
                   fontsize = 12,
-                  borderaxespad=0, 
+                  borderaxespad=0,
                   ncols = 4,
-                  facecolor = Sl2BgC,
-                  edgecolor = Sl2BgC,
-                  labelcolor = SlTC)
+                  facecolor = slc_bg,
+                  edgecolor = slc_bg,
+                  labelcolor = slc_text)
 
 def plot_incidence_line(ax, df, phenotype):
     
