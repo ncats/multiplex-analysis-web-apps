@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 
 
-def perform_binning(cells, edges_x, edges_y, boolean_subset_on_cells=None, spatial_x_colname='spatial_x', spatial_y_colname='spatial_y', umap_x_colname='umap_x', umap_y_colname='umap_y', property_colnames=['property_a', 'property_b']):
+def perform_binning(cells, edges_x, edges_y, boolean_subset_on_cells=None, image_colname='ShortName', spatial_x_colname='spatial_x', spatial_y_colname='spatial_y', umap_x_colname='umap_x', umap_y_colname='umap_y', property_colnames=['property_a', 'property_b']):
 
     # Sample values of boolean_subset_on_cells:
     #   * pd.Series(True, index=cells.index)  # --> all cells
@@ -17,7 +17,7 @@ def perform_binning(cells, edges_x, edges_y, boolean_subset_on_cells=None, spati
     cells = cells[boolean_subset_on_cells]
 
     # Start by defining a test dataframe containing just the cells in the test set from the original dataframe, where the index has been reset to a range but the original indices are stored for reference
-    df_test = cells.loc[cells['umap_test'], [spatial_x_colname, spatial_y_colname, umap_x_colname, umap_y_colname] + property_colnames]
+    df_test = cells.loc[cells['umap_test'], [spatial_x_colname, spatial_y_colname, umap_x_colname, umap_y_colname, image_colname] + property_colnames]
     df_test.index.name = 'cells_dataframe_index'
     df_test = df_test.reset_index(drop=False)
 
@@ -34,7 +34,7 @@ def perform_binning(cells, edges_x, edges_y, boolean_subset_on_cells=None, spati
     return df_test
 
 
-def assign_cluster_labels(df_test, cluster_labels, min_cells_per_bin=1):
+def assign_cluster_labels(df_test, cluster_labels, image_colname='ShortName', property_colnames=['property_a', 'property_b'], min_cells_per_bin=1):
 
     # Say we perform clustering on the bins and get a dictionary of cluster labels (0, 1, 2, ..., k-1) as keys and the indices of the bins in each cluster as values
     # Note these bin indices must correspond to the ones coming out of np.digitize(), this is crucial!!
@@ -51,16 +51,19 @@ def assign_cluster_labels(df_test, cluster_labels, min_cells_per_bin=1):
 
     # Get the dataframes of the means and stds and series of the counts of df_test grouped by the bin indices
     df_test2 = df_test.copy()
-    df_test2.drop('cluster_label', axis='columns', inplace=True)
+    df_test2.rename(columns={'cluster_label': 'cluster_label_by_cell'}, inplace=True)
     df_grouped = df_test2.groupby(['bin_index_x', 'bin_index_y'])
-    bin_means = df_grouped.mean()
-    bin_stds = df_grouped.std()
-    bin_counts = df_grouped.size()  # get the number of test cells in each bin. This could be useful if we want to e.g. only use a bin with a minimum number of cells
+    bin_unique_images_within = df_grouped[image_colname].agg(set)
+    bin_unique_images_within.name = "unique_images"
+    df_grouped_columns = [col for col in df_test2.columns if col != image_colname]  # get all the columns in df_grouped except for image_colname
+    bin_means = df_grouped[df_grouped_columns].mean()
+    bin_stds = df_grouped[df_grouped_columns].std()
+    bin_counts = df_grouped[df_grouped_columns].size()  # get the number of test cells in each bin. This could be useful if we want to e.g. only use a bin with a minimum number of cells
     bin_counts.name = 'num_cells'
 
     # Concatenate the bin counts and cluster labels to the bin_means and bin_stds dataframes
-    bin_means = pd.concat([bin_means, bin_counts, bin_cluster_labels], axis='columns')
-    bin_stds = pd.concat([bin_stds, bin_counts, bin_cluster_labels], axis='columns')
+    bin_means = pd.concat([bin_means, bin_counts, bin_cluster_labels, bin_unique_images_within], axis='columns')
+    bin_stds = pd.concat([bin_stds, bin_counts, bin_cluster_labels, bin_unique_images_within], axis='columns')
 
     # Drop rows from bin_means and bin_stds where the number of cells in the bin is less than min_cells_per_bin
     bin_means = bin_means[bin_means['num_cells'] >= min_cells_per_bin]

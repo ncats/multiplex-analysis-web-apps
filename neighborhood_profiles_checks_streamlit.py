@@ -25,6 +25,8 @@ def main():
     diff_cutoff_frac_default = 0.2
     min_cells_per_bin = 1
 
+    # Get the unique images in the dataset
+
     # Generate two columns for the settings and umap differences
     col1, col2 = st.columns(2)
 
@@ -34,6 +36,7 @@ def main():
         # Click a button to load the data
         if st.button('Load data'):
             st.session_state['df'] = pd.read_csv(os.path.join('.', 'input', data_filename))
+            st.session_state['unique_images'] = st.session_state['df'][image_colname].unique()
 
         # Write a number_input widget for diff_cutoff_frac
         if 'diff_cutoff_frac' not in st.session_state:
@@ -115,12 +118,11 @@ def main():
             clusters = st.session_state['processed_data']['clusters']
             
             # Perform binning
-            df_test = neighborhood_profiles_checks.perform_binning(df, edges_x, edges_y, spatial_x_colname=spatial_x_colname, spatial_y_colname=spatial_y_colname, umap_x_colname=umap_x_colname, umap_y_colname=umap_y_colname, property_colnames=property_colnames)
+            df_test = neighborhood_profiles_checks.perform_binning(df, edges_x, edges_y, image_colname=image_colname, spatial_x_colname=spatial_x_colname, spatial_y_colname=spatial_y_colname, umap_x_colname=umap_x_colname, umap_y_colname=umap_y_colname, property_colnames=property_colnames)
 
             # Generate the checks as plotly figures
-            df_by_bin, df_by_cell = neighborhood_profiles_checks.assign_cluster_labels(df_test, clusters, min_cells_per_bin=min_cells_per_bin)
+            df_by_bin, df_by_cell = neighborhood_profiles_checks.assign_cluster_labels(df_test, clusters, image_colname=image_colname, property_colnames=property_colnames, min_cells_per_bin=min_cells_per_bin)
 
-    
             # Save the figures to the session state
             st.session_state['df_by_bin'] = df_by_bin
             st.session_state['df_by_cell'] = df_by_cell
@@ -137,17 +139,28 @@ def main():
             st.write('Difference matrix')
             st.pyplot(st.session_state['fig_d_diff'])
 
-    # If the figure checks have been generated, display them
+    # If the data for the plotting checks have been generated, display the figure checks
     col1, col2 = st.columns(2)
     if 'df_by_bin' in st.session_state:
         df_by_bin = st.session_state['df_by_bin']
         df_by_cell = st.session_state['df_by_cell']
+        df = st.session_state['df']
         col1.plotly_chart(px.scatter(df_by_bin, x=umap_x_colname, y=umap_y_colname, color='cluster_label', title='UMAP by Bin'))
         col2.plotly_chart(px.scatter(df_by_cell, x=umap_x_colname, y=umap_y_colname, color='cluster_label', title='UMAP by Cell'))
-        col1.plotly_chart(px.line(df_by_bin.groupby('cluster_label').mean()[property_colnames].reset_index().melt(id_vars='cluster_label', var_name='column', value_name='value'), x='column', y='value', color='cluster_label', markers=True, title='Property Means by Bin'))  # get the neighbor vectors for each cluster averaged over the histogram bins falling in that cluster
-        col2.plotly_chart(px.line(df_by_cell.groupby('cluster_label').mean()[property_colnames].reset_index().melt(id_vars='cluster_label', var_name='column', value_name='value'), x='column', y='value', color='cluster_label', markers=True, title='Property Means by Cell'))  # get the neighbor vectors for each cluster averaged over the cells falling in that cluster
-        col1.plotly_chart(px.scatter(df_by_bin, x=spatial_x_colname, y=spatial_y_colname, color='cluster_label', title='Spatial by Bin'))
-        col2.plotly_chart(px.scatter(df_by_cell, x=spatial_x_colname, y=spatial_y_colname, color='cluster_label', title='Spatial by Cell'))
+        col1.plotly_chart(px.line(df_by_bin.groupby('cluster_label')[property_colnames].mean().reset_index().melt(id_vars='cluster_label', var_name='column', value_name='value'), x='column', y='value', color='cluster_label', markers=True, title='Property Means by Bin'))  # get the neighbor vectors for each cluster averaged over the histogram bins falling in that cluster
+        col2.plotly_chart(px.line(df_by_cell.groupby('cluster_label')[property_colnames].mean().reset_index().melt(id_vars='cluster_label', var_name='column', value_name='value'), x='column', y='value', color='cluster_label', markers=True, title='Property Means by Cell'))  # get the neighbor vectors for each cluster averaged over the cells falling in that cluster
+        if 'image_to_plot' not in st.session_state:
+            st.session_state['image_to_plot'] = st.session_state['unique_images'][0]
+        st.selectbox('Image to plot:', st.session_state['unique_images'], key='image_to_plot')
+        st.write(df_by_bin)
+        ser_image_name = df.loc[df_by_cell['cells_dataframe_index'], image_colname]
+        ser_image_name.name = image_colname + '_new'
+        df_by_cell = pd.concat([df_by_cell.set_index('cells_dataframe_index'), ser_image_name], axis='columns')
+        st.write(df_by_cell[image_colname + '_new'].equals(df_by_cell[image_colname]))
+        st.write(df_by_cell)
+        st.write(df_by_cell.shape)
+        col1.plotly_chart(px.scatter(df_by_bin[df_by_bin[image_colname] == st.session_state['image_to_plot']], x=spatial_x_colname, y=spatial_y_colname, color='cluster_label', title='Spatial by Bin'))
+        col2.plotly_chart(px.scatter(df_by_cell[df_by_cell[image_colname] == st.session_state['image_to_plot']], x=spatial_x_colname, y=spatial_y_colname, color='cluster_label', title='Spatial by Cell'))
 
 
 # Main script block
