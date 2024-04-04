@@ -404,9 +404,9 @@ def scatter_plot(df, fig, ax, figTitle, xVar, yVar, hueVar, hueOrder, xLim = Non
     """
 
     figTitle = wrapTitleText(figTitle)
-    pltTitle = ''
+    plot_title = ''
     for i in figTitle:
-        pltTitle = pltTitle + i + '\n'
+        plot_title = plot_title + i + '\n'
 
     SlBgC  = '#0E1117'  # Streamlit Background Color
     SlTC   = '#FAFAFA'  # Streamlit Text Color
@@ -422,7 +422,7 @@ def scatter_plot(df, fig, ax, figTitle, xVar, yVar, hueVar, hueOrder, xLim = Non
                     linewidth = 0,
                     palette = palette,
                     ax = ax)
-    
+
     bbox = ax.get_yticklabels()[-1].get_window_extent()
     x,_ = ax.transAxes.inverted().transform([bbox.x0, bbox.y0])
 
@@ -430,7 +430,7 @@ def scatter_plot(df, fig, ax, figTitle, xVar, yVar, hueVar, hueOrder, xLim = Non
     ax.set_frame_on(False) # Turn off the Frame
 
     if xVar == 'Cell X Position':
-        ax.set_title(pltTitle, fontsize = 14, color = SlTC, ha='left', x=x, wrap=True)
+        ax.set_title(plot_title, fontsize = 14, color = SlTC, ha='left', x=x, wrap=True)
         ax.set_xlabel('Centroid X ('r'$\mu m)$', fontsize = 14, color = SlTC)
         ax.set_ylabel('Centroid Y ('r'$\mu m)$', fontsize = 14, color = SlTC)
         ax.set_aspect(1)       # Set the Aspect Ratio
@@ -460,7 +460,7 @@ def scatter_plot(df, fig, ax, figTitle, xVar, yVar, hueVar, hueOrder, xLim = Non
         lgd_markscale = 6
 
     # Put the legend outside of the plot
-    ax.legend(bbox_to_anchor = (-0.05, -0.1), 
+    ax.legend(bbox_to_anchor = (-0.05, -0.1),
               loc = 'upper left',
               fontsize = lgd_fontsize,
               markerscale = lgd_markscale,
@@ -475,7 +475,6 @@ def scatter_plot(df, fig, ax, figTitle, xVar, yVar, hueVar, hueOrder, xLim = Non
 
     if feat is not None:
         ax.text(xLim[0], 0.93*yLim[1], feat, c = SlTC, fontsize = 30)
-
 
     # Save the figure to disk
     if saveFlag:
@@ -712,7 +711,9 @@ def draw_wcss_elbow_plot(clust_range, wcss, selClus):
     return fig
 
 def createHeatMap(df, phenoList, title, normAxis = None):
-    
+    '''
+    Create a heatmap of the phenotypes and clusters
+    '''
     # Create heatmap df
     heatMapDf = pd.DataFrame()
 
@@ -789,22 +790,32 @@ def createHeatMap(df, phenoList, title, normAxis = None):
 
     return fig
 
-def neighProfileDraw(spatial_umap, sel_clus, figsize=(14, 16)):
-    import PlottingTools as umPT
+def neighProfileDraw(spatial_umap, sel_clus, cmp_clus = None, figsize=(14, 16)):
+    '''
+    neighProfileDraw is the method that draws the neighborhood profile
+    line plots
+    '''
 
-    SlBgC  = '#0E1117'  # Streamlit Background Color
-    SlTC   = '#FAFAFA'  # Streamlit Text Color
-    Sl2BgC = '#262730'  # Streamlit Secondary Background Color
+    slc_bg   = '#0E1117'  # Streamlit Background Color
+    slc_text = '#FAFAFA'  # Streamlit Text Color
+    slc_bg2  = '#262730'  # Streamlit Secondary Background Color
 
-    neipro_fig = plt.figure(figsize=figsize, facecolor = SlBgC)
-    ax = neipro_fig.add_subplot(1, 1, 1, facecolor = SlBgC)
+    neipro_fig = plt.figure(figsize=figsize, facecolor = slc_bg)
+    ax = neipro_fig.add_subplot(1, 1, 1, facecolor = slc_bg)
 
-    umPT.plot_mean_neighborhood_profile(ax,
-                                        spatial_umap.dist_bin_um,
-                                        spatial_umap.dens_df,
-                                        sel_clus,
-                                        maxDens=spatial_umap.maxdens_df,
-                                        legF=1)
+    dens_df_clus = spatial_umap.dens_df.loc[spatial_umap.dens_df['cluster'] == sel_clus, :]
+    # print(dens_df_clus.head(15))
+
+    if cmp_clus is not None:
+        dens_df_cmp = spatial_umap.dens_df.loc[spatial_umap.dens_df['cluster'] == cmp_clus, :]
+
+
+    umPT.plot_mean_neighborhood_profile(ax = ax,
+                                        dist_bin = spatial_umap.dist_bin_um,
+                                        npf_dens_df = dens_df_clus,
+                                        sel_clus = sel_clus,
+                                        max_dens = spatial_umap.maxdens_df,
+                                        leg_flag = 1)
 
     return neipro_fig
 

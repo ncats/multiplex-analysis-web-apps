@@ -262,18 +262,17 @@ def plot_neighborhood_profile_propor(ax, cell_label, dist_bin, cell_propor, phen
         plt.legend()
 
     
-def plot_mean_neighborhood_profile(ax, dist_bin, dens_df, sel_clus, maxDens=0.1, legF=0):
-    '''This function generates the line plots of the phenotype density 
+def plot_mean_neighborhood_profile(ax, dist_bin, npf_dens_df, sel_clus, max_dens=0.1, leg_flag=0):
+    '''
+    This function generates the line plots of the phenotype density 
     at different distances from a given cell
     '''
 
-    SlBgC  = '#0E1117'  # Streamlit Background Color
-    SlTC   = '#FAFAFA'  # Streamlit Text Color
-    Sl2BgC = '#262730'  # Streamlit Secondary Background Color
+    slc_bg   = '#0E1117'  # Streamlit Background Color
+    slc_text = '#FAFAFA'  # Streamlit Text Color
+    slc_bg2  = '#262730'  # Streamlit Secondary Background Color
 
-    dens_df = dens_df.loc[dens_df['cluster'] == sel_clus, :]
-
-    sns.lineplot(dens_df,
+    sns.lineplot(npf_dens_df,
                  x = 'dist_bin',
                  y = 'density',
                  hue = 'phenotype',
@@ -284,26 +283,26 @@ def plot_mean_neighborhood_profile(ax, dist_bin, dens_df, sel_clus, maxDens=0.1,
 
     ax.set_xticks(dist_bin)
     ax.set_xlim([0, 225])
-    ax.set_ylim([0, maxDens])
-    ax.set_title(f'Cluster {sel_clus}: Densities', fontsize = 16, color = SlTC)
-    ax.set_xlabel('Spatial Bound (\u03BCm)', fontsize = 14, color = SlTC)
-    ax.set_ylabel('Cell Density', fontsize = 14, color = SlTC)
+    ax.set_ylim([0, max_dens])
+    ax.set_title(f'Cluster {sel_clus}: Densities', fontsize = 16, color = slc_text)
+    ax.set_xlabel('Spatial Bound (\u03BCm)', fontsize = 14, color = slc_text)
+    ax.set_ylabel('Cell Density', fontsize = 14, color = slc_text)
 
     # ax.set_frame_on(False)
-    ax.spines[['left', 'bottom']].set_color(SlTC)
+    ax.spines[['left', 'bottom']].set_color(slc_text)
     ax.spines[['right', 'top']].set_visible(False)
-    ax.tick_params(axis='x', colors=SlTC, which='both')
-    ax.tick_params(axis='y', colors=SlTC, which='both')
+    ax.tick_params(axis='x', colors=slc_text, which='both')
+    ax.tick_params(axis='y', colors=slc_text, which='both')
 
-    if legF:
+    if leg_flag:
         ax.legend(bbox_to_anchor=(-0.05, -0.1),
                   loc='upper left',
                   fontsize = 12,
                   borderaxespad=0,
                   ncols = 4,
-                  facecolor = Sl2BgC,
-                  edgecolor = Sl2BgC,
-                  labelcolor = SlTC)
+                  facecolor = slc_bg,
+                  edgecolor = slc_bg,
+                  labelcolor = slc_text)
 
 def plot_incidence_line(ax, df, phenotype):
     

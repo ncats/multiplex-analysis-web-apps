@@ -460,20 +460,23 @@ def main():
             else:
                 list_clusters = list(range(st.session_state.selected_nClus))
 
-            clusterSelCol = st.columns([3, 1])
-            with clusterSelCol[1]:
+            cluster_sel_col = st.columns([3, 1])
+            with cluster_sel_col[1]:
                 add_vertical_space(2)
                 st.toggle('Compare Cluster Neighborhoods', value = False, key = 'toggle_compare_clusters')
 
-            with clusterSelCol[0]:
+            with cluster_sel_col[0]:
                 sel_npf_fig  = st.selectbox('Select a cluster to view', list_clusters)
+                sel_npf_fig2 = None
                 if st.session_state['toggle_compare_clusters']:
                     sel_npf_fig2 = st.selectbox('Select a cluster to compare', list_clusters)
-            if st.session_state.clustering_completed:
 
-                npf_fig = bpl.neighProfileDraw(st.session_state.spatial_umap, sel_npf_fig)
+            if st.session_state.clustering_completed:
+                # Draw the Neighborhood Profile
+                npf_fig = bpl.neighProfileDraw(st.session_state.spatial_umap, sel_npf_fig, sel_npf_fig2)
                 st.pyplot(fig=npf_fig)
 
+                # Create widgets for exporting the Neighborhood Profile images
                 neigh_prof_col = st.columns([2, 1])
                 with neigh_prof_col[0]:
                     st.text_input('.png file suffix (Optional)', key = 'neigh_prof_line_suffix')
