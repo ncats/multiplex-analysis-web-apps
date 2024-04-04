@@ -473,7 +473,9 @@ def main():
 
             if st.session_state.clustering_completed:
                 # Draw the Neighborhood Profile
-                npf_fig = bpl.neighProfileDraw(st.session_state.spatial_umap, sel_npf_fig, sel_npf_fig2)
+                npf_fig = bpl.neighProfileDraw(st.session_state.spatial_umap,
+                                               sel_npf_fig,
+                                               sel_npf_fig2)
                 st.pyplot(fig=npf_fig)
 
                 # Create widgets for exporting the Neighborhood Profile images
