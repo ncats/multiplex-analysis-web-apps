@@ -535,7 +535,6 @@ class NeighborhoodProfiles:
                 [ax.spines[sp].set_visible(False) for sp in ax.spines]
                 ax.set(xticks=[], yticks=[])
 
-
 @staticmethod
 def plt_cmap(ax, cmap, extend, width, ylabel = None):
     '''plt_cmap(ax, cmap, extend, width, ylabel) draws a colorbar for the current colormap at the correct
@@ -605,7 +604,7 @@ class UMAPDensityProcessing():
 
         self.d = d
 
-    def UMAPdraw_density(self, d, bins, w=None, n_pad, vlim, feat = None, diff = False, figsize=(12, 12)):
+    def UMAPdraw_density(self, d, bins, w=None, n_pad=40, vlim=np.array([0.001, 0.98]), feat = None, diff = False, figsize=(12, 12)):
         '''
         Draw the UMAP density data
         '''
