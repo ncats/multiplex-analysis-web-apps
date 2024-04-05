@@ -34,7 +34,7 @@ def perform_binning(cells, edges_x, edges_y, boolean_subset_on_cells=None, image
     return df_test
 
 
-def assign_cluster_labels(df_test, cluster_labels, image_colname='ShortName', property_colnames=['property_a', 'property_b'], min_cells_per_bin=1):
+def assign_cluster_labels(df_test, cluster_labels, image_colname='ShortName', min_cells_per_bin=1):
 
     # Say we perform clustering on the bins and get a dictionary of cluster labels (0, 1, 2, ..., k-1) as keys and the indices of the bins in each cluster as values
     # Note these bin indices must correspond to the ones coming out of np.digitize(), this is crucial!!
@@ -49,19 +49,19 @@ def assign_cluster_labels(df_test, cluster_labels, image_colname='ShortName', pr
     bin_cluster_labels = {bin_index: cluster_label for cluster_label, bins in cluster_labels.items() for bin_index in bins}
     bin_cluster_labels = pd.Series(bin_cluster_labels, name='cluster_label')
 
-    # Get the dataframes of the means and stds and series of the counts of df_test grouped by the bin indices
+    # Group by bin and obtain the unique images in each group, in addition to the bin means, stds, and number of cells in each bin
     df_test2 = df_test.copy()
     df_test2.rename(columns={'cluster_label': 'cluster_label_by_cell'}, inplace=True)
     df_grouped = df_test2.groupby(['bin_index_x', 'bin_index_y'])
     bin_unique_images_within = df_grouped[image_colname].agg(set)
     bin_unique_images_within.name = "unique_images"
-    df_grouped_columns = [col for col in df_test2.columns if col != image_colname]  # get all the columns in df_grouped except for image_colname
-    bin_means = df_grouped[df_grouped_columns].mean()
-    bin_stds = df_grouped[df_grouped_columns].std()
-    bin_counts = df_grouped[df_grouped_columns].size()  # get the number of test cells in each bin. This could be useful if we want to e.g. only use a bin with a minimum number of cells
+    df_grouped_columns_less_image_colname = [col for col in df_test2.columns if col != image_colname]  # get all the columns in df_grouped except for image_colname
+    bin_means = df_grouped[df_grouped_columns_less_image_colname].mean()
+    bin_stds = df_grouped[df_grouped_columns_less_image_colname].std()
+    bin_counts = df_grouped[df_grouped_columns_less_image_colname].size()  # get the number of test cells in each bin. This could be useful if we want to e.g. only use a bin with a minimum number of cells
     bin_counts.name = 'num_cells'
 
-    # Concatenate the bin counts and cluster labels to the bin_means and bin_stds dataframes
+    # Concatenate the grouped data together
     bin_means = pd.concat([bin_means, bin_counts, bin_cluster_labels, bin_unique_images_within], axis='columns')
     bin_stds = pd.concat([bin_stds, bin_counts, bin_cluster_labels, bin_unique_images_within], axis='columns')
 
