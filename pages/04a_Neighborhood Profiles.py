@@ -457,6 +457,7 @@ def main():
 
             if st.session_state['toggle_clust_diff']:
                 list_clusters = list(cluster_dict.values())
+                list_clusters.remove('No Cluster')
             else:
                 list_clusters = list(range(st.session_state.selected_nClus))
 
