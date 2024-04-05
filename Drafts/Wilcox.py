@@ -43,6 +43,7 @@ def format_de_results(adata):
 de_results = format_de_results(adata)
 
 # alternative based on the updated workflow 
-def format_de_results2(adata, umap_cur_col):
-    cur_vals = pd.unique(adata.obs[umap_cur_col])
+def find_markers(adata, umap_cur_col):
+    sc.tl.rank_genes_groups(adata, umap_cur_col, method="wilcoxon", layer="counts")
+    
     

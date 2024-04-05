@@ -36,6 +36,7 @@ def phenocluster__make_adata(df):
     adata.layers["counts"] = adata.X.copy()
     return adata
 
+
 # scanpy clustering
 def RunNeighbClust(adata, n_neighbors):
     sc.pp.neighbors(adata, n_neighbors=n_neighbors, n_pcs=None)
@@ -186,6 +187,10 @@ def make_all_plots():
 
     # default session state values
 def phenocluster__default_session_state():
+    
+    if 'phenocluster__subset_data' not in st.session_state:
+        st.session_state['phenocluster__subset_data'] = False
+    
     if 'phenocluster__cluster_method' not in st.session_state:
         st.session_state['phenocluster__cluster_method'] = "phenograph"
 
@@ -201,6 +206,27 @@ def phenocluster__default_session_state():
     if 'phenocluster__umap_cur_groups' not in st.session_state:
         st.session_state['phenocluster__umap_cur_groups'] = ["All"]
     
+    if 'phenocluster__de_col' not in st.session_state:
+        st.session_state['phenocluster__de_col'] = 'Cluster'
+  
+# subset data set
+def phenocluster__subset_data(adata):
+    phenocluster__subset_options = list(adata.obs.columns)
+    
+    if 'phenocluster__subset_col' not in st.session_state:
+        st.session_state['phenocluster__subset_col'] = phenocluster__subset_options[0]
+    
+    st.selectbox('Select column for subsetting:', phenocluster__subset_options, key='phenocluster__subset_col')
+    
+    phenocluster__subset_values_options = list(pd.unique(adata.obs[st.session_state['phenocluster__subset_col']]))
+    
+    if 'phenocluster__subset_vals' not in st.session_state:
+        st.session_state['phenocluster__subset_vals'] = [phenocluster__subset_values_options[0]]
+    
+    st.multiselect('Select value for subsetting:', options = phenocluster__subset_values_options, key='phenocluster__subset_vals')
+    adata_subset = adata[adata.obs[st.session_state['phenocluster__subset_col']].isin(st.session_state['phenocluster__subset_vals'])]
+    return adata_subset
+    
 # main
 def main():
     """
@@ -214,8 +240,15 @@ def main():
     # make layout with columns
     adata = phenocluster__make_adata(st.session_state['unifier__df'])
     
+    
     # options
     with phenocluster__col1:
+        
+        # subset data
+        st.checkbox('Subset Data:', key='phenocluster__subset_data')
+        if st.session_state['phenocluster__subset_data'] == True:
+            adata = phenocluster__subset_data(adata)
+            
         clusteringMethods = ['phenograph', 'neighb', 'parc', 'utag']
         selected_clusteringMethod = st.selectbox('Select Clustering method:', clusteringMethods, 
                                                 key='clusteringMethods_dropdown') 
@@ -251,7 +284,7 @@ def main():
                     st.session_state['phenocluster__clustering_adata'] = run_utag_clust(adata=adata, 
                                                                                         n_neighbors=st.session_state['phenocluster__n_neighbors_state'], resolutions=[1])
             # save clustering result
-            st.session_state['phenocluster__clustering_adata'].write("input/clust_dat.h5ad")
+            #st.session_state['phenocluster__clustering_adata'].write("input/clust_dat.h5ad")
                     
             # set default values for umap color column
             if 'phenocluster__umap_color_col' not in st.session_state:
@@ -284,6 +317,10 @@ def main():
             st.session_state['phenocluster__umap_cur_groups'] = umap_sel_groups
             
             st.button('Make Plots' , on_click=make_all_plots)
+        
+        # Differential expression
+        
+        
             
             
     
