@@ -35,8 +35,9 @@ def main():
 
         # Click a button to load the data
         if st.button('Load data'):
-            st.session_state['df'] = pd.read_csv(os.path.join('.', 'input', data_filename))
-            st.session_state['unique_images'] = list(st.session_state['df'][image_colname].unique())
+            with st.spinner('Loading data...'):
+                st.session_state['df'] = pd.read_csv(os.path.join('.', 'input', data_filename))
+                st.session_state['unique_images'] = list(st.session_state['df'][image_colname].unique())
 
         # Ensure the data has been loaded
         if 'df' not in st.session_state:
@@ -50,88 +51,91 @@ def main():
 
         # Click a button to process the data
         if st.button('Process the data'):
+            with st.spinner('Processing data...'):
 
-            # Get a shortcut to the original dataframe
-            df = st.session_state['df']
+                # Get a shortcut to the original dataframe
+                df = st.session_state['df']
 
-            # Get an equal number of cells from each image
-            num_cells_from_each_sample = int(round(df.groupby(image_colname).size().min() * number_of_samples_frac, -3))
-            indices = df.groupby(image_colname).apply(lambda x: x.sample(n=num_cells_from_each_sample, replace=False).index, include_groups=False).explode().values
+                # Get an equal number of cells from each image
+                num_cells_from_each_sample = int(round(df.groupby(image_colname).size().min() * number_of_samples_frac, -3))
+                indices = df.groupby(image_colname).apply(lambda x: x.sample(n=num_cells_from_each_sample, replace=False).index, include_groups=False).explode().values
 
-            # Assign the sample to 'umap_test'
-            df['umap_test'] = False
-            df.loc[indices, 'umap_test'] = True
+                # Assign the sample to 'umap_test'
+                df['umap_test'] = False
+                df.loc[indices, 'umap_test'] = True
 
-            # Get a universal set of edges for the UMAPs
-            edges_x = np.linspace(df[umap_x_colname].min(), df[umap_x_colname].max(), num_umap_bins + 1)
-            edges_y = np.linspace(df[umap_y_colname].min(), df[umap_y_colname].max(), num_umap_bins + 1)
+                # Get a universal set of edges for the UMAPs
+                edges_x = np.linspace(df[umap_x_colname].min(), df[umap_x_colname].max(), num_umap_bins + 1)
+                edges_y = np.linspace(df[umap_y_colname].min(), df[umap_y_colname].max(), num_umap_bins + 1)
 
-            # Get subsets of the full data that are (1) the entire test set, (2) the alive cells in the test set, and (3) the dead cells in the test set
-            df_test = df[df['umap_test']]
-            df_alive = df_test[df_test[binary_colname] == 1]  # assume "alive" means Survival_5yr == 1
-            df_dead = df_test[df_test[binary_colname] == 0]
+                # Get subsets of the full data that are the entire test set and both binary subsets of the test set
+                df_test = df[df['umap_test']]
+                binary_values = sorted(list(df[binary_colname].unique()))
+                df_binary_subset_0 = df_test[df_test[binary_colname] == binary_values[0]]
+                df_binary_subset_1 = df_test[df_test[binary_colname] == binary_values[1]]
 
-            # Get the 2D histograms for each condition
-            d_alive = PlottingTools.plot_2d_density(df_alive[umap_x_colname], df_alive[umap_y_colname], bins=[edges_x, edges_y], return_matrix=True)
-            d_dead = PlottingTools.plot_2d_density(df_dead[umap_x_colname], df_dead[umap_y_colname], bins=[edges_x, edges_y], return_matrix=True)
+                # Get the 2D histograms for each condition
+                d_binary_subset_0 = PlottingTools.plot_2d_density(df_binary_subset_0[umap_x_colname], df_binary_subset_0[umap_y_colname], bins=[edges_x, edges_y], return_matrix=True)
+                d_binary_subset_1 = PlottingTools.plot_2d_density(df_binary_subset_1[umap_x_colname], df_binary_subset_1[umap_y_colname], bins=[edges_x, edges_y], return_matrix=True)
 
-            # Get the difference between the alive and dead histograms
-            d_diff = d_alive - d_dead
+                # Get the difference between the histograms for the binary subsets
+                d_diff = d_binary_subset_1 - d_binary_subset_0
 
-            # "Mask" the difference matrix based on a cutoff
-            cutoff = np.abs(d_diff).max() * st.session_state['diff_cutoff_frac']
-            d_diff[d_diff > cutoff] = 1
-            d_diff[d_diff < -cutoff] = -1
-            d_diff[(d_diff >= -cutoff) & (d_diff <= cutoff)] = 0
+                # "Mask" the difference matrix based on a cutoff
+                cutoff = np.abs(d_diff).max() * st.session_state['diff_cutoff_frac']
+                d_diff[d_diff > cutoff] = 1
+                d_diff[d_diff < -cutoff] = -1
+                d_diff[(d_diff >= -cutoff) & (d_diff <= cutoff)] = 0
 
-            # Get the clusters based only on the cutoff, deliberately not performing any clustering
-            clusters = {0: [tuple([x[1], x[0]]) for x in np.transpose(np.where(np.isclose(d_diff, -1)))], 1: [tuple([x[1], x[0]]) for x in np.transpose(np.where(np.isclose(d_diff, 1)))]}
+                # Get the clusters based only on the cutoff, deliberately not performing any clustering
+                clusters = {0: [tuple([x[1], x[0]]) for x in np.transpose(np.where(np.isclose(d_diff, -1)))], 1: [tuple([x[1], x[0]]) for x in np.transpose(np.where(np.isclose(d_diff, 1)))]}
 
-            # Plot the difference matrix
-            fig_d_diff, ax_d_diff = plt.subplots()
-            PlottingTools.plot_2d_density(d_diff, bins=[edges_x, edges_y], n_pad=30, circle_type='arch', cmap=plt.get_cmap('bwr').copy(), ax=ax_d_diff)
+                # Plot the difference matrix
+                fig_d_diff, ax_d_diff = plt.subplots()
+                PlottingTools.plot_2d_density(d_diff, bins=[edges_x, edges_y], n_pad=30, circle_type='arch', cmap=plt.get_cmap('bwr'), ax=ax_d_diff)
 
-            # Optionally plot the difference matrix manually
-            if plot_manual_histogram_diff:
-                fig, ax = plt.subplots()
-                c = ax.pcolormesh(edges_x, edges_y, d_diff, cmap='bwr')
-                fig.colorbar(c, ax=ax)
-                st.session_state['fig_d_diff_manual'] = fig
+                # Optionally plot the difference matrix manually
+                if plot_manual_histogram_diff:
+                    fig, ax = plt.subplots()
+                    c = ax.pcolormesh(edges_x, edges_y, d_diff, cmap='bwr')
+                    fig.colorbar(c, ax=ax)
+                    st.session_state['fig_d_diff_manual'] = fig
 
-            # Save the processed data to the session state
-            st.session_state['processed_data'] = {'df': df, 'edges_x': edges_x, 'edges_y': edges_y, 'clusters': clusters}
+                # Save the processed data to the session state
+                st.session_state['processed_data'] = {'df': df, 'edges_x': edges_x, 'edges_y': edges_y, 'clusters': clusters}
 
-            # Save the difference plot to the session state
-            st.session_state['fig_d_diff'] = fig_d_diff
+                # Save the difference plot to the session state
+                st.session_state['fig_d_diff'] = fig_d_diff
 
         # Ensure the data has been processed
         if 'processed_data' not in st.session_state:
-            st.warning('Please process the data first.')
+            st.warning('Please process the data.')
             return
         
         # Click a button to run the checks
         if st.button('Run checks'):
+            with st.spinner('Running checks...'):
 
-            # Get shortcuts to the processed data
-            df = st.session_state['processed_data']['df']
-            edges_x = st.session_state['processed_data']['edges_x']
-            edges_y = st.session_state['processed_data']['edges_y']
-            clusters = st.session_state['processed_data']['clusters']
-            
-            # Perform binning
-            df_test = neighborhood_profiles_checks.perform_binning(df, edges_x, edges_y, image_colname=image_colname, spatial_x_colname=spatial_x_colname, spatial_y_colname=spatial_y_colname, umap_x_colname=umap_x_colname, umap_y_colname=umap_y_colname, property_colnames=property_colnames)
+                # Get shortcuts to the processed data
+                df = st.session_state['processed_data']['df']
+                edges_x = st.session_state['processed_data']['edges_x']
+                edges_y = st.session_state['processed_data']['edges_y']
+                clusters = st.session_state['processed_data']['clusters']
+                
+                # Perform binning
+                df_test = neighborhood_profiles_checks.perform_binning(df, edges_x, edges_y, image_colname=image_colname, spatial_x_colname=spatial_x_colname, spatial_y_colname=spatial_y_colname, umap_x_colname=umap_x_colname, umap_y_colname=umap_y_colname, property_colnames=property_colnames)
 
-            # Generate the checks as plotly figures
-            df_by_bin, df_by_cell = neighborhood_profiles_checks.assign_cluster_labels(df_test, clusters, image_colname=image_colname, min_cells_per_bin=min_cells_per_bin)
+                # Generate the checks as plotly figures
+                df_by_bin, df_by_cell = neighborhood_profiles_checks.assign_cluster_labels(df_test, clusters, image_colname=image_colname, min_cells_per_bin=min_cells_per_bin)
 
-            # Save the figures to the session state
-            st.session_state['df_by_bin'] = df_by_bin
-            st.session_state['df_by_cell'] = df_by_cell
+                # Save the figures to the session state
+                st.session_state['df_by_bin'] = df_by_bin
+                st.session_state['df_by_cell'] = df_by_cell
 
     # In the second column, plot Giraldo's difference histogram
     with col2:
         if 'fig_d_diff' in st.session_state:
-            st.write('Difference matrix')
+            st.write('Difference matrix:')
             st.pyplot(st.session_state['fig_d_diff'])
 
     # In the third column, optionally plot the manual difference histogram
@@ -142,9 +146,10 @@ def main():
                 st.pyplot(st.session_state['fig_d_diff_manual'])
 
     # Ensure we're ready to display the figure checks
-    if 'df_by_bin' not in st.session_state:
-        st.warning('Please run the checks.')
-        return
+    with col1:
+        if 'df_by_bin' not in st.session_state:
+            st.warning('Please run the checks.')
+            return
     
     # Write a header
     st.header('Plots by dataset')
@@ -154,18 +159,26 @@ def main():
     df_by_cell = st.session_state['df_by_cell']
     df = st.session_state['df']
 
+    # For plotting purposes below, we need to convert the 'cluster_label' column to categorical, and also save their unique values so we can preserve plotting order
+    df_by_bin['cluster_label'] = df_by_bin['cluster_label'].astype('category')
+    df_by_cell['cluster_label'] = df_by_cell['cluster_label'].astype('category')
+    unique_cluster_labels_by_bin = set([cluster_label for cluster_label in df_by_bin['cluster_label'].unique() if not np.isnan(cluster_label)])
+    unique_cluster_labels_by_cell = set([cluster_label for cluster_label in df_by_cell['cluster_label'].unique() if not np.isnan(cluster_label)])
+    assert unique_cluster_labels_by_bin == unique_cluster_labels_by_cell, f'The cluster labels are not the same for the bins ({unique_cluster_labels_by_bin}) and cells ({unique_cluster_labels_by_cell}).'
+    unique_cluster_labels = list(unique_cluster_labels_by_bin)
+
     # Create two columns for the per-dataset plots
     col1, col2 = st.columns(2)
 
     # Plots by bin
     with col1:
-        col1.plotly_chart(px.scatter(df_by_bin, x=umap_x_colname, y=umap_y_colname, color='cluster_label', title='UMAP by Bin for Whole Dataset').update_layout(xaxis={"scaleanchor": "y", "scaleratio": 1}))
-        col1.plotly_chart(px.line(df_by_bin.groupby('cluster_label')[property_colnames].mean().reset_index().melt(id_vars='cluster_label', var_name='column', value_name='value'), x='column', y='value', color='cluster_label', markers=True, title='Property Means by Bin for Whole Dataset'))  # get the neighbor vectors for each cluster averaged over the histogram bins falling in that cluster
+        col1.plotly_chart(px.scatter(df_by_bin, x=umap_x_colname, y=umap_y_colname, color='cluster_label', title='UMAP by Bin for Whole Dataset', category_orders={'cluster_label': unique_cluster_labels}).update_layout(xaxis={"scaleanchor": "y", "scaleratio": 1}))
+        col1.plotly_chart(px.line(df_by_bin.groupby('cluster_label')[property_colnames].mean().reset_index().melt(id_vars='cluster_label', var_name='column', value_name='value'), x='column', y='value', color='cluster_label', markers=True, title='Property Means by Bin for Whole Dataset', category_orders={'cluster_label': unique_cluster_labels}))  # get the neighbor vectors for each cluster averaged over the histogram bins falling in that cluster
 
     # Plots by cell
     with col2:
-        col2.plotly_chart(px.scatter(df_by_cell, x=umap_x_colname, y=umap_y_colname, color='cluster_label', title='UMAP by Cell for Whole Dataset').update_layout(xaxis={"scaleanchor": "y", "scaleratio": 1}))
-        col2.plotly_chart(px.line(df_by_cell.groupby('cluster_label')[property_colnames].mean().reset_index().melt(id_vars='cluster_label', var_name='column', value_name='value'), x='column', y='value', color='cluster_label', markers=True, title='Property Means by Cell for Whole Dataset'))  # get the neighbor vectors for each cluster averaged over the cells falling in that cluster
+        col2.plotly_chart(px.scatter(df_by_cell, x=umap_x_colname, y=umap_y_colname, color='cluster_label', title='UMAP by Cell for Whole Dataset', category_orders={'cluster_label': unique_cluster_labels}).update_layout(xaxis={"scaleanchor": "y", "scaleratio": 1}))
+        col2.plotly_chart(px.line(df_by_cell.groupby('cluster_label')[property_colnames].mean().reset_index().melt(id_vars='cluster_label', var_name='column', value_name='value'), x='column', y='value', color='cluster_label', markers=True, title='Property Means by Cell for Whole Dataset', category_orders={'cluster_label': unique_cluster_labels}))  # get the neighbor vectors for each cluster averaged over the cells falling in that cluster
 
     # Write a header
     st.header('Plots by image')
@@ -176,7 +189,10 @@ def main():
 
         # Allow the user to select an image by dropdown
         if 'image_to_plot' not in st.session_state:
-            st.session_state['image_to_plot'] = st.session_state['unique_images'][0]
+            if st.session_state['unique_images']:
+                st.session_state['image_to_plot'] = st.session_state['unique_images'][0]
+            else:
+                st.session_state['image_to_plot'] = None
         st.selectbox('Image to plot:', st.session_state['unique_images'], key='image_to_plot')
 
         # Add previous and next buttons to select the image by button
@@ -212,9 +228,9 @@ def main():
         st.write(f'Label for image {selected_image}: {current_image_label}.')
 
         # Draw the plots
-        st.plotly_chart(px.scatter(df_by_bin_filtered, x=spatial_x_colname, y=spatial_y_colname, color='cluster_label', title=f'Spatial by Bin for {selected_image}').update_layout(xaxis={"scaleanchor": "y", "scaleratio": 1}, annotations={'text': 'NOTE: This plot is meaningless and is only plotted for completeness!'}))
-        st.plotly_chart(px.scatter(df_by_bin_filtered, x=umap_x_colname, y=umap_y_colname, color='cluster_label', title=f'UMAP by Bin for {selected_image}').update_layout(xaxis={"scaleanchor": "y", "scaleratio": 1}))
-        st.plotly_chart(px.line(df_by_bin_filtered.groupby('cluster_label')[property_colnames].mean().reset_index().melt(id_vars='cluster_label', var_name='column', value_name='value'), x='column', y='value', color='cluster_label', markers=True, title=f'Property Means by Bin for {selected_image}'))  # get the neighbor vectors for each cluster averaged over the histogram bins falling in that cluster
+        st.plotly_chart(px.scatter(df_by_bin_filtered, x=spatial_x_colname, y=spatial_y_colname, color='cluster_label', title=f'Spatial by Bin for {selected_image} (this is meaningless; don\'t read into it)', category_orders={'cluster_label': unique_cluster_labels}).update_layout(xaxis={"scaleanchor": "y", "scaleratio": 1}))
+        st.plotly_chart(px.scatter(df_by_bin_filtered, x=umap_x_colname, y=umap_y_colname, color='cluster_label', title=f'UMAP by Bin for {selected_image}', category_orders={'cluster_label': unique_cluster_labels}).update_layout(xaxis={"scaleanchor": "y", "scaleratio": 1}))
+        st.plotly_chart(px.line(df_by_bin_filtered.groupby('cluster_label')[property_colnames].mean().reset_index().melt(id_vars='cluster_label', var_name='column', value_name='value'), x='column', y='value', color='cluster_label', markers=True, title=f'Property Means by Bin for {selected_image}', category_orders={'cluster_label': unique_cluster_labels}))  # get the neighbor vectors for each cluster averaged over the histogram bins falling in that cluster
 
     # Plots by cell
     with col2:
@@ -229,9 +245,9 @@ def main():
         st.write(f'Label for image {selected_image}: {current_image_label}.')
 
         # Draw the plots
-        st.plotly_chart(px.scatter(df_by_cell_filtered, x=spatial_x_colname, y=spatial_y_colname, color='cluster_label', title=f'Spatial by Cell for {selected_image}').update_layout(xaxis={"scaleanchor": "y", "scaleratio": 1}))
-        st.plotly_chart(px.scatter(df_by_cell_filtered, x=umap_x_colname, y=umap_y_colname, color='cluster_label', title=f'UMAP by Cell for {selected_image}').update_layout(xaxis={"scaleanchor": "y", "scaleratio": 1}))
-        st.plotly_chart(px.line(df_by_cell_filtered.groupby('cluster_label')[property_colnames].mean().reset_index().melt(id_vars='cluster_label', var_name='column', value_name='value'), x='column', y='value', color='cluster_label', markers=True, title=f'Property Means by Cell for {selected_image}'))  # get the neighbor vectors for each cluster averaged over the cells falling in that cluster
+        st.plotly_chart(px.scatter(df_by_cell_filtered, x=spatial_x_colname, y=spatial_y_colname, color='cluster_label', title=f'Spatial by Cell for {selected_image}', category_orders={'cluster_label': unique_cluster_labels}).update_layout(xaxis={"scaleanchor": "y", "scaleratio": 1}))
+        st.plotly_chart(px.scatter(df_by_cell_filtered, x=umap_x_colname, y=umap_y_colname, color='cluster_label', title=f'UMAP by Cell for {selected_image}', category_orders={'cluster_label': unique_cluster_labels}).update_layout(xaxis={"scaleanchor": "y", "scaleratio": 1}))
+        st.plotly_chart(px.line(df_by_cell_filtered.groupby('cluster_label')[property_colnames].mean().reset_index().melt(id_vars='cluster_label', var_name='column', value_name='value'), x='column', y='value', color='cluster_label', markers=True, title=f'Property Means by Cell for {selected_image}', category_orders={'cluster_label': unique_cluster_labels}))  # get the neighbor vectors for each cluster averaged over the cells falling in that cluster
 
 
 # Main script block
@@ -242,5 +258,5 @@ if __name__ == '__main__':
     st.set_page_config(layout='wide', page_title=page_name)
     st.title(page_name)
 
-    # Call the main functino
+    # Call the main function
     main()
