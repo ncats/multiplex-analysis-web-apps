@@ -198,6 +198,58 @@ def draw_plots(df_image_labels, umap_x_colname='UMAP_1_20230327_152849', umap_y_
         st.plotly_chart(px.line(df_by_cell_filtered.groupby('cluster_label')[property_colnames].mean().reset_index().melt(id_vars='cluster_label', var_name='column', value_name='value'), x='column', y='value', color='cluster_label', markers=True, title=f'Property Means by Cell for {selected_image}', category_orders={'cluster_label': unique_cluster_labels}))  # get the neighbor vectors for each cluster averaged over the cells falling in that cluster
 
 
+def get_predictions(repetition, diff_cutoff_frac, image_name, df_by_bin, df_by_cell, df_image_labels, binary_colname, image_colname, debug=False):
+
+    # Get the actual, true label for the current image and store it and other external information in a dictionary
+    actual_label = df_image_labels.loc[image_name, binary_colname]
+    predictions_dict = {'repetition': repetition, 'diff_cutoff_frac': diff_cutoff_frac, 'image_name': image_name, 'actual_label': actual_label}
+
+    # Filter the binned data to the selected image
+    image_in_set = pd.Series([image_name in images for images in df_by_bin['unique_images']], index=df_by_bin.index)
+    num_bins_with_cluster_labels = df_by_bin['cluster_label'].loc[image_in_set].notnull().sum()
+    df_by_bin_filtered = df_by_bin[image_in_set]
+    df_by_bin_filtered['cluster_label'] = df_by_bin_filtered['cluster_label'].cat.remove_unused_categories()
+
+    # Get the estimate using the by-bin analysis
+    vc = df_by_bin_filtered['cluster_label'].value_counts()
+    assert vc.sum() == num_bins_with_cluster_labels
+    scores_by_bin = vc / vc.sum()
+    if vc.sum() == 0:
+        estimated_label = None
+        score = None
+    else:
+        estimated_label = scores_by_bin.index[0]
+        score = scores_by_bin.iloc[0]
+    if debug:
+        print(f'For image {image_name}, by bin: actual_label={actual_label}, estimated_label={estimated_label}, score={score}')
+    predictions_dict['estimated_label_by_bin'] = estimated_label
+    predictions_dict['score_by_bin'] = score
+
+    # Filter the cell data to the selected image
+    cell_in_image = df_by_cell[image_colname] == image_name
+    num_cells_with_cluster_labels = df_by_cell['cluster_label'].loc[cell_in_image].notnull().sum()
+    df_by_cell_filtered = df_by_cell[cell_in_image]
+    df_by_cell_filtered['cluster_label'] = df_by_cell_filtered['cluster_label'].cat.remove_unused_categories()
+
+    # Get the estimate using the by-cell analysis
+    vc = df_by_cell_filtered['cluster_label'].value_counts()
+    assert vc.sum() == num_cells_with_cluster_labels
+    scores_by_cell = vc / vc.sum()
+    if vc.sum() == 0:
+        estimated_label = None
+        score = None
+    else:
+        estimated_label = scores_by_cell.index[0]
+        score = scores_by_cell.iloc[0]
+    if debug:
+        print(f'For image {image_name}, by cell: actual_label={actual_label}, estimated_label={estimated_label}, score={score}')
+    predictions_dict['estimated_label_by_cell'] = estimated_label
+    predictions_dict['score_by_cell'] = score
+
+    # Return the dictionary containing the current prediction
+    return predictions_dict
+
+
 # Main function definition
 def main():
 
@@ -273,53 +325,17 @@ def main():
     # Draw the plots
     draw_plots(df_image_labels=df_image_labels, umap_x_colname=umap_x_colname, umap_y_colname=umap_y_colname, property_colnames=property_colnames, image_colname=image_colname, binary_colname=binary_colname, spatial_x_colname=spatial_x_colname, spatial_y_colname=spatial_y_colname)
 
+    predictions_holder = []
+    for repetition in range(10):
+        for diff_cutoff_frac in np.linspace(0.1, 0.9, 9):
+            for image_name in unique_images:
+                predictions_dict = get_predictions(repetition=repetition, diff_cutoff_frac=diff_cutoff_frac, image_name=image_name, df_by_bin=df_by_bin, df_by_cell=df_by_cell, df_image_labels=df_image_labels, binary_colname=binary_colname, image_colname=image_colname, debug=False)
+                predictions_holder.append(predictions_dict)
+
     # Get shortcuts to variables in the session state
     df_by_bin = st.session_state['df_by_bin']
     df_by_cell = st.session_state['df_by_cell']
 
-    # difference_cutoff_fractions = np.linspace(0.1, 0.9, 9)
-
-    # Loop through all the images in the dataset
-    for image_name in st.session_state['unique_images']:
-
-        # Get the actual, true label for the current image
-        actual_label = df_image_labels.loc[image_name, binary_colname]
-
-        # Filter the binned data to the selected image
-        image_in_set = pd.Series([image_name in images for images in df_by_bin['unique_images']], index=df_by_bin.index)
-        num_bins_with_cluster_labels = df_by_bin['cluster_label'].loc[image_in_set].notnull().sum()
-        df_by_bin_filtered = df_by_bin[image_in_set]
-        df_by_bin_filtered['cluster_label'] = df_by_bin_filtered['cluster_label'].cat.remove_unused_categories()
-
-        # Get the estimate using the by-bin analysis
-        vc = df_by_bin_filtered['cluster_label'].value_counts()
-        assert vc.sum() == num_bins_with_cluster_labels
-        scores_by_bin = vc / vc.sum()
-        if vc.sum() == 0:
-            estimated_label = None
-            score = None
-        else:
-            estimated_label = scores_by_bin.index[0]
-            score = scores_by_bin.iloc[0]
-        st.write(f'For image {image_name}, by bin: actual_label={actual_label}, estimated_label={estimated_label}, score={score}')
-
-        # Filter the cell data to the selected image
-        cell_in_image = df_by_cell[image_colname] == image_name
-        num_cells_with_cluster_labels = df_by_cell['cluster_label'].loc[cell_in_image].notnull().sum()
-        df_by_cell_filtered = df_by_cell[cell_in_image]
-        df_by_cell_filtered['cluster_label'] = df_by_cell_filtered['cluster_label'].cat.remove_unused_categories()
-
-        # Get the estimate using the by-cell analysis
-        vc = df_by_cell_filtered['cluster_label'].value_counts()
-        assert vc.sum() == num_cells_with_cluster_labels
-        scores_by_cell = vc / vc.sum()
-        if vc.sum() == 0:
-            estimated_label = None
-            score = None
-        else:
-            estimated_label = scores_by_cell.index[0]
-            score = scores_by_cell.iloc[0]
-        st.write(f'For image {image_name}, by cell: actual_label={actual_label}, estimated_label={estimated_label}, score={score}')
 
 
 # Main script block
