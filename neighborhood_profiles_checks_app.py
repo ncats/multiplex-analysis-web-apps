@@ -222,6 +222,7 @@ def main():
         image_in_set = pd.Series([selected_image in images for images in df_by_bin['unique_images']], index=df_by_bin.index)
         num_bins_with_cluster_labels = df_by_bin['cluster_label'].loc[image_in_set].notnull().sum()
         df_by_bin_filtered = df_by_bin[image_in_set]
+        df_by_bin_filtered['cluster_label'] = df_by_bin_filtered['cluster_label'].cat.remove_unused_categories()
 
         # Write some image information
         st.write(f'In the selected image, there are {image_in_set.sum()} bins present, {num_bins_with_cluster_labels} of which have been assigned a cluster label.')
@@ -239,6 +240,7 @@ def main():
         cell_in_image = df_by_cell[image_colname] == selected_image
         num_cells_with_cluster_labels = df_by_cell['cluster_label'].loc[cell_in_image].notnull().sum()
         df_by_cell_filtered = df_by_cell[cell_in_image]
+        df_by_cell_filtered['cluster_label'] = df_by_cell_filtered['cluster_label'].cat.remove_unused_categories()
 
         # Write some image information
         st.write(f'In the selected image, there are {cell_in_image.sum()} cells present, {num_cells_with_cluster_labels} of which have been assigned a cluster label.')
