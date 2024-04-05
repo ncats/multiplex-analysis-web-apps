@@ -9,6 +9,12 @@ import matplotlib.pyplot as plt
 import plotly.express as px
 
 
+def load_data(data_filename='Combo_CSVfiles_20230327_152849.csv', image_colname='ShortName'):
+    with st.spinner('Loading data...'):
+        st.session_state['df'] = pd.read_csv(os.path.join('.', 'input', data_filename))
+        st.session_state['unique_images'] = list(st.session_state['df'][image_colname].unique())
+
+
 def process_data(image_colname='ShortName', umap_x_colname='UMAP_1_20230327_152849', umap_y_colname='UMAP_2_20230327_152849', binary_colname='Survival_5yr', number_of_samples_frac=0.1, num_umap_bins=200, plot_manual_histogram_diff=False):
 
     with st.spinner('Processing data...'):
@@ -217,10 +223,7 @@ def main():
     with col1:
 
         # Click a button to load the data
-        if st.button('Load data'):
-            with st.spinner('Loading data...'):
-                st.session_state['df'] = pd.read_csv(os.path.join('.', 'input', data_filename))
-                st.session_state['unique_images'] = list(st.session_state['df'][image_colname].unique())
+        st.button('Load data', on_click=load_data, kwargs={'data_filename': data_filename, 'image_colname': image_colname})
 
         # Ensure the data has been loaded
         if 'df' not in st.session_state:
@@ -262,11 +265,61 @@ def main():
             st.warning('Please run the checks.')
             return
     
-    # Get the correct binary value/label for each image
+    # Get the actual binary value/label for each image
     df_image_labels = st.session_state['df'][[image_colname, binary_colname]].groupby(image_colname).agg(set)
+    assert df_image_labels[binary_colname].apply(len).max() == 1, f'There are images with multiple binary labels: {df_image_labels[df_image_labels[binary_colname].apply(len) > 1]}'
+    df_image_labels[binary_colname] = df_image_labels[binary_colname].apply(lambda x: list(x)[0])
 
     # Draw the plots
     draw_plots(df_image_labels=df_image_labels, umap_x_colname=umap_x_colname, umap_y_colname=umap_y_colname, property_colnames=property_colnames, image_colname=image_colname, binary_colname=binary_colname, spatial_x_colname=spatial_x_colname, spatial_y_colname=spatial_y_colname)
+
+    # Get shortcuts to variables in the session state
+    df_by_bin = st.session_state['df_by_bin']
+    df_by_cell = st.session_state['df_by_cell']
+
+    # difference_cutoff_fractions = np.linspace(0.1, 0.9, 9)
+
+    # Loop through all the images in the dataset
+    for image_name in st.session_state['unique_images']:
+
+        # Get the actual, true label for the current image
+        actual_label = df_image_labels.loc[image_name, binary_colname]
+
+        # Filter the binned data to the selected image
+        image_in_set = pd.Series([image_name in images for images in df_by_bin['unique_images']], index=df_by_bin.index)
+        num_bins_with_cluster_labels = df_by_bin['cluster_label'].loc[image_in_set].notnull().sum()
+        df_by_bin_filtered = df_by_bin[image_in_set]
+        df_by_bin_filtered['cluster_label'] = df_by_bin_filtered['cluster_label'].cat.remove_unused_categories()
+
+        # Get the estimate using the by-bin analysis
+        vc = df_by_bin_filtered['cluster_label'].value_counts()
+        assert vc.sum() == num_bins_with_cluster_labels
+        scores_by_bin = vc / vc.sum()
+        if vc.sum() == 0:
+            estimated_label = None
+            score = None
+        else:
+            estimated_label = scores_by_bin.index[0]
+            score = scores_by_bin.iloc[0]
+        st.write(f'For image {image_name}, by bin: actual_label={actual_label}, estimated_label={estimated_label}, score={score}')
+
+        # Filter the cell data to the selected image
+        cell_in_image = df_by_cell[image_colname] == image_name
+        num_cells_with_cluster_labels = df_by_cell['cluster_label'].loc[cell_in_image].notnull().sum()
+        df_by_cell_filtered = df_by_cell[cell_in_image]
+        df_by_cell_filtered['cluster_label'] = df_by_cell_filtered['cluster_label'].cat.remove_unused_categories()
+
+        # Get the estimate using the by-cell analysis
+        vc = df_by_cell_filtered['cluster_label'].value_counts()
+        assert vc.sum() == num_cells_with_cluster_labels
+        scores_by_cell = vc / vc.sum()
+        if vc.sum() == 0:
+            estimated_label = None
+            score = None
+        else:
+            estimated_label = scores_by_cell.index[0]
+            score = scores_by_cell.iloc[0]
+        st.write(f'For image {image_name}, by cell: actual_label={actual_label}, estimated_label={estimated_label}, score={score}')
 
 
 # Main script block
