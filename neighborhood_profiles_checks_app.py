@@ -106,7 +106,7 @@ def draw_plots(df_image_labels, umap_x_colname='UMAP_1_20230327_152849', umap_y_
     # Write a header
     st.header('Plots by dataset')
 
-    # For plotting purposes below, we need to convert the 'cluster_label' column to categorical, and also save their unique values so we can preserve plotting order
+    # For plotting purposes below (to get a discrete legend instead of a colorbar), we need to convert the 'cluster_label' column to categorical, and also save their unique values so we can preserve plotting order
     df_by_bin['cluster_label'] = df_by_bin['cluster_label'].astype('category')
     df_by_cell['cluster_label'] = df_by_cell['cluster_label'].astype('category')
     unique_cluster_labels_by_bin = set([cluster_label for cluster_label in df_by_bin['cluster_label'].unique() if not np.isnan(cluster_label)])
@@ -208,7 +208,6 @@ def get_predictions(repetition, diff_cutoff_frac, image_name, df_by_bin, df_by_c
     image_in_set = pd.Series([image_name in images for images in df_by_bin['unique_images']], index=df_by_bin.index)
     num_bins_with_cluster_labels = df_by_bin['cluster_label'].loc[image_in_set].notnull().sum()
     df_by_bin_filtered = df_by_bin[image_in_set]
-    df_by_bin_filtered['cluster_label'] = df_by_bin_filtered['cluster_label'].cat.remove_unused_categories()
 
     # Get the estimate using the by-bin analysis
     vc = df_by_bin_filtered['cluster_label'].value_counts()
@@ -229,7 +228,6 @@ def get_predictions(repetition, diff_cutoff_frac, image_name, df_by_bin, df_by_c
     cell_in_image = df_by_cell[image_colname] == image_name
     num_cells_with_cluster_labels = df_by_cell['cluster_label'].loc[cell_in_image].notnull().sum()
     df_by_cell_filtered = df_by_cell[cell_in_image]
-    df_by_cell_filtered['cluster_label'] = df_by_cell_filtered['cluster_label'].cat.remove_unused_categories()
 
     # Get the estimate using the by-cell analysis
     vc = df_by_cell_filtered['cluster_label'].value_counts()
@@ -340,17 +338,22 @@ def main():
     # If we want to run the prediction workflow...
     else:
 
-        predictions_holder = []
-        for repetition in range(3):
-            for diff_cutoff_frac in np.linspace(0.1, 0.9, 9):
-                st.session_state['diff_cutoff_frac'] = diff_cutoff_frac
-                process_data(image_colname=image_colname, umap_x_colname=umap_x_colname, umap_y_colname=umap_y_colname, binary_colname=binary_colname, number_of_samples_frac=number_of_samples_frac, num_umap_bins=num_umap_bins, plot_manual_histogram_diff=plot_manual_histogram_diff)
-                run_checks(image_colname=image_colname, spatial_x_colname=spatial_x_colname, spatial_y_colname=spatial_y_colname, umap_x_colname=umap_x_colname, umap_y_colname=umap_y_colname, property_colnames=property_colnames, min_cells_per_bin=min_cells_per_bin)
-                for image_name in st.session_state['unique_images']:
-                    predictions_dict = get_predictions(repetition=repetition, diff_cutoff_frac=st.session_state['diff_cutoff_frac'], image_name=image_name, df_by_bin=st.session_state['df_by_bin'], df_by_cell=st.session_state['df_by_cell'], df_image_labels=df_image_labels, binary_colname=binary_colname, image_colname=image_colname, debug=False)
-                    predictions_holder.append(predictions_dict)
-        df_predictions = pd.DataFrame(predictions_holder)
-        st.write(df_predictions)
+        if st.button('Generate predictions'):
+            with st.spinner('Generating predictions...'):
+                predictions_holder = []
+                for repetition in range(3):
+                    for diff_cutoff_frac in np.linspace(0.1, 0.9, 9):
+                        st.session_state['diff_cutoff_frac'] = diff_cutoff_frac
+                        process_data(image_colname=image_colname, umap_x_colname=umap_x_colname, umap_y_colname=umap_y_colname, binary_colname=binary_colname, number_of_samples_frac=number_of_samples_frac, num_umap_bins=num_umap_bins, plot_manual_histogram_diff=plot_manual_histogram_diff)
+                        run_checks(image_colname=image_colname, spatial_x_colname=spatial_x_colname, spatial_y_colname=spatial_y_colname, umap_x_colname=umap_x_colname, umap_y_colname=umap_y_colname, property_colnames=property_colnames, min_cells_per_bin=min_cells_per_bin)
+                        for image_name in st.session_state['unique_images']:
+                            predictions_dict = get_predictions(repetition=repetition, diff_cutoff_frac=st.session_state['diff_cutoff_frac'], image_name=image_name, df_by_bin=st.session_state['df_by_bin'], df_by_cell=st.session_state['df_by_cell'], df_image_labels=df_image_labels, binary_colname=binary_colname, image_colname=image_colname, debug=False)
+                            predictions_holder.append(predictions_dict)
+                df_predictions = pd.DataFrame(predictions_holder)
+                st.session_state['df_predictions'] = df_predictions
+
+        if 'df_predictions' in st.session_state:
+            st.write(st.session_state['df_predictions'])
 
 
 # Main script block
