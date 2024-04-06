@@ -1,4 +1,6 @@
 # Import relevant libraries
+from ast import arg
+from pyparsing import col
 import streamlit as st
 import app_top_of_page as top
 import streamlit_dataframe_editor as sde
@@ -202,12 +204,18 @@ def phenocluster__default_session_state():
 
     if 'phenocluster__umap_cur_col' not in st.session_state:
         st.session_state['phenocluster__umap_cur_col'] = "Image"
+        
+    if 'phenocluster__umap_color_col' not in st.session_state:
+        st.session_state['phenocluster__umap_color_col'] = "Cluster"
 
     if 'phenocluster__umap_cur_groups' not in st.session_state:
         st.session_state['phenocluster__umap_cur_groups'] = ["All"]
-    
+        
     if 'phenocluster__de_col' not in st.session_state:
-        st.session_state['phenocluster__de_col'] = 'Cluster'
+        st.session_state['phenocluster__de_col'] = "Cluster"
+    
+    if 'phenocluster__de_sel_group' not in st.session_state:
+        st.session_state['phenocluster__de_sel_groups'] = ["All"]
   
 # subset data set
 def phenocluster__subset_data(adata):
@@ -226,7 +234,19 @@ def phenocluster__subset_data(adata):
     st.multiselect('Select value for subsetting:', options = phenocluster__subset_values_options, key='phenocluster__subset_vals')
     adata_subset = adata[adata.obs[st.session_state['phenocluster__subset_col']].isin(st.session_state['phenocluster__subset_vals'])]
     return adata_subset
+
+# clusters differential expression
+def phenocluster__diff_expr(adata, phenocluster__de_col, phenocluster__de_sel_groups):
+    sc.tl.rank_genes_groups(adata, groupby = phenocluster__de_col, method="wilcoxon", layer="counts")
     
+    if phenocluster__de_sel_groups  == "All":
+        phenocluster__de_results = sc.get.rank_genes_groups_df(adata, group=None)
+    else:
+        phenocluster__de_results = sc.get.rank_genes_groups_df(adata, group=phenocluster__de_sel_groups)
+        
+    st.dataframe(phenocluster__de_results, use_container_width=True)
+    
+
 # main
 def main():
     """
@@ -286,9 +306,6 @@ def main():
             # save clustering result
             #st.session_state['phenocluster__clustering_adata'].write("input/clust_dat.h5ad")
                     
-            # set default values for umap color column
-            if 'phenocluster__umap_color_col' not in st.session_state:
-                st.session_state['phenocluster__umap_color_col'] = "Cluster"
                 
             
             # umap
@@ -317,9 +334,17 @@ def main():
             st.session_state['phenocluster__umap_cur_groups'] = umap_sel_groups
             
             st.button('Make Plots' , on_click=make_all_plots)
-        
-        # Differential expression
-        
+
+            # differential expression
+            phenocluster__de_col_options = list(st.session_state['phenocluster__clustering_adata'].obs.columns)
+            st.selectbox('Select column for differential expression:', phenocluster__de_col_options, key='phenocluster__de_col')
+            phenocluster__de_groups =  list(pd.unique(st.session_state['phenocluster__clustering_adata'].obs[st.session_state['phenocluster__de_col']]))
+            st.multiselect('Select group for differential expression table:', options = phenocluster__de_groups, key='phenocluster__de_sel_groups')
+            # Differential expression
+            st.button('Run Differential Expression', on_click=phenocluster__diff_expr, args = [st.session_state['phenocluster__clustering_adata'], 
+                                                                                               st.session_state['phenocluster__de_col'], 
+                                                                                               st.session_state['phenocluster__de_sel_groups']
+                                                                                               ])
         
             
             
