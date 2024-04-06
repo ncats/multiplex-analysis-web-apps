@@ -267,6 +267,7 @@ def main():
     diff_cutoff_frac_default = 0.2
     min_cells_per_bin = 1
     plot_manual_histogram_diff = False
+    workflow_options = ['Figure visualization', 'Prediction']
 
     # Generate three columns for the settings and umap differences
     col1, col2, col3 = st.columns(3)
@@ -282,60 +283,74 @@ def main():
             st.warning('Please load the data.')
             return
 
-        # Write a number_input widget for diff_cutoff_frac
-        if 'diff_cutoff_frac' not in st.session_state:
-            st.session_state['diff_cutoff_frac'] = diff_cutoff_frac_default
-        st.number_input('Difference cutoff fraction:', key='diff_cutoff_frac')
+        # Get the actual binary value/label for each image
+        df_image_labels = st.session_state['df'][[image_colname, binary_colname]].groupby(image_colname).agg(set)
+        assert df_image_labels[binary_colname].apply(len).max() == 1, f'There are images with multiple binary labels: {df_image_labels[df_image_labels[binary_colname].apply(len) > 1]}'
+        df_image_labels[binary_colname] = df_image_labels[binary_colname].apply(lambda x: list(x)[0])
 
-        # Click a button to process the data
-        st.button('Process the data', on_click=process_data, kwargs={'image_colname': image_colname, 'umap_x_colname': umap_x_colname, 'umap_y_colname': umap_y_colname, 'binary_colname': binary_colname, 'number_of_samples_frac': number_of_samples_frac, 'num_umap_bins': num_umap_bins, 'plot_manual_histogram_diff': plot_manual_histogram_diff})
+        # Create a dropdown for the user to choose the workflow
+        if 'workflow' not in st.session_state:
+            st.session_state['workflow'] = workflow_options[0]
+        st.selectbox('Workflow:', workflow_options, key='workflow')
 
-        # Ensure the data has been processed
-        if 'processed_data' not in st.session_state:
-            st.warning('Please process the data.')
-            return
+    # If we want to run the figure checks visualization workflow...
+    if st.session_state['workflow'] == workflow_options[0]:
+
+        # In the first column...
+        with col1:
+
+            # Write a number_input widget for diff_cutoff_frac
+            if 'diff_cutoff_frac' not in st.session_state:
+                st.session_state['diff_cutoff_frac'] = diff_cutoff_frac_default
+            st.number_input('Difference cutoff fraction:', key='diff_cutoff_frac')
+
+            # Click a button to process the data
+            st.button('Process the data', on_click=process_data, kwargs={'image_colname': image_colname, 'umap_x_colname': umap_x_colname, 'umap_y_colname': umap_y_colname, 'binary_colname': binary_colname, 'number_of_samples_frac': number_of_samples_frac, 'num_umap_bins': num_umap_bins, 'plot_manual_histogram_diff': plot_manual_histogram_diff})
+
+            # Ensure the data has been processed
+            if 'processed_data' not in st.session_state:
+                st.warning('Please process the data.')
+                return
+            
+            # Click a button to run the checks
+            st.button('Run checks', on_click=run_checks, kwargs={'image_colname': image_colname, 'spatial_x_colname': spatial_x_colname, 'spatial_y_colname': spatial_y_colname, 'umap_x_colname': umap_x_colname, 'umap_y_colname': umap_y_colname, 'property_colnames': property_colnames, 'min_cells_per_bin': min_cells_per_bin})
+
+        # In the second column, plot Giraldo's difference histogram
+        with col2:
+            if 'fig_d_diff' in st.session_state:
+                st.write('Difference matrix:')
+                st.pyplot(st.session_state['fig_d_diff'])
+
+        # In the third column, optionally plot the manual difference histogram
+        with col3:
+            if plot_manual_histogram_diff:
+                if 'fig_d_diff_manual' in st.session_state:
+                    st.write('Difference matrix - manual')
+                    st.pyplot(st.session_state['fig_d_diff_manual'])
+
+        # Ensure we're ready to display the figure checks
+        with col1:
+            if 'df_by_bin' not in st.session_state:
+                st.warning('Please run the checks.')
+                return
         
-        # Click a button to run the checks
-        st.button('Run checks', on_click=run_checks, kwargs={'image_colname': image_colname, 'spatial_x_colname': spatial_x_colname, 'spatial_y_colname': spatial_y_colname, 'umap_x_colname': umap_x_colname, 'umap_y_colname': umap_y_colname, 'property_colnames': property_colnames, 'min_cells_per_bin': min_cells_per_bin})
+        # Draw the plots
+        draw_plots(df_image_labels=df_image_labels, umap_x_colname=umap_x_colname, umap_y_colname=umap_y_colname, property_colnames=property_colnames, image_colname=image_colname, binary_colname=binary_colname, spatial_x_colname=spatial_x_colname, spatial_y_colname=spatial_y_colname)
 
-    # In the second column, plot Giraldo's difference histogram
-    with col2:
-        if 'fig_d_diff' in st.session_state:
-            st.write('Difference matrix:')
-            st.pyplot(st.session_state['fig_d_diff'])
+    # If we want to run the prediction workflow...
+    else:
 
-    # In the third column, optionally plot the manual difference histogram
-    with col3:
-        if plot_manual_histogram_diff:
-            if 'fig_d_diff_manual' in st.session_state:
-                st.write('Difference matrix - manual')
-                st.pyplot(st.session_state['fig_d_diff_manual'])
-
-    # Ensure we're ready to display the figure checks
-    with col1:
-        if 'df_by_bin' not in st.session_state:
-            st.warning('Please run the checks.')
-            return
-    
-    # Get the actual binary value/label for each image
-    df_image_labels = st.session_state['df'][[image_colname, binary_colname]].groupby(image_colname).agg(set)
-    assert df_image_labels[binary_colname].apply(len).max() == 1, f'There are images with multiple binary labels: {df_image_labels[df_image_labels[binary_colname].apply(len) > 1]}'
-    df_image_labels[binary_colname] = df_image_labels[binary_colname].apply(lambda x: list(x)[0])
-
-    # Draw the plots
-    draw_plots(df_image_labels=df_image_labels, umap_x_colname=umap_x_colname, umap_y_colname=umap_y_colname, property_colnames=property_colnames, image_colname=image_colname, binary_colname=binary_colname, spatial_x_colname=spatial_x_colname, spatial_y_colname=spatial_y_colname)
-
-    predictions_holder = []
-    for repetition in range(10):
-        for diff_cutoff_frac in np.linspace(0.1, 0.9, 9):
-            for image_name in unique_images:
-                predictions_dict = get_predictions(repetition=repetition, diff_cutoff_frac=diff_cutoff_frac, image_name=image_name, df_by_bin=df_by_bin, df_by_cell=df_by_cell, df_image_labels=df_image_labels, binary_colname=binary_colname, image_colname=image_colname, debug=False)
-                predictions_holder.append(predictions_dict)
-
-    # Get shortcuts to variables in the session state
-    df_by_bin = st.session_state['df_by_bin']
-    df_by_cell = st.session_state['df_by_cell']
-
+        predictions_holder = []
+        for repetition in range(3):
+            for diff_cutoff_frac in np.linspace(0.1, 0.9, 9):
+                st.session_state['diff_cutoff_frac'] = diff_cutoff_frac
+                process_data(image_colname=image_colname, umap_x_colname=umap_x_colname, umap_y_colname=umap_y_colname, binary_colname=binary_colname, number_of_samples_frac=number_of_samples_frac, num_umap_bins=num_umap_bins, plot_manual_histogram_diff=plot_manual_histogram_diff)
+                run_checks(image_colname=image_colname, spatial_x_colname=spatial_x_colname, spatial_y_colname=spatial_y_colname, umap_x_colname=umap_x_colname, umap_y_colname=umap_y_colname, property_colnames=property_colnames, min_cells_per_bin=min_cells_per_bin)
+                for image_name in st.session_state['unique_images']:
+                    predictions_dict = get_predictions(repetition=repetition, diff_cutoff_frac=st.session_state['diff_cutoff_frac'], image_name=image_name, df_by_bin=st.session_state['df_by_bin'], df_by_cell=st.session_state['df_by_cell'], df_image_labels=df_image_labels, binary_colname=binary_colname, image_colname=image_colname, debug=False)
+                    predictions_holder.append(predictions_dict)
+        df_predictions = pd.DataFrame(predictions_holder)
+        st.write(df_predictions)
 
 
 # Main script block
