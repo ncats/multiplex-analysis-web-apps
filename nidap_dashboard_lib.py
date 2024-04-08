@@ -548,7 +548,7 @@ def setFigureObjs_UMAPDifferences(session_state):
              f'SLIDE ID: {session_state["selSlide ID_short"]}']
 
     df_umap = session_state.spatial_umap.df_umap
-    clustOrder = sorted(df_umap['Cluster'].unique())
+    clust_order = sorted(df_umap['Cluster'].unique())
 
     n_bins = 200
     xx = np.linspace(np.min(df_umap['X']), np.max(df_umap['X']), n_bins + 1)
@@ -581,14 +581,14 @@ def setFigureObjs_UMAPDifferences(session_state):
     if session_state.diffUMAPSel_Feat != session_state.defumapOutcomes:
         w = df_umapD[session_state.diffUMAPSel_Feat]
         if identify_col_type(w) == 'not_bool':
-            compThresh = 0
-            w = np.array(w > compThresh).astype('int')
+            comp_thresh = 0
+            w = np.array(w > comp_thresh).astype('int')
 
-            featComp1 = f'>= {compThresh}'
-            featComp2 = f'< {compThresh}'
+            featComp1 = f'>= {comp_thresh}'
+            featComp2 = f'< {comp_thresh}'
 
-            df_umapD_A = df_umapD.loc[df_umapD[session_state.diffUMAPSel_Feat] >= compThresh, :]
-            df_umapD_B = df_umapD.loc[df_umapD[session_state.diffUMAPSel_Feat] < compThresh, :]
+            df_umapD_A = df_umapD.loc[df_umapD[session_state.diffUMAPSel_Feat] >= comp_thresh, :]
+            df_umapD_B = df_umapD.loc[df_umapD[session_state.diffUMAPSel_Feat] < comp_thresh, :]
             df_umapD_AB = df_umapD_B.copy()
         elif identify_col_type(w) == 'bool':
             featComp1 = '= 1'
@@ -649,14 +649,14 @@ def setFigureObjs_UMAPDifferences(session_state):
         session_state.UMAPFig, session_state.UMAPax = bpl.draw_scatter_fig(figsize=session_state.figsize)
         session_state.UMAPFig = bpl.scatter_plot(df_umap, session_state.UMAPFig, session_state.UMAPax, title,
                                                  xVar = 'X', yVar = 'Y', hueVar = 'Cluster',
-                                                 hueOrder = clustOrder,
+                                                 hueOrder = clust_order,
                                                  xLim = [minXY[0], maxXY[0]], yLim = [minXY[1], maxXY[1]], boxoff=True, clusters_label = True)
-        
+
         # UMAP for Lineage/Outcome Inspection
         session_state.UMAPFigInsp, session_state.UMAPInspax = bpl.draw_scatter_fig(figsize=session_state.figsize)
         session_state.UMAPFigInsp = bpl.scatter_plot(df_umapI, session_state.UMAPFigInsp, session_state.UMAPInspax, title,
                                                  xVar = 'X', yVar = 'Y', hueVar = 'Cluster',
-                                                 hueOrder = clustOrder, 
+                                                 hueOrder = clust_order,
                                                  xLim = [minXY[0], maxXY[0]], yLim = [minXY[1], maxXY[1]], boxoff=True, clusters_label = True)
 
     # UMAP Difference Figures
@@ -669,10 +669,10 @@ def setFigureObjs_UMAPDifferences(session_state):
         fig, ax = bpl.draw_scatter_fig()
         fig = bpl.scatter_plot(df_umapDs[i], fig, ax, title,
                                 xVar = 'X', yVar = 'Y', hueVar = 'Cluster',
-                                hueOrder = clustOrder, boxoff=True, 
+                                hueOrder = clust_order, boxoff=True, 
                                 xLim = [minXY[0], maxXY[0]], yLim = [minXY[1], maxXY[1]],
                                 feat = feat_labels[i], small_ver = True, clusters_label = True)
-        
+
         session_state[eval('"UMAPFigDiff" + str(i) + "_Clus"')] = fig
         session_state[eval('"UMAPax" + str(i)')] = ax
 
@@ -695,7 +695,7 @@ def setFigureObjs_UMAPDifferences(session_state):
     cellsUMAP = filterLineage4UMAP(cellsUMAP, session_state.lineageDisplayToggle_clus, session_state.defLineageOpt, session_state.inciPhenoSel)
     
     # Set up incidence dataframe
-    compThresh = None
+    comp_thresh = None
     inciDF = pd.DataFrame()
     inciDF.index = clusterIndex
     inciDF['counts'] = 0
@@ -706,8 +706,8 @@ def setFigureObjs_UMAPDifferences(session_state):
     if session_state.inciOutcomeSel != session_state.definciOutcomes:
         col = cellsUMAP[session_state.inciOutcomeSel]
         if identify_col_type(col) == 'not_bool':
-            compThresh = 0
-            cellsUMAP['chosen_feature'] = cellsUMAP.apply(lambda row: 1 if row[session_state.inciOutcomeSel] >= compThresh else 0, axis = 1)
+            comp_thresh = 0
+            cellsUMAP['chosen_feature'] = cellsUMAP.apply(lambda row: 1 if row[session_state.inciOutcomeSel] >= comp_thresh else 0, axis = 1)
         elif identify_col_type(col) == 'bool':
             cellsUMAP['chosen_feature'] = cellsUMAP[session_state.inciOutcomeSel]
         else:
@@ -742,9 +742,9 @@ def setFigureObjs_UMAPDifferences(session_state):
     # Draw Incidence Figure
     session_state.inciFig = bpl.drawIncidenceFigure(inciDF, inciTitle, 
                                                     phenotype  = session_state.inciPhenoSel,
-                                                    feature    = session_state.inciOutcomeSel, 
-                                                    displayas  = session_state.Inci_Value_display, 
-                                                    compThresh = compThresh)
+                                                    feature    = session_state.inciOutcomeSel,
+                                                    displayas  = session_state.Inci_Value_display,
+                                                    comp_thresh = comp_thresh)
 
     return session_state
 

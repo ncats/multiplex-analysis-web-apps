@@ -10,7 +10,7 @@ import streamlit_dataframe_editor as sde
 
 def reset_phenotype_selection():
     '''
-    Quick function to visualization of the UMAP differences
+    Quick function to reset the UMAP differences visualizations
     '''
     st.session_state.umapInspect_Ver = st.session_state.defLineageOpt
     st.session_state.diffUMAPSel_Ver = st.session_state.defLineageOpt
@@ -34,19 +34,19 @@ def main():
     st.header('UMAP Differences Analyzer\nNCATS-NCI-DMAP')
 
     # Toggles for different figures
-    figToggle1, figToggle2, figToggle3 = st.columns([1, 1, 2])
-    with figToggle2:
+    fig_toggle = st.columns([1, 1, 2])
+    with fig_toggle[0]:
         st.radio("Show UMAP Density or Clusters?",
-                        ['Density', 'Clusters'],
-                        key = 'UMAPFigType',
-                        horizontal = True)
+                 ['Density', 'Clusters'],
+                 key = 'UMAPFigType',
+                 horizontal = True)
 
-    with figToggle1:
+    with fig_toggle[1]:
         st.radio("Filter by Phenotypes or Markers?",
-                        ['Phenotypes', 'Markers'],
-                        key = 'lineageDisplayToggle',
-                        horizontal = True,
-                        on_change = reset_phenotype_selection)
+                 ['Phenotypes', 'Markers'],
+                 key = 'lineageDisplayToggle',
+                 horizontal = True,
+                 on_change = reset_phenotype_selection)
 
     if st.session_state.lineageDisplayToggle == 'Phenotypes':
         st.session_state.umaplineages = st.session_state.umapPheno
@@ -69,11 +69,11 @@ def main():
 
     # Inspection UMAP
     with umap_viz[1]:
-        umapInsCol1, umapInsCol2 = st.columns(2)
+        umap_insp_col = st.columns(2)
 
-        with umapInsCol1:
+        with umap_insp_col[0]:
             st.selectbox('Feature', options = st.session_state.umapOutcomes, key = 'umapInspect_Feat')
-        with umapInsCol2:
+        with umap_insp_col[1]:
             st.selectbox(st.session_state.lineageDisplayToggle, options = st.session_state.umaplineages, key = 'umapInspect_Ver')
 
         if st.session_state.umapCompleted:
