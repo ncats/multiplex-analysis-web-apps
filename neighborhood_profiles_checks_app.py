@@ -230,7 +230,7 @@ def draw_plots(df_image_labels, umap_x_colname='UMAP_1_20230327_152849', umap_y_
         st.plotly_chart(plotly_scatter_plot(df_by_cell_filtered, x_colname=spatial_x_colname, y_colname=spatial_y_colname, label_colname='cluster_label', unique_labels=unique_cluster_labels, plot_title=f'Spatial by Cell for {selected_image}'))
         df_by_cell['opacity'] = 0.05
         df_by_cell.loc[cell_in_image, 'opacity'] = 1
-        st.plotly_chart(plotly_scatter_plot(df_by_cell, x_colname=umap_x_colname, y_colname=umap_y_colname, label_colname='cluster_label', unique_labels=unique_cluster_labels, plot_title=f'UMAP by Cell for {selected_image}', opacity_colname='opacity'))
+        st.plotly_chart(plotly_scatter_plot(df_by_cell, x_colname=umap_x_colname, y_colname=umap_y_colname, label_colname='cluster_label', unique_labels=unique_cluster_labels, plot_title=f'UMAP by Cell for {selected_image}', opacity_colname='opacity'))  # note that not all cells in the current image (e.g., cell_in_image.sum()=1000) actually have valid cluster labels (e.g., df_by_cell.loc[cell_in_image, 'cluster_label'].isin(unique_cluster_labels).sum())
         st.plotly_chart(px.line(df_by_cell_filtered.groupby('cluster_label')[property_colnames].mean().reset_index().melt(id_vars='cluster_label', var_name='column', value_name='value'), x='column', y='value', color='cluster_label', markers=True, title=f'Property Means by Cell for {selected_image}', category_orders={'cluster_label': unique_cluster_labels}))  # get the neighbor vectors for each cluster averaged over the cells falling in that cluster
 
 
