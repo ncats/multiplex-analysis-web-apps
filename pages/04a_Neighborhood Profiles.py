@@ -330,12 +330,12 @@ def main():
                 st.session_state.d_diff_clust[cond0_ind] = -kmeans_obj_cond0.labels_ -1
                 st.session_state.d_diff_clust[cond1_ind] = kmeans_obj_cond1.labels_ + 1
 
-                cluster_dict = dict()
-                cluster_dict[0] = 'No Cluster'
+                st.session_state.cluster_dict = dict()
+                st.session_state.cluster_dict[0] = 'No Cluster'
                 for i in range(st.session_state.num_clus_0):
-                    cluster_dict[-i-1] = f'False_Cluster{i+1}'
+                    st.session_state.cluster_dict[-i-1] = f'False_Cluster{i+1}'
                 for i in range(st.session_state.num_clus_1):
-                    cluster_dict[i+1] = f'True_Clust{i+1}'
+                    st.session_state.cluster_dict[i+1] = f'True_Clust{i+1}'
 
                 feat_labelm = f'{st.session_state.dens_diff_feat_sel} Difference- Masked, cutoff = {st.session_state.dens_diff_cutoff}'
                 feat_labelc = f'{st.session_state.dens_diff_feat_sel} Clusters, False-{st.session_state.num_clus_0}, True-{st.session_state.num_clus_1}'
@@ -348,7 +348,7 @@ def main():
                 st.session_state.spatial_umap.df_umap.loc[:, 'cluster'] = 'No Cluster'
                 st.session_state.spatial_umap.df_umap.loc[:, 'Cluster'] = 'No Cluster'
 
-                for key, val in cluster_dict.items():
+                for key, val in st.session_state.cluster_dict.items():
                     if key != 0:
                         x, y = np.where(st.session_state.d_diff_clust == key)
                         bin_in_cluster = [(indx, indy) for (indx, indy) in zip(x, y)]
@@ -456,7 +456,7 @@ def main():
         if 'spatial_umap' in st.session_state:
 
             if st.session_state['toggle_clust_diff']:
-                list_clusters = list(cluster_dict.values())
+                list_clusters = list(st.session_state.cluster_dict.values())
                 list_clusters.remove('No Cluster')
             else:
                 list_clusters = list(range(st.session_state.selected_nClus))

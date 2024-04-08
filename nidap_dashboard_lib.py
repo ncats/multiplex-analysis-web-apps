@@ -686,8 +686,9 @@ def setFigureObjs_UMAPDifferences(session_state):
         session_state[eval('"UMAPax" + str(i)')] = ax
 
     ######## Heatmap/Incidence #########
-    cellsUMAP = session_state.spatial_umap.cells.loc[session_state.spatial_umap.cells['umap_test'] == True, :]
-    clusterIndex = np.arange(0, session_state.selected_nClus, 1.0)
+    cellsUMAP = df_umap #session_state.spatial_umap.cells.loc[session_state.spatial_umap.cells['umap_test'] == True, :]
+    list_clusters = list(session_state.cluster_dict.values())
+    list_clusters.remove('No Cluster')
 
     ### Cluster/Phenotype Heatmap ###
     if session_state.NormHeatRadio == 'Norm within Clusters':
@@ -706,10 +707,10 @@ def setFigureObjs_UMAPDifferences(session_state):
     # Set up incidence dataframe
     comp_thresh = None
     inciDF = pd.DataFrame()
-    inciDF.index = clusterIndex
+    inciDF.index = list_clusters
     inciDF['counts'] = 0
-    inciDF['featureCount1'] = 0
-    inciDF['featureCount0'] = 0
+    inciDF['featureCount1'] = 0 # True Condition
+    inciDF['featureCount0'] = 0 # False Condition
 
     # Not Cell Counts
     if session_state.inciOutcomeSel != session_state.definciOutcomes:
@@ -724,9 +725,10 @@ def setFigureObjs_UMAPDifferences(session_state):
 
         # Compute the Difference
         for clust_label, group in cellsUMAP.groupby('clust_label'):
-            inciDF.loc[clust_label, 'counts'] = group['chosen_feature'].count()
-            inciDF.loc[clust_label, 'featureCount1'] = sum(group['chosen_feature'] == 1)
-            inciDF.loc[clust_label, 'featureCount0'] = sum(group['chosen_feature'] == 0)
+            if clust_label != 'No Cluster':
+                inciDF.loc[clust_label, 'counts'] = group['chosen_feature'].count()
+                inciDF.loc[clust_label, 'featureCount1'] = sum(group['chosen_feature'] == 1)
+                inciDF.loc[clust_label, 'featureCount0'] = sum(group['chosen_feature'] == 0)
             
         inciDF['Count Differences'] = inciDF['featureCount1'] - inciDF['featureCount0']
 
@@ -743,13 +745,15 @@ def setFigureObjs_UMAPDifferences(session_state):
     # Cell Counts
     else:
         for clust_label, group in cellsUMAP.groupby('clust_label'):
-            inciDF.loc[clust_label, 'counts'] = group['Slide ID'].count()
+            if clust_label != 'No Cluster':
+                inciDF.loc[clust_label, 'counts'] = group['Slide ID'].count()
 
     # Title
-    inciTitle = [f'Incidence by Cluster']
+    inci_title = ['Incidence by Cluster']
 
     # Draw Incidence Figure
-    session_state.inciFig = bpl.drawIncidenceFigure(inciDF, inciTitle, 
+    print(inciDF.head(7))
+    session_state.inciFig = bpl.drawIncidenceFigure(inciDF, inci_title,
                                                     phenotype  = session_state.inciPhenoSel,
                                                     feature    = session_state.inciOutcomeSel,
                                                     displayas  = session_state.Inci_Value_display,
