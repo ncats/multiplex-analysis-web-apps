@@ -17,6 +17,7 @@ alt.data_transformers.disable_max_rows()
 import basic_phenotyper_lib as bpl                  # Useful functions for cell phenotyping
 from foundry_IO_lib import foundry_IO_lib           # Foundry Input/Output Class
 from benchmark_collector import benchmark_collector # Benchmark Collector Class
+import PlottingTools as umPT
 
 def identify_col_type(col):
     '''
@@ -636,10 +637,15 @@ def setFigureObjs_UMAPDifferences(session_state):
         w = None
 
         # All UMAP Figure
-        session_state.UMAPFig     = bpl.UMAPdraw_density(df_umap, bins = [xx, yy], w=None, n_pad=n_pad, vlim=vlim)
+        umap_dens_all, _      = umPT.plot_2d_density(df_umap['X'], df_umap['Y'],
+                                                     bins=[xx, yy], w=w, return_matrix=True)
+        session_state.UMAPFig = bpl.UMAPdraw_density(umap_dens_all,
+                                                     bins = [xx, yy], w=None, n_pad=n_pad, vlim=vlim)
 
         # UMAP for Lineage/Outcome Inspection
-        session_state.UMAPFigInsp = bpl.UMAPdraw_density(df_umapI, bins = [xx, yy], w=w_Ins, n_pad=n_pad, vlim=vlim)
+        umap_dens_insp, _         = umPT.plot_2d_density(df_umapI['X'], df_umapI['Y'],
+                                                         bins=[xx, yy], w=w, return_matrix=True)
+        session_state.UMAPFigInsp = bpl.UMAPdraw_density(umap_dens_insp, bins = [xx, yy], w=w_Ins, n_pad=n_pad, vlim=vlim)
 
     # UMAP colored by Clusters
     elif session_state.UMAPFigType == 'Clusters':
@@ -660,9 +666,12 @@ def setFigureObjs_UMAPDifferences(session_state):
                                                  xLim = [minXY[0], maxXY[0]], yLim = [minXY[1], maxXY[1]], boxoff=True, clusters_label = True)
 
     # UMAP Difference Figures
-    session_state.UMAPFigDiff0_Dens = bpl.UMAPdraw_density(df_umapD, bins = [xx, yy], w=w_DiffA, n_pad=n_pad, vlim=vlim, feat = feat_label0)
-    session_state.UMAPFigDiff1_Dens = bpl.UMAPdraw_density(df_umapD, bins = [xx, yy], w=w_DiffB, n_pad=n_pad, vlim=vlim, feat = feat_label1)
-    session_state.UMAPFigDiff2_Dens = bpl.UMAPdraw_density(df_umapD, bins = [xx, yy], w=w_Diff, n_pad=n_pad, vlim=vlim, diff = True)
+    umap_dens_diff, _ = umPT.plot_2d_density(df_umapD['X'], df_umapD['Y'],
+                                             bins=[xx, yy], w=w_Diff, return_matrix=True)
+
+    session_state.UMAPFigDiff0_Dens = bpl.UMAPdraw_density(umap_dens_diff, bins = [xx, yy], w=w_DiffA, n_pad=n_pad, vlim=vlim, feat = feat_label0)
+    session_state.UMAPFigDiff1_Dens = bpl.UMAPdraw_density(umap_dens_diff, bins = [xx, yy], w=w_DiffB, n_pad=n_pad, vlim=vlim, feat = feat_label1)
+    session_state.UMAPFigDiff2_Dens = bpl.UMAPdraw_density(umap_dens_diff, bins = [xx, yy], w=w_Diff, n_pad=n_pad, vlim=vlim, diff = True)
 
     # UMAP Difference Figures
     for i in range(3):
