@@ -173,7 +173,7 @@ def spatial_plots_cust_2(adata, umap_cur_col, umap_cur_groups, umap_color_col):
             else:
                 subcol4.plotly_chart(fig, use_container_width=True)
 
-# make Unaps and Spatial Plots
+# make Umaps and Spatial Plots
 def make_all_plots():
     # make umaps
         phenocluster__plotly_umaps(st.session_state['phenocluster__clustering_adata'], 
@@ -334,18 +334,6 @@ def main():
             st.session_state['phenocluster__umap_cur_groups'] = umap_sel_groups
             
             st.button('Make Plots' , on_click=make_all_plots)
-
-            # differential expression
-            phenocluster__de_col_options = list(st.session_state['phenocluster__clustering_adata'].obs.columns)
-            st.selectbox('Select column for differential expression:', phenocluster__de_col_options, key='phenocluster__de_col')
-            phenocluster__de_groups =  ["All"] +  list(pd.unique(st.session_state['phenocluster__clustering_adata'].obs[st.session_state['phenocluster__de_col']]))
-            phenocluster__de_selected_groups = st.multiselect('Select group for differential expression table:', options = phenocluster__de_groups)
-            st.session_state['phenocluster__de_sel_groups'] = phenocluster__de_selected_groups
-            # Differential expression
-            st.button('Run Differential Expression', on_click=phenocluster__diff_expr, args = [st.session_state['phenocluster__clustering_adata'], 
-                                                                                               st.session_state['phenocluster__de_col'], 
-                                                                                               st.session_state['phenocluster__de_sel_groups']
-                                                                                               ])
         
             
             
