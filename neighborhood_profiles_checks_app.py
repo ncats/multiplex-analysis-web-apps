@@ -7,6 +7,7 @@ import PlottingTools_orig as PlottingTools
 import streamlit as st
 import matplotlib.pyplot as plt
 import plotly.express as px
+import plotly.graph_objects as go
 
 
 def load_data(data_filename='Combo_CSVfiles_20230327_152849.csv', image_colname='ShortName'):
@@ -98,6 +99,35 @@ def run_checks(image_colname='ShortName', spatial_x_colname='CentroidX', spatial
         st.session_state['df_by_cell'] = df_by_cell
 
 
+def plotly_scatter_plot(df_to_plot, x_colname='x coord', y_colname='y coord', label_colname='my_label', unique_labels=[0, 1], plot_title='My Plot', opacity_colname=None):
+
+    # Define a color scale
+    color_scale = px.colors.qualitative.Plotly
+
+    # Map the 'cluster_label' values to colors
+    color_mapping = {label: color_scale[i % len(color_scale)] for i, label in enumerate(unique_labels)}
+
+    # Create a new column in the DataFrame that contains the colors of the markers
+    df_to_plot['color'] = df_to_plot[label_colname].map(color_mapping)
+
+    # Create the scatter plot
+    fig = go.Figure()
+
+    # For each label, add a trace to the figure
+    for label in unique_labels:
+        df_subset = df_to_plot[df_to_plot[label_colname] == label]
+        if opacity_colname is not None:
+            fig.add_trace(go.Scatter(x=df_subset[x_colname], y=df_subset[y_colname], mode='markers', marker=dict(color=df_subset['color'], opacity=df_subset[opacity_colname]), name=label))
+        else:
+            fig.add_trace(go.Scatter(x=df_subset[x_colname], y=df_subset[y_colname], mode='markers', marker=dict(color=df_subset['color']), name=label))
+
+    # Set the aspect ratio and plot title
+    fig.update_layout(xaxis={"scaleanchor": "y", "scaleratio": 1}, title=plot_title)
+
+    # Return the figure
+    return fig
+
+
 def draw_plots(df_image_labels, umap_x_colname='UMAP_1_20230327_152849', umap_y_colname='UMAP_2_20230327_152849', property_colnames=['XMin', 'XMax', 'YMin', 'YMax'], image_colname='ShortName', binary_colname='Survival_5yr', spatial_x_colname='CentroidX', spatial_y_colname='CentroidY'):
     
     # Get shortcuts to variables in the session state
@@ -121,12 +151,12 @@ def draw_plots(df_image_labels, umap_x_colname='UMAP_1_20230327_152849', umap_y_
 
     # Plots by bin
     with col1:
-        col1.plotly_chart(px.scatter(df_by_bin, x=umap_x_colname, y=umap_y_colname, color='cluster_label', title='UMAP by Bin for Whole Dataset', category_orders={'cluster_label': unique_cluster_labels}).update_layout(xaxis={"scaleanchor": "y", "scaleratio": 1}))
+        col1.plotly_chart(plotly_scatter_plot(df_by_bin, x_colname=umap_x_colname, y_colname=umap_y_colname, label_colname='cluster_label', unique_labels=unique_cluster_labels, plot_title='UMAP by Bin for Whole Dataset'))
         col1.plotly_chart(px.line(df_by_bin.groupby('cluster_label')[property_colnames].mean().reset_index().melt(id_vars='cluster_label', var_name='column', value_name='value'), x='column', y='value', color='cluster_label', markers=True, title='Property Means by Bin for Whole Dataset', category_orders={'cluster_label': unique_cluster_labels}))  # get the neighbor vectors for each cluster averaged over the histogram bins falling in that cluster
 
     # Plots by cell
     with col2:
-        col2.plotly_chart(px.scatter(df_by_cell, x=umap_x_colname, y=umap_y_colname, color='cluster_label', title='UMAP by Cell for Whole Dataset', category_orders={'cluster_label': unique_cluster_labels}).update_layout(xaxis={"scaleanchor": "y", "scaleratio": 1}))
+        col2.plotly_chart(plotly_scatter_plot(df_by_cell, x_colname=umap_x_colname, y_colname=umap_y_colname, label_colname='cluster_label', unique_labels=unique_cluster_labels, plot_title='UMAP by Cell for Whole Dataset'))
         col2.plotly_chart(px.line(df_by_cell.groupby('cluster_label')[property_colnames].mean().reset_index().melt(id_vars='cluster_label', var_name='column', value_name='value'), x='column', y='value', color='cluster_label', markers=True, title='Property Means by Cell for Whole Dataset', category_orders={'cluster_label': unique_cluster_labels}))  # get the neighbor vectors for each cluster averaged over the cells falling in that cluster
 
     # Write a header
@@ -177,8 +207,10 @@ def draw_plots(df_image_labels, umap_x_colname='UMAP_1_20230327_152849', umap_y_
         st.write(f'Label for image {selected_image}: {current_image_label}.')
 
         # Draw the plots
-        st.plotly_chart(px.scatter(df_by_bin_filtered, x=spatial_x_colname, y=spatial_y_colname, color='cluster_label', title=f'Spatial by Bin for {selected_image} (this is meaningless; don\'t read into it)', category_orders={'cluster_label': unique_cluster_labels}).update_layout(xaxis={"scaleanchor": "y", "scaleratio": 1}))
-        st.plotly_chart(px.scatter(df_by_bin_filtered, x=umap_x_colname, y=umap_y_colname, color='cluster_label', title=f'UMAP by Bin for {selected_image}', category_orders={'cluster_label': unique_cluster_labels}).update_layout(xaxis={"scaleanchor": "y", "scaleratio": 1}))
+        st.plotly_chart(plotly_scatter_plot(df_by_bin_filtered, x_colname=spatial_x_colname, y_colname=spatial_y_colname, label_colname='cluster_label', unique_labels=unique_cluster_labels, plot_title=f'Spatial by Bin for {selected_image} (this is meaningless; don\'t read into it)'))
+        df_by_bin['opacity'] = 0.05
+        df_by_bin.loc[image_in_set, 'opacity'] = 1
+        st.plotly_chart(plotly_scatter_plot(df_by_bin, x_colname=umap_x_colname, y_colname=umap_y_colname, label_colname='cluster_label', unique_labels=unique_cluster_labels, plot_title=f'UMAP by Bin for {selected_image}', opacity_colname='opacity'))
         st.plotly_chart(px.line(df_by_bin_filtered.groupby('cluster_label')[property_colnames].mean().reset_index().melt(id_vars='cluster_label', var_name='column', value_name='value'), x='column', y='value', color='cluster_label', markers=True, title=f'Property Means by Bin for {selected_image}', category_orders={'cluster_label': unique_cluster_labels}))  # get the neighbor vectors for each cluster averaged over the histogram bins falling in that cluster
 
     # Plots by cell
@@ -195,8 +227,10 @@ def draw_plots(df_image_labels, umap_x_colname='UMAP_1_20230327_152849', umap_y_
         st.write(f'Label for image {selected_image}: {current_image_label}.')
 
         # Draw the plots
-        st.plotly_chart(px.scatter(df_by_cell_filtered, x=spatial_x_colname, y=spatial_y_colname, color='cluster_label', title=f'Spatial by Cell for {selected_image}', category_orders={'cluster_label': unique_cluster_labels}).update_layout(xaxis={"scaleanchor": "y", "scaleratio": 1}))
-        st.plotly_chart(px.scatter(df_by_cell_filtered, x=umap_x_colname, y=umap_y_colname, color='cluster_label', title=f'UMAP by Cell for {selected_image}', category_orders={'cluster_label': unique_cluster_labels}).update_layout(xaxis={"scaleanchor": "y", "scaleratio": 1}))
+        st.plotly_chart(plotly_scatter_plot(df_by_cell_filtered, x_colname=spatial_x_colname, y_colname=spatial_y_colname, label_colname='cluster_label', unique_labels=unique_cluster_labels, plot_title=f'Spatial by Cell for {selected_image}'))
+        df_by_cell['opacity'] = 0.05
+        df_by_cell.loc[cell_in_image, 'opacity'] = 1
+        st.plotly_chart(plotly_scatter_plot(df_by_cell, x_colname=umap_x_colname, y_colname=umap_y_colname, label_colname='cluster_label', unique_labels=unique_cluster_labels, plot_title=f'UMAP by Cell for {selected_image}', opacity_colname='opacity'))
         st.plotly_chart(px.line(df_by_cell_filtered.groupby('cluster_label')[property_colnames].mean().reset_index().melt(id_vars='cluster_label', var_name='column', value_name='value'), x='column', y='value', color='cluster_label', markers=True, title=f'Property Means by Cell for {selected_image}', category_orders={'cluster_label': unique_cluster_labels}))  # get the neighbor vectors for each cluster averaged over the cells falling in that cluster
 
 
@@ -300,7 +334,8 @@ def main():
     umap_y_colname = 'UMAP_2_20230327_152849'
     property_colnames = ['XMin', 'XMax', 'YMin', 'YMax']
     # binary_colname = 'Survival_5yr'
-    binary_colname = 'Outcome'
+    # binary_colname = 'Outcome'
+    binary_colnames = ['Outcome', 'Survival_5yr']
     number_of_samples_frac = 0.1
     num_umap_bins = 200
     diff_cutoff_frac_default = 0.375  # Outcome: 0.15
@@ -321,6 +356,11 @@ def main():
         if 'df' not in st.session_state:
             st.warning('Please load the data.')
             return
+
+        # Create a dropdown for the user to choose the binary label of interest
+        if 'npc__binary_colname' not in st.session_state:
+            st.session_state['npc__binary_colname'] = binary_colnames[0]
+        binary_colname = st.selectbox('Binary label:', binary_colnames, key='npc__binary_colname')
 
         # Get the actual binary value/label for each image
         df_image_labels = st.session_state['df'][[image_colname, binary_colname]].groupby(image_colname).agg(set)
