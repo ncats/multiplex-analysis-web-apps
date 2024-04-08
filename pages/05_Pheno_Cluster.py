@@ -239,12 +239,12 @@ def phenocluster__subset_data(adata):
 def phenocluster__diff_expr(adata, phenocluster__de_col, phenocluster__de_sel_groups):
     sc.tl.rank_genes_groups(adata, groupby = phenocluster__de_col, method="wilcoxon", layer="counts")
     
-    if phenocluster__de_sel_groups  == "All":
+    if "All" in phenocluster__de_sel_groups:
         phenocluster__de_results = sc.get.rank_genes_groups_df(adata, group=None)
     else:
         phenocluster__de_results = sc.get.rank_genes_groups_df(adata, group=phenocluster__de_sel_groups)
-        
-    st.dataframe(phenocluster__de_results, use_container_width=True)
+    with phenocluster__col2, phenocluster__col3:
+        st.dataframe(phenocluster__de_results, use_container_width=True)
     
 
 # main
@@ -338,8 +338,9 @@ def main():
             # differential expression
             phenocluster__de_col_options = list(st.session_state['phenocluster__clustering_adata'].obs.columns)
             st.selectbox('Select column for differential expression:', phenocluster__de_col_options, key='phenocluster__de_col')
-            phenocluster__de_groups =  list(pd.unique(st.session_state['phenocluster__clustering_adata'].obs[st.session_state['phenocluster__de_col']]))
-            st.multiselect('Select group for differential expression table:', options = phenocluster__de_groups, key='phenocluster__de_sel_groups')
+            phenocluster__de_groups =  ["All"] +  list(pd.unique(st.session_state['phenocluster__clustering_adata'].obs[st.session_state['phenocluster__de_col']]))
+            phenocluster__de_selected_groups = st.multiselect('Select group for differential expression table:', options = phenocluster__de_groups)
+            st.session_state['phenocluster__de_sel_groups'] = phenocluster__de_selected_groups
             # Differential expression
             st.button('Run Differential Expression', on_click=phenocluster__diff_expr, args = [st.session_state['phenocluster__clustering_adata'], 
                                                                                                st.session_state['phenocluster__de_col'], 
@@ -371,3 +372,5 @@ if __name__ == '__main__':
 
     # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
     st.session_state = sde.finalize_session_state(st.session_state)
+    
+# need to make differential expression on another page 
