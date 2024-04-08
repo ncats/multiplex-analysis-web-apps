@@ -15,7 +15,7 @@ def load_data(data_filename='Combo_CSVfiles_20230327_152849.csv', image_colname=
         st.session_state['unique_images'] = list(st.session_state['df'][image_colname].unique())
 
 
-def process_data(image_colname='ShortName', umap_x_colname='UMAP_1_20230327_152849', umap_y_colname='UMAP_2_20230327_152849', binary_colname='Survival_5yr', number_of_samples_frac=0.1, num_umap_bins=200, plot_manual_histogram_diff=False, plot_diff_matrix=True):
+def generate_clusters(image_colname='ShortName', umap_x_colname='UMAP_1_20230327_152849', umap_y_colname='UMAP_2_20230327_152849', binary_colname='Survival_5yr', number_of_samples_frac=0.1, num_umap_bins=200, plot_manual_histogram_diff=False, plot_diff_matrix=True):
 
     with st.spinner('Processing data...'):
 
@@ -344,7 +344,7 @@ def main():
             st.number_input('Difference cutoff fraction:', key='diff_cutoff_frac', format='%.3f')
 
             # Click a button to process the data
-            st.button('Process the data', on_click=process_data, kwargs={'image_colname': image_colname, 'umap_x_colname': umap_x_colname, 'umap_y_colname': umap_y_colname, 'binary_colname': binary_colname, 'number_of_samples_frac': number_of_samples_frac, 'num_umap_bins': num_umap_bins, 'plot_manual_histogram_diff': plot_manual_histogram_diff})
+            st.button('Process the data', on_click=generate_clusters, kwargs={'image_colname': image_colname, 'umap_x_colname': umap_x_colname, 'umap_y_colname': umap_y_colname, 'binary_colname': binary_colname, 'number_of_samples_frac': number_of_samples_frac, 'num_umap_bins': num_umap_bins, 'plot_manual_histogram_diff': plot_manual_histogram_diff})
 
             # Ensure the data has been processed
             if 'processed_data' not in st.session_state:
@@ -379,55 +379,78 @@ def main():
     # If we want to run the prediction workflow...
     else:
 
+        # In the first column, draw widgets for the prediction workflow
         with col1:
-
             if 'npc__num_repetitions' not in st.session_state:
                 st.session_state['npc__num_repetitions'] = 10
             num_repetitions = st.number_input('Number of repetitions:', min_value=1, key='npc__num_repetitions')
-
             if 'npc__cutoff_frac_start' not in st.session_state:
                 st.session_state['npc__cutoff_frac_start'] = 0.05  # Outcome: 0.075
             cutoff_frac_start = st.number_input('Cutoff fraction start:', min_value=0.0, max_value=1.0, format='%.3f', key='npc__cutoff_frac_start')
-
             if 'npc__cutoff_frac_end' not in st.session_state:
                 st.session_state['npc__cutoff_frac_end'] = 0.5  # Outcome: 0.3
             cutoff_frac_end = st.number_input('Cutoff fraction end:', min_value=0.0, max_value=1.0, format='%.3f', key='npc__cutoff_frac_end')
-
             if 'npc__cutoff_frac_step' not in st.session_state:
                 st.session_state['npc__cutoff_frac_step'] = 0.025  # Outcome: 0.025
             cutoff_frac_step = st.number_input('Cutoff fraction step:', min_value=0.0, max_value=1.0, format='%.3f', key='npc__cutoff_frac_step')
 
+        # Get a shortcut to the unique images
         unique_images = st.session_state['unique_images']
 
+        # If we're ready to generate predictions...
         if st.button('Generate predictions'):
             with st.spinner('Generating predictions...'):
+
+                # Initialize a holder for the predictions
                 predictions_holder = []
+
+                # Loop through the repetitions and cutoff fractions, allowing also for a single cutoff to be explored
                 for repetition in range(num_repetitions):
                     if cutoff_frac_step != 0:
                         cutoff_frac_range = np.arange(cutoff_frac_start, cutoff_frac_end + cutoff_frac_step, cutoff_frac_step)
                     else:
                         cutoff_frac_range = [cutoff_frac_start]
+
+                    # Loop through the cutoff fractions
                     for diff_cutoff_frac in cutoff_frac_range:
+
+                        # Store the current difference cutoff fraction in the session state
                         st.session_state['diff_cutoff_frac'] = diff_cutoff_frac
-                        process_data(image_colname=image_colname, umap_x_colname=umap_x_colname, umap_y_colname=umap_y_colname, binary_colname=binary_colname, number_of_samples_frac=number_of_samples_frac, num_umap_bins=num_umap_bins, plot_manual_histogram_diff=plot_manual_histogram_diff, plot_diff_matrix=False)
+
+                        # Generate the clusters using the current diff_cutoff_frac
+                        generate_clusters(image_colname=image_colname, umap_x_colname=umap_x_colname, umap_y_colname=umap_y_colname, binary_colname=binary_colname, number_of_samples_frac=number_of_samples_frac, num_umap_bins=num_umap_bins, plot_manual_histogram_diff=plot_manual_histogram_diff, plot_diff_matrix=False)
+
+                        # Perform binning and assign cluster labels to the bins and cells
                         run_checks(image_colname=image_colname, spatial_x_colname=spatial_x_colname, spatial_y_colname=spatial_y_colname, umap_x_colname=umap_x_colname, umap_y_colname=umap_y_colname, property_colnames=property_colnames, min_cells_per_bin=min_cells_per_bin)
+
+                        # For each image in the dataset, predict the binary label
                         for image_name in unique_images:
                             predictions_dict = get_predictions(repetition=repetition, diff_cutoff_frac=diff_cutoff_frac, image_name=image_name, df_by_bin=st.session_state['df_by_bin'], df_by_cell=st.session_state['df_by_cell'], df_image_labels=df_image_labels, binary_colname=binary_colname, image_colname=image_colname, debug=False)
                             predictions_holder.append(predictions_dict)
+
+                # Create a dataframe holding all the predictions and save it to the session state
                 df_predictions = pd.DataFrame(predictions_holder)
-                st.session_state['npc__num_repetitions_used'] = num_repetitions
                 st.session_state['df_predictions'] = df_predictions
 
+        # If predictions have been made...
         if 'df_predictions' in st.session_state:
+
+            # Get a shortcut to the predictions dataframe
             df_predictions = st.session_state['df_predictions']
-            num_repetitions = st.session_state['npc__num_repetitions_used']
+
+            # Add to it whether the predictions were correct
             df_predictions['bin_label_correct'] = df_predictions['actual_label'] == df_predictions['estimated_label_by_bin']
             df_predictions['cell_label_correct'] = df_predictions['actual_label'] == df_predictions['estimated_label_by_cell']
+
+            # Write the predictions to the screen
             st.write(df_predictions)
+
+            # Get the average scores by diff_cutoff_frac (as the index), write it to screen, and plot it
             df_scores_vs_cutoff = df_predictions.groupby(['repetition', 'diff_cutoff_frac'])[['score_by_bin', 'score_by_cell']].mean().reset_index().groupby('diff_cutoff_frac')[['score_by_bin', 'score_by_cell']].mean()
             st.write(df_scores_vs_cutoff)
-            df_melt = df_scores_vs_cutoff.reset_index().melt(id_vars='diff_cutoff_frac', var_name='Column', value_name='Value')
-            st.plotly_chart(px.line(df_melt, x='diff_cutoff_frac', y='Value', color='Column', markers=True))
+            st.plotly_chart(px.line(df_scores_vs_cutoff.reset_index().melt(id_vars='diff_cutoff_frac', var_name='Column', value_name='Value'), x='diff_cutoff_frac', y='Value', color='Column', markers=True))
+
+            # Write to screen the number of times each image was predicted correctly by cell
             st.write(df_predictions.groupby('image_name')['cell_label_correct'].sum())
 
 
