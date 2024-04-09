@@ -3,6 +3,8 @@ import numpy as np
 import pandas as pd
 import PlottingTools_orig as PlottingTools
 import matplotlib.pyplot as plt
+import time
+import neighbors_counts_for_neighborhood_profiles_orig
 
 
 # Add columns to partition a dataframe into train and test sets for the UMAP, roughly similar to Giraldo et. al. 2021
@@ -173,9 +175,58 @@ def assign_cluster_labels(df_test_with_bins, cluster_labels, image_colname='Shor
     return bin_means, df_test_with_bins
 
 
-# TODO: Fill this in
-def run_density_calculation():
-    return pd.DataFrame({'spatial_umap_density of X around Y': []})
+def run_density_calculation(df, radius_edges=[0, 25, 50, 100, 150, 200], spatial_x_colname='CentroidX', spatial_y_colname='CentroidY', image_colname='ShortName', phenotype_colname='pheno_20230327_152849', debug_output=False, num_cpus_to_use=7, cast_to_float32=False):
+
+    # Variables
+    image_names = df[image_colname].unique()
+    phenotypes = df[phenotype_colname].unique()
+    radii = np.array(radius_edges)
+    num_ranges = len(radii) - 1
+    range_strings = ['({}, {}]'.format(radii[iradius], radii[iradius + 1]) for iradius in range(num_ranges)]
+
+    # Calculate the density matrix for all images
+    start_time = time.time()
+    df_density_matrix = neighbors_counts_for_neighborhood_profiles_orig.calculate_density_matrix_for_all_images(image_names, df, phenotypes, phenotype_colname, image_colname, [spatial_x_colname, spatial_y_colname], radii, num_ranges, range_strings, debug_output=debug_output, num_cpus_to_use=num_cpus_to_use, swap_inequalities=True, cast_to_float32=cast_to_float32)
+    print(f'Time to calculate density matrix for all images: {int(time.time() - start_time)} seconds')
+
+    # Print the shape final density matrix dataframe, which can be concatenated with the original dataframe
+    print(f'Shape of final density matrix: {df_density_matrix.shape}')
+
+    # Fill in any NaN values with 0 and convert to integers
+    df_density_matrix = df_density_matrix.fillna(0).astype(int)
+
+    # Get the areas of the 2D annuli/rings
+    radius_range_holder = []
+    area_holder = []
+    for radius_range in list(set([column.split(' in range ')[1] for column in df_density_matrix.columns])):
+        r1 = float(radius_range.split(', ')[0][1:])
+        r2 = float(radius_range.split(', ')[1][:-1])
+        area = np.pi * (r2 ** 2 - r1 ** 2)
+        radius_range_holder.append(radius_range)
+        area_holder.append(area)
+    ser_areas = pd.Series(area_holder, index=radius_range_holder).sort_values()
+
+    # Get the areas for each column
+    areas_for_columns = [ser_areas[column.split(' in range ')[1]] for column in df_density_matrix.columns]
+
+    # Divide the columns of df_density_matrix by areas_for_columns to get the spatial density
+    df_density_matrix_divided = df_density_matrix.div(pd.Series(areas_for_columns, index=df_density_matrix.columns), axis=1)
+
+    # Rename the columns
+    new_column_names = ['spatial_umap_density of ' + column.removeprefix('Number of neighbors of type ') for column in df_density_matrix.columns]
+    df_density_matrix_divided = df_density_matrix_divided.rename(columns=dict(zip(df_density_matrix.columns, new_column_names)))
+
+    # Normalize the density matrix
+    df_density_matrix_divided = df_density_matrix_divided / df_density_matrix_divided.max().max()
+
+    # Convert to float32
+    df_density_matrix_divided = df_density_matrix_divided.astype(np.float32)
+
+    # Print out the histogram of the final density matrix
+    print(np.histogram(df_density_matrix_divided))
+
+    # Return the final density matrix
+    return df_density_matrix_divided
 
 
 # TODO: Fill this in

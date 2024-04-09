@@ -239,8 +239,10 @@ def main():
     image_colname = 'ShortName'
     spatial_x_colname = 'CentroidX'
     spatial_y_colname = 'CentroidY'
+    phenotype_colname = 'pheno_20230327_152849'
     property_colnames = ['XMin', 'XMax', 'YMin', 'YMax']
     binary_colnames = ['Outcome', 'Survival_5yr']
+    radius_edges_microns = np.array([0, 25, 50, 100, 150, 200])
     num_umap_bins = 200
     diff_cutoff_frac_default = 0.375  # Outcome: 0.15
     min_cells_per_bin = 1
@@ -289,7 +291,7 @@ def main():
             calculate_densities_help = None
             button_text = 'Calculate densities'
         if st.button(button_text, help=calculate_densities_help):
-            densities = neighborhood_profiles_checks.run_density_calculation()
+            densities = neighborhood_profiles_checks.run_density_calculation(df, radius_edges=radius_edges_microns, spatial_x_colname=spatial_x_colname, spatial_y_colname=spatial_y_colname, image_colname=image_colname, phenotype_colname=phenotype_colname, debug_output=False, num_cpus_to_use=7, cast_to_float32=False)
             densities.to_pickle(densities_path)
             df.drop(columns=[column for column in densities.columns if column in df.columns], inplace=True)
             len_df_orig = len(df)
