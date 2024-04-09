@@ -21,12 +21,28 @@ def get_umap_train_and_test_sets(df, frac_train=0.5, frac_test=0.5, image_colnam
     # Get the subset of df that is not in the training set
     df_not_train = df[~df['umap_train']]
 
-    # For each UMAP test set, get a set of test indices and assign them to 'umap_test_i'
+    # Delete all currently existing umap test columns, if any
+    df = df.drop(columns=[column for column in df.columns if column.startswith('umap_test_')])
+
+    # Pre-calculate group indices
+    group_indices = df_not_train.groupby(image_colname).indices
+
+    # Add 'umap_test' columns to df for each umap test set and initialize them to False, creating a dictionary of new columns
+    new_columns = {
+        f'umap_test_{iumap_test_set}': pd.Series(False, index=df.index)
+        for iumap_test_set in range(num_umap_test_sets)
+    }
+
+    # Create a new DataFrame that includes the new columns
+    df = pd.concat([df, pd.DataFrame(new_columns)], axis=1)
+
+    # Loop through each umap test set
     for iumap_test_set in range(num_umap_test_sets):
-        test_indices = df_not_train.groupby(image_colname).apply(lambda x: x.sample(n=num_test_cells_per_image, replace=False).index, include_groups=False).explode().values
-        curr_colname = 'umap_test_' + str(iumap_test_set)
-        df[curr_colname] = False
-        df.loc[test_indices, curr_colname] = True
+
+        # Get a set of test indices and assign them to 'umap_test_i'
+        for _, indices in group_indices.items():
+            test_indices = np.random.choice(indices, size=num_test_cells_per_image, replace=False)
+            df.loc[test_indices, f'umap_test_{iumap_test_set}'] = True
 
     # Return the dataframe with the UMAP train and test columns added
     return df
@@ -35,16 +51,15 @@ def get_umap_train_and_test_sets(df, frac_train=0.5, frac_test=0.5, image_colnam
 # Calculate a dictionary of clusters as keys and list of bin tuples as values using the normalized histogram differences between two conditions for a single set of UMAP "test" data
 def calculate_difference_clusters(df, diff_cutoff_frac, umap_x_colname='UMAP_1_20230327_152849', umap_y_colname='UMAP_2_20230327_152849', binary_colname='Survival_5yr', num_umap_bins=200, plot_manual_histogram_diff=False, plot_diff_matrix=True, umap_test_colname='umap_test_0'):
 
-    # Get the x and y UMAP ranges for all UMAP tesat sets
+    # Get the x and y UMAP ranges for all UMAP test sets
     umap_test_colnames = [column for column in df.columns if column.startswith('umap_test_')]
     umap_x_range = [9999, -9999]
     umap_y_range = [9999, -9999]
     for colname in umap_test_colnames:
-        df_umap_test = df[df[colname]]
-        umap_x_range[0] = min(umap_x_range[0], df_umap_test[umap_x_colname].min())
-        umap_x_range[1] = max(umap_x_range[1], df_umap_test[umap_x_colname].max())
-        umap_y_range[0] = min(umap_y_range[0], df_umap_test[umap_y_colname].min())
-        umap_y_range[1] = max(umap_y_range[1], df_umap_test[umap_y_colname].max())
+        umap_x_range[0] = min(umap_x_range[0], df.loc[df[colname], umap_x_colname].min())
+        umap_x_range[1] = max(umap_x_range[1], df.loc[df[colname], umap_x_colname].max())
+        umap_y_range[0] = min(umap_y_range[0], df.loc[df[colname], umap_y_colname].min())
+        umap_y_range[1] = max(umap_y_range[1], df.loc[df[colname], umap_y_colname].max())
 
     # Get a universal set of edges for the UMAPs
     edges_x = np.linspace(umap_x_range[0], umap_x_range[1], num_umap_bins + 1)

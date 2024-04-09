@@ -17,7 +17,7 @@ def plotly_scatter_plot(df_to_plot, x_colname='x coord', y_colname='y coord', la
     color_mapping = {label: color_scale[i % len(color_scale)] for i, label in enumerate(unique_labels)}
 
     # Create a new column in the DataFrame that contains the colors of the markers
-    df_to_plot['color'] = df_to_plot[label_colname].map(color_mapping)
+    df_to_plot.loc[:, 'color'] = df_to_plot[label_colname].map(color_mapping)
 
     # Create the scatter plot
     fig = go.Figure()
@@ -61,12 +61,12 @@ def draw_plots(df_image_labels, umap_x_colname='UMAP_1_20230327_152849', umap_y_
     # Plots by bin
     with col1:
         col1.plotly_chart(plotly_scatter_plot(df_by_bin, x_colname=umap_x_colname, y_colname=umap_y_colname, label_colname='cluster_label', unique_labels=unique_cluster_labels, plot_title='UMAP by Bin for Whole Dataset'))
-        col1.plotly_chart(px.line(df_by_bin.groupby('cluster_label')[property_colnames].mean().reset_index().melt(id_vars='cluster_label', var_name='column', value_name='value'), x='column', y='value', color='cluster_label', markers=True, title='Property Means by Bin for Whole Dataset', category_orders={'cluster_label': unique_cluster_labels}))  # get the neighbor vectors for each cluster averaged over the histogram bins falling in that cluster
+        col1.plotly_chart(px.line(df_by_bin.groupby('cluster_label', observed=True)[property_colnames].mean().reset_index().melt(id_vars='cluster_label', var_name='column', value_name='value'), x='column', y='value', color='cluster_label', markers=True, title='Property Means by Bin for Whole Dataset', category_orders={'cluster_label': unique_cluster_labels}))  # get the neighbor vectors for each cluster averaged over the histogram bins falling in that cluster
 
     # Plots by cell
     with col2:
         col2.plotly_chart(plotly_scatter_plot(df_by_cell, x_colname=umap_x_colname, y_colname=umap_y_colname, label_colname='cluster_label', unique_labels=unique_cluster_labels, plot_title='UMAP by Cell for Whole Dataset'))
-        col2.plotly_chart(px.line(df_by_cell.groupby('cluster_label')[property_colnames].mean().reset_index().melt(id_vars='cluster_label', var_name='column', value_name='value'), x='column', y='value', color='cluster_label', markers=True, title='Property Means by Cell for Whole Dataset', category_orders={'cluster_label': unique_cluster_labels}))  # get the neighbor vectors for each cluster averaged over the cells falling in that cluster
+        col2.plotly_chart(px.line(df_by_cell.groupby('cluster_label', observed=True)[property_colnames].mean().reset_index().melt(id_vars='cluster_label', var_name='column', value_name='value'), x='column', y='value', color='cluster_label', markers=True, title='Property Means by Cell for Whole Dataset', category_orders={'cluster_label': unique_cluster_labels}))  # get the neighbor vectors for each cluster averaged over the cells falling in that cluster
 
     # Write a header
     st.header('Plots by image')
@@ -109,7 +109,7 @@ def draw_plots(df_image_labels, umap_x_colname='UMAP_1_20230327_152849', umap_y_
         image_in_set = pd.Series([selected_image in images for images in df_by_bin['unique_images']], index=df_by_bin.index)
         num_bins_with_cluster_labels = df_by_bin['cluster_label'].loc[image_in_set].notnull().sum()
         df_by_bin_filtered = df_by_bin[image_in_set]
-        df_by_bin_filtered['cluster_label'] = df_by_bin_filtered['cluster_label'].cat.remove_unused_categories()
+        df_by_bin_filtered.loc[:, 'cluster_label'] = df_by_bin_filtered['cluster_label'].cat.remove_unused_categories()
 
         # Write some image information
         st.write(f'In the selected image, there are {image_in_set.sum()} bins present, {num_bins_with_cluster_labels} of which have been assigned a cluster label.')
@@ -120,7 +120,7 @@ def draw_plots(df_image_labels, umap_x_colname='UMAP_1_20230327_152849', umap_y_
         df_by_bin['opacity'] = 0.05
         df_by_bin.loc[image_in_set, 'opacity'] = 1
         st.plotly_chart(plotly_scatter_plot(df_by_bin, x_colname=umap_x_colname, y_colname=umap_y_colname, label_colname='cluster_label', unique_labels=unique_cluster_labels, plot_title=f'UMAP by Bin for {selected_image}', opacity_colname='opacity'))
-        st.plotly_chart(px.line(df_by_bin_filtered.groupby('cluster_label')[property_colnames].mean().reset_index().melt(id_vars='cluster_label', var_name='column', value_name='value'), x='column', y='value', color='cluster_label', markers=True, title=f'Property Means by Bin for {selected_image}', category_orders={'cluster_label': unique_cluster_labels}))  # get the neighbor vectors for each cluster averaged over the histogram bins falling in that cluster
+        st.plotly_chart(px.line(df_by_bin_filtered.groupby('cluster_label', observed=True)[property_colnames].mean().reset_index().melt(id_vars='cluster_label', var_name='column', value_name='value'), x='column', y='value', color='cluster_label', markers=True, title=f'Property Means by Bin for {selected_image}', category_orders={'cluster_label': unique_cluster_labels}))  # get the neighbor vectors for each cluster averaged over the histogram bins falling in that cluster
 
     # Plots by cell
     with col2:
@@ -129,7 +129,7 @@ def draw_plots(df_image_labels, umap_x_colname='UMAP_1_20230327_152849', umap_y_
         cell_in_image = df_by_cell[image_colname] == selected_image
         num_cells_with_cluster_labels = df_by_cell['cluster_label'].loc[cell_in_image].notnull().sum()
         df_by_cell_filtered = df_by_cell[cell_in_image]
-        df_by_cell_filtered['cluster_label'] = df_by_cell_filtered['cluster_label'].cat.remove_unused_categories()
+        df_by_cell_filtered.loc[:, 'cluster_label'] = df_by_cell_filtered['cluster_label'].cat.remove_unused_categories()
 
         # Write some image information
         st.write(f'In the selected image, there are {cell_in_image.sum()} cells present, {num_cells_with_cluster_labels} of which have been assigned a cluster label.')
@@ -140,7 +140,7 @@ def draw_plots(df_image_labels, umap_x_colname='UMAP_1_20230327_152849', umap_y_
         df_by_cell['opacity'] = 0.05
         df_by_cell.loc[cell_in_image, 'opacity'] = 1
         st.plotly_chart(plotly_scatter_plot(df_by_cell, x_colname=umap_x_colname, y_colname=umap_y_colname, label_colname='cluster_label', unique_labels=unique_cluster_labels, plot_title=f'UMAP by Cell for {selected_image}', opacity_colname='opacity'))  # note that not all cells in the current image (e.g., cell_in_image.sum()=1000) actually have valid cluster labels (e.g., df_by_cell.loc[cell_in_image, 'cluster_label'].isin(unique_cluster_labels).sum())
-        st.plotly_chart(px.line(df_by_cell_filtered.groupby('cluster_label')[property_colnames].mean().reset_index().melt(id_vars='cluster_label', var_name='column', value_name='value'), x='column', y='value', color='cluster_label', markers=True, title=f'Property Means by Cell for {selected_image}', category_orders={'cluster_label': unique_cluster_labels}))  # get the neighbor vectors for each cluster averaged over the cells falling in that cluster
+        st.plotly_chart(px.line(df_by_cell_filtered.groupby('cluster_label', observed=True)[property_colnames].mean().reset_index().melt(id_vars='cluster_label', var_name='column', value_name='value'), x='column', y='value', color='cluster_label', markers=True, title=f'Property Means by Cell for {selected_image}', category_orders={'cluster_label': unique_cluster_labels}))  # get the neighbor vectors for each cluster averaged over the cells falling in that cluster
 
 
 def get_score_and_prediction(value_counts, actual_label=None):
