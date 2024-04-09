@@ -193,11 +193,11 @@ def get_score_and_prediction(value_counts, actual_label=None):
     return predicted_label, score
 
 
-def get_predictions(repetition, diff_cutoff_frac, image_name, df_by_bin, df_by_cell, df_image_labels, binary_colname, image_colname, debug=False):
+def get_predictions(umap_test_colname, diff_cutoff_frac, image_name, df_by_bin, df_by_cell, df_image_labels, binary_colname, image_colname, debug=False):
 
     # Get the actual, true label for the current image and store it and other external information in a dictionary
     actual_label = df_image_labels.loc[image_name, binary_colname]
-    predictions_dict = {'repetition': repetition, 'diff_cutoff_frac': diff_cutoff_frac, 'image_name': image_name, 'actual_label': actual_label}
+    predictions_dict = {'umap_test_colname': umap_test_colname, 'diff_cutoff_frac': diff_cutoff_frac, 'image_name': image_name, 'actual_label': actual_label}
 
     # Filter the binned data to the selected image
     image_in_set = pd.Series([image_name in images for images in df_by_bin['unique_images']], index=df_by_bin.index)
@@ -315,24 +315,27 @@ def main():
         assert df_image_labels[binary_colname].apply(len).max() == 1, f'There are images with multiple binary labels: {df_image_labels[df_image_labels[binary_colname].apply(len) > 1]}'
         df_image_labels[binary_colname] = df_image_labels[binary_colname].apply(lambda x: list(x)[0])
 
+        # Allow user to select the fractions of the size of the smallest image to use for UMAP training and "testing"
+        if 'npc__frac_train' not in st.session_state:
+            st.session_state['npc__frac_train'] = 0.1
+        frac_train = st.number_input('Fraction of the number of cells in the smallest image to use for training the UMAP:', key='npc__frac_train', format='%.2f', min_value=0.0, max_value=0.5)
+        if 'npc__frac_test' not in st.session_state:
+            st.session_state['npc__frac_test'] = 0.1
+        frac_test = st.number_input('Fraction of the number of cells in the smallest image to use for generating the 2D histogram:', key='npc__frac_test', format='%.2f', min_value=0.0, max_value=0.5)
+
         # Create a dropdown for the user to choose the workflow
         if 'workflow' not in st.session_state:
             st.session_state['workflow'] = workflow_options[0]
         st.selectbox('Workflow:', workflow_options, key='workflow')
+
+        # Write a divider
+        st.divider()
 
     # If we want to run the figure checks visualization workflow...
     if st.session_state['workflow'] == workflow_options[0]:
 
         # In the first column...
         with col1:
-
-            # Allow user to select the fractions of the size of the smallest image to use for UMAP training and "testing"
-            if 'npc__frac_train' not in st.session_state:
-                st.session_state['npc__frac_train'] = 0.1
-            frac_train = st.number_input('Fraction of the number of cells in the smallest image to use for training the UMAP:', key='npc__frac_train', format='%.2f', min_value=0.0, max_value=0.5)
-            if 'npc__frac_test' not in st.session_state:
-                st.session_state['npc__frac_test'] = 0.1
-            frac_test = st.number_input('Fraction of the number of cells in the smallest image to use for generating the 2D histogram:', key='npc__frac_test', format='%.2f', min_value=0.0, max_value=0.5)
 
             # Add columns to partition the dataframe into train and test sets for the UMAP, roughly similar to Giraldo et. al. 2021
             if st.button('Partition dataset into train and test sets for the UMAP'):
@@ -399,7 +402,7 @@ def main():
 
             # Click a button to calculate a dictionary of clusters as keys and list of bin tuples as values using the normalized histogram differences between two conditions for a single set of UMAP "test" data
             if st.button('Calculate the difference clusters'):
-                st.session_state['npc__clusters'], st.session_state['npc__edges_x'], st.session_state['npc__edges_y'], st.session_state['npc__fig_d_diff'], st.session_state['npc__fig_d_diff_manual'] = neighborhood_profiles_checks.calculate_difference_clusters(df, diff_cutoff_frac, umap_x_colname='UMAP_1_20230327_152849', umap_y_colname='UMAP_2_20230327_152849', binary_colname='Survival_5yr', num_umap_bins=200, plot_manual_histogram_diff=False, plot_diff_matrix=True, umap_test_colname='umap_test_0')
+                st.session_state['npc__clusters'], st.session_state['npc__edges_x'], st.session_state['npc__edges_y'], st.session_state['npc__fig_d_diff'], st.session_state['npc__fig_d_diff_manual'] = neighborhood_profiles_checks.calculate_difference_clusters(df, diff_cutoff_frac, umap_x_colname=umap_x_colname, umap_y_colname=umap_y_colname, binary_colname=binary_colname, num_umap_bins=num_umap_bins, plot_manual_histogram_diff=plot_manual_histogram_diff, plot_diff_matrix=True, umap_test_colname='umap_test_0')
 
             # Ensure the data has been processed
             if 'npc__clusters' not in st.session_state:
@@ -458,9 +461,9 @@ def main():
 
         # In the first column, draw widgets for the prediction workflow
         with col1:
-            if 'npc__num_repetitions' not in st.session_state:
-                st.session_state['npc__num_repetitions'] = 10
-            num_repetitions = st.number_input('Number of repetitions:', min_value=1, key='npc__num_repetitions')
+            if 'npc__num_umap_test_sets' not in st.session_state:
+                st.session_state['npc__num_umap_test_sets'] = 10
+            num_umap_test_sets = st.number_input('Number of UMAP "test" sets to generate:', min_value=1, key='npc__num_umap_test_sets')
             if 'npc__cutoff_frac_start' not in st.session_state:
                 st.session_state['npc__cutoff_frac_start'] = 0.05  # Outcome: 0.075
             cutoff_frac_start = st.number_input('Cutoff fraction start:', min_value=0.0, max_value=1.0, format='%.3f', key='npc__cutoff_frac_start')
@@ -471,41 +474,52 @@ def main():
                 st.session_state['npc__cutoff_frac_step'] = 0.025  # Outcome: 0.025
             cutoff_frac_step = st.number_input('Cutoff fraction step:', min_value=0.0, max_value=1.0, format='%.3f', key='npc__cutoff_frac_step')
 
-        # Get a shortcut to the unique images
-        
-
         # If we're ready to generate predictions...
         if st.button('Generate predictions'):
             with st.spinner('Generating predictions...'):
 
-                # Initialize a holder for the predictions
+                # Add columns to partition the dataframe into train and test sets for the UMAP, roughly similar to Giraldo et. al. 2021
+                st.session_state['df'] = neighborhood_profiles_checks.get_umap_train_and_test_sets(df, frac_train=frac_train, frac_test=frac_test, image_colname=image_colname, num_umap_test_sets=num_umap_test_sets)
+                df = st.session_state['df']
+
+                # TODO: Run the UMAP on the train set based on the following code block
+                # umap = neighborhood_profiles_checks.run_umap_calculation()
+                # umap.to_pickle(umap_path)
+                # df.drop(columns=[column for column in umap.columns if column in df.columns], inplace=True)
+                # len_df_orig = len(df)
+                # df = pd.concat([df, umap], axis='columns')
+                # assert len(df) == len_df_orig, f'Length of df after concatenation is {len(df)} but should be {len_df_orig}.'
+                # st.session_state['df'] = df
+
+                # For now we're just going to use the existing UMAP columns
+                umap_column_options = [col for col in st.session_state['df'].columns if col.startswith('UMAP_')]
+                df = st.session_state['df']
+                umap_x_colname = umap_column_options[0]
+                umap_y_colname = umap_column_options[1]
+
+                # Iterate over possible difference cutoff fractions
                 predictions_holder = []
+                if cutoff_frac_step != 0:
+                    cutoff_frac_range = np.arange(cutoff_frac_start, cutoff_frac_end + cutoff_frac_step, cutoff_frac_step)
+                else:
+                    cutoff_frac_range = [cutoff_frac_start]
+                for diff_cutoff_frac in cutoff_frac_range:
 
-                # Loop through the repetitions and cutoff fractions, allowing also for a single cutoff to be explored
-                for repetition in range(num_repetitions):
-                    if cutoff_frac_step != 0:
-                        cutoff_frac_range = np.arange(cutoff_frac_start, cutoff_frac_end + cutoff_frac_step, cutoff_frac_step)
-                    else:
-                        cutoff_frac_range = [cutoff_frac_start]
+                    # For every UMAP "test" i.e. calculation set...
+                    for umap_test_colname in [column for column in df.columns if column.startswith('umap_test_')]:
 
-                    # Loop through the cutoff fractions
-                    for diff_cutoff_frac in cutoff_frac_range:
-
-                        # Store the current difference cutoff fraction in the session state
-                        st.session_state['diff_cutoff_frac'] = diff_cutoff_frac  # this assignment may not be needed?
-
-                        # Generate the clusters using the current diff_cutoff_frac
-                        neighborhood_profiles_checks.calculate_difference_clusters(df, diff_cutoff_frac, umap_x_colname=umap_x_colname, umap_y_colname=umap_y_colname, binary_colname=binary_colname, num_umap_bins=num_umap_bins, plot_manual_histogram_diff=plot_manual_histogram_diff, plot_diff_matrix=False)
+                        # Calculate a dictionary of clusters as keys and list of bin tuples as values using the normalized histogram differences between two conditions for the current set of UMAP "test" data
+                        clusters, edges_x, edges_y, fig_d_diff, fig_d_diff_manual = neighborhood_profiles_checks.calculate_difference_clusters(df, diff_cutoff_frac, umap_x_colname=umap_x_colname, umap_y_colname=umap_y_colname, binary_colname=binary_colname, num_umap_bins=num_umap_bins, plot_manual_histogram_diff=False, plot_diff_matrix=False, umap_test_colname=umap_test_colname)
 
                         # Determine the bins of the UMAP x and y coordinates of an input dataframe
-                        df_test_with_bins = neighborhood_profiles_checks.perform_umap_binning(df[df['umap_test']], st.session_state['processed_data']['edges_x'], st.session_state['processed_data']['edges_y'], image_colname=image_colname, spatial_x_colname=spatial_x_colname, spatial_y_colname=spatial_y_colname, umap_x_colname=umap_x_colname, umap_y_colname=umap_y_colname, property_colnames=property_colnames)
+                        df_test_with_bins = neighborhood_profiles_checks.perform_umap_binning(df[df[umap_test_colname]], edges_x, edges_y, image_colname=image_colname, spatial_x_colname=spatial_x_colname, spatial_y_colname=spatial_y_colname, umap_x_colname=umap_x_colname, umap_y_colname=umap_y_colname, property_colnames=property_colnames)
 
                         # Given the UMAP bins of each cell and the labels assigned to the bins, assign the labels to a per-cell dataframe and to a transformed dataframe grouped by bin, i.e., assign the label to each bin in that transformed dataframe
-                        st.session_state['df_by_bin'], st.session_state['df_by_cell'] = neighborhood_profiles_checks.assign_cluster_labels(df_test_with_bins, st.session_state['processed_data']['clusters'], image_colname=image_colname, min_cells_per_bin=min_cells_per_bin)
+                        df_by_bin, df_by_cell = neighborhood_profiles_checks.assign_cluster_labels(df_test_with_bins, clusters, image_colname=image_colname, min_cells_per_bin=min_cells_per_bin)
 
                         # For each image in the dataset, predict the binary label
                         for image_name in unique_images:
-                            predictions_dict = get_predictions(repetition=repetition, diff_cutoff_frac=diff_cutoff_frac, image_name=image_name, df_by_bin=st.session_state['df_by_bin'], df_by_cell=st.session_state['df_by_cell'], df_image_labels=df_image_labels, binary_colname=binary_colname, image_colname=image_colname, debug=False)
+                            predictions_dict = get_predictions(umap_test_colname=umap_test_colname, diff_cutoff_frac=diff_cutoff_frac, image_name=image_name, df_by_bin=df_by_bin, df_by_cell=df_by_cell, df_image_labels=df_image_labels, binary_colname=binary_colname, image_colname=image_colname, debug=False)
                             predictions_holder.append(predictions_dict)
 
                 # Create a dataframe holding all the predictions and save it to the session state
@@ -526,7 +540,7 @@ def main():
             st.write(df_predictions)
 
             # Get the average scores by diff_cutoff_frac (as the index), write it to screen, and plot it
-            df_scores_vs_cutoff = df_predictions.groupby(['repetition', 'diff_cutoff_frac'])[['score_by_bin', 'score_by_cell']].mean().reset_index().groupby('diff_cutoff_frac')[['score_by_bin', 'score_by_cell']].mean()
+            df_scores_vs_cutoff = df_predictions.groupby(['umap_test_colname', 'diff_cutoff_frac'])[['score_by_bin', 'score_by_cell']].mean().reset_index().groupby('diff_cutoff_frac')[['score_by_bin', 'score_by_cell']].mean()
             st.write(df_scores_vs_cutoff)
             st.plotly_chart(px.line(df_scores_vs_cutoff.reset_index().melt(id_vars='diff_cutoff_frac', var_name='Column', value_name='Value'), x='diff_cutoff_frac', y='Value', color='Column', markers=True))
 
