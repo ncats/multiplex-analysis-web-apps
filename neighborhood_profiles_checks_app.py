@@ -3,76 +3,9 @@ import neighborhood_profiles_checks
 import pandas as pd
 import os
 import numpy as np
-import PlottingTools_orig as PlottingTools
 import streamlit as st
-import matplotlib.pyplot as plt
 import plotly.express as px
 import plotly.graph_objects as go
-
-
-def load_data(data_filename='Combo_CSVfiles_20230327_152849.csv', image_colname='ShortName'):
-    st.session_state['df'] = pd.read_csv(os.path.join('.', 'input', data_filename))
-    st.session_state['unique_images'] = list(st.session_state['df'][image_colname].unique())
-
-
-def generate_clusters(image_colname='ShortName', umap_x_colname='UMAP_1_20230327_152849', umap_y_colname='UMAP_2_20230327_152849', binary_colname='Survival_5yr', number_of_samples_frac=0.1, num_umap_bins=200, plot_manual_histogram_diff=False, plot_diff_matrix=True):
-
-    # Get shortcuts to session state variables
-    df = st.session_state['df']
-    diff_cutoff_frac = st.session_state['diff_cutoff_frac']
-
-    # Get an equal number of cells from each image
-    num_cells_from_each_sample = int(round(df.groupby(image_colname).size().min() * number_of_samples_frac, -3))
-    indices = df.groupby(image_colname).apply(lambda x: x.sample(n=num_cells_from_each_sample, replace=False).index, include_groups=False).explode().values
-
-    # Assign the sample to 'umap_test'
-    df['umap_test'] = False
-    df.loc[indices, 'umap_test'] = True
-
-    # Get a universal set of edges for the UMAPs
-    edges_x = np.linspace(df[umap_x_colname].min(), df[umap_x_colname].max(), num_umap_bins + 1)
-    edges_y = np.linspace(df[umap_y_colname].min(), df[umap_y_colname].max(), num_umap_bins + 1)
-
-    # Get subsets of the full data that are the entire test set and both binary subsets of the test set
-    df_test = df[df['umap_test']]
-    binary_values = sorted(list(df[binary_colname].unique()))
-    df_binary_subset_0 = df_test[df_test[binary_colname] == binary_values[0]]
-    df_binary_subset_1 = df_test[df_test[binary_colname] == binary_values[1]]
-
-    # Get the 2D histograms for each condition
-    d_binary_subset_0 = PlottingTools.plot_2d_density(df_binary_subset_0[umap_x_colname], df_binary_subset_0[umap_y_colname], bins=[edges_x, edges_y], return_matrix=True)
-    d_binary_subset_1 = PlottingTools.plot_2d_density(df_binary_subset_1[umap_x_colname], df_binary_subset_1[umap_y_colname], bins=[edges_x, edges_y], return_matrix=True)
-
-    # Get the difference between the histograms for the binary subsets
-    d_diff = d_binary_subset_1 - d_binary_subset_0
-
-    # "Mask" the difference matrix based on a cutoff
-    cutoff = np.abs(d_diff).max() * diff_cutoff_frac
-    d_diff[d_diff > cutoff] = 1
-    d_diff[d_diff < -cutoff] = -1
-    d_diff[(d_diff >= -cutoff) & (d_diff <= cutoff)] = 0
-
-    # Get the clusters based only on the cutoff, deliberately not performing any clustering
-    clusters = {0: [tuple([x[1], x[0]]) for x in np.transpose(np.where(np.isclose(d_diff, -1)))], 1: [tuple([x[1], x[0]]) for x in np.transpose(np.where(np.isclose(d_diff, 1)))]}
-
-    # Plot the difference matrix
-    if plot_diff_matrix:
-        fig_d_diff, ax_d_diff = plt.subplots()
-        PlottingTools.plot_2d_density(d_diff, bins=[edges_x, edges_y], n_pad=30, circle_type='arch', cmap=plt.get_cmap('bwr'), ax=ax_d_diff)
-
-    # Optionally plot the difference matrix manually
-    if plot_manual_histogram_diff:
-        fig, ax = plt.subplots()
-        c = ax.pcolormesh(edges_x, edges_y, d_diff, cmap='bwr')
-        fig.colorbar(c, ax=ax)
-        st.session_state['fig_d_diff_manual'] = fig
-
-    # Save the processed data to the session state
-    st.session_state['processed_data'] = {'edges_x': edges_x, 'edges_y': edges_y, 'clusters': clusters}
-
-    # Save the difference plot to the session state
-    if plot_diff_matrix:
-        st.session_state['fig_d_diff'] = fig_d_diff
 
 
 def plotly_scatter_plot(df_to_plot, x_colname='x coord', y_colname='y coord', label_colname='my_label', unique_labels=[0, 1], plot_title='My Plot', opacity_colname=None):
@@ -306,13 +239,8 @@ def main():
     image_colname = 'ShortName'
     spatial_x_colname = 'CentroidX'
     spatial_y_colname = 'CentroidY'
-    umap_x_colname = 'UMAP_1_20230327_152849'
-    umap_y_colname = 'UMAP_2_20230327_152849'
     property_colnames = ['XMin', 'XMax', 'YMin', 'YMax']
-    # binary_colname = 'Survival_5yr'
-    # binary_colname = 'Outcome'
     binary_colnames = ['Outcome', 'Survival_5yr']
-    number_of_samples_frac = 0.1
     num_umap_bins = 200
     diff_cutoff_frac_default = 0.375  # Outcome: 0.15
     min_cells_per_bin = 1
@@ -326,12 +254,56 @@ def main():
     with col1:
 
         # Click a button to load the data
-        st.button('Load data', on_click=load_data, kwargs={'data_filename': data_filename, 'image_colname': image_colname})
+        if st.button('Load data'):
+            st.session_state['df'] = pd.read_csv(os.path.join('.', 'input', data_filename))
+            st.session_state['unique_images'] = list(st.session_state['df'][image_colname].unique())
 
         # Ensure the data has been loaded
         if 'df' not in st.session_state:
             st.warning('Please load the data.')
             return
+        else:
+            df = st.session_state['df']
+            unique_images = st.session_state['unique_images']
+
+        # Click a button to load the densities from disk
+        densities_path = os.path.join('.', 'output', 'npc_densities.pkl')
+        densities_file_exists = os.path.exists(densities_path)
+        if not densities_file_exists:
+            load_densities_help = f'Densities file {densities_path} not found'
+        else:
+            load_densities_help = None
+        if st.button('Load densities', disabled=(not densities_file_exists), help=load_densities_help):
+            densities = pd.read_pickle(densities_path)
+            df.drop(columns=[column for column in densities.columns if column in df.columns], inplace=True)
+            len_df_orig = len(df)
+            df = pd.concat([df, densities], axis='columns')
+            assert len(df) == len_df_orig, f'Length of df after concatenation is {len(df)} but should be {len_df_orig}.'
+            st.session_state['df'] = df
+            
+        # Click a button to calculate the densities
+        if densities_file_exists:
+            calculate_densities_help = f'WARNING: Clicking this will overwrite the current densities file {densities_path}'
+            button_text = '⚠️ Calculate densities'
+        else:
+            calculate_densities_help = None
+            button_text = 'Calculate densities'
+        if st.button(button_text, help=calculate_densities_help):
+            densities = neighborhood_profiles_checks.run_density_calculation()
+            densities.to_pickle(densities_path)
+            df.drop(columns=[column for column in densities.columns if column in df.columns], inplace=True)
+            len_df_orig = len(df)
+            df = pd.concat([df, densities], axis='columns')
+            assert len(df) == len_df_orig, f'Length of df after concatenation is {len(df)} but should be {len_df_orig}.'
+            st.session_state['df'] = df
+
+        # Get the density columns
+        density_columns = [col for col in st.session_state['df'].columns if col.startswith('spatial_umap_density of ')]
+        if len(density_columns) == 0:
+            st.warning('Please load or calculate densities.')
+            return
+        else:
+            df = st.session_state['df']
 
         # Create a dropdown for the user to choose the binary label of interest
         if 'npc__binary_colname' not in st.session_state:
@@ -339,7 +311,7 @@ def main():
         binary_colname = st.selectbox('Binary label:', binary_colnames, key='npc__binary_colname')
 
         # Get the actual binary value/label for each image
-        df_image_labels = st.session_state['df'][[image_colname, binary_colname]].groupby(image_colname).agg(set)
+        df_image_labels = df[[image_colname, binary_colname]].groupby(image_colname).agg(set)
         assert df_image_labels[binary_colname].apply(len).max() == 1, f'There are images with multiple binary labels: {df_image_labels[df_image_labels[binary_colname].apply(len) > 1]}'
         df_image_labels[binary_colname] = df_image_labels[binary_colname].apply(lambda x: list(x)[0])
 
@@ -354,49 +326,123 @@ def main():
         # In the first column...
         with col1:
 
+            # Allow user to select the fractions of the size of the smallest image to use for UMAP training and "testing"
+            if 'npc__frac_train' not in st.session_state:
+                st.session_state['npc__frac_train'] = 0.1
+            frac_train = st.number_input('Fraction of the number of cells in the smallest image to use for training the UMAP:', key='npc__frac_train', format='%.2f', min_value=0.0, max_value=0.5)
+            if 'npc__frac_test' not in st.session_state:
+                st.session_state['npc__frac_test'] = 0.1
+            frac_test = st.number_input('Fraction of the number of cells in the smallest image to use for generating the 2D histogram:', key='npc__frac_test', format='%.2f', min_value=0.0, max_value=0.5)
+
+            # Add columns to partition the dataframe into train and test sets for the UMAP, roughly similar to Giraldo et. al. 2021
+            if st.button('Partition dataset into train and test sets for the UMAP'):
+                st.session_state['df'] = neighborhood_profiles_checks.get_umap_train_and_test_sets(df, frac_train=frac_train, frac_test=frac_test, image_colname=image_colname, num_umap_test_sets=1)
+
+            # Ensure partitioning has been performed
+            if 'umap_train' not in st.session_state['df']:
+                st.warning('Please partition the dataset into train and test sets for the UMAP.')
+                return
+            else:
+                df = st.session_state['df']
+            
+            # Click a button to load the UMAP from disk
+            umap_path = os.path.join('.', 'output', 'npc_umap.pkl')
+            umap_file_exists = os.path.exists(umap_path)
+            if not umap_file_exists:
+                load_umap_help = f'UMAP file {umap_path} not found'
+            else:
+                load_umap_help = None
+            if st.button('Load UMAP', disabled=(not umap_file_exists), help=load_umap_help):
+                umap = pd.read_pickle(umap_path)
+                df.drop(columns=[column for column in umap.columns if column in df.columns], inplace=True)
+                len_df_orig = len(df)
+                df = pd.concat([df, umap], axis='columns')
+                assert len(df) == len_df_orig, f'Length of df after concatenation is {len(df)} but should be {len_df_orig}.'
+                st.session_state['df'] = df
+                
+            # Click a button to calculate the UMAP
+            if umap_file_exists:
+                calculate_umap_help = f'WARNING: Clicking this will overwrite the current UMAP file {umap_path}'
+                button_text = '⚠️ Calculate UMAP'
+            else:
+                calculate_umap_help = None
+                button_text = 'Calculate UMAP'
+            if st.button(button_text, help=calculate_umap_help):
+                umap = neighborhood_profiles_checks.run_umap_calculation()
+                umap.to_pickle(umap_path)
+                df.drop(columns=[column for column in umap.columns if column in df.columns], inplace=True)
+                len_df_orig = len(df)
+                df = pd.concat([df, umap], axis='columns')
+                assert len(df) == len_df_orig, f'Length of df after concatenation is {len(df)} but should be {len_df_orig}.'
+                st.session_state['df'] = df
+
+            # Get the UMAP columns
+            umap_column_options = [col for col in st.session_state['df'].columns if col.startswith('UMAP_')]
+            if len(umap_column_options) == 0:
+                st.warning('Please load UMAP, calculate UMAP, or load a dataset that contains UMAP columns.')
+                return
+            else:
+                df = st.session_state['df']
+            
+            # Create a dropdown for the user to choose the UMAP columns
+            if 'npc__umap_x_colname' not in st.session_state:
+                st.session_state['npc__umap_x_colname'] = umap_column_options[0]
+            umap_x_colname = st.selectbox('UMAP x column:', umap_column_options, key='npc__umap_x_colname')
+            if 'npc__umap_y_colname' not in st.session_state:
+                st.session_state['npc__umap_y_colname'] = umap_column_options[1]
+            umap_y_colname = st.selectbox('UMAP y column:', umap_column_options, key='npc__umap_y_colname')
+
             # Write a number_input widget for diff_cutoff_frac
             if 'diff_cutoff_frac' not in st.session_state:
                 st.session_state['diff_cutoff_frac'] = diff_cutoff_frac_default
-            st.number_input('Difference cutoff fraction:', key='diff_cutoff_frac', format='%.3f')
+            diff_cutoff_frac = st.number_input('Difference cutoff fraction:', key='diff_cutoff_frac', format='%.3f')
 
-            # Click a button to process the data
-            st.button('Process the data', on_click=generate_clusters, kwargs={'image_colname': image_colname, 'umap_x_colname': umap_x_colname, 'umap_y_colname': umap_y_colname, 'binary_colname': binary_colname, 'number_of_samples_frac': number_of_samples_frac, 'num_umap_bins': num_umap_bins, 'plot_manual_histogram_diff': plot_manual_histogram_diff})
+            # Click a button to calculate a dictionary of clusters as keys and list of bin tuples as values using the normalized histogram differences between two conditions for a single set of UMAP "test" data
+            if st.button('Calculate the difference clusters'):
+                st.session_state['npc__clusters'], st.session_state['npc__edges_x'], st.session_state['npc__edges_y'], st.session_state['npc__fig_d_diff'], st.session_state['npc__fig_d_diff_manual'] = neighborhood_profiles_checks.calculate_difference_clusters(df, diff_cutoff_frac, umap_x_colname='UMAP_1_20230327_152849', umap_y_colname='UMAP_2_20230327_152849', binary_colname='Survival_5yr', num_umap_bins=200, plot_manual_histogram_diff=False, plot_diff_matrix=True, umap_test_colname='umap_test_0')
 
             # Ensure the data has been processed
-            if 'processed_data' not in st.session_state:
-                st.warning('Please process the data.')
+            if 'npc__clusters' not in st.session_state:
+                st.warning('Please calculate the difference clusters.')
                 return
+            else:
+                clusters = st.session_state['npc__clusters']
+                edges_x = st.session_state['npc__edges_x']
+                edges_y = st.session_state['npc__edges_y']
+                fig_d_diff = st.session_state['npc__fig_d_diff']
+                fig_d_diff_manual = st.session_state['npc__fig_d_diff_manual']
             
             # Click a button to perform UMAP binning
             if st.button('Perform UMAP binning'):
 
                 # Determine the bins of the UMAP x and y coordinates of an input dataframe
-                df = st.session_state['df']
-                st.session_state['df_test_with_bins'] = neighborhood_profiles_checks.perform_umap_binning(df[df['umap_test']], st.session_state['processed_data']['edges_x'], st.session_state['processed_data']['edges_y'], image_colname=image_colname, spatial_x_colname=spatial_x_colname, spatial_y_colname=spatial_y_colname, umap_x_colname=umap_x_colname, umap_y_colname=umap_y_colname, property_colnames=property_colnames)
+                st.session_state['df_test_with_bins'] = neighborhood_profiles_checks.perform_umap_binning(df[df['umap_test_0']], edges_x, edges_y, image_colname=image_colname, spatial_x_colname=spatial_x_colname, spatial_y_colname=spatial_y_colname, umap_x_colname=umap_x_colname, umap_y_colname=umap_y_colname, property_colnames=property_colnames)
 
             # Ensure UMAP binning has been performed
             if 'df_test_with_bins' not in st.session_state:
                 st.warning('Please perform UMAP binning.')
                 return
+            else:
+                df_test_with_bins = st.session_state['df_test_with_bins']
 
             # Click a button to assign the cluster labels
             if st.button('Assign cluster labels'):
 
                 # Given the UMAP bins of each cell and the labels assigned to the bins, assign the labels to a per-cell dataframe and to a transformed dataframe grouped by bin, i.e., assign the label to each bin in that transformed dataframe
-                st.session_state['df_by_bin'], st.session_state['df_by_cell'] = neighborhood_profiles_checks.assign_cluster_labels(st.session_state['df_test_with_bins'], st.session_state['processed_data']['clusters'], image_colname=image_colname, min_cells_per_bin=min_cells_per_bin)
+                st.session_state['df_by_bin'], st.session_state['df_by_cell'] = neighborhood_profiles_checks.assign_cluster_labels(df_test_with_bins, clusters, image_colname=image_colname, min_cells_per_bin=min_cells_per_bin)
 
         # In the second column, plot Giraldo's difference histogram
         with col2:
-            if 'fig_d_diff' in st.session_state:
+            if fig_d_diff is not None:
                 st.write('Difference matrix:')
-                st.pyplot(st.session_state['fig_d_diff'])
+                st.pyplot(fig_d_diff)
 
         # In the third column, optionally plot the manual difference histogram
         with col3:
             if plot_manual_histogram_diff:
-                if 'fig_d_diff_manual' in st.session_state:
+                if fig_d_diff_manual is not None:
                     st.write('Difference matrix - manual')
-                    st.pyplot(st.session_state['fig_d_diff_manual'])
+                    st.pyplot(fig_d_diff_manual)
 
         # Ensure we're ready to display the figure checks
         with col1:
@@ -426,7 +472,7 @@ def main():
             cutoff_frac_step = st.number_input('Cutoff fraction step:', min_value=0.0, max_value=1.0, format='%.3f', key='npc__cutoff_frac_step')
 
         # Get a shortcut to the unique images
-        unique_images = st.session_state['unique_images']
+        
 
         # If we're ready to generate predictions...
         if st.button('Generate predictions'):
@@ -446,13 +492,12 @@ def main():
                     for diff_cutoff_frac in cutoff_frac_range:
 
                         # Store the current difference cutoff fraction in the session state
-                        st.session_state['diff_cutoff_frac'] = diff_cutoff_frac
+                        st.session_state['diff_cutoff_frac'] = diff_cutoff_frac  # this assignment may not be needed?
 
                         # Generate the clusters using the current diff_cutoff_frac
-                        generate_clusters(image_colname=image_colname, umap_x_colname=umap_x_colname, umap_y_colname=umap_y_colname, binary_colname=binary_colname, number_of_samples_frac=number_of_samples_frac, num_umap_bins=num_umap_bins, plot_manual_histogram_diff=plot_manual_histogram_diff, plot_diff_matrix=False)
+                        neighborhood_profiles_checks.calculate_difference_clusters(df, diff_cutoff_frac, umap_x_colname=umap_x_colname, umap_y_colname=umap_y_colname, binary_colname=binary_colname, num_umap_bins=num_umap_bins, plot_manual_histogram_diff=plot_manual_histogram_diff, plot_diff_matrix=False)
 
                         # Determine the bins of the UMAP x and y coordinates of an input dataframe
-                        df = st.session_state['df']
                         df_test_with_bins = neighborhood_profiles_checks.perform_umap_binning(df[df['umap_test']], st.session_state['processed_data']['edges_x'], st.session_state['processed_data']['edges_y'], image_colname=image_colname, spatial_x_colname=spatial_x_colname, spatial_y_colname=spatial_y_colname, umap_x_colname=umap_x_colname, umap_y_colname=umap_y_colname, property_colnames=property_colnames)
 
                         # Given the UMAP bins of each cell and the labels assigned to the bins, assign the labels to a per-cell dataframe and to a transformed dataframe grouped by bin, i.e., assign the label to each bin in that transformed dataframe

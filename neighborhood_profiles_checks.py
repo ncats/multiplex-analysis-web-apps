@@ -1,6 +1,97 @@
 # Import relevant libraries
 import numpy as np
 import pandas as pd
+import PlottingTools_orig as PlottingTools
+import matplotlib.pyplot as plt
+
+
+# Add columns to partition a dataframe into train and test sets for the UMAP, roughly similar to Giraldo et. al. 2021
+def get_umap_train_and_test_sets(df, frac_train=0.5, frac_test=0.5, image_colname='ShortName', num_umap_test_sets=1):
+
+    # Calculate the size of the train and test sets based on the size of the smallest image
+    min_num_cells_per_image = df.groupby(image_colname).size().min()
+    num_train_cells_per_image = int(np.floor(min_num_cells_per_image * frac_train))
+    num_test_cells_per_image = int(np.floor(min_num_cells_per_image * frac_test))
+
+    # Get a set of train indices and assign them to 'umap_train'
+    train_indices = df.groupby(image_colname).apply(lambda x: x.sample(n=num_train_cells_per_image, replace=False).index, include_groups=False).explode().values
+    df['umap_train'] = False
+    df.loc[train_indices, 'umap_train'] = True
+
+    # Get the subset of df that is not in the training set
+    df_not_train = df[~df['umap_train']]
+
+    # For each UMAP test set, get a set of test indices and assign them to 'umap_test_i'
+    for iumap_test_set in range(num_umap_test_sets):
+        test_indices = df_not_train.groupby(image_colname).apply(lambda x: x.sample(n=num_test_cells_per_image, replace=False).index, include_groups=False).explode().values
+        curr_colname = 'umap_test_' + str(iumap_test_set)
+        df[curr_colname] = False
+        df.loc[test_indices, curr_colname] = True
+
+    # Return the dataframe with the UMAP train and test columns added
+    return df
+
+
+# Calculate a dictionary of clusters as keys and list of bin tuples as values using the normalized histogram differences between two conditions for a single set of UMAP "test" data
+def calculate_difference_clusters(df, diff_cutoff_frac, umap_x_colname='UMAP_1_20230327_152849', umap_y_colname='UMAP_2_20230327_152849', binary_colname='Survival_5yr', num_umap_bins=200, plot_manual_histogram_diff=False, plot_diff_matrix=True, umap_test_colname='umap_test_0'):
+
+    # Get the x and y UMAP ranges for all UMAP tesat sets
+    umap_test_colnames = [column for column in df.columns if column.startswith('umap_test_')]
+    umap_x_range = [9999, -9999]
+    umap_y_range = [9999, -9999]
+    for colname in umap_test_colnames:
+        df_umap_test = df[df[colname]]
+        umap_x_range[0] = min(umap_x_range[0], df_umap_test[umap_x_colname].min())
+        umap_x_range[1] = max(umap_x_range[1], df_umap_test[umap_x_colname].max())
+        umap_y_range[0] = min(umap_y_range[0], df_umap_test[umap_y_colname].min())
+        umap_y_range[1] = max(umap_y_range[1], df_umap_test[umap_y_colname].max())
+
+    # Get a universal set of edges for the UMAPs
+    edges_x = np.linspace(umap_x_range[0], umap_x_range[1], num_umap_bins + 1)
+    edges_y = np.linspace(umap_y_range[0], umap_y_range[1], num_umap_bins + 1)
+
+    # Get subsets of the full data that are the entire test set and both binary subsets of the test set
+    df_test = df[df[umap_test_colname]]
+    binary_values = sorted(list(df[binary_colname].unique()))
+    df_binary_subset_0 = df_test[df_test[binary_colname] == binary_values[0]]
+    df_binary_subset_1 = df_test[df_test[binary_colname] == binary_values[1]]
+
+    # Get the 2D histograms for each condition
+    d_binary_subset_0 = PlottingTools.plot_2d_density(df_binary_subset_0[umap_x_colname], df_binary_subset_0[umap_y_colname], bins=[edges_x, edges_y], return_matrix=True)
+    d_binary_subset_1 = PlottingTools.plot_2d_density(df_binary_subset_1[umap_x_colname], df_binary_subset_1[umap_y_colname], bins=[edges_x, edges_y], return_matrix=True)
+
+    # Get the difference between the histograms for the binary subsets
+    d_diff = d_binary_subset_1 - d_binary_subset_0
+
+    # "Mask" the difference matrix based on a cutoff
+    cutoff = np.abs(d_diff).max() * diff_cutoff_frac
+    d_diff[d_diff > cutoff] = 1
+    d_diff[d_diff < -cutoff] = -1
+    d_diff[(d_diff >= -cutoff) & (d_diff <= cutoff)] = 0
+
+    # TODO: Implement further clustering of the 1 and -1 classes!
+
+    # Get the clusters based only on the cutoff, deliberately not performing any clustering
+    clusters = {0: [tuple([x[1], x[0]]) for x in np.transpose(np.where(np.isclose(d_diff, -1)))], 1: [tuple([x[1], x[0]]) for x in np.transpose(np.where(np.isclose(d_diff, 1)))]}
+
+    # Plot the difference matrix
+    if plot_diff_matrix:
+        fig_d_diff, ax_d_diff = plt.subplots()
+        PlottingTools.plot_2d_density(d_diff, bins=[edges_x, edges_y], n_pad=30, circle_type='arch', cmap=plt.get_cmap('bwr'), ax=ax_d_diff)
+    else:
+        fig_d_diff = None
+
+    # Optionally plot the difference matrix manually
+    if plot_manual_histogram_diff:
+        fig, ax = plt.subplots()
+        c = ax.pcolormesh(edges_x, edges_y, d_diff, cmap='bwr')
+        fig.colorbar(c, ax=ax)
+        fig_d_diff_manual = fig
+    else:
+        fig_d_diff_manual = None
+
+    # Return the calculated clusters, edges, and figures
+    return clusters, edges_x, edges_y, fig_d_diff, fig_d_diff_manual
 
 
 # Determine the bins of the UMAP x and y coordinates of an input dataframe
@@ -65,3 +156,13 @@ def assign_cluster_labels(df_test_with_bins, cluster_labels, image_colname='Shor
 
     # Return the plotly figures
     return bin_means, df_test_with_bins
+
+
+# TODO: Fill this in
+def run_density_calculation():
+    return pd.DataFrame({'spatial_umap_density of X around Y': []})
+
+
+# TODO: Fill this in
+def run_umap_calculation():
+    return pd.DataFrame()
