@@ -11,6 +11,7 @@ import umap
 from SpatialUMAP import SpatialUMAP
 from scipy import ndimage as ndi
 
+import basic_phenotyper_lib as bpl  # Useful functions for cell phenotyping
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
 from benchmark_collector import benchmark_collector # Benchmark Collector Class
 import PlottingTools as umPT
@@ -34,6 +35,8 @@ class NeighborhoodProfiles:
         self.n_bins = 200
         self.n_pad = 40
         self.vlim = .97
+        self.xx = 0
+        self.yy = 0
 
         self.w = None
         self.w_DiffA = None
@@ -68,7 +71,7 @@ class NeighborhoodProfiles:
         self.UMAPFigType           = 'Density'
 
         # UMAP Lineage Display
-        self.lineageDisplayToggle = 'Phenotypes'
+        self.lineageDisplayToggle      = 'Phenotypes'
         self.lineageDisplayToggle_clus = 'Phenotypes'
 
         # Unfiltered dropdown default options
@@ -77,8 +80,8 @@ class NeighborhoodProfiles:
         self.definciOutcomes  = 'Cell Counts'
 
         # Default UMAP dropdown options
-        self.umapPheno = [self.defLineageOpt]
-        self.umapMarks = [self.defLineageOpt]
+        self.umapPheno    = [self.defLineageOpt]
+        self.umapMarks    = [self.defLineageOpt]
         self.umaplineages = [self.defLineageOpt]
         self.umapOutcomes = [self.defumapOutcomes]
 
@@ -535,8 +538,7 @@ class NeighborhoodProfiles:
                 [ax.spines[sp].set_visible(False) for sp in ax.spines]
                 ax.set(xticks=[], yticks=[])
 
-@staticmethod
-def plt_cmap(ax, cmap, extend, width, ylabel = None):
+
     '''plt_cmap(ax, cmap, extend, width, ylabel) draws a colorbar for the current colormap at the correct
     axes location, and with the correct label.
 
@@ -558,166 +560,49 @@ def plt_cmap(ax, cmap, extend, width, ylabel = None):
     ax.set_position([pos[0], pos[1], width, pos[3]])
     if ylabel is not None:
         ax.set(ylabel=ylabel)
-
 class UMAPDensityProcessing():
     '''
-    Individual processing of UMAP density values
+    Individual processing of UMAP density matrices
     '''
-    def __init__(self, npf, df):
+    def __init__(self, npf, df, xx=None, yy=None):
         self.df = df
 
         self.n_bins = npf.n_bins
-        self.n_pad = npf.n_pad
-        self.vlim = npf.vlim
+        self.n_pad  = npf.n_pad
+        self.vlim   = npf.vlim
 
         # Streamlit Coloring (slc)
         self.slc_bg   = npf.slc_bg   # Streamlit Color -Background
         self.slc_text = npf.slc_text # Streamlit Color -Text
         self.slc_bg2  = npf.slc_bg2  # Streamlit Color -Secondary Background
 
+        if xx is not None:
+            self.xx = xx
+            self.yy = yy
+        else:
+            self.xx = np.linspace(np.min(self.df['X']), np.max(self.df['X']), self.n_bins + 1)
+            self.yy = np.linspace(np.min(self.df['Y']), np.max(self.df['Y']), self.n_bins + 1)
+
         self.prepare_umap_density(self.df['X'], self.df['Y'])
 
 
-    def prepare_umap_density(self, X, Y=None, w=None, gaussian_sigma=0.5):
+    def prepare_umap_density(self, x, y, w=None):
         '''
-        create the density matrix for the UMAP data
-        '''
-
-        if Y is not None:
-            if w is not None:
-                b, _, _ = np.histogram2d(X, Y, bins=self.n_bins)
-                b = ndi.gaussian_filter(b.T, sigma=gaussian_sigma)
-
-                s, _, _ = np.histogram2d(X, Y, bins=self.n_bins, weights=w)
-                s = ndi.gaussian_filter(s.T, sigma=gaussian_sigma)
-
-                d = np.zeros_like(b)
-                # d[b > 0] = s[b > 0] / b[b > 0]
-                d = s
-                d = ndi.gaussian_filter(d, sigma=gaussian_sigma)
-            else:
-                d, _, _ = np.histogram2d(X, Y, bins=self.n_bins)
-                d /= np.sum(d)
-                d = ndi.gaussian_filter(d.T, sigma=gaussian_sigma)
-        else:
-            d = X
-
-        self.d = d
-
-    def UMAPdraw_density(self, d, bins, w=None, n_pad=40, vlim=np.array([0.001, 0.98]), feat = None, diff = False, figsize=(12, 12)):
-        '''
-        Draw the UMAP density data
+        create the density matrix from the UMAP data
         '''
 
-        # color maps
-        cmap_viridis = plt.get_cmap('viridis').copy()
-        cmap_viridis.set_under('white')
-        cmap_magma = plt.get_cmap('magma').copy()
-        cmap_magma.set_under('white')
-        cmap_bwr = plt.get_cmap('bwr').copy()
+        self.dens_mat, self.bin_indices_df_group = umPT.plot_2d_density(x, y,
+                                                                        bins = [self.xx, self.yy],
+                                                                        w = w,
+                                                                        return_matrix = True)
 
-        # Set up Figure
-        umap_fig = plt.figure(figsize=figsize, facecolor = self.slc_bg)
-        ax = umap_fig.add_subplot(1, 1, 1, facecolor = self.slc_bg)
-
-        if w is None:
-            cmap = cmap_viridis
-            circle_type = None
-        elif diff is False:
-            cmap = cmap_magma
-            circle_type = None
-        else:
-            cmap = cmap_bwr
-            circle_type = 'arch'
-
-        self.plot_2d_density(d, bins=bins, w=w, n_pad=n_pad,
-                                ax=ax, cmap=cmap, vlim = vlim, circle_type = circle_type)
-
-        x_lim = ax.get_xlim()
-        y_lim = ax.get_ylim()
-
-        ax.text(0.82*x_lim[1], 0.03*y_lim[1], 'Density', c = self.slc_text, fontsize = 25)
-
-        if feat is not None:
-            ax.text(x_lim[0], 0.93*y_lim[1], feat, c = self.slc_text, fontsize = 30)
-
-        return umap_fig
-
-    @staticmethod
-    def plot_2d_density(d, bins=200, n_pad=40, ax=None, cmap=plt.get_cmap('viridis'), vlim=np.array([0.001, 0.98]), circle_type='bg', box_off=True, return_matrix=False):
-        '''
-        plot_2d_density(X, Y, bins, n_pad, w, ax, gaussian_sigma, cmap, vlim, circle_type, box_off, return_matrix)
-        is a method for drawing 2D histograms figures. In this particular instance, we are plotting the outputs of the UMAP.
+    def UMAPdraw_density(self, w=None, feat = None, diff = False, figsize=(12, 12)):
         
-        Parameters:
-        X: X-values
-        Y: Y-values
-        bins: Bins. Vector tickMin and tickMax for X and Y direction.
-        n_pad: number of elements to pad around a bin to make the spectrogram a little prettier. (I think)
-        w: weights used to augment the density maps based on secondary phenotypes
-        ax: Axes handle for the current figure
-        gaussian_sigma: Sigma value for a gaussian filter with weight values
-        cmap: color-map to use for the 2D Histogram
-        vlim: Value range that the colormap should cover
-        circle_type: Type of colormesh to return. ('bg', 'arch'). Will need to investigate further
-        box_off: Flag to turn box around the figure off
-        return_matrix: Flag for returning matrix. Default = 0 to not return density matrix, but intstead draws the figure.
-
-        Returns:
-        
-        '''
-
-        if return_matrix:
-            return d
-        else:
-            if d[d > 0].shape == (0,):
-                vmin = 0
-                vmax = 1
-                vlim = [vmin, vmax]
-            else:
-                if ~all((d < 0)[0]):
-                    if np.isscalar(vlim):
-                        vlim = np.array([0, np.quantile(d[d > 0].flatten(), vlim)])
-                    else:
-                        if np.all((vlim < 1) & (vlim > 0)):
-                            vlim = np.quantile(d[d > 0].flatten(), vlim)
-                else:
-                    vlim = np.zeros(200)
-
-            if ax is None:
-                _, ax = plt.subplots()
-
-            if np.isscalar(bins):
-                n_bins = bins
-            else:
-                n_bins = len(bins[0]) - 1
-
-            if circle_type == 'bg':
-                extend = 'max'
-                c = np.meshgrid(np.arange(2 * n_pad + n_bins), np.arange(2 * n_pad + n_bins))
-                c = np.sqrt(((c[0] - ((2 * n_pad + n_bins) / 2)) ** 2) + ((c[1] - ((2 * n_pad + n_bins) / 2)) ** 2)) < (0.95 * ((2 * n_pad + n_bins) / 2))
-                ax.pcolormesh(np.pad(d, [n_pad, n_pad]) + c, vmin=1, vmax=1 + vlim[1], cmap=cmap, shading='gouraud', alpha=1)
-                # ax.pcolormesh(np.log10(np.pad(d, [n_pad, n_pad]) + c + 1), vmin=np.log10(2), vmax=np.log10(2 + vlim[1]), cmap=cmap, shading='gouraud', alpha=1)
-            elif circle_type == 'arch':
-                extend = 'both'
-                if any((d<0)[0]):
-                    vmin = np.quantile(d[d < 0].flatten(), 0.03)
-                else:
-                    vmin = 0.03
-                if any((d>0)[0]):
-                    vmax = np.quantile(d[d > 0].flatten(), 0.97)
-                else:
-                    vmax = 0.97
-                c = (n_bins / 2)
-                ax.add_artist(plt.Circle((c + n_pad, c + n_pad), 0.95 * (c + n_pad), color='black', fill=False))
-                ax.pcolormesh(np.pad(d, [n_pad, n_pad]), vmin=vmin, vmax=vmax, cmap=cmap, shading='gouraud', alpha=1)
-            else:
-                extend = 'max'
-                ax.pcolormesh(np.pad(d, [n_pad, n_pad]), vmin=0, vmax=vlim[1], cmap=cmap, shading='gouraud', alpha=1)
-
-            cax = ax.inset_axes([0.95, 0.1, 0.01, 0.85])
-            plt_cmap(ax=cax, cmap=cmap, extend=extend, width=0.01)
-
-            if box_off is True:
-                [ax.spines[sp].set_visible(False) for sp in ax.spines]
-                ax.set(xticks=[], yticks=[])
+        return bpl.UMAPdraw_density(d = self.dens_mat,
+                                    bins = [self.xx, self.yy],
+                                    w = w,
+                                    n_pad = self.n_pad,
+                                    vlim = self.vlim,
+                                    feat = feat,
+                                    diff = diff,
+                                    figsize = figsize)
