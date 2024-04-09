@@ -11,92 +11,68 @@ import plotly.graph_objects as go
 
 
 def load_data(data_filename='Combo_CSVfiles_20230327_152849.csv', image_colname='ShortName'):
-    with st.spinner('Loading data...'):
-        st.session_state['df'] = pd.read_csv(os.path.join('.', 'input', data_filename))
-        st.session_state['unique_images'] = list(st.session_state['df'][image_colname].unique())
+    st.session_state['df'] = pd.read_csv(os.path.join('.', 'input', data_filename))
+    st.session_state['unique_images'] = list(st.session_state['df'][image_colname].unique())
 
 
 def generate_clusters(image_colname='ShortName', umap_x_colname='UMAP_1_20230327_152849', umap_y_colname='UMAP_2_20230327_152849', binary_colname='Survival_5yr', number_of_samples_frac=0.1, num_umap_bins=200, plot_manual_histogram_diff=False, plot_diff_matrix=True):
 
-    with st.spinner('Processing data...'):
+    # Get shortcuts to session state variables
+    df = st.session_state['df']
+    diff_cutoff_frac = st.session_state['diff_cutoff_frac']
 
-        # Get shortcuts to session state variables
-        df = st.session_state['df']
-        diff_cutoff_frac = st.session_state['diff_cutoff_frac']
+    # Get an equal number of cells from each image
+    num_cells_from_each_sample = int(round(df.groupby(image_colname).size().min() * number_of_samples_frac, -3))
+    indices = df.groupby(image_colname).apply(lambda x: x.sample(n=num_cells_from_each_sample, replace=False).index, include_groups=False).explode().values
 
-        # Get an equal number of cells from each image
-        num_cells_from_each_sample = int(round(df.groupby(image_colname).size().min() * number_of_samples_frac, -3))
-        indices = df.groupby(image_colname).apply(lambda x: x.sample(n=num_cells_from_each_sample, replace=False).index, include_groups=False).explode().values
+    # Assign the sample to 'umap_test'
+    df['umap_test'] = False
+    df.loc[indices, 'umap_test'] = True
 
-        # Assign the sample to 'umap_test'
-        df['umap_test'] = False
-        df.loc[indices, 'umap_test'] = True
+    # Get a universal set of edges for the UMAPs
+    edges_x = np.linspace(df[umap_x_colname].min(), df[umap_x_colname].max(), num_umap_bins + 1)
+    edges_y = np.linspace(df[umap_y_colname].min(), df[umap_y_colname].max(), num_umap_bins + 1)
 
-        # Get a universal set of edges for the UMAPs
-        edges_x = np.linspace(df[umap_x_colname].min(), df[umap_x_colname].max(), num_umap_bins + 1)
-        edges_y = np.linspace(df[umap_y_colname].min(), df[umap_y_colname].max(), num_umap_bins + 1)
+    # Get subsets of the full data that are the entire test set and both binary subsets of the test set
+    df_test = df[df['umap_test']]
+    binary_values = sorted(list(df[binary_colname].unique()))
+    df_binary_subset_0 = df_test[df_test[binary_colname] == binary_values[0]]
+    df_binary_subset_1 = df_test[df_test[binary_colname] == binary_values[1]]
 
-        # Get subsets of the full data that are the entire test set and both binary subsets of the test set
-        df_test = df[df['umap_test']]
-        binary_values = sorted(list(df[binary_colname].unique()))
-        df_binary_subset_0 = df_test[df_test[binary_colname] == binary_values[0]]
-        df_binary_subset_1 = df_test[df_test[binary_colname] == binary_values[1]]
+    # Get the 2D histograms for each condition
+    d_binary_subset_0 = PlottingTools.plot_2d_density(df_binary_subset_0[umap_x_colname], df_binary_subset_0[umap_y_colname], bins=[edges_x, edges_y], return_matrix=True)
+    d_binary_subset_1 = PlottingTools.plot_2d_density(df_binary_subset_1[umap_x_colname], df_binary_subset_1[umap_y_colname], bins=[edges_x, edges_y], return_matrix=True)
 
-        # Get the 2D histograms for each condition
-        d_binary_subset_0 = PlottingTools.plot_2d_density(df_binary_subset_0[umap_x_colname], df_binary_subset_0[umap_y_colname], bins=[edges_x, edges_y], return_matrix=True)
-        d_binary_subset_1 = PlottingTools.plot_2d_density(df_binary_subset_1[umap_x_colname], df_binary_subset_1[umap_y_colname], bins=[edges_x, edges_y], return_matrix=True)
+    # Get the difference between the histograms for the binary subsets
+    d_diff = d_binary_subset_1 - d_binary_subset_0
 
-        # Get the difference between the histograms for the binary subsets
-        d_diff = d_binary_subset_1 - d_binary_subset_0
+    # "Mask" the difference matrix based on a cutoff
+    cutoff = np.abs(d_diff).max() * diff_cutoff_frac
+    d_diff[d_diff > cutoff] = 1
+    d_diff[d_diff < -cutoff] = -1
+    d_diff[(d_diff >= -cutoff) & (d_diff <= cutoff)] = 0
 
-        # "Mask" the difference matrix based on a cutoff
-        cutoff = np.abs(d_diff).max() * diff_cutoff_frac
-        d_diff[d_diff > cutoff] = 1
-        d_diff[d_diff < -cutoff] = -1
-        d_diff[(d_diff >= -cutoff) & (d_diff <= cutoff)] = 0
+    # Get the clusters based only on the cutoff, deliberately not performing any clustering
+    clusters = {0: [tuple([x[1], x[0]]) for x in np.transpose(np.where(np.isclose(d_diff, -1)))], 1: [tuple([x[1], x[0]]) for x in np.transpose(np.where(np.isclose(d_diff, 1)))]}
 
-        # Get the clusters based only on the cutoff, deliberately not performing any clustering
-        clusters = {0: [tuple([x[1], x[0]]) for x in np.transpose(np.where(np.isclose(d_diff, -1)))], 1: [tuple([x[1], x[0]]) for x in np.transpose(np.where(np.isclose(d_diff, 1)))]}
+    # Plot the difference matrix
+    if plot_diff_matrix:
+        fig_d_diff, ax_d_diff = plt.subplots()
+        PlottingTools.plot_2d_density(d_diff, bins=[edges_x, edges_y], n_pad=30, circle_type='arch', cmap=plt.get_cmap('bwr'), ax=ax_d_diff)
 
-        # Plot the difference matrix
-        if plot_diff_matrix:
-            fig_d_diff, ax_d_diff = plt.subplots()
-            PlottingTools.plot_2d_density(d_diff, bins=[edges_x, edges_y], n_pad=30, circle_type='arch', cmap=plt.get_cmap('bwr'), ax=ax_d_diff)
+    # Optionally plot the difference matrix manually
+    if plot_manual_histogram_diff:
+        fig, ax = plt.subplots()
+        c = ax.pcolormesh(edges_x, edges_y, d_diff, cmap='bwr')
+        fig.colorbar(c, ax=ax)
+        st.session_state['fig_d_diff_manual'] = fig
 
-        # Optionally plot the difference matrix manually
-        if plot_manual_histogram_diff:
-            fig, ax = plt.subplots()
-            c = ax.pcolormesh(edges_x, edges_y, d_diff, cmap='bwr')
-            fig.colorbar(c, ax=ax)
-            st.session_state['fig_d_diff_manual'] = fig
+    # Save the processed data to the session state
+    st.session_state['processed_data'] = {'edges_x': edges_x, 'edges_y': edges_y, 'clusters': clusters}
 
-        # Save the processed data to the session state
-        st.session_state['processed_data'] = {'edges_x': edges_x, 'edges_y': edges_y, 'clusters': clusters}
-
-        # Save the difference plot to the session state
-        if plot_diff_matrix:
-            st.session_state['fig_d_diff'] = fig_d_diff
-
-
-def run_checks(image_colname='ShortName', spatial_x_colname='CentroidX', spatial_y_colname='CentroidY', umap_x_colname='UMAP_1_20230327_152849', umap_y_colname='UMAP_2_20230327_152849', property_colnames=['XMin', 'XMax', 'YMin', 'YMax'], min_cells_per_bin=1):
-
-    with st.spinner('Running checks...'):
-
-        # Get shortcuts to the original and processed data
-        df = st.session_state['df']
-        edges_x = st.session_state['processed_data']['edges_x']
-        edges_y = st.session_state['processed_data']['edges_y']
-        clusters = st.session_state['processed_data']['clusters']
-        
-        # Perform binning
-        df_test = neighborhood_profiles_checks.perform_binning(df, edges_x, edges_y, image_colname=image_colname, spatial_x_colname=spatial_x_colname, spatial_y_colname=spatial_y_colname, umap_x_colname=umap_x_colname, umap_y_colname=umap_y_colname, property_colnames=property_colnames)
-
-        # Generate the checks as plotly figures
-        df_by_bin, df_by_cell = neighborhood_profiles_checks.assign_cluster_labels(df_test, clusters, image_colname=image_colname, min_cells_per_bin=min_cells_per_bin)
-
-        # Save the figures to the session state
-        st.session_state['df_by_bin'] = df_by_bin
-        st.session_state['df_by_cell'] = df_by_cell
+    # Save the difference plot to the session state
+    if plot_diff_matrix:
+        st.session_state['fig_d_diff'] = fig_d_diff
 
 
 def plotly_scatter_plot(df_to_plot, x_colname='x coord', y_colname='y coord', label_colname='my_label', unique_labels=[0, 1], plot_title='My Plot', opacity_colname=None):
@@ -391,8 +367,23 @@ def main():
                 st.warning('Please process the data.')
                 return
             
-            # Click a button to run the checks
-            st.button('Run checks', on_click=run_checks, kwargs={'image_colname': image_colname, 'spatial_x_colname': spatial_x_colname, 'spatial_y_colname': spatial_y_colname, 'umap_x_colname': umap_x_colname, 'umap_y_colname': umap_y_colname, 'property_colnames': property_colnames, 'min_cells_per_bin': min_cells_per_bin})
+            # Click a button to perform UMAP binning
+            if st.button('Perform UMAP binning'):
+
+                # Determine the bins of the UMAP x and y coordinates of an input dataframe
+                df = st.session_state['df']
+                st.session_state['df_test_with_bins'] = neighborhood_profiles_checks.perform_umap_binning(df[df['umap_test']], st.session_state['processed_data']['edges_x'], st.session_state['processed_data']['edges_y'], image_colname=image_colname, spatial_x_colname=spatial_x_colname, spatial_y_colname=spatial_y_colname, umap_x_colname=umap_x_colname, umap_y_colname=umap_y_colname, property_colnames=property_colnames)
+
+            # Ensure UMAP binning has been performed
+            if 'df_test_with_bins' not in st.session_state:
+                st.warning('Please perform UMAP binning.')
+                return
+
+            # Click a button to assign the cluster labels
+            if st.button('Assign cluster labels'):
+
+                # Given the UMAP bins of each cell and the labels assigned to the bins, assign the labels to a per-cell dataframe and to a transformed dataframe grouped by bin, i.e., assign the label to each bin in that transformed dataframe
+                st.session_state['df_by_bin'], st.session_state['df_by_cell'] = neighborhood_profiles_checks.assign_cluster_labels(st.session_state['df_test_with_bins'], st.session_state['processed_data']['clusters'], image_colname=image_colname, min_cells_per_bin=min_cells_per_bin)
 
         # In the second column, plot Giraldo's difference histogram
         with col2:
@@ -410,7 +401,7 @@ def main():
         # Ensure we're ready to display the figure checks
         with col1:
             if 'df_by_bin' not in st.session_state:
-                st.warning('Please run the checks.')
+                st.warning('Please assign cluster labels.')
                 return
         
         # Draw the plots
@@ -460,8 +451,12 @@ def main():
                         # Generate the clusters using the current diff_cutoff_frac
                         generate_clusters(image_colname=image_colname, umap_x_colname=umap_x_colname, umap_y_colname=umap_y_colname, binary_colname=binary_colname, number_of_samples_frac=number_of_samples_frac, num_umap_bins=num_umap_bins, plot_manual_histogram_diff=plot_manual_histogram_diff, plot_diff_matrix=False)
 
-                        # Perform binning and assign cluster labels to the bins and cells
-                        run_checks(image_colname=image_colname, spatial_x_colname=spatial_x_colname, spatial_y_colname=spatial_y_colname, umap_x_colname=umap_x_colname, umap_y_colname=umap_y_colname, property_colnames=property_colnames, min_cells_per_bin=min_cells_per_bin)
+                        # Determine the bins of the UMAP x and y coordinates of an input dataframe
+                        df = st.session_state['df']
+                        df_test_with_bins = neighborhood_profiles_checks.perform_umap_binning(df[df['umap_test']], st.session_state['processed_data']['edges_x'], st.session_state['processed_data']['edges_y'], image_colname=image_colname, spatial_x_colname=spatial_x_colname, spatial_y_colname=spatial_y_colname, umap_x_colname=umap_x_colname, umap_y_colname=umap_y_colname, property_colnames=property_colnames)
+
+                        # Given the UMAP bins of each cell and the labels assigned to the bins, assign the labels to a per-cell dataframe and to a transformed dataframe grouped by bin, i.e., assign the label to each bin in that transformed dataframe
+                        st.session_state['df_by_bin'], st.session_state['df_by_cell'] = neighborhood_profiles_checks.assign_cluster_labels(df_test_with_bins, st.session_state['processed_data']['clusters'], image_colname=image_colname, min_cells_per_bin=min_cells_per_bin)
 
                         # For each image in the dataset, predict the binary label
                         for image_name in unique_images:
