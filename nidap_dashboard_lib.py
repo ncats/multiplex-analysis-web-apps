@@ -368,7 +368,7 @@ def assign_phenotype_col(df_raw, spec_summ_load, phenoMeth, marker_names):
         # then we have Will's "exclusive" case; otherwise, it's possible cells are
         # overlapping and we must duplicate the coordinates for the rows having
         # multiple positive markers
-        df = bpl.remove_compound_species(df_raw, marker_names, allow_compound_species=allow_compound_species)
+        df_raw = bpl.remove_compound_species(df_raw, marker_names, allow_compound_species=allow_compound_species)
 
         # Assign phenotype column to dataframe based on species name
         df = bpl.assign_phenotype_species(df_raw)
