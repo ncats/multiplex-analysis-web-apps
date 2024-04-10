@@ -292,7 +292,8 @@ def main():
             calculate_densities_help = None
             button_text = 'Calculate densities'
         if st.button(button_text, help=calculate_densities_help):
-            densities = neighborhood_profiles_checks.run_density_calculation(df, radius_edges=radius_edges_microns, spatial_x_colname=spatial_x_colname, spatial_y_colname=spatial_y_colname, image_colname=image_colname, phenotype_colname=phenotype_colname, debug_output=False, num_cpus_to_use=7, cast_to_float32=False)
+            densities, timing_string_density = neighborhood_profiles_checks.run_density_calculation(df, radius_edges=radius_edges_microns, spatial_x_colname=spatial_x_colname, spatial_y_colname=spatial_y_colname, image_colname=image_colname, phenotype_colname=phenotype_colname, debug_output=False, num_cpus_to_use=7, cast_to_float32=False)
+            st.write(timing_string_density)
             densities.to_pickle(densities_path)
             df.drop(columns=[column for column in densities.columns if column in df.columns], inplace=True)
             len_df_orig = len(df)
@@ -378,7 +379,9 @@ def main():
                 calculate_umap_help = None
                 button_text = 'Calculate UMAP'
             if st.button(button_text, help=calculate_umap_help):
-                umap = neighborhood_profiles_checks.run_umap_calculation()
+                umap, fit_string, transform_string = neighborhood_profiles_checks.run_umap_calculation()
+                st.write(fit_string)
+                st.write(transform_string)
                 umap.to_pickle(umap_path)
                 df.drop(columns=[column for column in umap.columns if column in df.columns], inplace=True)
                 len_df_orig = len(df)

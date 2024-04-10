@@ -5,6 +5,9 @@ import PlottingTools_orig as PlottingTools
 import matplotlib.pyplot as plt
 import time
 import neighbors_counts_for_neighborhood_profiles_orig
+import umap
+from sklearn.preprocessing import MinMaxScaler
+import datetime
 
 
 # Add columns to partition a dataframe into train and test sets for the UMAP, roughly similar to Giraldo et. al. 2021
@@ -89,7 +92,12 @@ def calculate_difference_clusters(df, diff_cutoff_frac, umap_x_colname='UMAP_1_2
     # TODO: Implement further clustering of the 1 and -1 classes!
 
     # Get the clusters based only on the cutoff, deliberately not performing any clustering
-    clusters = {0: [tuple([x[1], x[0]]) for x in np.transpose(np.where(np.isclose(d_diff, -1)))], 1: [tuple([x[1], x[0]]) for x in np.transpose(np.where(np.isclose(d_diff, 1)))]}
+    # clusters = {0: [tuple([x[1], x[0]]) for x in np.transpose(np.where(np.isclose(d_diff, -1)))], 1: [tuple([x[1], x[0]]) for x in np.transpose(np.where(np.isclose(d_diff, 1)))]}
+    clusters = {
+        -1: [tuple([x[1], x[0]]) for x in np.transpose(np.where(np.isclose(d_diff, -1)))],
+        0: [tuple([x[1], x[0]]) for x in np.transpose(np.where(np.isclose(d_diff, 0)))],
+        1: [tuple([x[1], x[0]]) for x in np.transpose(np.where(np.isclose(d_diff, 1)))]
+        }
 
     # Plot the difference matrix
     if plot_diff_matrix:
@@ -185,12 +193,11 @@ def run_density_calculation(df, radius_edges=[0, 25, 50, 100, 150, 200], spatial
     range_strings = ['({}, {}]'.format(radii[iradius], radii[iradius + 1]) for iradius in range(num_ranges)]
 
     # Calculate the density matrix for all images
+    print(f'Counting neighbors around {df.shape[0]} cells...')
     start_time = time.time()
     df_density_matrix = neighbors_counts_for_neighborhood_profiles_orig.calculate_density_matrix_for_all_images(image_names, df, phenotypes, phenotype_colname, image_colname, [spatial_x_colname, spatial_y_colname], radii, num_ranges, range_strings, debug_output=debug_output, num_cpus_to_use=num_cpus_to_use, swap_inequalities=True, cast_to_float32=cast_to_float32)
-    print(f'Time to calculate density matrix for all images: {int(time.time() - start_time)} seconds')
-
-    # Print the shape final density matrix dataframe, which can be concatenated with the original dataframe
-    print(f'Shape of final density matrix: {df_density_matrix.shape}')
+    timing_string_density = f'Time to count neighbors resulting in a counts matrix of shape {df_density_matrix.shape}: {int(time.time() - start_time)} seconds'
+    print(timing_string_density)
 
     # Fill in any NaN values with 0 and convert to integers
     df_density_matrix = df_density_matrix.fillna(0).astype(int)
@@ -226,9 +233,51 @@ def run_density_calculation(df, radius_edges=[0, 25, 50, 100, 150, 200], spatial
     print(np.histogram(df_density_matrix_divided))
 
     # Return the final density matrix
-    return df_density_matrix_divided
+    return df_density_matrix_divided, timing_string_density
 
 
-# TODO: Fill this in
-def run_umap_calculation():
-    return pd.DataFrame()
+# Perform UMAP on the density matrix of a dataframe, fitting on train cells and transforming all cells
+# TODO: See options to implement below
+def run_umap_calculation(df):
+
+    # Options to implement:
+    #   * Perform supervised UMAP
+    #   * Convert to float32 before running UMAP
+
+    # Get a copy (since we're about to normalize) of the density matrix of just the density columns
+    df_density = df.loc[:, [column for column in df.columns if column.startswith('spatial_umap_density of ')]].copy()
+
+    # Get a boolean series identifying the cells to be used for training the UMAP
+    training_set_locations = df['umap_train']
+
+    # Normalize to [0, 1] range, taking care of the scaler returning a numpy array instead of a dataframe
+    print(f'[min, max] before normalization: [{df_density.min().min()}, {df_density.max().max()}]')
+    df_density = pd.DataFrame(MinMaxScaler().fit_transform(df_density), columns=df_density.columns, index=df_density.index)
+    print(f'[min, max] after normalization: [{df_density.min().min()}, {df_density.max().max()}]')
+
+    # Get the pre-defined (in get_umap_train_and_test_sets()) training set
+    df_density_train = df_density.loc[training_set_locations, :]
+
+    # Perform UMAP on the training set
+    training_set_shape = df_density_train.shape
+    print(f'Fitting UMAP to the training set of shape {training_set_shape}...')
+    start_time = time.time()
+    umap_fit = umap.UMAP().fit(df_density_train)
+    timing_string_fit = f'Time to fit UMAP to the training set of shape {training_set_shape}: {int(time.time() - start_time)} seconds'
+    print(timing_string_fit)
+
+    # Transform all cells using the fitted UMAP
+    full_dataset_shape = df_density.shape
+    print(f'Transforming all cells of shape {full_dataset_shape} using the fitted UMAP...')
+    umap_transform_all_cells = umap_fit.transform(df_density)
+    timing_string_transform = f'Time to transform all cells of shape {full_dataset_shape} using the fitted UMAP: {int(time.time() - start_time)} seconds'
+    print(timing_string_transform)
+
+    # Put the UMAP results into a new dataframe
+    current_datetime = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    df_umap = pd.DataFrame({
+        f'UMAP_1_{current_datetime}': umap_transform_all_cells[:, 0],
+        f'UMAP_2_{current_datetime}': umap_transform_all_cells[:, 1]}, index=df_density.index)
+
+    # Return the UMAP results
+    return df_umap, timing_string_fit, timing_string_transform
