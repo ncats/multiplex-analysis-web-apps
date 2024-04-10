@@ -500,7 +500,7 @@ def is_symmetric_all(arr):
     # Return the boolean declaring whether all contained matrices are symmetric
     return all_are_symmetric
 
-def execute_data_parallelism_potentially(function=(lambda x: x), list_of_tuple_arguments=[(4444,)], nworkers=0, task_description='', do_benchmarking=False, mp_start_method=None):  # spawn works with name=main block in Home.py
+def execute_data_parallelism_potentially(function=(lambda x: x), list_of_tuple_arguments=[(4444,)], nworkers=0, task_description='', do_benchmarking=False, mp_start_method=None, use_starmap=False):  # spawn works with name=main block in Home.py
     # Note I forced mp_start_method = 'spawn' up until 4/27/23. Removing that and letting Python choose the default for the OS got parallelism working on NIDAP. I likely forced it to be spawn a long time ago maybe to get it working on Biowulf or my laptop or something like that. This worked in all scenarios including on my laptop (in WSL) though I get weird warnings I believe. I got confident about doing it this most basic way on 4/27/23 after reading Goyo's 2/7/23 example [here](https://discuss.streamlit.io/t/streamlit-session-state-with-multiprocesssing/29230/2) showing the same exact method I've been using except for forcing multiprocessing to use the "spawn" start method.
 
     # Import relevant library
@@ -526,7 +526,12 @@ def execute_data_parallelism_potentially(function=(lambda x: x), list_of_tuple_a
     if use_multiprocessing:
         print('Running {} function calls using the "{}" protocol with {} workers for the {}'.format(len(list_of_tuple_arguments), mp_start_method, nworkers, task_description))
         with mp.get_context(mp_start_method).Pool(nworkers) as pool:
-            pool.map(function, list_of_tuple_arguments)
+            if not use_starmap:
+                pool.map(function, list_of_tuple_arguments)
+            else:
+                # Apply the calculate_density_matrix_for_image function to each set of keyword arguments in kwargs_list, i.e., list_of_tuple_arguments is really a kwargs_list
+                # A single call would be something like: calculate_density_matrix_for_image(**kwargs_list[4])
+                results = pool.starmap(function, list_of_tuple_arguments)
 
     # Execute fully in serial without use of the multiprocessing module
     else:
@@ -538,6 +543,10 @@ def execute_data_parallelism_potentially(function=(lambda x: x), list_of_tuple_a
     if do_benchmarking:
         elapsed_time = time.time() - start_time
         print('BENCHMARKING: The task took {} seconds using {} CPU(s) {} hyperthreading'.format(elapsed_time, (nworkers if use_multiprocessing else 1), ('WITH' if use_multiprocessing else 'WITHOUT')))
+
+    # Since I don't usually return the results from .map() and I'm only doing it in the case that's making me implement starmap here, only return results when starmap is used (plus I'm still not returning it in map() above)
+    if use_starmap:
+        return results
 
 # Only used for the not-yet-used multiprocessing functionality in calculate_neighbor_counts_with_possible_chunking
 def wrap_calculate_neighbor_counts(args):

@@ -50,15 +50,8 @@ def calculate_density_matrix_for_all_images(image_names, df, phenotypes, phenoty
             )
         )
 
-    # Get the number of CPUs to use
-    print(f'Using {num_cpus_to_use} CPUs')
-
-    # Create a pool of worker processes
-    with multiprocessing.Pool(processes=num_cpus_to_use) as pool:
-
-        # Apply the calculate_density_matrix_for_image function to each set of keyword arguments in kwargs_list
-        # A single call would be something like: calculate_density_matrix_for_image(**kwargs_list[4])
-        results = pool.starmap(calculate_density_matrix_for_image, kwargs_list)
+    # Fan out the function to num_cpus_to_use CPUs
+    results = utils.execute_data_parallelism_potentially(function=calculate_density_matrix_for_image, list_of_tuple_arguments=kwargs_list, nworkers=num_cpus_to_use, task_description='calculation of the counts matrix for neighborhood profiles checker', do_benchmarking=True, mp_start_method=None, use_starmap=True)
 
     # Concatenate the results into a single dataframe
     return pd.concat(results)

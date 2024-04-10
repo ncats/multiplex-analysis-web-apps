@@ -240,7 +240,8 @@ def main():
     spatial_x_colname = 'CentroidX'
     spatial_y_colname = 'CentroidY'
     phenotype_colname = 'pheno_20230327_152849'
-    property_colnames = ['XMin', 'XMax', 'YMin', 'YMax']
+    # property_colnames = ['XMin', 'XMax', 'YMin', 'YMax']
+    property_colnames = 'spatial_umap_density of '
     binary_colnames = ['Outcome', 'Survival_5yr']
     radius_edges_microns = np.array([0, 25, 50, 100, 150, 200])
     num_umap_bins = 200
@@ -306,6 +307,10 @@ def main():
             return
         else:
             df = st.session_state['df']
+
+        # If property_colnames is a string instead of a list, set it to all the columns in df that start with the string
+        if isinstance(property_colnames, str):
+            property_colnames = [col for col in df.columns if col.startswith(property_colnames)]
 
         # Create a dropdown for the user to choose the binary label of interest
         if 'npc__binary_colname' not in st.session_state:

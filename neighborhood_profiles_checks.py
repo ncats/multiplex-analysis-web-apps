@@ -209,18 +209,18 @@ def run_density_calculation(df, radius_edges=[0, 25, 50, 100, 150, 200], spatial
     # Get the areas for each column
     areas_for_columns = [ser_areas[column.split(' in range ')[1]] for column in df_density_matrix.columns]
 
-    # Divide the columns of df_density_matrix by areas_for_columns to get the spatial density
+    # Divide the columns of df_density_matrix by areas_for_columns to get the spatial density in units of counts per unit area (despite it being called "density_matrix" above... it's really a counts matrix)
     df_density_matrix_divided = df_density_matrix.div(pd.Series(areas_for_columns, index=df_density_matrix.columns), axis=1)
 
     # Rename the columns
     new_column_names = ['spatial_umap_density of ' + column.removeprefix('Number of neighbors of type ') for column in df_density_matrix.columns]
     df_density_matrix_divided = df_density_matrix_divided.rename(columns=dict(zip(df_density_matrix.columns, new_column_names)))
 
-    # Normalize the density matrix
-    df_density_matrix_divided = df_density_matrix_divided / df_density_matrix_divided.max().max()
+    # # Normalize the density matrix --> do this before the UMAP instead
+    # df_density_matrix_divided = df_density_matrix_divided / df_density_matrix_divided.max().max()
 
-    # Convert to float32
-    df_density_matrix_divided = df_density_matrix_divided.astype(np.float32)
+    # # Convert to float32 --> float64 seems to better represent the densities perhaps
+    # df_density_matrix_divided = df_density_matrix_divided.astype(np.float32)
 
     # Print out the histogram of the final density matrix
     print(np.histogram(df_density_matrix_divided))
