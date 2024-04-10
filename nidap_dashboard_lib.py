@@ -284,8 +284,8 @@ def set_phenotyping_elements(session_state, df_orig):
     session_state.spec_summ_load       = session_state.spec_summ # Default version that is loaded
     session_state.spec_summ_dataeditor = session_state.spec_summ # Default version that is used for custom phenotyping table
 
-    # if 'dataeditor__do_not_persist' in session_state:
-    #     del session_state.dataeditor__do_not_persist
+    if 'dataeditor__do_not_persist' in session_state:
+        del session_state.dataeditor__do_not_persist
 
     # Initalize Phenotyping Settings (Radio BUttons)
     session_state.noPhenoOpt = 'Not Selected'
@@ -323,8 +323,8 @@ def updatePhenotyping(session_state):
     # Initalize Species Summary Table
     session_state.spec_summ    = bpl.init_pheno_assign(session_state.df)
 
-    # if 'dataeditor__do_not_persist' in session_state:
-    #     del session_state.dataeditor__do_not_persist
+    if 'dataeditor__do_not_persist' in session_state:
+        del session_state.dataeditor__do_not_persist
 
     # session_state.spec_summ_load       = session_state.spec_summ
     session_state.spec_summ_dataeditor = session_state.spec_summ
@@ -343,7 +343,19 @@ def updatePhenotyping(session_state):
 def assign_phenotype_col(df_raw, spec_summ_load, phenoMeth, marker_names):
     """
     Assign a new column to the raw dataset (df_raw) called 'phenotype' based on the 
-    phenotyping method selected. The returned dataset (df) is considered 
+    phenotyping method selected.
+
+    This function is called within the updatePhenotyping function. It is also responsible
+    for creating the 'df' dataframe that is used in the rest of the analysis.
+
+    Args:
+        df_raw: Raw dataset
+        spec_summ_load: Species Summary Table
+        phenoMeth: Phenotyping Method
+        marker_names: Marker Names
+    
+    Returns:
+        df: Updated dataset
     """
 
     if phenoMeth != 'Custom':
@@ -376,7 +388,7 @@ def perform_filtering(session_state):
     """
 
     # Create dictionaries of filter types
-    session_state = init_filter_struct(session_state, 
+    session_state = init_filter_struct(session_state,
                                        session_state.SEL_feat,
                                        session_state.CHK_feat)
 

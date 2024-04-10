@@ -113,8 +113,8 @@ def init_pheno_assign(df):
                                including a "mark_bits" column
 
     Returns:
-        Pandas dataframe: Dataframe containing the value counts 
-                          of each "exclusive" species
+        spec_summ (Pandas dataframe): Dataframe containing the value counts 
+                                      of each "exclusive" species
     '''
 
     st_init_species = time.time()
