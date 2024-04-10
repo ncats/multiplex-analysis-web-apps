@@ -10,7 +10,7 @@ from sklearn.preprocessing import MinMaxScaler
 import datetime
 
 
-# Add columns to partition a dataframe into train and test sets for the UMAP, roughly similar to Giraldo et. al. 2021
+# Add columns to partition a dataframe into train and test sets for the UMAP, roughly similar to Giraldo et. al. 2021. Note frac_train and frac_test cannot be larger than 0.5
 def get_umap_train_and_test_sets(df, frac_train=0.5, frac_test=0.5, image_colname='ShortName', num_umap_test_sets=1):
 
     # Calculate the size of the train and test sets based on the size of the smallest image
@@ -27,7 +27,7 @@ def get_umap_train_and_test_sets(df, frac_train=0.5, frac_test=0.5, image_colnam
     df_not_train = df[~df['umap_train']]
 
     # Delete all currently existing umap test columns, if any
-    df = df.drop(columns=[column for column in df.columns if column.startswith('umap_test_')])
+    df.drop(columns=[column for column in df.columns if column.startswith('umap_test_')], inplace=True)
 
     # Pre-calculate group indices
     group_indices = df_not_train.groupby(image_colname).indices
