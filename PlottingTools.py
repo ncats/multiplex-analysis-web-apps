@@ -314,23 +314,35 @@ def plot_mean_neighborhood_profile(ax, dist_bin, npf_dens_mean, cluster_title, m
                   labelcolor = slc_text)
 
 def plot_incidence_line(ax, df, phenotype):
-    
-    SlBgC  = '#0E1117'  # Streamlit Background Color
-    SlTC   = '#FAFAFA'  # Streamlit Text Color
-    Sl2BgC = '#262730'  # Streamlit Secondary Background Color
+    '''
+    Plot the incidence of a given phenotype over time
+
+    Args:
+        ax: Matplotlib axis handle
+        df: Pandas DataFrame
+        phenotype: String of the phenotype to plot
+
+    Returns:
+        None    
+    '''
+
+    # Streamlit Theming
+    slc_bg   = '#0E1117'  # Streamlit Background Color
+    slc_text = '#FAFAFA'  # Streamlit Text Color
+    slc_bg2  = '#262730'  # Streamlit Secondary Background Color
 
     plotax = ax.plot(df.index, df, marker = 'o', markersize = 14, linewidth=2.5)
 
     ax.set_frame_on(False) # Turn off the Frame
     ax.grid('True', alpha = 0.3)
-    ax.spines['left'].set_color(SlTC)
-    ax.spines['bottom'].set_color(SlTC)
-    ax.tick_params(axis='x', colors=SlTC, which='both')
-    ax.tick_params(axis='y', colors=SlTC, which='both')
-    ax.legend(plotax, [phenotype], 
-              facecolor = Sl2BgC,
-              edgecolor = Sl2BgC,
-              labelcolor = SlTC,
+    ax.spines['left'].set_color(slc_text)
+    ax.spines['bottom'].set_color(slc_text)
+    ax.tick_params(axis='x', colors=slc_text, which='both')
+    ax.tick_params(axis='y', colors=slc_text, which='both')
+    ax.legend(plotax, [phenotype],
+              facecolor = slc_bg2,
+              edgecolor = slc_bg2,
+              labelcolor = slc_text,
               fontsize = 16)
 
 def draw_cmp_swatches(color_list):

@@ -113,8 +113,8 @@ def init_pheno_assign(df):
                                including a "mark_bits" column
 
     Returns:
-        Pandas dataframe: Dataframe containing the value counts 
-                          of each "exclusive" species
+        spec_summ (Pandas dataframe): Dataframe containing the value counts 
+                                      of each "exclusive" species
     '''
 
     st_init_species = time.time()
@@ -747,9 +747,9 @@ def createHeatMap(df, phenoList, title, normAxis = None):
     title.append(heatMapTitle)
 
     figTitle = wrapTitleText(title)
-    pltTitle = ''
+    plot_title = ''
     for i in figTitle:
-        pltTitle = pltTitle + i + '\n'
+        plot_title = plot_title + i + '\n'
 
     # Define Output Variables
     phenotypes = heatMapDf.columns
@@ -768,7 +768,7 @@ def createHeatMap(df, phenoList, title, normAxis = None):
     x, _ = ax.transAxes.inverted().transform([bbox.x0, bbox.y0])
 
     # Show all ticks and label them with the respective list entries
-    ax.set_title(pltTitle, fontsize = 20, loc = 'left', color = SlTC, x=3*x, wrap=True)
+    ax.set_title(plot_title, fontsize = 20, loc = 'left', color = SlTC, x=3*x, wrap=True)
     ax.set_xticks(np.arange(len(phenotypes)), labels = phenotypes, fontsize = 14, color = SlTC)
     ax.set_yticks(np.arange(len(clusters)), labels = clusters, fontsize = 14, color = SlTC)
 
@@ -863,11 +863,28 @@ def preprocess_weighted_umap(w, df_umap):
     return w, df_umap
 
 def UMAPdraw_density(d, bins, w, n_pad, vlim, feat = None, diff = False, legendtype = 'colorbar', figsize=(12, 12)):
+    '''
+    UMAPdraw_density is the method that draws the UMAP density plot
+
+    Args:
+        d (numpy array): UMAP data
+        bins (int): Number of bins to use
+        w (numpy array): Weights for the UMAP data
+        n_pad (int): Padding for the bins
+        vlim (list): Limits for the colorbar
+        feat (str): Feature to display
+        diff (bool): Flag to display the difference
+        legendtype (str): Type of legend to display
+        figsize (tuple): Size of the figure
+
+    Returns:
+        umap_fig (MATPLOTLIB Figure Obj): UMAP density plot figure
+    '''
 
     # Streamlit Theming
-    SlBgC  = '#0E1117'  # Streamlit Background Color
-    SlTC   = '#FAFAFA'  # Streamlit Text Color
-    Sl2BgC = '#262730'  # Streamlit Secondary Background Color
+    slc_bg   = '#0E1117'  # Streamlit Background Color
+    slc_text = '#FAFAFA'  # Streamlit Text Color
+    slc_bg2  = '#262730'  # Streamlit Secondary Background Color
 
     # color maps
     cmap_viridis = plt.get_cmap('viridis').copy()
@@ -877,8 +894,8 @@ def UMAPdraw_density(d, bins, w, n_pad, vlim, feat = None, diff = False, legendt
     cmap_bwr = plt.get_cmap('bwr').copy()
 
     # Set up Figure
-    umap_fig = plt.figure(figsize=figsize, facecolor = SlBgC)
-    ax = umap_fig.add_subplot(1, 1, 1, facecolor = SlBgC)
+    umap_fig = plt.figure(figsize=figsize, facecolor = slc_bg)
+    ax = umap_fig.add_subplot(1, 1, 1, facecolor = slc_bg)
 
     if w is None and diff is False:
         cmap = cmap_viridis
@@ -896,37 +913,40 @@ def UMAPdraw_density(d, bins, w, n_pad, vlim, feat = None, diff = False, legendt
     x_lim = ax.get_xlim()
     y_lim = ax.get_ylim()
 
-    ax.text(0.82*x_lim[1], 0.03*y_lim[1], 'Density', c = SlTC, fontsize = 25)
+    ax.text(0.82*x_lim[1], 0.03*y_lim[1], 'Density', c = slc_text, fontsize = 25)
 
     if feat is not None:
         if cmap == cmap_bwr:
             ax.text(x_lim[0], 0.93*y_lim[1], feat, c = 'black', fontsize = 30)
         else:
-            ax.text(x_lim[0], 0.93*y_lim[1], feat, c = SlTC, fontsize = 30)
+            ax.text(x_lim[0], 0.93*y_lim[1], feat, c = slc_text, fontsize = 30)
 
     return umap_fig
 
-def drawIncidenceFigure(df, figTitle, phenotype = 'All Phenotypes', feature = 'Cell Counts', displayas = 'Counts Difference', compThresh = None, figsize=(12,12)):
-    import PlottingTools as umPT
+def drawIncidenceFigure(df, figTitle, phenotype = 'All Phenotypes', feature = 'Cell Counts', displayas = 'Counts Difference', comp_thresh = None, figsize=(12,12)):
+    '''
+    Draws the line plot figure which describes the incideces of a 
+    selected features
+    '''
 
-    SlBgC  = '#0E1117'  # Streamlit Background Color
-    SlTC   = '#FAFAFA'  # Streamlit Text Color
-    Sl2BgC = '#262730'  # Streamlit Secondary Background Color
+    slc_bg   = '#0E1117'  # Streamlit Background Color
+    slc_text = '#FAFAFA'  # Streamlit Text Color
+    slc_bg2  = '#262730'  # Streamlit Secondary Background Color
 
     figTitle = wrapTitleText(figTitle)
-    pltTitle = ''
+    plot_title = ''
     for i in figTitle:
-        pltTitle = pltTitle + i + '\n'
+        plot_title = plot_title + i + '\n'
 
-    inciFig = plt.figure(figsize=figsize, facecolor = SlBgC)
-    ax = inciFig.add_subplot(1, 1, 1, facecolor = SlBgC)
+    inci_fig = plt.figure(figsize=figsize, facecolor = slc_bg)
+    ax = inci_fig.add_subplot(1, 1, 1, facecolor = slc_bg)
 
-    if compThresh is not None:
-        upTag = f' >= {compThresh}'
-        dnTag = f' < {compThresh}'
+    if comp_thresh is not None:
+        up_tag = f' >= {comp_thresh}'
+        dn_tag = f' < {comp_thresh}'
     else:
-        upTag = f' = 1'
-        dnTag = f' = 0'
+        up_tag = ' = 1'
+        dn_tag = ' = 0'
 
     if feature != 'Cell Counts':
 
@@ -934,25 +954,25 @@ def drawIncidenceFigure(df, figTitle, phenotype = 'All Phenotypes', feature = 'C
 
         dfmin = df.loc[(df != np.nan)].min()
         dfmax = df.loc[(df != np.nan)].max()
-        upLimit = max(-1*dfmin, dfmax)
+        up_limit = max(-1*dfmin, dfmax)
         if displayas == 'Count Differences':
-            if upLimit < 2:
-                upLimit = 2
-            ax.set_ylim([-1.05*upLimit, 1.05*upLimit])
-            plt.axhline(y = 0, color = SlTC, linestyle = 'dashed', alpha = 0.7)
-            ax.text(0.5, upLimit*.95, f'{feature}{upTag}', c = SlTC, fontsize = 30, alpha = 0.3)
-            ax.text(0.5, -upLimit*.95, f'{feature}{dnTag}', c = SlTC, fontsize = 30, alpha = 0.3)
+            if up_limit < 2:
+                up_limit = 2
+            ax.set_ylim([-1.05*up_limit, 1.05*up_limit])
+            plt.axhline(y = 0, color = slc_text, linestyle = 'dashed', alpha = 0.7)
+            ax.text(0.5, up_limit*.95, f'{feature}{up_tag}', c = slc_text, fontsize = 30, alpha = 0.3)
+            ax.text(0.5, -up_limit*.95, f'{feature}{dn_tag}', c = slc_text, fontsize = 30, alpha = 0.3)
             outcome_suff = ' (Counts)'
         elif displayas == 'Ratios':
-            ax.set_ylim([-1.05*upLimit, 1.05*upLimit])
-            plt.axhline(y = 0, color = SlTC, linestyle = 'dashed', alpha = 0.7)
-            ax.text(0.5, upLimit*.95, f'{feature}{upTag}', c = SlTC, fontsize = 30, alpha = 0.3)
-            ax.text(0.5, -upLimit*.95, f'{feature}{dnTag}', c = SlTC, fontsize = 30, alpha = 0.3)
+            ax.set_ylim([-1.05*up_limit, 1.05*up_limit])
+            plt.axhline(y = 0, color = slc_text, linestyle = 'dashed', alpha = 0.7)
+            ax.text(0.5, up_limit*.95, f'{feature}{up_tag}', c = slc_text, fontsize = 30, alpha = 0.3)
+            ax.text(0.5, -up_limit*.95, f'{feature}{dn_tag}', c = slc_text, fontsize = 30, alpha = 0.3)
             outcome_suff = ' Ratio (log10)'
         elif displayas == 'Percentages':
-            ax.set_ylim([-1.05, 1.05*upLimit])
-            plt.axhline(y = 0, color = SlTC, linestyle = 'dashed', alpha = 0.7)
-            ax.text(0.5, upLimit*.95, f'{feature}{upTag}', c = SlTC, fontsize = 30, alpha = 0.3)
+            ax.set_ylim([-1.05, 1.05*up_limit])
+            plt.axhline(y = 0, color = slc_text, linestyle = 'dashed', alpha = 0.7)
+            ax.text(0.5, up_limit*.95, f'{feature}{up_tag}', c = slc_text, fontsize = 30, alpha = 0.3)
             outcome_suff = ' (%)'
 
     else:
@@ -960,20 +980,20 @@ def drawIncidenceFigure(df, figTitle, phenotype = 'All Phenotypes', feature = 'C
 
         dfmin = df.min()
         dfmax = df.max()
-        upLimit = max(-1*dfmin, dfmax)
+        up_limit = max(-1*dfmin, dfmax)
         limrange = dfmax-dfmin
         liminc = limrange/8
         ax.set_ylim([dfmin-(liminc*0.1), dfmax + (liminc*0.1)])
-        ax.text(0.5, upLimit*.95, f'{feature}', c = SlTC, fontsize = 30, alpha = 0.3)
-        plt.axhline(y = 0, color = SlTC, linestyle = 'dashed', alpha = 0.7)
+        ax.text(0.5, up_limit*.95, f'{feature}', c = slc_text, fontsize = 30, alpha = 0.3)
+        plt.axhline(y = 0, color = slc_text, linestyle = 'dashed', alpha = 0.7)
         outcome_suff = ' (Counts)'
 
     umPT.plot_incidence_line(ax, df, phenotype)
-    
-    # Reset xticks after 
-    ax.set_xticks(df.index)
-    ax.set_title(pltTitle, fontsize = 20, loc = 'left', color = SlTC)
-    ax.set_xlabel('Cluster #', fontsize = 14, color = SlTC)
-    ax.set_ylabel(f'{feature}{outcome_suff}', fontsize = 14, color = SlTC)
 
-    return inciFig
+    # Reset xticks after
+    ax.set_xticks(df.index)
+    ax.set_title(plot_title, fontsize = 20, loc = 'left', color = slc_text)
+    ax.set_xlabel('Cluster #', fontsize = 14, color = slc_text)
+    ax.set_ylabel(f'{feature}{outcome_suff}', fontsize = 14, color = slc_text)
+
+    return inci_fig
