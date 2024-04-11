@@ -249,6 +249,7 @@ def main():
     min_cells_per_bin = 1
     plot_manual_histogram_diff = False
     workflow_options = ['Figure visualization', 'Prediction']
+    num_workers = 7
 
     # Generate three columns for the settings and umap differences
     col1, col2, col3 = st.columns(3)
@@ -379,7 +380,7 @@ def main():
                 calculate_umap_help = None
                 button_text = 'Calculate UMAP'
             if st.button(button_text, help=calculate_umap_help):
-                umap, fit_string, transform_string = neighborhood_profiles_checks.run_umap_calculation(df)
+                umap, fit_string, transform_string = neighborhood_profiles_checks.run_umap_calculation(df, nworkers=num_workers, transform_full_dataset=False)
                 st.write(fit_string)
                 st.write(transform_string)
                 umap.to_pickle(umap_path)
