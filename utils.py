@@ -7,6 +7,7 @@ import numpy as np
 import scipy.spatial
 import streamlit_utils
 import pandas as pd
+import os
 
 def set_filename_corresp_to_roi(df_paths, roi_name, curr_colname, curr_dir, curr_dir_listing):
     """Update the path in a main paths-holding dataframe corresponding to a particular ROI in a particular directory.
@@ -955,3 +956,13 @@ def downcast_int_series(ser):
 
     # Return the downcasted series
     return ser
+
+
+# Get the size of a directory recursively
+def get_dir_size(path_to_dir_to_upload):
+    total = 0
+    for dirpath, _, filenames in os.walk(path_to_dir_to_upload):
+        for f in filenames:
+            fp = os.path.join(dirpath, f)
+            total += os.path.getsize(fp)
+    return total / (1024 * 1024)  # Convert bytes to MB

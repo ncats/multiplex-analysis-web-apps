@@ -561,18 +561,9 @@ class Platform:
                     # Obtain the corresponding chunked set of zip files
                     matching_archives_files = sorted([x for x in nidap_io.list_files_in_dataset(self.dataset_file_objects_for_available_archives) if x.startswith(selected_archive_with_proper_extension)])  # there must be at least one
 
-                    # Use parallelization from Palantir instead of my custom parallelization below
+                    # Download the files from the dataset in parallel
                     all_downloaded_files = nidap_io.download_files_from_dataset(nidap_io.get_foundry_dataset(alias='output'), dataset_filter_func=lambda f: f.path in matching_archives_files, limit=15)
                     local_download_paths = [all_downloaded_files[zip_file_chunk] for zip_file_chunk in matching_archives_files]
-
-                    # # Initialize a dictionary that spans across all processes
-                    # manager = multiprocessing.Manager()
-                    # local_download_paths_dict = manager.dict()
-
-                    # # Download the zip file parts from the output dataset on NIDAP
-                    # list_of_tuple_arguments = [(self.dataset_file_objects_for_available_archives, local_download_paths_dict) + (zip_file_chunk,) for zip_file_chunk in matching_archives_files]
-                    # utils.execute_data_parallelism_potentially(function=download_single_file_from_dataset, list_of_tuple_arguments=list_of_tuple_arguments, nworkers=nworkers_for_data_transfer, task_description='download of zip file chunks from the NIDAP dataset', do_benchmarking=True)
-                    # local_download_paths = [local_download_paths_dict[zip_file_chunk] for zip_file_chunk in matching_archives_files]
 
                     # Extract all downloaded parts
                     extract_zipfile_to_directory(filepaths=local_download_paths, extraction_path=local_output_dir)
@@ -914,21 +905,6 @@ def upload_single_file_to_dataset(args_as_single_tuple):
     nidap_io.upload_file_to_dataset(dataset, selected_filepath=os.path.join(filedir, filename))
     duration = time.time() - start_time
     print('  Upload of {} ({:5.3f} MB) from Workspaces to Compass took {:3.1f} seconds --> {:3.1f} MB/s'.format(filename, filesize, duration, filesize / duration))
-
-def download_single_file_from_dataset(args_as_single_tuple):
-    # This is not actually used anymore because we're using parallelization now (from about a month or two prior to 3/29/24)
-    import nidap_io
-    import time
-    import os
-    dataset_file_objects, local_download_paths_dict, filename = args_as_single_tuple
-    print('Downloading zip file chunk {}...'.format(filename))
-    dataset_file_object = nidap_io.get_dataset_file_object(dataset_file_objects, selected_filename=filename)
-    start_time = time.time()
-    curr_local_download_path = nidap_io.download_file_from_dataset(dataset_file_object)
-    local_download_paths_dict[filename] = curr_local_download_path
-    filesize = os.path.getsize(curr_local_download_path) / 1024 ** 2
-    duration = time.time() - start_time
-    print('  Download of {} ({:5.3f} MB) from Compass to Workspaces took {:3.1f} seconds --> {:3.1f} MB/s'.format(filename, filesize, duration, filesize / duration))
 
 def back_up_results_to_nidap(local_output_dir, basename_suffix_for_new_results_archive, chunksize_in_mb=200):
 
