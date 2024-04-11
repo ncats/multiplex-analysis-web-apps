@@ -210,9 +210,6 @@ def main():
         clust_butt = st.button('Perform Clustering Analysis', disabled=clust_butt_disabled)
 
     with npf_cols[1]:
-        if st.session_state['toggle_clust_diff']:
-            st.selectbox('Feature', options = st.session_state.outcomes, key = 'dens_diff_feat_sel')
-            st.number_input('Cutoff Percentage', min_value = 0.01, max_value = 0.99, value = 0.2, step = 0.01, key = 'dens_diff_cutoff')
         if dens_butt:
             if st.session_state.phenotyping_completed:
                 init_spatial_umap()
@@ -222,6 +219,9 @@ def main():
         if clust_butt:
             if st.session_state.umapCompleted:
                 set_clusters()
+        if st.session_state['toggle_clust_diff']:
+            st.selectbox('Feature', options = st.session_state.outcomes, key = 'dens_diff_feat_sel')
+            st.number_input('Cutoff Percentage', min_value = 0.01, max_value = 0.99, value = 0.2, step = 0.01, key = 'dens_diff_cutoff')
 
     with npf_cols[2]:
         if st.session_state.umapCompleted:
@@ -262,10 +262,10 @@ def main():
                 udp_mask.set_feature_label(st.session_state.dens_diff_feat_sel, f'Difference- Masked, cutoff = {st.session_state.dens_diff_cutoff}')
                 st.session_state.UMAPFig_mask = udp_mask.UMAPdraw_density(diff= True)
 
-                # Prepare for Clustering
+                # Perform Clustering
                 udp_clus = copy(udp_mask)
                 udp_clus.perform_clustering(dens_mat_cmp=udp_mask.dens_mat,
-                                            num_clus_0=st.session_state.num_clus_0, 
+                                            num_clus_0=st.session_state.num_clus_0,
                                             num_clus_1=st.session_state.num_clus_1)
                 udp_clus.set_feature_label(st.session_state.dens_diff_feat_sel, f'Clusters, False-{st.session_state.num_clus_0}, True-{st.session_state.num_clus_1}')
                 st.session_state.UMAPFig_clus = udp_clus.UMAPdraw_density(diff= True)
@@ -291,6 +291,7 @@ def main():
                 # After assigning cluster labels, perform mean calculations
                 st.session_state.spatial_umap.mean_measures()
 
+                # Create the Cluster Scatterplot
                 filter_and_plot()
 
                 exp_cols = st.columns(3)
