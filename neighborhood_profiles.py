@@ -552,5 +552,52 @@ class UMAPDensityProcessing():
                 else:
                     self.dens_mat[x_bin, y_bin] = 0
 
-    def setup_filtering():
-        pass
+    def perform_clustering(self, dens_mat_cmp, num_clus_0, num_clus_1):
+        '''
+        Sets up clustering
+        '''
+
+        kmeans_obj_cond0 = KMeans(n_clusters = num_clus_0,
+                            init ='k-means++',
+                            max_iter = 300,
+                            n_init = 10,
+                            random_state = 42)
+        kmeans_obj_cond1 = KMeans(n_clusters = num_clus_1,
+                            init ='k-means++',
+                            max_iter = 300,
+                            n_init = 10,
+                            random_state = 42)
+
+        cond0_ind = np.nonzero(dens_mat_cmp == -1)
+        cells_cond0 = np.vstack(cond0_ind).T
+        kmeans_obj_cond0.fit(cells_cond0)
+
+        cond1_ind = np.nonzero(dens_mat_cmp == 1)
+        cells_cond1 = np.vstack(cond1_ind).T
+        kmeans_obj_cond1.fit(cells_cond1)
+
+        self.dens_mat[cond0_ind] = -kmeans_obj_cond0.labels_ -1
+        self.dens_mat[cond1_ind] = kmeans_obj_cond1.labels_ + 1
+
+        self.cluster_dict = dict()
+        self.cluster_dict[0] = 'No Cluster'
+        for i in range(num_clus_0):
+            self.cluster_dict[-i-1] = f'False_Cluster{i+1}'
+        for i in range(num_clus_1):
+            self.cluster_dict[i+1] = f'True_Clust{i+1}'
+        
+    # def perform_clustering(self, n_clusters, cond):
+    #     '''
+        
+    #     '''
+
+    #     kmeans_obj = KMeans(n_clusters = n_clusters,
+    #                         init ='k-means++',
+    #                         max_iter = 300,
+    #                         n_init = 10,
+    #                         random_state = 42)
+        
+    #     cond_ind = np.nonzero(self.dens_mat == cond)
+    #     cells_cond = np.vstack(cond_ind).T
+    #     kmeans_obj.fit(cells_cond)
+        
