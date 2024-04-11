@@ -15,6 +15,7 @@ import basic_phenotyper_lib as bpl  # Useful functions for phenotyping collectio
 import app_top_of_page as top
 import streamlit_dataframe_editor as sde
 import PlottingTools as umPT
+from neighborhood_profiles import NeighborhoodProfiles, UMAPDensityProcessing
 
 def init_spatial_umap():
     '''
@@ -224,6 +225,12 @@ def main():
     with npf_cols[2]:
         if st.session_state.umapCompleted:
             if st.session_state['toggle_clust_diff']:
+                st.session_state.npf = NeighborhoodProfiles(bc = st.session_state.bc)
+
+                # Create Full UMAP example
+                udp_full = UMAPDensityProcessing(st.session_state.npf, st.session_state.df_umap)
+                st.session_state.UMAPFig = udp_full.UMAPdraw_density()
+
                 vlim = .97
                 n_bins = 200
                 xx = np.linspace(np.min(st.session_state.df_umap['X']), np.max(st.session_state.df_umap['X']), n_bins + 1)
@@ -235,7 +242,7 @@ def main():
                                                                                      st.session_state.df_umap['Y'],
                                                                                      bins=[xx, yy], w=w, return_matrix=True)
 
-                st.session_state.UMAPFig = bpl.UMAPdraw_density(st.session_state.d_full, bins = [xx, yy], w=w, n_pad=n_pad, vlim=vlim)
+                # st.session_state.UMAPFig = bpl.UMAPdraw_density(st.session_state.d_full, bins = [xx, yy], w=w, n_pad=n_pad, vlim=vlim)
 
                 feat_comp1 = '= 1'
                 feat_comp2 = '= 0'
@@ -291,11 +298,11 @@ def main():
                                     n_init = 10,
                                     random_state = 42)
 
-                cond0_ind = np.where(st.session_state.d_diff_mask == -1)
+                cond0_ind = np.nonzero(st.session_state.d_diff_mask == -1)
                 cells_cond0 = np.vstack(cond0_ind).T
                 kmeans_obj_cond0.fit(cells_cond0)
 
-                cond1_ind = np.where(st.session_state.d_diff_mask == 1)
+                cond1_ind = np.nonzero(st.session_state.d_diff_mask == 1)
                 cells_cond1 = np.vstack(cond1_ind).T
                 kmeans_obj_cond1.fit(cells_cond1)
 
@@ -323,10 +330,10 @@ def main():
 
                 for key, val in st.session_state.cluster_dict.items():
                     if key != 0:
-                        x, y = np.where(st.session_state.d_diff_clust == key)
-                        bin_in_cluster = [(indx, indy) for (indx, indy) in zip(x, y)]
+                        bin_clust = np.argwhere(st.session_state.d_diff_clust == key)
+                        bin_clust = [tuple(x) for x in bin_clust]
 
-                        significant_groups = bin_indices_df_group[bin_indices_df_group.set_index(['indx', 'indy']).index.isin(bin_in_cluster)]
+                        significant_groups = bin_indices_df_group[bin_indices_df_group.set_index(['indx', 'indy']).index.isin(bin_clust)]
 
                         umap_ind = significant_groups.index.values
                         st.session_state.spatial_umap.df_umap.loc[umap_ind, 'clust_label'] = val
@@ -353,6 +360,7 @@ def main():
                     st.pyplot(fig=st.session_state.UMAPFigDiff3_Dens)
                 with mor_cols[1]:
                     st.pyplot(fig=st.session_state.UMAPFigDiff4_Dens)
+                st.session_state.clustering_completed = True
 
             ### Clustering Meta Analysis and Description ###
             # with st.expander('Cluster Meta-Analysis', ):
