@@ -17,21 +17,24 @@ alt.data_transformers.disable_max_rows()
 import basic_phenotyper_lib as bpl                  # Useful functions for cell phenotyping
 from foundry_IO_lib import foundry_IO_lib           # Foundry Input/Output Class
 from benchmark_collector import benchmark_collector # Benchmark Collector Class
+import PlottingTools as umPT
 
 def identify_col_type(col):
     '''
     Quick and dirty column identifaction function
     '''
     dtypes = col.dtypes
-    unique_vals = col.unique().sort()
-    print(dtypes, unique_vals)
-
-    if (unique_vals == [0, 1]):
-        return 'bool'
-    elif dtypes == 'object':
-        return 'object'
+    if dtypes == 'category':
+        return 'category'
     else:
-        return 'not_bool'
+        unique_vals = col.unique().sort()
+
+        if (unique_vals == [0, 1]):
+            return 'bool'
+        elif dtypes == 'object':
+            return 'object'
+        else:
+            return 'not_bool'
 
 def init_session_state(session_state):
     """
@@ -311,7 +314,7 @@ def updatePhenotyping(session_state):
         session_state: Streamlit data structure
     '''
 
-    # Create the session_state.df which is ostensibly 
+    # Create session_state.df
     session_state.df = assign_phenotype_col(session_state.df_raw,
                                             session_state.spec_summ_load,
                                             session_state.selected_phenoMeth,
@@ -340,7 +343,19 @@ def updatePhenotyping(session_state):
 def assign_phenotype_col(df_raw, spec_summ_load, phenoMeth, marker_names):
     """
     Assign a new column to the raw dataset (df_raw) called 'phenotype' based on the 
-    phenotyping method selected. The returned dataset (df) is considered 
+    phenotyping method selected.
+
+    This function is called within the updatePhenotyping function. It is also responsible
+    for creating the 'df' dataframe that is used in the rest of the analysis.
+
+    Args:
+        df_raw: Raw dataset
+        spec_summ_load: Species Summary Table
+        phenoMeth: Phenotyping Method
+        marker_names: Marker Names
+    
+    Returns:
+        df: Updated dataset
     """
 
     if phenoMeth != 'Custom':
@@ -353,7 +368,7 @@ def assign_phenotype_col(df_raw, spec_summ_load, phenoMeth, marker_names):
         # then we have Will's "exclusive" case; otherwise, it's possible cells are
         # overlapping and we must duplicate the coordinates for the rows having
         # multiple positive markers
-        df = bpl.remove_compound_species(df_raw, marker_names, allow_compound_species=allow_compound_species)
+        df_raw = bpl.remove_compound_species(df_raw, marker_names, allow_compound_species=allow_compound_species)
 
         # Assign phenotype column to dataframe based on species name
         df = bpl.assign_phenotype_species(df_raw)
@@ -373,7 +388,7 @@ def perform_filtering(session_state):
     """
 
     # Create dictionaries of filter types
-    session_state = init_filter_struct(session_state, 
+    session_state = init_filter_struct(session_state,
                                        session_state.SEL_feat,
                                        session_state.CHK_feat)
 
@@ -504,25 +519,30 @@ def setFigureObjs(session_state, InSliderVal = None):
 
     return session_state
 
-def setFigureObjs_UMAP(session_state):
+def setFigureObjs_UMAP(session_state, palette = 'tab20'):
     """
     Organize Figure Objects to be used in plotting but for clustering
+
+    Args:
+        session_state: Streamlit data structure
+
+    Returns:
+        session_state: Streamlit data structure
     """
 
     title = [f'DATASET: {session_state.datafile}',
              f'PHENO METHOD: {session_state.selected_phenoMeth}',
              f'SLIDE ID: {session_state["selSlide ID_short"]}']
 
-    session_state.df_umap_filt = session_state.df_umap_filt.loc[session_state.df_umap_filt['umap_test'] == True, :]
-    clustOrder = sorted(session_state.spatial_umap.cells['clust_label'].unique())[1:]
+    clust_order = sorted(session_state.df_umap['clust_label'].unique())
     # Seaborn
     session_state.seabornFig_clust, session_state.ax = bpl.draw_scatter_fig(figsize=session_state.figsize)
     session_state.seabornFig_clust = bpl.scatter_plot(session_state.df_umap_filt, session_state.seabornFig_clust, session_state.ax, title,
                                                       xVar = 'Cell X Position', yVar = 'Cell Y Position', hueVar = 'clust_label',
-                                                      hueOrder=clustOrder)
+                                                      hueOrder=clust_order, palette = palette)
 
     # Altair
-    session_state.altairFig_clust = drawAltairObj(session_state.df_umap_filt, title, clustOrder, session_state.seabornFig_clust, session_state.ax, legendCol = 'clust_label')
+    session_state.altairFig_clust = drawAltairObj(session_state.df_umap_filt, title, clust_order, session_state.seabornFig_clust, session_state.ax, legendCol = 'clust_label')
 
     return session_state
 
@@ -530,42 +550,43 @@ def setFigureObjs_UMAPDifferences(session_state):
     '''
     Organize parts of dataframes to be used in the figures
     that are the results of Neighborhood Profile analyses
+
+    Args:
+        session_state: Streamlit data structure
+
+    Returns:
+        session_state: Streamlit data structure
     '''
 
     title = [f'DATASET: {session_state.datafile}',
              f'PHENO METHOD: {session_state.selected_phenoMeth}',
              f'SLIDE ID: {session_state["selSlide ID_short"]}']
 
-    dfUMAP = pd.DataFrame(data = session_state.spatial_umap.umap_test, columns = ['X', 'Y'])
-    dfUMAP['Cluster'] = session_state.spatial_umap.cells['clust_label'].values[session_state.spatial_umap.cells['umap_test']]
-    dfUMAP['Lineage'] = session_state.spatial_umap.cells['Lineage'].values[session_state.spatial_umap.cells['umap_test']]
-    dfUMAP['species_name_short'] = session_state.spatial_umap.cells['species_name_short'].values[session_state.spatial_umap.cells['umap_test']]
-    for outcome in session_state.outcomes:
-        dfUMAP[outcome] = session_state.spatial_umap.cells[outcome].values[session_state.spatial_umap.cells['umap_test']]
-    clustOrder = sorted(dfUMAP['Cluster'].unique())
+    df_umap = session_state.spatial_umap.df_umap
+    clust_order = sorted(df_umap['Cluster'].unique())
 
     n_bins = 200
-    xx = np.linspace(np.min(dfUMAP['X']), np.max(dfUMAP['X']), n_bins + 1)
-    yy = np.linspace(np.min(dfUMAP['Y']), np.max(dfUMAP['Y']), n_bins + 1)
+    xx = np.linspace(np.min(df_umap['X']), np.max(df_umap['X']), n_bins + 1)
+    yy = np.linspace(np.min(df_umap['Y']), np.max(df_umap['Y']), n_bins + 1)
     n_pad = 40
 
-    minXY = dfUMAP[['X', 'Y']].min()-1
-    maxXY = dfUMAP[['X', 'Y']].max()+1
+    minXY = df_umap[['X', 'Y']].min()-1
+    maxXY = df_umap[['X', 'Y']].max()+1
 
-    dfUMAPI = dfUMAP.copy()
-    dfUMAPD = dfUMAP.copy()
+    df_umapI = df_umap.copy()
+    df_umapD = df_umap.copy()
 
-    # Lineage filtering
-    dfUMAPI = filterLineage4UMAP(dfUMAPI, session_state.lineageDisplayToggle, session_state.defLineageOpt, session_state.umapInspect_Ver)
-    dfUMAPD = filterLineage4UMAP(dfUMAPD, session_state.lineageDisplayToggle, session_state.defLineageOpt, session_state.diffUMAPSel_Ver)
+    # Perform Lineage filtering if selection is made
+    df_umapI = filterLineage4UMAP(df_umapI, session_state.lineageDisplayToggle, session_state.defLineageOpt, session_state.umapInspect_Ver)
+    df_umapD = filterLineage4UMAP(df_umapD, session_state.lineageDisplayToggle, session_state.defLineageOpt, session_state.diffUMAPSel_Ver)
 
     vlim = .97
 
     # Inspection UMAP properties
     if session_state.umapInspect_Feat != session_state.defumapOutcomes:
-        w_Ins = dfUMAPI[session_state.umapInspect_Feat]
+        w_Ins = df_umapI[session_state.umapInspect_Feat]
         if identify_col_type(w_Ins) != 'object':
-            w_Ins, dfUMAPI = bpl.preprocess_weighted_umap(w_Ins, dfUMAPI)
+            w_Ins, df_umapI = bpl.preprocess_weighted_umap(w_Ins, df_umapI)
         else:
             w_Ins = None
     else:
@@ -573,33 +594,33 @@ def setFigureObjs_UMAPDifferences(session_state):
 
     # Difference UMAP properties
     if session_state.diffUMAPSel_Feat != session_state.defumapOutcomes:
-        w = dfUMAPD[session_state.diffUMAPSel_Feat]
+        w = df_umapD[session_state.diffUMAPSel_Feat]
         if identify_col_type(w) == 'not_bool':
-            compThresh = 0
-            w = np.array(w > compThresh).astype('int')
+            comp_thresh = 0
+            w = np.array(w > comp_thresh).astype('int')
 
-            featComp1 = f'>= {compThresh}'
-            featComp2 = f'< {compThresh}'
+            featComp1 = f'>= {comp_thresh}'
+            featComp2 = f'< {comp_thresh}'
 
-            dfUMAPD_A = dfUMAPD.loc[dfUMAPD[session_state.diffUMAPSel_Feat] >= compThresh, :]
-            dfUMAPD_B = dfUMAPD.loc[dfUMAPD[session_state.diffUMAPSel_Feat] < compThresh, :]
-            dfUMAPD_AB = dfUMAPD_B.copy()
+            df_umapD_A = df_umapD.loc[df_umapD[session_state.diffUMAPSel_Feat] >= comp_thresh, :]
+            df_umapD_B = df_umapD.loc[df_umapD[session_state.diffUMAPSel_Feat] < comp_thresh, :]
+            df_umapD_AB = df_umapD_B.copy()
         elif identify_col_type(w) == 'bool':
             featComp1 = '= 1'
             featComp2 = '= 0'
 
-            dfUMAPD_A = dfUMAPD.loc[dfUMAPD[session_state.diffUMAPSel_Feat] == 1, :]
-            dfUMAPD_B = dfUMAPD.loc[dfUMAPD[session_state.diffUMAPSel_Feat] == 0, :]
-            dfUMAPD_AB = dfUMAPD_B.copy()
+            df_umapD_A = df_umapD.loc[df_umapD[session_state.diffUMAPSel_Feat] == 1, :]
+            df_umapD_B = df_umapD.loc[df_umapD[session_state.diffUMAPSel_Feat] == 0, :]
+            df_umapD_AB = df_umapD_B.copy()
         else:
             featComp1 = 'try other column'
             featComp2 = 'try other column'
 
-            dfUMAPD_A  = dfUMAPD.copy()
-            dfUMAPD_B  = dfUMAPD.copy()
-            dfUMAPD_AB = dfUMAPD.copy()
+            df_umapD_A  = df_umapD.copy()
+            df_umapD_B  = df_umapD.copy()
+            df_umapD_AB = df_umapD.copy()
 
-        w, dfUMAPD = bpl.preprocess_weighted_umap(w, dfUMAPD)
+        w, df_umapD = bpl.preprocess_weighted_umap(w, df_umapD)
 
         w_DiffA = w
         w_DiffB = max(w) - w
@@ -618,22 +639,27 @@ def setFigureObjs_UMAPDifferences(session_state):
         feat_label1 = None
         feat_label2 = None
 
-        dfUMAPD_A = dfUMAPD.copy()
-        dfUMAPD_B = dfUMAPD.copy()
-        dfUMAPD_AB = dfUMAPD.copy()
+        df_umapD_A = df_umapD.copy()
+        df_umapD_B = df_umapD.copy()
+        df_umapD_AB = df_umapD.copy()
 
     feat_labels = [feat_label0, feat_label1, feat_label2]
-    dfUMAPDs = [dfUMAPD_A, dfUMAPD_B, dfUMAPD_AB]
+    df_umapDs = [df_umapD_A, df_umapD_B, df_umapD_AB]
 
     # UMAP colored by Density
     if session_state.UMAPFigType == 'Density':
         w = None
 
         # All UMAP Figure
-        session_state.UMAPFig     = bpl.UMAPdraw_density(dfUMAP, bins = [xx, yy], w=None, n_pad=n_pad, vlim=vlim)
+        umap_dens_all, _      = umPT.plot_2d_density(df_umap['X'], df_umap['Y'],
+                                                     bins=[xx, yy], w=w, return_matrix=True)
+        session_state.UMAPFig = bpl.UMAPdraw_density(umap_dens_all,
+                                                     bins = [xx, yy], w=None, n_pad=n_pad, vlim=vlim)
 
         # UMAP for Lineage/Outcome Inspection
-        session_state.UMAPFigInsp = bpl.UMAPdraw_density(dfUMAPI, bins = [xx, yy], w=w_Ins, n_pad=n_pad, vlim=vlim)
+        umap_dens_insp, _         = umPT.plot_2d_density(df_umapI['X'], df_umapI['Y'],
+                                                         bins=[xx, yy], w=w, return_matrix=True)
+        session_state.UMAPFigInsp = bpl.UMAPdraw_density(umap_dens_insp, bins = [xx, yy], w=w_Ins, n_pad=n_pad, vlim=vlim)
 
     # UMAP colored by Clusters
     elif session_state.UMAPFigType == 'Clusters':
@@ -641,38 +667,42 @@ def setFigureObjs_UMAPDifferences(session_state):
 
         # All UMAP Figure
         session_state.UMAPFig, session_state.UMAPax = bpl.draw_scatter_fig(figsize=session_state.figsize)
-        session_state.UMAPFig = bpl.scatter_plot(dfUMAP, session_state.UMAPFig, session_state.UMAPax, title,
+        session_state.UMAPFig = bpl.scatter_plot(df_umap, session_state.UMAPFig, session_state.UMAPax, title,
                                                  xVar = 'X', yVar = 'Y', hueVar = 'Cluster',
-                                                 hueOrder = clustOrder,
+                                                 hueOrder = clust_order,
                                                  xLim = [minXY[0], maxXY[0]], yLim = [minXY[1], maxXY[1]], boxoff=True, clusters_label = True)
-        
+
         # UMAP for Lineage/Outcome Inspection
         session_state.UMAPFigInsp, session_state.UMAPInspax = bpl.draw_scatter_fig(figsize=session_state.figsize)
-        session_state.UMAPFigInsp = bpl.scatter_plot(dfUMAPI, session_state.UMAPFigInsp, session_state.UMAPInspax, title,
+        session_state.UMAPFigInsp = bpl.scatter_plot(df_umapI, session_state.UMAPFigInsp, session_state.UMAPInspax, title,
                                                  xVar = 'X', yVar = 'Y', hueVar = 'Cluster',
-                                                 hueOrder = clustOrder, 
+                                                 hueOrder = clust_order,
                                                  xLim = [minXY[0], maxXY[0]], yLim = [minXY[1], maxXY[1]], boxoff=True, clusters_label = True)
 
     # UMAP Difference Figures
-    session_state.UMAPFigDiff0_Dens = bpl.UMAPdraw_density(dfUMAPD, bins = [xx, yy], w=w_DiffA, n_pad=n_pad, vlim=vlim, feat = feat_label0)
-    session_state.UMAPFigDiff1_Dens = bpl.UMAPdraw_density(dfUMAPD, bins = [xx, yy], w=w_DiffB, n_pad=n_pad, vlim=vlim, feat = feat_label1)
-    session_state.UMAPFigDiff2_Dens = bpl.UMAPdraw_density(dfUMAPD, bins = [xx, yy], w=w_Diff, n_pad=n_pad, vlim=vlim, diff = True)
+    umap_dens_diff, _ = umPT.plot_2d_density(df_umapD['X'], df_umapD['Y'],
+                                             bins=[xx, yy], w=w_Diff, return_matrix=True)
+
+    session_state.UMAPFigDiff0_Dens = bpl.UMAPdraw_density(umap_dens_diff, bins = [xx, yy], w=w_DiffA, n_pad=n_pad, vlim=vlim, feat = feat_label0)
+    session_state.UMAPFigDiff1_Dens = bpl.UMAPdraw_density(umap_dens_diff, bins = [xx, yy], w=w_DiffB, n_pad=n_pad, vlim=vlim, feat = feat_label1)
+    session_state.UMAPFigDiff2_Dens = bpl.UMAPdraw_density(umap_dens_diff, bins = [xx, yy], w=w_Diff, n_pad=n_pad, vlim=vlim, diff = True)
 
     # UMAP Difference Figures
     for i in range(3):
         fig, ax = bpl.draw_scatter_fig()
-        fig = bpl.scatter_plot(dfUMAPDs[i], fig, ax, title,
+        fig = bpl.scatter_plot(df_umapDs[i], fig, ax, title,
                                 xVar = 'X', yVar = 'Y', hueVar = 'Cluster',
-                                hueOrder = clustOrder, boxoff=True, 
+                                hueOrder = clust_order, boxoff=True, 
                                 xLim = [minXY[0], maxXY[0]], yLim = [minXY[1], maxXY[1]],
                                 feat = feat_labels[i], small_ver = True, clusters_label = True)
-        
+
         session_state[eval('"UMAPFigDiff" + str(i) + "_Clus"')] = fig
         session_state[eval('"UMAPax" + str(i)')] = ax
 
     ######## Heatmap/Incidence #########
-    cellsUMAP = session_state.spatial_umap.cells.loc[session_state.spatial_umap.cells['umap_test'] == True, :]
-    clusterIndex = np.arange(0, session_state.selected_nClus, 1.0)
+    cellsUMAP = df_umap #session_state.spatial_umap.cells.loc[session_state.spatial_umap.cells['umap_test'] == True, :]
+    list_clusters = list(session_state.cluster_dict.values())
+    list_clusters.remove('No Cluster')
 
     ### Cluster/Phenotype Heatmap ###
     if session_state.NormHeatRadio == 'Norm within Clusters':
@@ -689,19 +719,19 @@ def setFigureObjs_UMAPDifferences(session_state):
     cellsUMAP = filterLineage4UMAP(cellsUMAP, session_state.lineageDisplayToggle_clus, session_state.defLineageOpt, session_state.inciPhenoSel)
     
     # Set up incidence dataframe
-    compThresh = None
+    comp_thresh = None
     inciDF = pd.DataFrame()
-    inciDF.index = clusterIndex
+    inciDF.index = list_clusters
     inciDF['counts'] = 0
-    inciDF['featureCount1'] = 0
-    inciDF['featureCount0'] = 0
+    inciDF['featureCount1'] = 0 # True Condition
+    inciDF['featureCount0'] = 0 # False Condition
 
     # Not Cell Counts
     if session_state.inciOutcomeSel != session_state.definciOutcomes:
         col = cellsUMAP[session_state.inciOutcomeSel]
         if identify_col_type(col) == 'not_bool':
-            compThresh = 0
-            cellsUMAP['chosen_feature'] = cellsUMAP.apply(lambda row: 1 if row[session_state.inciOutcomeSel] >= compThresh else 0, axis = 1)
+            comp_thresh = 0
+            cellsUMAP['chosen_feature'] = cellsUMAP.apply(lambda row: 1 if row[session_state.inciOutcomeSel] >= comp_thresh else 0, axis = 1)
         elif identify_col_type(col) == 'bool':
             cellsUMAP['chosen_feature'] = cellsUMAP[session_state.inciOutcomeSel]
         else:
@@ -709,9 +739,10 @@ def setFigureObjs_UMAPDifferences(session_state):
 
         # Compute the Difference
         for clust_label, group in cellsUMAP.groupby('clust_label'):
-            inciDF.loc[clust_label, 'counts'] = group['chosen_feature'].count()
-            inciDF.loc[clust_label, 'featureCount1'] = sum(group['chosen_feature'] == 1)
-            inciDF.loc[clust_label, 'featureCount0'] = sum(group['chosen_feature'] == 0)
+            if clust_label != 'No Cluster':
+                inciDF.loc[clust_label, 'counts'] = group['chosen_feature'].count()
+                inciDF.loc[clust_label, 'featureCount1'] = sum(group['chosen_feature'] == 1)
+                inciDF.loc[clust_label, 'featureCount0'] = sum(group['chosen_feature'] == 0)
             
         inciDF['Count Differences'] = inciDF['featureCount1'] - inciDF['featureCount0']
 
@@ -728,17 +759,19 @@ def setFigureObjs_UMAPDifferences(session_state):
     # Cell Counts
     else:
         for clust_label, group in cellsUMAP.groupby('clust_label'):
-            inciDF.loc[clust_label, 'counts'] = group['Slide ID'].count()
+            if clust_label != 'No Cluster':
+                inciDF.loc[clust_label, 'counts'] = group['Slide ID'].count()
 
     # Title
-    inciTitle = [f'Incidence by Cluster']
+    inci_title = ['Incidence by Cluster']
 
     # Draw Incidence Figure
-    session_state.inciFig = bpl.drawIncidenceFigure(inciDF, inciTitle, 
+    print(inciDF.head(7))
+    session_state.inciFig = bpl.drawIncidenceFigure(inciDF, inci_title,
                                                     phenotype  = session_state.inciPhenoSel,
-                                                    feature    = session_state.inciOutcomeSel, 
-                                                    displayas  = session_state.Inci_Value_display, 
-                                                    compThresh = compThresh)
+                                                    feature    = session_state.inciOutcomeSel,
+                                                    displayas  = session_state.Inci_Value_display,
+                                                    comp_thresh = comp_thresh)
 
     return session_state
 

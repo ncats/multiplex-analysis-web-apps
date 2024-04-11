@@ -348,6 +348,19 @@ class SpatialUMAP:
         self.umap_test = np.array([])
         self.patients = np.array([])
 
+        self.density = None
+        self.proportion = None
+
+        # Mean Densities
+        self.dens_df = pd.DataFrame()
+        self.prop_df = pd.DataFrame()
+        self.dens_df_mean = pd.DataFrame()
+        self.dens_df_se = pd.DataFrame()
+        self.maxdens_df = pd.DataFrame()
+
+        # UMAP Data for plotting
+        self.df_umap = None
+
     def clear_counts(self):
         self.counts = np.empty((self.cell_positions.shape[0], len(self.dist_bin_um), self.num_species))
 
@@ -523,7 +536,7 @@ class SpatialUMAP:
             if group['area_filter'].sum() >= (cells_for_fitting * 2):
                 idx_train, idx_test, _ = np.split(np.random.default_rng(seed).permutation(group['area_filter'].sum()), [cells_for_fitting, cells_for_fitting * 2])
                 self.cells.loc[group.index[group.area_filter][idx_train], 'umap_train'] = True
-                self.cells.loc[group.index[group.area_filter], 'umap_test'] = True
+                self.cells.loc[group.index[group.area_filter][idx_test], 'umap_test'] = True
         
         print(f'{np.sum(self.cells["umap_train"] == 1)} elements assigned to training data. ~{np.round(100*np.sum(self.cells["umap_train"] == 1)/self.cells.shape[0])}%')
         print(f'{np.sum(self.cells["umap_test"] == 1)} elements assigned to testing data. ~{np.round(100*np.sum(self.cells["umap_test"] == 1)/self.cells.shape[0])}%')
@@ -567,9 +580,9 @@ class SpatialUMAP:
 
         self.dens_df = pd.DataFrame()
         self.prop_df = pd.DataFrame()
-        for clust_label, group in self.cells.groupby('clust_label'):
-            
-            if clust_label != -1:
+        for clust_label, group in self.df_umap.groupby('clust_label'):
+
+            if clust_label != -1 and clust_label != 'No Cluster':
                 ind = group.index
 
                 smalldf_D = pd.DataFrame()
@@ -585,7 +598,7 @@ class SpatialUMAP:
                     thesePro_pheno = thesePro[:,:,i]
                     r, c = thesePro_pheno.shape
                     thesePro_flat = thesePro_pheno.reshape(-1)
-                    
+
                     smalldf_D['dist_bin'] = np.tile(self.dist_bin_um, r)
                     smalldf_D['density'] = theseDen_flat
                     smalldf_D['phenotype'] = pheno
@@ -599,10 +612,29 @@ class SpatialUMAP:
                     self.dens_df = pd.concat([self.dens_df, smalldf_D], axis = 0).reset_index(drop=True)
                     self.prop_df = pd.concat([self.prop_df, smalldf_P], axis = 0).reset_index(drop=True)
 
+        # Perform Groupby and Mean calculations
         self.dens_df_mean = self.dens_df.groupby(['cluster', 'phenotype', 'dist_bin'], as_index=False).mean()
         self.dens_df_se   = self.dens_df.groupby(['cluster', 'phenotype', 'dist_bin'], as_index=False).sem()
-        self.maxdens_df   = 1.05*max(self.dens_df_mean['density'] + self.dens_df_se['density'])
+        self.dens_df_mean = self.dens_df_mean.rename(columns = {'density': 'density_mean'})
+        self.dens_df_se   = self.dens_df_se.rename(columns = {'density': 'density_sem'})
+        self.dens_df_mean['density_sem'] = self.dens_df_se['density_sem']
+        self.maxdens_df   = 1.05*max(self.dens_df_mean['density_mean'] + self.dens_df_mean['density_sem'])
     
+    def prepare_df_umap_plotting(self, features):
+        '''
+        Making a simple dataframe for plotting.
+        In this case, feature are any and all features that are to be considered
+        for plotting downstream of this event. 
+        '''
+
+        self.df_umap = pd.DataFrame(data = self.umap_test, columns = ['X', 'Y'])
+        self.df_umap['Lineage'] = self.cells['Lineage'].values[self.cells['umap_test']]
+        self.df_umap['species_name_short'] = self.cells['species_name_short'].values[self.cells['umap_test']]
+        self.df_umap['Cluster'] = self.cells['clust_label'].values[self.cells['umap_test']]
+
+        for feature in features:
+            self.df_umap[feature] = self.cells[feature].values[self.cells['umap_test']]
+
     def makeDummyClinic(self, length):
         '''
         A method for quickly making a clinic dataset if needed 
