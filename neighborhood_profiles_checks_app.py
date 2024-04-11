@@ -379,7 +379,7 @@ def main():
                 calculate_umap_help = None
                 button_text = 'Calculate UMAP'
             if st.button(button_text, help=calculate_umap_help):
-                umap, fit_string, transform_string = neighborhood_profiles_checks.run_umap_calculation()
+                umap, fit_string, transform_string = neighborhood_profiles_checks.run_umap_calculation(df)
                 st.write(fit_string)
                 st.write(transform_string)
                 umap.to_pickle(umap_path)
@@ -462,7 +462,7 @@ def main():
             if 'df_by_bin' not in st.session_state:
                 st.warning('Please assign cluster labels.')
                 return
-        
+
         # Draw the plots
         draw_plots(df_image_labels=df_image_labels, umap_x_colname=umap_x_colname, umap_y_colname=umap_y_colname, property_colnames=property_colnames, image_colname=image_colname, binary_colname=binary_colname, spatial_x_colname=spatial_x_colname, spatial_y_colname=spatial_y_colname)
 

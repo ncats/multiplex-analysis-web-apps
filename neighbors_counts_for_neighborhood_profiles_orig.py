@@ -27,7 +27,7 @@ def calculate_density_matrix_for_all_images(image_names, df, phenotypes, phenoty
         pandas.DataFrame: The dataframe containing the density matrix for all images.
     """
 
-    # Initialize a list of the keyword arguments
+    # Initialize a list of the keyword arguments... actually I think it's a list of tuples
     kwargs_list = []
 
     # Loop through the images

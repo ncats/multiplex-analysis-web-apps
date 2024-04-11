@@ -8,6 +8,7 @@ import neighbors_counts_for_neighborhood_profiles_orig
 import umap
 from sklearn.preprocessing import MinMaxScaler
 import datetime
+import utils
 
 
 # Add columns to partition a dataframe into train and test sets for the UMAP, roughly similar to Giraldo et. al. 2021. Note frac_train and frac_test cannot be larger than 0.5
@@ -31,6 +32,7 @@ def get_umap_train_and_test_sets(df, frac_train=0.5, frac_test=0.5, image_colnam
 
     # Pre-calculate group indices
     group_indices = df_not_train.groupby(image_colname).indices
+    group_indices = {key: df_not_train.index[value] for key, value in group_indices.items()}  # convert the indices to the actual indices in the dataframe
 
     # Add 'umap_test' columns to df for each umap test set and initialize them to False, creating a dictionary of new columns
     new_columns = {
@@ -238,11 +240,13 @@ def run_density_calculation(df, radius_edges=[0, 25, 50, 100, 150, 200], spatial
 
 # Perform UMAP on the density matrix of a dataframe, fitting on train cells and transforming all cells
 # TODO: See options to implement below
-def run_umap_calculation(df):
+def run_umap_calculation(df, nworkers=7):
 
     # Options to implement:
     #   * Perform supervised UMAP
     #   * Convert to float32 before running UMAP
+    #   * Transform each test dataset individually instead of transforming all cells at once and then sampling it as a bunch of test sets, or make an if-then statement to do whatever is most efficient
+    #   * Understand why the transformations are taking so long in parallel and even in serial (I thought Dante said they were fast... maybe it's the area transformation that Giraldo does?)... I get roughly 33 min for whole dataset in serial and 16 min for whole data in parallel using 7 workers
 
     # Get a copy (since we're about to normalize) of the density matrix of just the density columns
     df_density = df.loc[:, [column for column in df.columns if column.startswith('spatial_umap_density of ')]].copy()
@@ -269,7 +273,25 @@ def run_umap_calculation(df):
     # Transform all cells using the fitted UMAP
     full_dataset_shape = df_density.shape
     print(f'Transforming all cells of shape {full_dataset_shape} using the fitted UMAP...')
-    umap_transform_all_cells = umap_fit.transform(df_density)
+    # print(f'Attempting to create an array of size ({len(df_density)}, {len(df_density_train)}) of data type float64')
+
+    # Calculate `umap_transform_all_cells = umap_fit.transform(df_density)` in batches, since during an intermediate step, this tries to create an ndarray of size (len(df_density), len(df_density_train))
+    max_arr_size_in_mb = 200
+    max_arr_size_in_bytes = max_arr_size_in_mb * 1024 * 1024  # 1 MB = 1024 KB = 1024^2 bytes
+    max_num_elements_in_arr = max_arr_size_in_bytes / 8  # 8 bytes per float64 element
+    batch_size = int(max_num_elements_in_arr / len(df_density_train))  # number of elements in a row of the array
+    original_data = []
+    # transformed_data = []
+    for i in range(0, len(df_density), batch_size):
+        # print(f'Transforming batch {i // batch_size + 1} of {len(df_density) // batch_size + 1}...')
+        batch = df_density.iloc[i:i+batch_size, :]
+        original_data.append((batch,))
+        # transformed_batch = umap_fit.transform(batch)
+        # transformed_data.append(transformed_batch)
+    transformed_data = utils.execute_data_parallelism_potentially(function=umap_fit.transform, list_of_tuple_arguments=original_data, nworkers=nworkers, task_description='UMAP transformation of the full density matrix', do_benchmarking=True, mp_start_method=None, use_starmap=True)
+    umap_transform_all_cells = np.concatenate(transformed_data)  # concatenate all batches
+
+    # Complete the rest of the block
     timing_string_transform = f'Time to transform all cells of shape {full_dataset_shape} using the fitted UMAP: {int(time.time() - start_time)} seconds'
     print(timing_string_transform)
 
