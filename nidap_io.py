@@ -33,20 +33,16 @@ def upload_dir_to_dataset(dataset, path_to_dir_to_upload='../junk_files'):
          '../junk_files/subdir/subdir2/junk-200mb-4': 'subdir/subdir2/junk-200mb-4',
          '../junk_files/subdir/subdir2/junk-200mb-9': 'subdir/subdir2/junk-200mb-9',
          '../junk_files/subdir/subdir2/junk-200mb-0': 'subdir/subdir2/junk-200mb-0'}
-    Using this function on 3/[9-10]/24, I get about 70-120 MB/s upload speed.
-    Note there is at least a single-file upload limit of about 2000 MB, which is higher than I reported in an old Issue to Palantir.
+    Note there is at least a single-file upload limit of about 2000 MB, which is higher than reported in an old Issue to Palantir.
     This should be slow.
     """
-
-
+    output_dir = os.path.join(os.environ["USER_WORKING_DIR"], "outputs")  # per Palantir on 4/10/24: write files and directories to output_dir or a subdir to upload them
     print(f'Transferring {get_dir_size(path_to_dir_to_upload):.2f} MB from directory {path_to_dir_to_upload}...', end='')
-    recursive_copy(path_to_dir_to_upload, '/tmp/data/outputs')
+    recursive_copy(path_to_dir_to_upload, output_dir)
     start_time = time.time()
-    return_val = dataset.upload_directory(local_dir_path="/tmp/data/outputs")
+    return_val = dataset.upload_directory(local_dir_path=output_dir)
     duration_in_sec = time.time() - start_time
     print(f'done. Transfer took {duration_in_sec:.2f} seconds.')
-
-
     return return_val
 
 def download_files_from_dataset(dataset, dataset_filter_func=lambda f: f.path.startswith("junk-200mb"), limit=15):

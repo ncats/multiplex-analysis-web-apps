@@ -80,7 +80,7 @@ def write_current_tool_parameters_to_disk(output_dir):
     import yaml
     import streamlit_utils
     import sys
-    settings_yaml_filename = 'settings_as_of_{}.yml'.format(datetime.now().strftime("date%Y_%m_%d_time%H_%M_%S"))
+    settings_yaml_filename = 'settings_as_of_{}.yml'.format(datetime.now().strftime("%Y%m%d_%H%M%S"))
     pathname = os.path.join(output_dir, settings_yaml_filename)
     if not os.path.exists(pathname):
         with open(pathname, mode='wt') as file:
@@ -106,7 +106,7 @@ def write_current_environment_to_disk(output_dir):
     from datetime import datetime
     import subprocess
     import os
-    environment_yaml_filename = 'environment_as_of_{}.yml'.format(datetime.now().strftime("date%Y_%m_%d_time%H_%M_%S"))
+    environment_yaml_filename = 'environment_as_of_{}.yml'.format(datetime.now().strftime("%Y%m%d_%H%M%S"))
     pathname = os.path.join(output_dir, environment_yaml_filename)
     if not os.path.exists(pathname):
         subprocess.run('conda env export > {}'.format(pathname), shell=True, capture_output=True)
@@ -116,7 +116,7 @@ def write_current_environment_to_disk(output_dir):
 # Create an empty output archive directory
 def create_empty_output_archive(new_output_archive_name, output_dir):
     from datetime import datetime
-    archive_dirname = 'output_archive-{}-{}'.format(datetime.now().strftime("date%Y_%m_%d_time%H_%M_%S"), new_output_archive_name)
+    archive_dirname = 'output_archive-{}-{}'.format(datetime.now().strftime("%Y%m%d_%H%M%S"), new_output_archive_name)
     archive_path = os.path.join(output_dir, archive_dirname)
     if not os.path.exists(archive_path):
         os.mkdir(archive_path)
@@ -129,7 +129,7 @@ def create_empty_output_archive(new_output_archive_name, output_dir):
 # Currently only applies to local
 def copy_output_dir_contents_to_output_archive(new_output_archive_name, output_dir):
     from datetime import datetime
-    archive_dirname = 'output_archive-{}-{}'.format(datetime.now().strftime("date%Y_%m_%d_time%H_%M_%S"), new_output_archive_name)
+    archive_dirname = 'output_archive-{}-{}'.format(datetime.now().strftime("%Y%m%d_%H%M%S"), new_output_archive_name)
     archive_path = os.path.join(output_dir, archive_dirname)
     if not os.path.exists(archive_path):
         shutil.copytree(output_dir, archive_path, ignore=shutil.ignore_patterns('output_archive-*'))
@@ -145,7 +145,7 @@ def create_zipfile_with_ignores(zipfile_dirpath, basename_suffix_for_zipfile, pr
     import subprocess
 
     # Ultimate zipfile path without the .zip extension
-    zipfile_basename = os.path.join(zipfile_dirpath, 'output_archive-{}-{}'.format(datetime.now().strftime("date%Y_%m_%d_time%H_%M_%S"), basename_suffix_for_zipfile))
+    zipfile_basename = os.path.join(zipfile_dirpath, 'output_archive-{}-{}'.format(datetime.now().strftime("%Y%m%d_%H%M%S"), basename_suffix_for_zipfile))
 
     # Determine if items exist in the local output directory that we want to ignore; otherwise, don't jump through any hoops!
     items_to_ignore_exist = len([x for x in os.listdir(local_output_dir) if x.startswith(prefix_to_ignore)]) > 0
@@ -610,14 +610,13 @@ class Platform:
                 # Import relevant library
                 import nidap_io
                 from datetime import datetime
-                # import utils
 
-                # Create a temporary transfer directory to hold the generated zip file
+                # Create a temporary transfer directory to hold the generated zip files
                 local_transfer_dir = os.path.join('.', 'transfer')
                 os.makedirs(local_transfer_dir, exist_ok=True)
 
                 # Get the file like ../transfer/myfile.zip for which parts will be created like ../transfer/myfile.zip.000_of_007 etc.
-                zipfile_part_prefix = os.path.join(local_transfer_dir, 'output_archive-{}-{}.zip'.format(datetime.now().strftime("date%Y_%m_%d_time%H_%M_%S"), st.session_state['basename_suffix_for_new_results_archive']))
+                zipfile_part_prefix = os.path.join(local_transfer_dir, 'output_archive-{}-{}.zip'.format(datetime.now().strftime("%Y%m%d_%H%M%S"), st.session_state['basename_suffix_for_new_results_archive']))
 
                 # Zip all loaded results to a temporary directory
                 create_zipfile_from_files_in_dir(
@@ -627,19 +626,23 @@ class Platform:
                     dirpath_prefixes_to_exclude=('output_archive-',)
                     )
                 
-                # Get the names of all created zipfile parts
-                zipfile_part_filenames = sorted([x for x in os.listdir(local_transfer_dir) if x.startswith(os.path.basename(zipfile_part_prefix))])
+                # # Get the names of all created zipfile parts
+                # zipfile_part_filenames = sorted([x for x in os.listdir(local_transfer_dir) if x.startswith(os.path.basename(zipfile_part_prefix))])
 
                 # Initialize the output dataset to which to transfer the zipfile parts
                 dataset = nidap_io.get_foundry_dataset(alias='output')
                 
-                # Upload the created zip file parts to the output dataset on NIDAP
-                for zipfile_part_filename in zipfile_part_filenames:
-                    upload_single_file_to_dataset((dataset, local_transfer_dir, zipfile_part_filename))
+                # Recursively delete any files or directories in local_transfer_dir that do not start with os.path.basename(zipfile_part_prefix)
+                for filename in os.listdir(local_transfer_dir):
+                    if not filename.startswith(os.path.basename(zipfile_part_prefix)):
+                        shutil.rmtree(os.path.join(local_transfer_dir, filename))
 
-                # # Upload the created zip file parts to the output dataset on NIDAP
-                # list_of_tuple_arguments = [(dataset, local_transfer_dir) + (zipfile_part_filename,) for zipfile_part_filename in zipfile_part_filenames]
-                # utils.execute_data_parallelism_potentially(function=upload_single_file_to_dataset, list_of_tuple_arguments=list_of_tuple_arguments, nworkers=nworkers_for_data_transfer, task_description='upload of zip file chunks to the NIDAP dataset', do_benchmarking=True)
+                # This will upload the files in parallel
+                nidap_io.upload_dir_to_dataset(dataset, path_to_dir_to_upload=local_transfer_dir)
+
+                # # This will upload the files serially
+                # for zipfile_part_filename in zipfile_part_filenames:
+                #     upload_single_file_to_dataset((dataset, local_transfer_dir, zipfile_part_filename))
 
                 # Delete the temporary transfer directory and its contents
                 shutil.rmtree(local_transfer_dir)
