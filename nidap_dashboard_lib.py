@@ -164,6 +164,7 @@ def reset_neigh_profile_settings(session_state):
     session_state.umapOutcomes = [session_state.defumapOutcomes]
 
     # Default Incidence dropdown options
+    session_state.outcomes      = [session_state.definciOutcomes]
     session_state.inciOutcomes = [session_state.definciOutcomes]
 
     # Default UMAPInspect settings
