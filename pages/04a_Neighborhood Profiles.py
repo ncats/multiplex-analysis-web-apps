@@ -76,8 +76,6 @@ def apply_umap(umap_style):
 
     st.session_state.spatial_umap.prepare_df_umap_plotting(st.session_state.outcomes)
 
-    st.session_state.df_umap = st.session_state.spatial_umap.df_umap
-
     # Perform possible cluster variations with the completed UMAP
     # st.session_state.bc.startTimer()
     # with st.spinner('Calculating Possible Clusters'):
@@ -116,8 +114,6 @@ def set_clusters():
     st.session_state.bc.set_value_df('time_to_run_cluster', st.session_state.bc.elapsedTime())
 
     st.session_state.clustering_completed = True
-
-    st.session_state.df_umap = st.session_state.spatial_umap.df_umap
 
     filter_and_plot()
 
@@ -166,7 +162,7 @@ def filter_and_plot():
         st.session_state.prog_right_disabeled = True
 
     if st.session_state.umapCompleted:
-        st.session_state.df_umap_filt = st.session_state.df_umap.loc[st.session_state.df_umap['Slide ID'] == st.session_state['selSlide ID'], :]
+        st.session_state.spatial_umap.df_umap_filt = st.session_state.spatial_umap.df_umap.loc[st.session_state.spatial_umap.df_umap['Slide ID'] == st.session_state['selSlide ID'], :]
         if st.session_state['toggle_clust_diff']:
             palette = 'bwr'
         else:
@@ -229,12 +225,12 @@ def main():
                 st.session_state.npf = NeighborhoodProfiles(bc = st.session_state.bc)
 
                 # Create Full UMAP example
-                udp_full = UMAPDensityProcessing(st.session_state.npf, st.session_state.df_umap)
+                udp_full = UMAPDensityProcessing(st.session_state.npf, st.session_state.spatial_umap.df_umap)
                 st.session_state.UMAPFig = udp_full.UMAPdraw_density()
 
                 # Identify UMAP by Condition
-                st.session_state.df_umap_fals = st.session_state.df_umap.loc[st.session_state.df_umap[st.session_state.dens_diff_feat_sel] == 0, :]
-                st.session_state.df_umap_true = st.session_state.df_umap.loc[st.session_state.df_umap[st.session_state.dens_diff_feat_sel] == 1, :]
+                st.session_state.df_umap_fals = st.session_state.spatial_umap.df_umap.loc[st.session_state.spatial_umap.df_umap[st.session_state.dens_diff_feat_sel] == 0, :]
+                st.session_state.df_umap_true = st.session_state.spatial_umap.df_umap.loc[st.session_state.spatial_umap.df_umap[st.session_state.dens_diff_feat_sel] == 1, :]
 
                 # Perform Density Calculations for each Condition
                 udp_fals = UMAPDensityProcessing(st.session_state.npf, st.session_state.df_umap_fals, xx=udp_full.xx, yy=udp_full.yy)
