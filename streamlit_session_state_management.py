@@ -26,13 +26,16 @@ def save_session_state(saved_streamlit_session_states_dir, saved_streamlit_sessi
     Returns:
         None
     """
+
+    # Print what we're doing
+    print('Saving session state...')
     
     # Create the output directory for saving session state if it doesn't exist
     os.makedirs(saved_streamlit_session_states_dir, exist_ok=True)
 
     # Generate the pickle filename with the save date and time
     now = datetime.now()
-    filename = os.path.join(saved_streamlit_session_states_dir, saved_streamlit_session_state_prefix + now.strftime('date%Y-%m-%d_time%H-%M-%S') + '.pkl')
+    filename = os.path.join(saved_streamlit_session_states_dir, saved_streamlit_session_state_prefix + now.strftime('%Y%m%d_%H%M%S') + '.pkl')
 
     # Create a dictionary of most items in the session state
     session_dict = {}

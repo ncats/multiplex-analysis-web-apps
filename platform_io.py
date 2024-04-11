@@ -69,7 +69,7 @@ def delete_selected_files_and_dirs(directory, selected_files):
         curr_path = os.path.join(directory, curr_file)
         if os.path.isfile(curr_path):
             os.remove(curr_path)
-        else:
+        elif os.path.isdir(curr_path):
             shutil.rmtree(curr_path)
 
 # Write the current settings to disk, including a timestamp, hostname, and git commit
@@ -80,6 +80,7 @@ def write_current_tool_parameters_to_disk(output_dir):
     import yaml
     import streamlit_utils
     import sys
+    print('Writing the current tool parameters to disk...')
     settings_yaml_filename = 'settings_as_of_{}.yml'.format(datetime.now().strftime("%Y%m%d_%H%M%S"))
     pathname = os.path.join(output_dir, settings_yaml_filename)
     if not os.path.exists(pathname):
@@ -106,6 +107,7 @@ def write_current_environment_to_disk(output_dir):
     from datetime import datetime
     import subprocess
     import os
+    print('Writing the current conda/pip environment to disk...')
     environment_yaml_filename = 'environment_as_of_{}.yml'.format(datetime.now().strftime("%Y%m%d_%H%M%S"))
     pathname = os.path.join(output_dir, environment_yaml_filename)
     if not os.path.exists(pathname):
@@ -129,6 +131,7 @@ def create_empty_output_archive(new_output_archive_name, output_dir):
 # Currently only applies to local
 def copy_output_dir_contents_to_output_archive(new_output_archive_name, output_dir):
     from datetime import datetime
+    print(f'Copying all contents from {output_dir} to a new output archive with descriptive name "{new_output_archive_name}"...')
     archive_dirname = 'output_archive-{}-{}'.format(datetime.now().strftime("%Y%m%d_%H%M%S"), new_output_archive_name)
     archive_path = os.path.join(output_dir, archive_dirname)
     if not os.path.exists(archive_path):
@@ -595,6 +598,9 @@ class Platform:
             # Save the current environment to the current/loaded results
             write_current_environment_to_disk(local_output_dir)
 
+            # Delete any files in the local output directory that start with "streamlit_session_state-" because we're about to create a current one and we don't want to back up more than one as they're generally large
+            delete_selected_files_and_dirs(local_output_dir, [x for x in os.listdir(local_output_dir) if x.startswith('streamlit_session_state-')])
+
             # Save the current session state to the current/loaded results
             streamlit_session_state_management.save_session_state(local_output_dir)
 
@@ -607,46 +613,9 @@ class Platform:
             # If working on NIDAP...
             elif self.platform == 'nidap':
 
-                # Import relevant library
-                import nidap_io
-                from datetime import datetime
+                # Back up everything in the local output directory to the output dataset on NIDAP
+                back_up_results_to_nidap(local_output_dir, st.session_state['basename_suffix_for_new_results_archive'])
 
-                # Create a temporary transfer directory to hold the generated zip files
-                local_transfer_dir = os.path.join('.', 'transfer')
-                os.makedirs(local_transfer_dir, exist_ok=True)
-
-                # Get the file like ../transfer/myfile.zip for which parts will be created like ../transfer/myfile.zip.000_of_007 etc.
-                zipfile_part_prefix = os.path.join(local_transfer_dir, 'output_archive-{}-{}.zip'.format(datetime.now().strftime("%Y%m%d_%H%M%S"), st.session_state['basename_suffix_for_new_results_archive']))
-
-                # Zip all loaded results to a temporary directory
-                create_zipfile_from_files_in_dir(
-                    zipfile_part_prefix,
-                    local_output_dir,
-                    chunksize_in_mb=200,  # note that 750 MB is the largest chunk filesize that can be reliably transferred without timeout issues on NIDAP's end. Making this much smaller (to 250 MB) though since I'm about to implement parallelization of file transfers between NIDAP and Workspaces and probably the more files, the better. Note I recently saw the timeout issue with 750 MB so I'm splitting the difference and calling it 500 MB for now. Note that on 3/[9-10]/24, I no longer such a network-related limit, and instead a more filesystem-y one at 2000 MB, so we could potentially increase this. However, decreasing it to 200 MB to create more files and utilize more parallelism.
-                    dirpath_prefixes_to_exclude=('output_archive-',)
-                    )
-                
-                # # Get the names of all created zipfile parts
-                # zipfile_part_filenames = sorted([x for x in os.listdir(local_transfer_dir) if x.startswith(os.path.basename(zipfile_part_prefix))])
-
-                # Initialize the output dataset to which to transfer the zipfile parts
-                dataset = nidap_io.get_foundry_dataset(alias='output')
-                
-                # Recursively delete any files or directories in local_transfer_dir that do not start with os.path.basename(zipfile_part_prefix)
-                for filename in os.listdir(local_transfer_dir):
-                    if not filename.startswith(os.path.basename(zipfile_part_prefix)):
-                        shutil.rmtree(os.path.join(local_transfer_dir, filename))
-
-                # This will upload the files in parallel
-                nidap_io.upload_dir_to_dataset(dataset, path_to_dir_to_upload=local_transfer_dir)
-
-                # # This will upload the files serially
-                # for zipfile_part_filename in zipfile_part_filenames:
-                #     upload_single_file_to_dataset((dataset, local_transfer_dir, zipfile_part_filename))
-
-                # Delete the temporary transfer directory and its contents
-                shutil.rmtree(local_transfer_dir)
-    
             # Rerun since this potentially changes outputs
             st.rerun()
             
@@ -960,3 +929,47 @@ def download_single_file_from_dataset(args_as_single_tuple):
     filesize = os.path.getsize(curr_local_download_path) / 1024 ** 2
     duration = time.time() - start_time
     print('  Download of {} ({:5.3f} MB) from Compass to Workspaces took {:3.1f} seconds --> {:3.1f} MB/s'.format(filename, filesize, duration, filesize / duration))
+
+def back_up_results_to_nidap(local_output_dir, basename_suffix_for_new_results_archive, chunksize_in_mb=200):
+
+    # Import relevant library
+    import nidap_io
+    from datetime import datetime
+
+    # Create a temporary transfer directory to hold the generated zip files
+    local_transfer_dir = os.path.join('.', 'transfer')
+    os.makedirs(local_transfer_dir, exist_ok=True)
+
+    # Get the file like ../transfer/myfile.zip for which parts will be created like ../transfer/myfile.zip.000_of_007 etc.
+    zipfile_part_prefix = os.path.join(local_transfer_dir, 'output_archive-{}-{}.zip'.format(datetime.now().strftime("%Y%m%d_%H%M%S"), basename_suffix_for_new_results_archive))
+
+    # Zip all loaded results to a temporary directory
+    print(f'Creating {chunksize_in_mb} MB zip file parts for backup to NIDAP...')
+    create_zipfile_from_files_in_dir(
+        zipfile_part_prefix,
+        local_output_dir,
+        chunksize_in_mb=chunksize_in_mb,  # note that 750 MB is the largest chunk filesize that can be reliably transferred without timeout issues on NIDAP's end. Making this much smaller (to 250 MB) though since I'm about to implement parallelization of file transfers between NIDAP and Workspaces and probably the more files, the better. Note I recently saw the timeout issue with 750 MB so I'm splitting the difference and calling it 500 MB for now. Note that on 3/[9-10]/24, I no longer such a network-related limit, and instead a more filesystem-y one at 2000 MB, so we could potentially increase this. However, decreasing it to 200 MB to create more files and utilize more parallelism.
+        dirpath_prefixes_to_exclude=('output_archive-',)
+        )
+
+    # Initialize the output dataset to which to transfer the zipfile parts
+    dataset = nidap_io.get_foundry_dataset(alias='output')
+
+    # Recursively delete any files or directories in local_transfer_dir that do not start with os.path.basename(zipfile_part_prefix)
+    for filename in os.listdir(local_transfer_dir):
+        if not filename.startswith(os.path.basename(zipfile_part_prefix)):
+            path = os.path.join(local_transfer_dir, filename)
+            if os.path.isfile(path):
+                os.remove(path)
+            elif os.path.isdir(path):
+                shutil.rmtree(path)
+
+    # This will upload the files in parallel
+    print(f'Uploading {len(os.listdir(local_transfer_dir))} zip file parts in parallel to NIDAP...')
+    nidap_io.upload_dir_to_dataset(dataset, path_to_dir_to_upload=local_transfer_dir)
+
+    # Delete the temporary transfer directory and its contents
+    shutil.rmtree(local_transfer_dir)
+
+    # Print what we just did
+    print('All results backed up to NIDAP!')
