@@ -171,27 +171,6 @@ def filter_and_plot():
             palette = 'tab20'
         st.session_state = ndl.setFigureObjs_UMAP(st.session_state, palette = palette)
 
-# def prepare_umap_plotting():
-#     '''
-#     Prepare the UMAP plotting
-#     '''
-    
-#     vlim = .97
-#     n_bins = 200
-#     xx = np.linspace(np.min(st.session_state.df_umap['X']), np.max(st.session_state.df_umap['X']), n_bins + 1)
-#     yy = np.linspace(np.min(st.session_state.df_umap['Y']), np.max(st.session_state.df_umap['Y']), n_bins + 1)
-#     n_pad = 40
-
-#     w = None
-#     st.session_state.d_full, bin_indices_df_group = umPT.plot_2d_density(st.session_state.df_umap['X'],
-#                                                                             st.session_state.df_umap['Y'],
-#                                                                             bins=[xx, yy], w=w, return_matrix=True)
-
-#     st.session_state.UMAPFig = bpl.UMAPdraw_density(st.session_state.d_full, bins = [xx, yy], w=w, n_pad=n_pad, vlim=vlim)
-    
-#     feat_comp1 = '= 1'
-#     feat_comp2 = '= 0'
-
 def main():
     '''
     Main function for running the page
@@ -230,7 +209,7 @@ def main():
 
     with npf_cols[1]:
         if st.session_state['toggle_clust_diff']:
-            st.selectbox('Feature', options = ['Outcome', 'Survival_5yr'], key = 'dens_diff_feat_sel')
+            st.selectbox('Feature', options = st.session_state.outcomes, key = 'dens_diff_feat_sel')
             st.number_input('Cutoff Percentage', min_value = 0.01, max_value = 0.99, value = 0.2, step = 0.01, key = 'dens_diff_cutoff')
         if dens_butt:
             if st.session_state.phenotyping_completed:
@@ -292,17 +271,12 @@ def main():
                 st.session_state.UMAPFigDiff2_Dens = bpl.UMAPdraw_density(st.session_state.d_diff, bins = [xx, yy], w=w, n_pad=n_pad, vlim=vlim, feat = feat_labeld, diff = True)
 
                 # Filtering and Masking
-                bin_indices = list()
                 for x_bin in range(d_diff_mask_shape[0]):
                     for y_bin in range(d_diff_mask_shape[1]):
-
                         if st.session_state.d_diff[x_bin, y_bin] > cutoff:
                             st.session_state.d_diff_mask[x_bin, y_bin] = 1
-                            bin_indices.append((x_bin, y_bin))
-
                         elif st.session_state.d_diff[x_bin, y_bin] < -cutoff:
                             st.session_state.d_diff_mask[x_bin, y_bin] = -1
-                            bin_indices.append((x_bin, y_bin))
                         else:
                             st.session_state.d_diff_mask[x_bin, y_bin] = 0
 
