@@ -325,12 +325,15 @@ def main():
         df_image_labels[binary_colname] = df_image_labels[binary_colname].apply(lambda x: list(x)[0])
 
         # Allow user to select the fractions of the size of the smallest image to use for UMAP training and "testing"
+        min_num_cells_per_image = df.groupby(image_colname).size().min()
         if 'npc__frac_train' not in st.session_state:
             st.session_state['npc__frac_train'] = 0.1
-        frac_train = st.number_input('Fraction of the number of cells in the smallest image to use for training the UMAP:', key='npc__frac_train', format='%.2f', min_value=0.0, max_value=0.5)
+        num_train_cells_per_image = int(np.floor(min_num_cells_per_image * st.session_state['npc__frac_train']))
+        frac_train = st.number_input(f'Fraction of the number of cells in the smallest image to use for training the UMAP (current: {num_train_cells_per_image} cells/image):', key='npc__frac_train', format='%.2f', min_value=0.0, max_value=0.5)
         if 'npc__frac_test' not in st.session_state:
             st.session_state['npc__frac_test'] = 0.1
-        frac_test = st.number_input('Fraction of the number of cells in the smallest image to use for generating the 2D histogram:', key='npc__frac_test', format='%.2f', min_value=0.0, max_value=0.5)
+        num_test_cells_per_image = int(np.floor(min_num_cells_per_image * st.session_state['npc__frac_test']))
+        frac_test = st.number_input(f'Fraction of the number of cells in the smallest image to use for generating the 2D histogram (current: {num_test_cells_per_image} cells/image):', key='npc__frac_test', format='%.2f', min_value=0.0, max_value=0.5)
 
         # Create a dropdown for the user to choose the workflow
         if 'workflow' not in st.session_state:
@@ -399,12 +402,14 @@ def main():
                 df = st.session_state['df']
             
             # Create a dropdown for the user to choose the UMAP columns
+            umap_column_options_x = sorted([col for col in st.session_state['df'].columns if col.startswith('UMAP_1_')], reverse=True)
             if 'npc__umap_x_colname' not in st.session_state:
-                st.session_state['npc__umap_x_colname'] = umap_column_options[0]
-            umap_x_colname = st.selectbox('UMAP x column:', umap_column_options, key='npc__umap_x_colname')
+                st.session_state['npc__umap_x_colname'] = umap_column_options_x[0]
+            umap_x_colname = st.selectbox('UMAP x column:', umap_column_options_x, key='npc__umap_x_colname')
+            umap_column_options_y = sorted([col for col in st.session_state['df'].columns if col.startswith('UMAP_2_')], reverse=True)
             if 'npc__umap_y_colname' not in st.session_state:
-                st.session_state['npc__umap_y_colname'] = umap_column_options[1]
-            umap_y_colname = st.selectbox('UMAP y column:', umap_column_options, key='npc__umap_y_colname')
+                st.session_state['npc__umap_y_colname'] = umap_column_options_y[0]
+            umap_y_colname = st.selectbox('UMAP y column:', umap_column_options_y, key='npc__umap_y_colname')
 
             # Write a number_input widget for diff_cutoff_frac
             if 'diff_cutoff_frac' not in st.session_state:
@@ -465,7 +470,10 @@ def main():
                 return
 
         # Draw the plots
-        draw_plots(df_image_labels=df_image_labels, umap_x_colname=umap_x_colname, umap_y_colname=umap_y_colname, property_colnames=property_colnames, image_colname=image_colname, binary_colname=binary_colname, spatial_x_colname=spatial_x_colname, spatial_y_colname=spatial_y_colname)
+        if 'npc__show_plots' not in st.session_state:
+            st.session_state['npc__show_plots'] = False
+        if st.toggle('Visualize figures', key='npc__show_plots'):
+            draw_plots(df_image_labels=df_image_labels, umap_x_colname=umap_x_colname, umap_y_colname=umap_y_colname, property_colnames=property_colnames, image_colname=image_colname, binary_colname=binary_colname, spatial_x_colname=spatial_x_colname, spatial_y_colname=spatial_y_colname)
 
     # If we want to run the prediction workflow...
     else:

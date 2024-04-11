@@ -246,7 +246,7 @@ def umap_transform_in_batches(umap_fit, df_density, nworkers=7, max_arr_size_in_
     max_num_elements_in_arr = max_arr_size_in_bytes / 8  # 8 bytes per float64 element
 
     # Get the number of rows in the training data
-    num_rows_in_training_data = umap_fit.n_samples_fit_
+    num_rows_in_training_data = umap_fit.embedding_.shape[0]
     print('Using as the number of rows in the training data:', num_rows_in_training_data)
 
     # Number of elements in a row of the array
@@ -289,7 +289,6 @@ def run_umap_calculation(df, nworkers=7, transform_full_dataset=False):
     # Options to implement:
     #   * Perform supervised UMAP
     #   * Convert to float32 before running UMAP
-    #   * Understand why the transformations are taking so long in parallel and even in serial (I thought Dante said they were fast... maybe it's the area transformation that Giraldo does?)... I get roughly 33 min for whole dataset in serial and 16 min for whole data in parallel using 7 workers
 
     # Get a copy (since we're about to normalize) of the density matrix of just the density columns
     df_density = df.loc[:, [column for column in df.columns if column.startswith('spatial_umap_density of ')]].copy()
