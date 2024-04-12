@@ -93,19 +93,8 @@ def set_clusters():
     and applying them to the UMAP/dataset
     '''
     st.session_state.bc.startTimer()
-    if st.session_state['toggle_clust_diff']:
-        dataset_values  = st.session_state.umap_test_mask
-        dataset_indices = st.session_state.umap_test_mask_ind
-        clust_selection = st.session_state.slider_clus_val
-    else:
-        dataset_values  = st.session_state.spatial_umap.umap_test
-        dataset_indices = np.arange(len(dataset_values))
-        clust_selection = st.session_state.slider_clus_val
-
-    st.session_state.spatial_umap = bpl.perform_clusteringUMAP(dataset_indices,
-                                                                dataset_values,
-                                                                st.session_state.spatial_umap,
-                                                                clust_selection)
+    st.session_state.spatial_umap = bpl.perform_clusteringUMAP(st.session_state.spatial_umap,
+                                                               st.session_state.slider_clus_val)
     st.session_state.selected_nClus = st.session_state.slider_clus_val
     st.write('Done Calculating Clusters')
 
