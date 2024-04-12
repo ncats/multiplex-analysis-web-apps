@@ -808,15 +808,15 @@ def neighProfileDraw(spatial_umap, sel_clus, cmp_clus = None, figsize=(14, 16)):
     neipro_fig = plt.figure(figsize=figsize, facecolor = slc_bg)
     ax = neipro_fig.add_subplot(1, 1, 1, facecolor = slc_bg)
 
-    dens_df_mean_sel = spatial_umap.dens_df_mean.loc[spatial_umap.dens_df_mean['cluster'] == sel_clus, :].reset_index(drop=True)
+    dens_df_mean_sel = spatial_umap.dens_df_mean.loc[spatial_umap.dens_df_mean['clust_label'] == sel_clus, :].reset_index(drop=True)
     ylim = [0, spatial_umap.maxdens_df]
-    dens_df_mean = dens_df_mean_sel
+    dens_df_mean = dens_df_mean_sel.copy()
     cluster_title = f'Cluster {sel_clus}'
 
     if cmp_clus is not None:
-        dens_df_mean_cmp = spatial_umap.dens_df_mean.loc[spatial_umap.dens_df_mean['cluster'] == cmp_clus, :].reset_index(drop=True)
+        dens_df_mean_cmp = spatial_umap.dens_df_mean.loc[spatial_umap.dens_df_mean['clust_label'] == cmp_clus, :].reset_index(drop=True)
 
-        dens_df_mean = dens_df_mean_cmp
+        dens_df_mean = dens_df_mean_cmp.copy()
         dens_df_mean['density_mean'] = dens_df_mean_sel['density_mean'] - dens_df_mean_cmp['density_mean']
         dens_df_mean['density_sem'] = 0
         range_values = [min(dens_df_mean['density_mean']), max(dens_df_mean['density_mean'])]

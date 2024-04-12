@@ -583,12 +583,12 @@ class SpatialUMAP:
         for clust_label, group in self.df_umap.groupby('clust_label'):
 
             if clust_label != -1 and clust_label != 'No Cluster':
-                ind = group.index
+                clust_ind = group.index
 
                 smalldf_D = pd.DataFrame()
                 smalldf_P = pd.DataFrame()
-                theseDen = self.density[ind]
-                thesePro = self.proportion[ind]
+                theseDen = self.density[clust_ind]
+                thesePro = self.proportion[clust_ind]
                 for i, pheno in enumerate(self.phenoLabel):
 
                     theseDen_pheno = theseDen[:,:,i]
@@ -602,24 +602,24 @@ class SpatialUMAP:
                     smalldf_D['dist_bin'] = np.tile(self.dist_bin_um, r)
                     smalldf_D['density'] = theseDen_flat
                     smalldf_D['phenotype'] = pheno
-                    smalldf_D['cluster'] = clust_label
+                    smalldf_D['clust_label'] = clust_label
 
                     smalldf_P['dist_bin'] = np.tile(self.dist_bin_um, r)
                     smalldf_P['density'] = thesePro_flat
                     smalldf_P['phenotype'] = pheno
-                    smalldf_P['cluster'] = clust_label
+                    smalldf_P['clust_label'] = clust_label
 
                     self.dens_df = pd.concat([self.dens_df, smalldf_D], axis = 0).reset_index(drop=True)
                     self.prop_df = pd.concat([self.prop_df, smalldf_P], axis = 0).reset_index(drop=True)
 
         # Perform Groupby and Mean calculations
-        self.dens_df_mean = self.dens_df.groupby(['cluster', 'phenotype', 'dist_bin'], as_index=False).mean()
-        self.dens_df_se   = self.dens_df.groupby(['cluster', 'phenotype', 'dist_bin'], as_index=False).sem()
+        self.dens_df_mean = self.dens_df.groupby(['clust_label', 'phenotype', 'dist_bin'], as_index=False).mean()
+        self.dens_df_se   = self.dens_df.groupby(['clust_label', 'phenotype', 'dist_bin'], as_index=False).sem()
         self.dens_df_mean = self.dens_df_mean.rename(columns = {'density': 'density_mean'})
         self.dens_df_se   = self.dens_df_se.rename(columns = {'density': 'density_sem'})
         self.dens_df_mean['density_sem'] = self.dens_df_se['density_sem']
         self.maxdens_df   = 1.05*max(self.dens_df_mean['density_mean'] + self.dens_df_mean['density_sem'])
-    
+
     def prepare_df_umap_plotting(self, features):
         '''
         Making a simple dataframe for plotting.

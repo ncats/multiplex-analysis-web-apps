@@ -275,7 +275,7 @@ def plot_mean_neighborhood_profile(ax, dist_bin, pheno_order, npf_dens_mean, clu
     tab20 = plt.get_cmap('tab20')
     tab20_new = ListedColormap(tab20(np.arange(256)))
 
-    axesDict = dict()
+    axes_dict = dict()
     for ii, phenotype in enumerate(pheno_order):
         # Find the phenotype in the dataframe
         npf_dens_mean_pheno = npf_dens_mean[npf_dens_mean['phenotype'] == phenotype]
@@ -284,7 +284,7 @@ def plot_mean_neighborhood_profile(ax, dist_bin, pheno_order, npf_dens_mean, clu
                              y = npf_dens_mean_pheno.density_mean,
                              yerr=npf_dens_mean_pheno.density_sem,
                              color=tab20_new(ii))
-        axesDict[phenotype] = plotax
+        axes_dict[phenotype] = plotax
 
     plt.axhline(y=0, color='w', linestyle='--')
 
@@ -302,7 +302,7 @@ def plot_mean_neighborhood_profile(ax, dist_bin, pheno_order, npf_dens_mean, clu
     ax.tick_params(axis='y', colors=slc_text, which='both')
 
     if leg_flag:
-        ax.legend(axesDict.values(), axesDict.keys(),
+        ax.legend(axes_dict.values(), axes_dict.keys(),
                   bbox_to_anchor=(-0.05, -0.1),
                   loc='upper left',
                   fontsize = 12,
