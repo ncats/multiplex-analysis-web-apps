@@ -163,7 +163,7 @@ def init_pheno_summ(df):
 
     assign_pheno['phenotype_count'] = [sum(df['phenotype'] == x) for x in assign_pheno.phenotype]
     assign_pheno['phenotype_percent'] = [round(100*x/sum(assign_pheno['phenotype_count']), 2) for x in assign_pheno['phenotype_count']]
-    assign_pheno = assign_pheno.sort_values(by='phenotype_percent', ascending=False)
+    assign_pheno = assign_pheno.sort_values(by='phenotype_count', ascending=False)
 
     return assign_pheno
 
