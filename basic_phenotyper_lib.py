@@ -17,6 +17,7 @@ import seaborn as sns
 from sklearn.cluster import KMeans # K-Means
 
 from benchmark_collector import benchmark_collector # Benchmark Collector Class
+from SpatialUMAP import SpatialUMAP
 import PlottingTools as umPT
 
 def preprocess_df(df_orig, marker_names, marker_col_prefix, bc):
@@ -162,7 +163,7 @@ def init_pheno_summ(df):
 
     assign_pheno['phenotype_count'] = [sum(df['phenotype'] == x) for x in assign_pheno.phenotype]
     assign_pheno['phenotype_percent'] = [round(100*x/sum(assign_pheno['phenotype_count']), 2) for x in assign_pheno['phenotype_count']]
-    assign_pheno = assign_pheno.sort_values(by='phenotype_percent', ascending=False)
+    assign_pheno = assign_pheno.sort_values(by='phenotype_count', ascending=False)
 
     return assign_pheno
 
@@ -501,7 +502,6 @@ def setup_Spatial_UMAP(df, marker_names, pheno_order, cpu_pool_size = 1):
     '''
     Setup the requirements for running spatial UMAP
     '''
-    from SpatialUMAP import SpatialUMAP
 
     spatial_umap = SpatialUMAP(dist_bin_um=np.array([25, 50, 100, 150, 200]), um_per_px=0.5, area_downsample=.2)
     spatial_umap.cells = df
@@ -511,7 +511,7 @@ def setup_Spatial_UMAP(df, marker_names, pheno_order, cpu_pool_size = 1):
     spatial_umap.cells['Lineage'] = spatial_umap.cells['phenotype']
     spatial_umap.cells['Lineage'] = spatial_umap.cells['Lineage'].astype("category")
     spatial_umap.cells['Lineage'] = spatial_umap.cells['Lineage'].cat.set_categories(pheno_order)
-    # spatial_umap.cells = spatial_umap.cells.sort_values(["Lineage"])
+    spatial_umap.cells = spatial_umap.cells.sort_values(["Lineage"])
 
     # Assign pheno_order
     spatial_umap.phenoLabel = pheno_order
@@ -524,7 +524,7 @@ def setup_Spatial_UMAP(df, marker_names, pheno_order, cpu_pool_size = 1):
     print(f'There are {spatial_umap.cells["TMA_core_id"].unique().size} images in this dataset ')
 
     # Define the number of species we will be working with (how many different get_dummies)
-    spatial_umap.species = sorted(spatial_umap.cells['Lineage'].unique())
+    spatial_umap.species = pheno_order
     spatial_umap.markers = sorted(marker_names)
     spatial_umap.markers = [x + '+' for x in spatial_umap.markers]
     spatial_umap.num_species = len(spatial_umap.species)
@@ -635,6 +635,11 @@ def KMeans_calc(umap_data, n_clusters = 5):
     # Fit the data to the KMeans object
     kmeans_obj.fit(umap_data)
 
+    cluster_dict = dict()
+    cluster_dict[0] = 'No Cluster'
+    for i in range(n_clusters):
+        cluster_dict[i+1] = f'Cluster{i+1}'
+
     return kmeans_obj
 
 def measure_possible_clust(spatial_umap, clust_minmax):
@@ -659,7 +664,7 @@ def measure_possible_clust(spatial_umap, clust_minmax):
         wcss.append(kmeans_obj.inertia_)
     return list(clust_range), wcss
 
-def perform_clusteringUMAP(indices, dataset, spatial_umap, n_clusters):
+def perform_clusteringUMAP(spatial_umap, n_clusters):
     '''
     perform clustering for the UMAP data using KMeans
 
@@ -676,12 +681,12 @@ def perform_clusteringUMAP(indices, dataset, spatial_umap, n_clusters):
     spatial_umap.df_umap.loc[:, 'Cluster'] = -1
 
     # Perform clustering
-    kmeans_obj = KMeans_calc(dataset, n_clusters)
+    kmeans_obj = KMeans_calc(spatial_umap.umap_test, n_clusters)
 
     # Add cluster label column to cells dataframe
-    spatial_umap.df_umap.loc[indices, 'clust_label'] = kmeans_obj.labels_
-    spatial_umap.df_umap.loc[indices, 'cluster'] = kmeans_obj.labels_
-    spatial_umap.df_umap.loc[indices, 'Cluster'] = kmeans_obj.labels_
+    spatial_umap.df_umap.loc[:, 'clust_label'] = kmeans_obj.labels_
+    spatial_umap.df_umap.loc[:, 'cluster'] = kmeans_obj.labels_
+    spatial_umap.df_umap.loc[:, 'Cluster'] = kmeans_obj.labels_
 
     # After assigning cluster labels, perform mean calculations
     spatial_umap.mean_measures()
@@ -803,15 +808,16 @@ def neighProfileDraw(spatial_umap, sel_clus, cmp_clus = None, figsize=(14, 16)):
     neipro_fig = plt.figure(figsize=figsize, facecolor = slc_bg)
     ax = neipro_fig.add_subplot(1, 1, 1, facecolor = slc_bg)
 
-    dens_df_mean_sel = spatial_umap.dens_df_mean.loc[spatial_umap.dens_df_mean['cluster'] == sel_clus, :].reset_index(drop=True)
+    # spatial_umap.dens_df_mean = spatial_umap.dens_df_mean.loc[spatial_umap.dens_df_mean['phenotype'] != 'Other', :]
+    dens_df_mean_sel = spatial_umap.dens_df_mean.loc[spatial_umap.dens_df_mean['clust_label'] == sel_clus, :].reset_index(drop=True)
     ylim = [0, spatial_umap.maxdens_df]
-    dens_df_mean = dens_df_mean_sel
+    dens_df_mean = dens_df_mean_sel.copy()
     cluster_title = f'Cluster {sel_clus}'
 
     if cmp_clus is not None:
-        dens_df_mean_cmp = spatial_umap.dens_df_mean.loc[spatial_umap.dens_df_mean['cluster'] == cmp_clus, :].reset_index(drop=True)
+        dens_df_mean_cmp = spatial_umap.dens_df_mean.loc[spatial_umap.dens_df_mean['clust_label'] == cmp_clus, :].reset_index(drop=True)
 
-        dens_df_mean = dens_df_mean_cmp
+        dens_df_mean = dens_df_mean_cmp.copy()
         dens_df_mean['density_mean'] = dens_df_mean_sel['density_mean'] - dens_df_mean_cmp['density_mean']
         dens_df_mean['density_sem'] = 0
         range_values = [min(dens_df_mean['density_mean']), max(dens_df_mean['density_mean'])]
@@ -821,6 +827,7 @@ def neighProfileDraw(spatial_umap, sel_clus, cmp_clus = None, figsize=(14, 16)):
 
     umPT.plot_mean_neighborhood_profile(ax = ax,
                                         dist_bin = spatial_umap.dist_bin_um,
+                                        pheno_order= spatial_umap.phenoLabel,
                                         npf_dens_mean = dens_df_mean,
                                         cluster_title = cluster_title,
                                         max_dens = ylim,

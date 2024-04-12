@@ -61,13 +61,13 @@ def plot_2d_density(X, Y=None, bins=200, n_pad=40, w=None, ax=None, gaussian_sig
     if return_matrix:
         x_bin_indices = np.digitize(X, xedges[:-1])-1
         y_bin_indices = np.digitize(Y, yedges[:-1])-1
-        bin_indices = [(indx*n_bins + indy) for (indx, indy) in zip(x_bin_indices, y_bin_indices)]
+        # bin_indices = [(indx*n_bins + indy) for (indx, indy) in zip(x_bin_indices, y_bin_indices)]
 
-        bin_indices_df = pd.DataFrame(bin_indices, columns = ['bin_num'])
-        bin_indices_df['index'] = bin_indices_df.index
-        bin_indices_df_group = bin_indices_df.groupby('bin_num')['index'].apply(list)
+        # bin_indices_df = pd.DataFrame(bin_indices, columns = ['bin_num'])
+        # bin_indices_df['index'] = bin_indices_df.index
+        # bin_indices_df_group = bin_indices_df.groupby('bin_num')['index'].apply(list)
 
-        tuple_list = [(indx, indy) for (indx, indy) in zip(x_bin_indices, y_bin_indices)]
+        # tuple_list = [(indx, indy) for (indx, indy) in zip(x_bin_indices, y_bin_indices)]
 
         bin_indices_df = pd.DataFrame(data = {'indx': x_bin_indices.flatten(),
                                               'indy': y_bin_indices.flatten(),
@@ -262,7 +262,7 @@ def plot_neighborhood_profile_propor(ax, cell_label, dist_bin, cell_propor, phen
     if legF:
         plt.legend()
 
-def plot_mean_neighborhood_profile(ax, dist_bin, npf_dens_mean, cluster_title, max_dens=0.1, leg_flag=0):
+def plot_mean_neighborhood_profile(ax, dist_bin, pheno_order, npf_dens_mean, cluster_title, max_dens=0.1, leg_flag=0):
     '''
     This function generates the line plots of the phenotype density 
     at different distances from a given cell
@@ -275,9 +275,8 @@ def plot_mean_neighborhood_profile(ax, dist_bin, npf_dens_mean, cluster_title, m
     tab20 = plt.get_cmap('tab20')
     tab20_new = ListedColormap(tab20(np.arange(256)))
 
-    phenotypes = npf_dens_mean['phenotype'].unique()
-    axesDict = dict()
-    for ii, phenotype in enumerate(phenotypes):
+    axes_dict = dict()
+    for ii, phenotype in enumerate(pheno_order):
         # Find the phenotype in the dataframe
         npf_dens_mean_pheno = npf_dens_mean[npf_dens_mean['phenotype'] == phenotype]
 
@@ -285,7 +284,7 @@ def plot_mean_neighborhood_profile(ax, dist_bin, npf_dens_mean, cluster_title, m
                              y = npf_dens_mean_pheno.density_mean,
                              yerr=npf_dens_mean_pheno.density_sem,
                              color=tab20_new(ii))
-        axesDict[phenotype] = plotax
+        axes_dict[phenotype] = plotax
 
     plt.axhline(y=0, color='w', linestyle='--')
 
@@ -303,7 +302,7 @@ def plot_mean_neighborhood_profile(ax, dist_bin, npf_dens_mean, cluster_title, m
     ax.tick_params(axis='y', colors=slc_text, which='both')
 
     if leg_flag:
-        ax.legend(axesDict.values(), axesDict.keys(),
+        ax.legend(axes_dict.values(), axes_dict.keys(),
                   bbox_to_anchor=(-0.05, -0.1),
                   loc='upper left',
                   fontsize = 12,

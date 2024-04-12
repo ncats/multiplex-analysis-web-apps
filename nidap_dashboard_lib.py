@@ -154,7 +154,7 @@ def reset_neigh_profile_settings(session_state):
 
     # Unfiltered dropdown default options
     session_state.defLineageOpt    = 'All Phenotypes'
-    session_state.defumapOutcomes  = 'No Outcome'
+    session_state.defumapOutcomes  = 'phenotype'
     session_state.definciOutcomes  = 'Cell Counts'
 
     # Default UMAP dropdown options
@@ -164,6 +164,7 @@ def reset_neigh_profile_settings(session_state):
     session_state.umapOutcomes = [session_state.defumapOutcomes]
 
     # Default Incidence dropdown options
+    session_state.outcomes     = [session_state.defumapOutcomes]
     session_state.inciOutcomes = [session_state.definciOutcomes]
 
     # Default UMAPInspect settings
@@ -178,6 +179,9 @@ def reset_neigh_profile_settings(session_state):
     session_state.inciPhenoSel   = session_state.defLineageOpt
     session_state.inciOutcomeSel = session_state.definciOutcomes
     session_state.Inci_Value_display = 'Count Differences'
+
+    # Default Cluster_Dict()
+    session_state.cluster_dict = {0: 'No Cluster'}
 
     return session_state
 
@@ -534,15 +538,15 @@ def setFigureObjs_UMAP(session_state, palette = 'tab20'):
              f'PHENO METHOD: {session_state.selected_phenoMeth}',
              f'SLIDE ID: {session_state["selSlide ID_short"]}']
 
-    clust_order = sorted(session_state.df_umap['clust_label'].unique())
+    clust_order = sorted(session_state.spatial_umap.df_umap['clust_label'].unique())
     # Seaborn
     session_state.seabornFig_clust, session_state.ax = bpl.draw_scatter_fig(figsize=session_state.figsize)
-    session_state.seabornFig_clust = bpl.scatter_plot(session_state.df_umap_filt, session_state.seabornFig_clust, session_state.ax, title,
+    session_state.seabornFig_clust = bpl.scatter_plot(session_state.spatial_umap.df_umap_filt, session_state.seabornFig_clust, session_state.ax, title,
                                                       xVar = 'Cell X Position', yVar = 'Cell Y Position', hueVar = 'clust_label',
                                                       hueOrder=clust_order, palette = palette)
 
     # Altair
-    session_state.altairFig_clust = drawAltairObj(session_state.df_umap_filt, title, clust_order, session_state.seabornFig_clust, session_state.ax, legendCol = 'clust_label')
+    session_state.altairFig_clust = drawAltairObj(session_state.spatial_umap.df_umap_filt, title, clust_order, session_state.seabornFig_clust, session_state.ax, legendCol = 'clust_label')
 
     return session_state
 
