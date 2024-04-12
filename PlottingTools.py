@@ -61,13 +61,13 @@ def plot_2d_density(X, Y=None, bins=200, n_pad=40, w=None, ax=None, gaussian_sig
     if return_matrix:
         x_bin_indices = np.digitize(X, xedges[:-1])-1
         y_bin_indices = np.digitize(Y, yedges[:-1])-1
-        bin_indices = [(indx*n_bins + indy) for (indx, indy) in zip(x_bin_indices, y_bin_indices)]
+        # bin_indices = [(indx*n_bins + indy) for (indx, indy) in zip(x_bin_indices, y_bin_indices)]
 
-        bin_indices_df = pd.DataFrame(bin_indices, columns = ['bin_num'])
-        bin_indices_df['index'] = bin_indices_df.index
-        bin_indices_df_group = bin_indices_df.groupby('bin_num')['index'].apply(list)
+        # bin_indices_df = pd.DataFrame(bin_indices, columns = ['bin_num'])
+        # bin_indices_df['index'] = bin_indices_df.index
+        # bin_indices_df_group = bin_indices_df.groupby('bin_num')['index'].apply(list)
 
-        tuple_list = [(indx, indy) for (indx, indy) in zip(x_bin_indices, y_bin_indices)]
+        # tuple_list = [(indx, indy) for (indx, indy) in zip(x_bin_indices, y_bin_indices)]
 
         bin_indices_df = pd.DataFrame(data = {'indx': x_bin_indices.flatten(),
                                               'indy': y_bin_indices.flatten(),

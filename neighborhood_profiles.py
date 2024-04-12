@@ -218,7 +218,6 @@ class NeighborhoodProfiles:
         self.outcomes = self.spatial_umap.cells.columns
 
         self.spatial_umap.prepare_df_umap_plotting(self.outcomes)
-        self.df_umap = self.spatial_umap.df_umap
 
         # Setup the session_state default parameters
 
@@ -242,8 +241,7 @@ class NeighborhoodProfiles:
 
         session_state.wcss_calc_completed = True
         session_state.umap_completed = True
-
-        session_state = self.filter_and_plot(session_state)
+        session_state.umapCompleted = True
 
         return session_state
 
