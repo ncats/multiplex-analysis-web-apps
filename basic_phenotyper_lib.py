@@ -635,6 +635,11 @@ def KMeans_calc(umap_data, n_clusters = 5):
     # Fit the data to the KMeans object
     kmeans_obj.fit(umap_data)
 
+    cluster_dict = dict()
+    cluster_dict[0] = 'No Cluster'
+    for i in range(n_clusters):
+        cluster_dict[i+1] = f'Cluster{i+1}'
+
     return kmeans_obj
 
 def measure_possible_clust(spatial_umap, clust_minmax):

@@ -341,6 +341,7 @@ def main():
         # Print a column header
         st.header('Clusters Plot')
 
+        # Plot Colors by Clusters or Phenotype
         clust_or_pheno = st.radio('Plot Colors by: ',
                                   ('Clusters', 'Phenotype'),
                                   horizontal = True, index = 0, key = 'clust_or_pheno')
@@ -381,6 +382,7 @@ def main():
         st.header('Neighborhood Profiles')
         if 'spatial_umap' in st.session_state:
 
+            # List of Clusters to display
             if st.session_state['toggle_clust_diff']:
                 list_clusters = list(st.session_state.cluster_dict.values())
                 list_clusters.remove('No Cluster')
@@ -388,10 +390,12 @@ def main():
                 list_clusters = list(range(st.session_state.selected_nClus))
 
             cluster_sel_col = st.columns([3, 1])
+            # Compare Clusters Toggle
             with cluster_sel_col[1]:
                 add_vertical_space(2)
                 st.toggle('Compare Cluster Neighborhoods', value = False, key = 'toggle_compare_clusters')
 
+            # Cluster Select Widgets
             with cluster_sel_col[0]:
                 sel_npf_fig  = st.selectbox('Select a cluster to view', list_clusters)
                 sel_npf_fig2 = None

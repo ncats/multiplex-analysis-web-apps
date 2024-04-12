@@ -546,10 +546,10 @@ class UMAPDensityProcessing():
             self.cluster_dict[-i-1] = f'False_Cluster{i+1}'
         for i in range(num_clus_1):
             self.cluster_dict[i+1] = f'True_Clust{i+1}'
-        
+
     # def perform_clustering(self, n_clusters, cond):
     #     '''
-        
+
     #     '''
 
     #     kmeans_obj = KMeans(n_clusters = n_clusters,
@@ -557,8 +557,7 @@ class UMAPDensityProcessing():
     #                         max_iter = 300,
     #                         n_init = 10,
     #                         random_state = 42)
-        
+
     #     cond_ind = np.nonzero(self.dens_mat == cond)
     #     cells_cond = np.vstack(cond_ind).T
     #     kmeans_obj.fit(cells_cond)
-        
