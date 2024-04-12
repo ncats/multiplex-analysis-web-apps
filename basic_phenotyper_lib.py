@@ -524,7 +524,7 @@ def setup_Spatial_UMAP(df, marker_names, pheno_order, cpu_pool_size = 1):
     print(f'There are {spatial_umap.cells["TMA_core_id"].unique().size} images in this dataset ')
 
     # Define the number of species we will be working with (how many different get_dummies)
-    spatial_umap.species = sorted(spatial_umap.cells['Lineage'].unique())
+    spatial_umap.species = pheno_order
     spatial_umap.markers = sorted(marker_names)
     spatial_umap.markers = [x + '+' for x in spatial_umap.markers]
     spatial_umap.num_species = len(spatial_umap.species)
@@ -808,6 +808,7 @@ def neighProfileDraw(spatial_umap, sel_clus, cmp_clus = None, figsize=(14, 16)):
     neipro_fig = plt.figure(figsize=figsize, facecolor = slc_bg)
     ax = neipro_fig.add_subplot(1, 1, 1, facecolor = slc_bg)
 
+    # spatial_umap.dens_df_mean = spatial_umap.dens_df_mean.loc[spatial_umap.dens_df_mean['phenotype'] != 'Other', :]
     dens_df_mean_sel = spatial_umap.dens_df_mean.loc[spatial_umap.dens_df_mean['clust_label'] == sel_clus, :].reset_index(drop=True)
     ylim = [0, spatial_umap.maxdens_df]
     dens_df_mean = dens_df_mean_sel.copy()
