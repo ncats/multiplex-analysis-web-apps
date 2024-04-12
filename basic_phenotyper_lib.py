@@ -17,6 +17,7 @@ import seaborn as sns
 from sklearn.cluster import KMeans # K-Means
 
 from benchmark_collector import benchmark_collector # Benchmark Collector Class
+from SpatialUMAP import SpatialUMAP
 import PlottingTools as umPT
 
 def preprocess_df(df_orig, marker_names, marker_col_prefix, bc):
@@ -501,7 +502,6 @@ def setup_Spatial_UMAP(df, marker_names, pheno_order, cpu_pool_size = 1):
     '''
     Setup the requirements for running spatial UMAP
     '''
-    from SpatialUMAP import SpatialUMAP
 
     spatial_umap = SpatialUMAP(dist_bin_um=np.array([25, 50, 100, 150, 200]), um_per_px=0.5, area_downsample=.2)
     spatial_umap.cells = df
@@ -511,7 +511,7 @@ def setup_Spatial_UMAP(df, marker_names, pheno_order, cpu_pool_size = 1):
     spatial_umap.cells['Lineage'] = spatial_umap.cells['phenotype']
     spatial_umap.cells['Lineage'] = spatial_umap.cells['Lineage'].astype("category")
     spatial_umap.cells['Lineage'] = spatial_umap.cells['Lineage'].cat.set_categories(pheno_order)
-    # spatial_umap.cells = spatial_umap.cells.sort_values(["Lineage"])
+    spatial_umap.cells = spatial_umap.cells.sort_values(["Lineage"])
 
     # Assign pheno_order
     spatial_umap.phenoLabel = pheno_order
@@ -821,6 +821,7 @@ def neighProfileDraw(spatial_umap, sel_clus, cmp_clus = None, figsize=(14, 16)):
 
     umPT.plot_mean_neighborhood_profile(ax = ax,
                                         dist_bin = spatial_umap.dist_bin_um,
+                                        pheno_order= spatial_umap.phenoLabel,
                                         npf_dens_mean = dens_df_mean,
                                         cluster_title = cluster_title,
                                         max_dens = ylim,

@@ -262,7 +262,7 @@ def plot_neighborhood_profile_propor(ax, cell_label, dist_bin, cell_propor, phen
     if legF:
         plt.legend()
 
-def plot_mean_neighborhood_profile(ax, dist_bin, npf_dens_mean, cluster_title, max_dens=0.1, leg_flag=0):
+def plot_mean_neighborhood_profile(ax, dist_bin, pheno_order, npf_dens_mean, cluster_title, max_dens=0.1, leg_flag=0):
     '''
     This function generates the line plots of the phenotype density 
     at different distances from a given cell
@@ -275,9 +275,8 @@ def plot_mean_neighborhood_profile(ax, dist_bin, npf_dens_mean, cluster_title, m
     tab20 = plt.get_cmap('tab20')
     tab20_new = ListedColormap(tab20(np.arange(256)))
 
-    phenotypes = npf_dens_mean['phenotype'].unique()
     axesDict = dict()
-    for ii, phenotype in enumerate(phenotypes):
+    for ii, phenotype in enumerate(pheno_order):
         # Find the phenotype in the dataframe
         npf_dens_mean_pheno = npf_dens_mean[npf_dens_mean['phenotype'] == phenotype]
 
