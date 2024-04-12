@@ -103,48 +103,11 @@ class NeighborhoodProfiles:
 
     def setup_spatial_umap(self, df, marker_names, pheno_order):
         '''
-        Setup the requirements for running spatial UMAP
+        Silly I know. I will fix it later
         '''
 
-        spatial_umap = SpatialUMAP(dist_bin_um=np.array([25, 50, 100, 150, 200]), um_per_px=0.5, area_downsample=.2)
-        spatial_umap.cells = df
-        spatial_umap.patients = spatial_umap.makeDummyClinic(10)
+        self.spatial_umap = bpl.setup_Spatial_UMAP(df, marker_names, pheno_order)
 
-        # Set Lineage and sort
-        spatial_umap.cells['Lineage'] = spatial_umap.cells['phenotype']
-        spatial_umap.cells['Lineage'] = spatial_umap.cells['Lineage'].astype("category")
-        spatial_umap.cells['Lineage'] = spatial_umap.cells['Lineage'].cat.set_categories(pheno_order)
-        # spatial_umap.cells = spatial_umap.cells.sort_values(["Lineage"])
-
-        # Assign pheno_order
-        spatial_umap.phenoLabel = pheno_order
-
-        # Set regions
-        spatial_umap.cells['TMA_core_id'] = spatial_umap.cells['Slide ID']
-        # Set sample number
-        if 'Sample_number' not in spatial_umap.cells:
-            spatial_umap.cells['Sample_number'] = np.ones(spatial_umap.cells.shape[0])
-        print(f'There are {spatial_umap.cells["TMA_core_id"].unique().size} images in this dataset ')
-
-        # Define the number of species we will be working with (how many different get_dummies)
-        spatial_umap.species = sorted(spatial_umap.cells['Lineage'].unique())
-        spatial_umap.markers = sorted(marker_names)
-        spatial_umap.markers = [x + '+' for x in spatial_umap.markers]
-        spatial_umap.num_species = len(spatial_umap.species)
-        spatial_umap.num_markers = len(spatial_umap.markers)
-
-        # set explicitly as numpy array the cell coordinates (x, y)
-        # Notice here that I needed to change the script to CentroidX, CentroidY
-        spatial_umap.cell_positions = spatial_umap.cells[['Cell X Position', 'Cell Y Position']].values
-        # set explicitly as one hot data frame the cell labels
-        spatial_umap.cell_labels = pd.get_dummies(spatial_umap.cells['Lineage'])
-        spatial_umap.cell_labels = spatial_umap.cell_labels[spatial_umap.species]
-        # set the region is to be analyzed (a TMA core is treated similar to a region of a interest)
-        spatial_umap.region_ids = spatial_umap.cells.TMA_core_id.unique()
-        # default cluster values
-        spatial_umap.cells['clust_label'] = -1
-
-        self.spatial_umap = spatial_umap
 
     def perform_density_calc(self, cpu_pool_size = 1):
         '''
