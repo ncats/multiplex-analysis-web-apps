@@ -16,6 +16,10 @@ def plotly_scatter_plot(df_to_plot, x_colname='x coord', y_colname='y coord', la
     # Map the 'cluster_label' values to colors
     color_mapping = {label: color_scale[i % len(color_scale)] for i, label in enumerate(unique_labels)}
 
+    # Delete the 'color' column from the DataFrame if it exists
+    if 'color' in df_to_plot.columns:
+        del df_to_plot['color']
+
     # Create a new column in the DataFrame that contains the colors of the markers
     df_to_plot.loc[:, 'color'] = df_to_plot[label_colname].map(color_mapping)
 
@@ -23,15 +27,33 @@ def plotly_scatter_plot(df_to_plot, x_colname='x coord', y_colname='y coord', la
     fig = go.Figure()
 
     # For each label, add a trace to the figure
+    num_points_plotted = 0
+    if opacity_colname is not None:
+        num_opaque_points = 0
     for label in unique_labels:
         df_subset = df_to_plot[df_to_plot[label_colname] == label]
         if opacity_colname is not None:
+            opaque_locations = df_subset[opacity_colname] == 1
+            num_opaque_points = num_opaque_points + opaque_locations.sum()
+            num_points_to_plot_for_label = df_subset.loc[opaque_locations, [x_colname, y_colname, 'color', opacity_colname]].dropna().shape[0]
+            num_points_plotted = num_points_plotted + num_points_to_plot_for_label
+            st.write(f"Plotting (not {(opaque_locations).sum()}) {num_points_to_plot_for_label} *opaque* points for label {label}")
             fig.add_trace(go.Scatter(x=df_subset[x_colname], y=df_subset[y_colname], mode='markers', marker=dict(color=df_subset['color'], opacity=df_subset[opacity_colname]), name=label))
         else:
+            num_points_to_plot_for_label = df_subset[[x_colname, y_colname, 'color']].dropna().shape[0]
+            num_points_plotted = num_points_plotted + num_points_to_plot_for_label
+            st.write(f"Plotting {num_points_to_plot_for_label} points for label {label}")
             fig.add_trace(go.Scatter(x=df_subset[x_colname], y=df_subset[y_colname], mode='markers', marker=dict(color=df_subset['color']), name=label))
+
+    if opacity_colname is not None:
+        st.write(f'There are {num_opaque_points} opaque points in the dataset.')
+    st.write(f'Should have actually plotted {num_points_plotted} points.')
 
     # Set the aspect ratio and plot title
     fig.update_layout(xaxis={"scaleanchor": "y", "scaleratio": 1}, title=plot_title)
+
+    # Delete the 'color' column from the DataFrame
+    del df_to_plot['color']
 
     # Return the figure
     return fig
@@ -47,13 +69,13 @@ def draw_plots(df_image_labels, umap_x_colname='UMAP_1_20230327_152849', umap_y_
     # Write a header
     st.header('Plots by dataset')
 
-    # For plotting purposes below (to get a discrete legend instead of a colorbar), we need to convert the 'cluster_label' column to categorical, and also save their unique values so we can preserve plotting order
+    # For plotting purposes below (to get a discrete legend instead of a colorbar), we need to convert the 'cluster_label' column to categorical. This is a permanent operation to these two dataframes but it should be fine because it's intended for labels to be categorical, at least in this case. Also save their unique values so we can preserve plotting order
     df_by_bin['cluster_label'] = df_by_bin['cluster_label'].astype('category')
     df_by_cell['cluster_label'] = df_by_cell['cluster_label'].astype('category')
     unique_cluster_labels_by_bin = set([cluster_label for cluster_label in df_by_bin['cluster_label'].unique() if not np.isnan(cluster_label)])
     unique_cluster_labels_by_cell = set([cluster_label for cluster_label in df_by_cell['cluster_label'].unique() if not np.isnan(cluster_label)])
     assert unique_cluster_labels_by_bin == unique_cluster_labels_by_cell, f'The cluster labels are not the same for the bins ({unique_cluster_labels_by_bin}) and cells ({unique_cluster_labels_by_cell}).'
-    unique_cluster_labels = list(unique_cluster_labels_by_bin)
+    unique_cluster_labels = sorted(list(unique_cluster_labels_by_bin))
 
     # Create two columns for the per-dataset plots
     col1, col2 = st.columns(2)
@@ -119,7 +141,9 @@ def draw_plots(df_image_labels, umap_x_colname='UMAP_1_20230327_152849', umap_y_
         st.plotly_chart(plotly_scatter_plot(df_by_bin_filtered, x_colname=spatial_x_colname, y_colname=spatial_y_colname, label_colname='cluster_label', unique_labels=unique_cluster_labels, plot_title=f'Spatial by Bin for {selected_image} (this is meaningless; don\'t read into it)'))
         df_by_bin['opacity'] = 0.05
         df_by_bin.loc[image_in_set, 'opacity'] = 1
+        st.write('Number of opaque points plotted:', df_by_bin.loc[image_in_set, 'opacity'].sum())
         st.plotly_chart(plotly_scatter_plot(df_by_bin, x_colname=umap_x_colname, y_colname=umap_y_colname, label_colname='cluster_label', unique_labels=unique_cluster_labels, plot_title=f'UMAP by Bin for {selected_image}', opacity_colname='opacity'))
+        del df_by_bin['opacity']
         st.plotly_chart(px.line(df_by_bin_filtered.groupby('cluster_label', observed=True)[property_colnames].mean().reset_index().melt(id_vars='cluster_label', var_name='column', value_name='value'), x='column', y='value', color='cluster_label', markers=True, title=f'Property Means by Bin for {selected_image}', category_orders={'cluster_label': unique_cluster_labels}))  # get the neighbor vectors for each cluster averaged over the histogram bins falling in that cluster
 
     # Plots by cell
@@ -140,6 +164,7 @@ def draw_plots(df_image_labels, umap_x_colname='UMAP_1_20230327_152849', umap_y_
         df_by_cell['opacity'] = 0.05
         df_by_cell.loc[cell_in_image, 'opacity'] = 1
         st.plotly_chart(plotly_scatter_plot(df_by_cell, x_colname=umap_x_colname, y_colname=umap_y_colname, label_colname='cluster_label', unique_labels=unique_cluster_labels, plot_title=f'UMAP by Cell for {selected_image}', opacity_colname='opacity'))  # note that not all cells in the current image (e.g., cell_in_image.sum()=1000) actually have valid cluster labels (e.g., df_by_cell.loc[cell_in_image, 'cluster_label'].isin(unique_cluster_labels).sum())
+        del df_by_bin['opacity']
         st.plotly_chart(px.line(df_by_cell_filtered.groupby('cluster_label', observed=True)[property_colnames].mean().reset_index().melt(id_vars='cluster_label', var_name='column', value_name='value'), x='column', y='value', color='cluster_label', markers=True, title=f'Property Means by Cell for {selected_image}', category_orders={'cluster_label': unique_cluster_labels}))  # get the neighbor vectors for each cluster averaged over the cells falling in that cluster
 
 
@@ -326,14 +351,18 @@ def main():
 
         # Allow user to select the fractions of the size of the smallest image to use for UMAP training and "testing"
         min_num_cells_per_image = df.groupby(image_colname).size().min()
+
         if 'npc__frac_train' not in st.session_state:
             st.session_state['npc__frac_train'] = 0.1
         num_train_cells_per_image = int(np.floor(min_num_cells_per_image * st.session_state['npc__frac_train']))
-        frac_train = st.number_input(f'Fraction of the number of cells in the smallest image to use for training the UMAP (current: {num_train_cells_per_image} cells/image):', key='npc__frac_train', format='%.2f', min_value=0.0, max_value=0.5)
+        frac_train = st.number_input(f'Fraction of the number of cells in the smallest image to use for training the UMAP:', key='npc__frac_train', format='%.2f', min_value=0.0, max_value=0.5)
+        st.write('Number of training cells to use per image:', num_train_cells_per_image)
+
         if 'npc__frac_test' not in st.session_state:
             st.session_state['npc__frac_test'] = 0.1
         num_test_cells_per_image = int(np.floor(min_num_cells_per_image * st.session_state['npc__frac_test']))
-        frac_test = st.number_input(f'Fraction of the number of cells in the smallest image to use for generating the 2D histogram (current: {num_test_cells_per_image} cells/image):', key='npc__frac_test', format='%.2f', min_value=0.0, max_value=0.5)
+        frac_test = st.number_input(f'Fraction of the number of cells in the smallest image to use for generating the 2D histogram:', key='npc__frac_test', format='%.2f', min_value=0.0, max_value=0.5)
+        st.write('Number of testing cells to use per image:', num_test_cells_per_image)
 
         # Create a dropdown for the user to choose the workflow
         if 'workflow' not in st.session_state:

@@ -11,7 +11,7 @@ import datetime
 import utils
 
 
-# Add columns to partition a dataframe into train and test sets for the UMAP, roughly similar to Giraldo et. al. 2021. Note frac_train and frac_test cannot be larger than 0.5
+# Add columns to partition a dataframe into train and test sets for the UMAP, roughly similar to Giraldo et. al. 2021. Note frac_train and frac_test cannot be larger than 0.5. This function adds the columns "umap_train" and "umap_test_i" to df, where i is the index of the test set
 def get_umap_train_and_test_sets(df, frac_train=0.5, frac_test=0.5, image_colname='ShortName', num_umap_test_sets=1):
 
     # Calculate the size of the train and test sets based on the size of the smallest image
@@ -55,7 +55,7 @@ def get_umap_train_and_test_sets(df, frac_train=0.5, frac_test=0.5, image_colnam
     return df
 
 
-# Calculate a dictionary of clusters as keys and list of bin tuples as values using the normalized histogram differences between two conditions for a single set of UMAP "test" data
+# Calculate a dictionary of clusters as keys and list of bin tuples as values using the normalized histogram differences between two conditions for a single set of UMAP "test" data. This function does not add any columns to df
 def calculate_difference_clusters(df, diff_cutoff_frac, umap_x_colname='UMAP_1_20230327_152849', umap_y_colname='UMAP_2_20230327_152849', binary_colname='Survival_5yr', num_umap_bins=200, plot_manual_histogram_diff=False, plot_diff_matrix=True, umap_test_colname='umap_test_0'):
 
     # Get the x and y UMAP ranges for all UMAP test sets
@@ -121,37 +121,57 @@ def calculate_difference_clusters(df, diff_cutoff_frac, umap_x_colname='UMAP_1_2
     return clusters, edges_x, edges_y, fig_d_diff, fig_d_diff_manual
 
 
-# Determine the bins of the UMAP x and y coordinates of an input dataframe
+# Determine the bins of the UMAP x and y coordinates of an input dataframe. This function does not add any columns to df
 def perform_umap_binning(df, edges_x, edges_y, image_colname='ShortName', spatial_x_colname='spatial_x', spatial_y_colname='spatial_y', umap_x_colname='umap_x', umap_y_colname='umap_y', property_colnames=['property_a', 'property_b']):
 
     # Sample values of boolean_subset_on_cells:
     #   * pd.Series(True, index=cells.index)  # --> all cells
     #   * cells['survival'] == 'dead'         # --> subset of cells
 
+    # Print out the percentage of null rows in the umap_x and umap_y columns relative to the total size of the dataframe
+    print(f'Percentage of null rows in {umap_x_colname}: {df[umap_x_colname].isnull().sum() / df.shape[0] * 100:.2f}%')
+    print(f'Percentage of null rows in {umap_y_colname}: {df[umap_y_colname].isnull().sum() / df.shape[0] * 100:.2f}%')
+
     # Start by defining a test dataframe containing just the cells in the test set from the original dataframe, where the index has been reset to a range but the original indices are stored for reference
     df_test_with_bins = df[[spatial_x_colname, spatial_y_colname, umap_x_colname, umap_y_colname, image_colname] + property_colnames]
     df_test_with_bins.index.name = 'cells_dataframe_index'
     df_test_with_bins = df_test_with_bins.reset_index(drop=False)
+
+    
 
     # Get the histogram and bins to which the cells in the test set correspond
     # counts, _, _ = np.histogram2d(df_test[umap_x_colname].values, df_test[umap_y_colname].values, bins=[edges_x, edges_y])  # not actually used, but useful to keep here to see how it relates to the following calls to np.digitize()
     bin_index_x = np.digitize(df_test_with_bins[umap_x_colname].values, edges_x[:-1]) - 1
     bin_index_y = np.digitize(df_test_with_bins[umap_y_colname].values, edges_y[:-1]) - 1
 
+    print('aaaa', np.where(bin_index_x == -1))
+
     # Add the bin indices to the test dataframe
     df_test_with_bins['bin_index_x'] = bin_index_x.flatten()
     df_test_with_bins['bin_index_y'] = bin_index_y.flatten()
+
+    # Print out the percentage of null rows in the bin_index_x and bin_index_y columns relative to the total size of the dataframe
+    print(f'Percentage of null rows in bin_index_x: {df_test_with_bins["bin_index_x"].isnull().sum() / df_test_with_bins.shape[0] * 100:.2f}%')
+    print(f'Percentage of null rows in bin_index_y: {df_test_with_bins["bin_index_y"].isnull().sum() / df_test_with_bins.shape[0] * 100:.2f}%')
+
+    # Print out the bin indices for the rows whose umap_x and umap_y values are null
+    print('Bin indices for rows whose umap_x and umap_y values are null:')
+    print(df_test_with_bins.loc[df_test_with_bins[umap_x_colname].isnull(), ['bin_index_x', 'bin_index_y']])
 
     # Return the dataframe
     return df_test_with_bins
 
 
-# Given the UMAP bins of each cell and the labels assigned to the bins, assign the labels to a per-cell dataframe and to a transformed dataframe grouped by bin, i.e., assign the label to each bin in that transformed dataframe
+# Given the UMAP bins of each cell and the labels assigned to the bins, assign the labels to a per-cell dataframe and to a transformed dataframe grouped by bin, i.e., assign the label to each bin in that transformed dataframe. This function adds the 'cluster_label' column to df_test_with_bins
 def assign_cluster_labels(df_test_with_bins, cluster_labels, image_colname='ShortName', min_cells_per_bin=1):
 
     # Say we perform clustering on the bins and get a dictionary of cluster labels (0, 1, 2, ..., k-1) as keys and the indices of the bins in each cluster as values
     # Note these bin indices must correspond to the ones coming out of np.digitize(), this is crucial!!
     # cluster_labels = {0: [(3, 4), (4, 5)], 1: [(0, 1), (1, 2), (2, 3)], 2: [(5, 1), (0, 7), (7, 8)]}
+
+    # Since we're adding a 'cluster_label' column, we need to make sure it doesn't already exist
+    if 'cluster_label' in df_test_with_bins.columns:
+        df_test_with_bins.drop(columns='cluster_label', inplace=True)
 
     # Loop through each cluster and add a column to df_test containing the cluster label for each cell, if a label has been applied to the cell
     for cluster_label, cluster_bins in cluster_labels.items():
@@ -185,6 +205,7 @@ def assign_cluster_labels(df_test_with_bins, cluster_labels, image_colname='Shor
     return bin_means, df_test_with_bins
 
 
+# This function does not add any columns to df
 def run_density_calculation(df, radius_edges=[0, 25, 50, 100, 150, 200], spatial_x_colname='CentroidX', spatial_y_colname='CentroidY', image_colname='ShortName', phenotype_colname='pheno_20230327_152849', debug_output=False, num_cpus_to_use=7, cast_to_float32=False):
 
     # Variables
@@ -238,7 +259,7 @@ def run_density_calculation(df, radius_edges=[0, 25, 50, 100, 150, 200], spatial
     return df_density_matrix_divided, timing_string_density
 
 
-# Calculate `umap_transform = umap_fit.transform(df_density)` in batches, since during an intermediate step, this tries to create an ndarray of size (len(df_density), num_rows_in_training_data) and therefore can easily run out of memory
+# Calculate `umap_transform = umap_fit.transform(df_density)` in batches, since during an intermediate step, this tries to create an ndarray of size (len(df_density), num_rows_in_training_data) and therefore can easily run out of memory. This function does not add any columns to df_density
 def umap_transform_in_batches(umap_fit, df_density, nworkers=7, max_arr_size_in_mb=200):
 
     # Get a reasonable batch size that ensures the temporary matrix created during the transformation doesn't reach max_arr_size_in_mb
@@ -283,7 +304,7 @@ def umap_transform_in_batches(umap_fit, df_density, nworkers=7, max_arr_size_in_
 
 
 # Perform UMAP on the density matrix of a dataframe, fitting on training cells and transforming on either all the testing cells or the entire dataset
-# TODO: See options to implement below
+# TODO: See options to implement below. This function does not add any columns to df
 def run_umap_calculation(df, nworkers=7, transform_full_dataset=False):
 
     # Options to implement:
