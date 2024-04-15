@@ -33,6 +33,18 @@ def phenocluster__diff_expr(adata, phenocluster__de_col, phenocluster__de_sel_gr
         st.dataframe(phenocluster__de_results, use_container_width=True)
 
 
+def phenocluster__edit_cluster_names(adata, edit_names_result, table_col):
+    #cur_clusters = list(pd.unique(adata.obs["Cluster"]))
+    #edit_names_df = pd.DataFrame({"Cluster": cur_clusters, "New_Name": cur_clusters})
+    #with table_column:
+        #edit_names_result = st.data_editor(edit_names_df)
+        #st.write(edit_names_result)
+    adata.obs['Edit_Cluster'] = adata.obs['Cluster'].map(edit_names_result.set_index('Cluster')['New_Name'])
+    st.session_state['phenocluster__clustering_adata'] = adata
+    with table_col:
+        st.write(list(pd.unique(st.session_state['phenocluster__clustering_adata'].obs['Edit_Cluster'])))
+    
+
 def main():
     phenocluster__col1b, phenocluster__col2b  = st.columns([1, 6])
     with phenocluster__col1b:
@@ -49,6 +61,21 @@ def main():
                                                                                             st.session_state['phenocluster__de_sel_groups'],
                                                                                             phenocluster__col2b
                                                                                             ])
+        
+    phenocluster__col3b, phenocluster__col4b  = st.columns([1, 6])
+    cur_clusters = list(pd.unique(st.session_state['phenocluster__clustering_adata'].obs["Cluster"]))
+    edit_names_df = pd.DataFrame({"Cluster": cur_clusters, "New_Name": cur_clusters})
+    with phenocluster__col4b:
+        edit_clustering_names = st.data_editor(edit_names_df)
+        st.session_state['phenocluster__edit_names_result'] = edit_clustering_names
+    with phenocluster__col3b:
+         #Edit cluster names
+        st.button('Edit Clusters Names', on_click=phenocluster__edit_cluster_names, args = [st.session_state['phenocluster__clustering_adata'], 
+                                                                                            st.session_state['phenocluster__edit_names_result'],
+                                                                                            phenocluster__col4b
+                                                                                            ])
+    
+        
 
 # Run the main function
 if __name__ == '__main__':
