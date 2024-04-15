@@ -20,15 +20,19 @@ output_directory = os.path.join('.', 'output')
 
 def set_dataset_specific_options():
 
-    # GEt the unique slide IDs
+    # Get the unique slide IDs
     slide_ids_orig = st.session_state['input_dataset'].data['Slide ID'].unique()
 
     # Extract the text after the first hyphen in each value
     slide_ids_without_shortcut_prefix = [slide_id.split('-', 1)[1] for slide_id in slide_ids_orig]
 
     # Strip out common prefixes and suffixes
-    common_prefix = os.path.commonprefix(slide_ids_without_shortcut_prefix)
-    common_suffix = os.path.commonprefix([part[::-1] for part in slide_ids_without_shortcut_prefix])[::-1]
+    if len(slide_ids_orig) != 1:
+        common_prefix = os.path.commonprefix(slide_ids_without_shortcut_prefix)
+        common_suffix = os.path.commonprefix([part[::-1] for part in slide_ids_without_shortcut_prefix])[::-1]
+    else:
+        common_prefix = ''
+        common_suffix = ''
     parsed_strings = [part[len(common_prefix):-len(common_suffix)] if len(common_suffix) != 0 else part[len(common_prefix):] for part in slide_ids_without_shortcut_prefix]
 
     # Create a dictionary mapping the parsed-out strings back to the slide IDs
