@@ -1,5 +1,6 @@
 dependencies:
   - pip
+  - foundry-transforms-lib-python>=0.578.0
   - pip:
     - scikit-learn
     - streamlit-extras

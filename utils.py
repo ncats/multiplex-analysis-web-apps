@@ -7,6 +7,9 @@ import numpy as np
 import scipy.spatial
 import streamlit_utils
 import pandas as pd
+import os
+import pytz
+from datetime import datetime
 
 def set_filename_corresp_to_roi(df_paths, roi_name, curr_colname, curr_dir, curr_dir_listing):
     """Update the path in a main paths-holding dataframe corresponding to a particular ROI in a particular directory.
@@ -842,7 +845,7 @@ def downcast_series_dtype(ser, frac_cutoff=0.05, number_cutoff=10):
     # Return the converted series
     return ser
 
-def downcast_dataframe_dtypes(df, also_return_final_size=False, frac_cutoff=0.05, number_cutoff=10):
+def downcast_dataframe_dtypes(df, also_return_final_size=False, frac_cutoff=0.05, number_cutoff=10, no_categorical=False):
     """
     Convert columns in a pandas DataFrame to the "category" data type if they have fewer than a specified percentage or number of unique values, in order to reduce memory usage.
 
@@ -851,6 +854,7 @@ def downcast_dataframe_dtypes(df, also_return_final_size=False, frac_cutoff=0.05
         also_return_final_size (bool, optional): Whether to return the final size of the dataframe after conversion. Defaults to False.
         frac_cutoff (float, optional): The cutoff fraction for the number of unique values in a column to be considered for conversion. Defaults to 0.05.
         number_cutoff (int, optional): The cutoff number for the number of unique values in a column to be considered for conversion. Defaults to 10.
+        no_categorical (bool, optional): Whether to convert columns to the most efficient format without using the category data type. Defaults to False.
 
     Returns:
         pandas.DataFrame or tuple: The dataframe with the specified columns converted to the category data type. If `also_return_final_size` is True, a tuple containing the dataframe and its final size in memory is returned.
@@ -863,7 +867,10 @@ def downcast_dataframe_dtypes(df, also_return_final_size=False, frac_cutoff=0.05
 
     # Potentially convert the columns to more efficient formats
     for col in df.columns:
-        df[col] = downcast_series_dtype(df[col], frac_cutoff=frac_cutoff, number_cutoff=number_cutoff)
+        if no_categorical:
+            df[col] = downcast_series_dtype_no_categorical(df[col])
+        else:
+            df[col] = downcast_series_dtype(df[col], frac_cutoff=frac_cutoff, number_cutoff=number_cutoff)
 
     # Print memory usage after conversion
     new_memory = df.memory_usage(deep=True).sum()
@@ -887,3 +894,84 @@ def memory_usage_in_mb():
     process = psutil.Process(pid)
     mem_info = process.memory_info()
     return pid, mem_info.rss / (1024 * 1024)  # Convert bytes to MB
+
+
+def downcast_series_dtype_no_categorical(ser):
+    """
+    Potentially convert a series to a more efficient datatype for our purposes.
+
+    Args:
+        ser (pandas.Series): The series to convert
+
+    Returns:
+        pandas.Series: The potentially converted series
+    """
+
+    # Get the initial dtype
+    initial_dtype = ser.dtype
+
+    # Halve the precision of integers and floats
+    if initial_dtype == 'int64':
+        # ser = ser.astype('int32')
+        ser = downcast_int_series(ser)
+    elif initial_dtype == 'float64':
+        ser = ser.astype('float32')
+
+    # Get the final dtype
+    final_dtype = ser.dtype
+
+    # Print the result of the conversion
+    if initial_dtype != final_dtype:
+        print(f'Column {ser.name} was compressed from {initial_dtype} to {final_dtype}')
+    else:
+        print(f'Column {ser.name} remains as {final_dtype}')
+
+    # Return the converted series
+    return ser
+
+
+def downcast_int_series(ser):
+    """
+    Downcast an int64 series to the smallest integer type that can safely represent all the values.
+
+    Args:
+        ser (pandas.Series): The int64 series to downcast
+
+    Returns:
+        pandas.Series: The downcasted series
+    """
+
+    # Define the integer types in order from smallest to largest
+    int_types = [np.int8, np.int16, np.int32, np.int64]
+
+    # Get the minimum and maximum values of the series
+    min_val, max_val = ser.min(), ser.max()
+
+    # Iterate over the integer types
+    for int_type in int_types:
+        # Check if all values can be safely represented by the current integer type
+        if np.iinfo(int_type).min <= min_val and max_val <= np.iinfo(int_type).max:
+            # Downcast the series to the current integer type
+            ser = ser.astype(int_type)
+            # Break the loop as we've found the smallest integer type that can safely represent all the values
+            break
+
+    # Return the downcasted series
+    return ser
+
+
+# Get the size of a directory recursively
+def get_dir_size(path_to_dir_to_upload):
+    total = 0
+    for dirpath, _, filenames in os.walk(path_to_dir_to_upload):
+        for f in filenames:
+            fp = os.path.join(dirpath, f)
+            total += os.path.getsize(fp)
+    return total / (1024 * 1024)  # Convert bytes to MB
+
+
+def get_timestamp(pretty=False):
+    if pretty:
+        return datetime.now(pytz.timezone('US/Eastern')).strftime('%Y-%m-%d %I:%M:%S %p %Z')
+    else:
+        return datetime.now(pytz.timezone('US/Eastern')).strftime("%Y%m%d_%H%M%S_%Z")

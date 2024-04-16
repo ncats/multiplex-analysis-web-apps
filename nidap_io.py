@@ -1,3 +1,11 @@
+# This is a single place to put all the functions that interact with NIDAP. It is called exclusively from platform_io.py.
+
+import os
+import shutil
+import time
+import utils
+
+
 def get_foundry_dataset(alias='input'):
     """Create a dataset object.
     This should be fast.
@@ -5,6 +13,7 @@ def get_foundry_dataset(alias='input'):
     """
     from foundry.transforms import Dataset
     return Dataset.get(alias)
+
 
 def upload_file_to_dataset(dataset, selected_filepath='/home/user/repo/bleh.txt'):
     """Upload a local file to a dataset.
@@ -14,6 +23,7 @@ def upload_file_to_dataset(dataset, selected_filepath='/home/user/repo/bleh.txt'
     This should be slow.
     """
     return dataset.upload_file(selected_filepath)
+
 
 def upload_dir_to_dataset(dataset, path_to_dir_to_upload='../junk_files'):
     """Upload a local directory to a dataset.
@@ -28,11 +38,19 @@ def upload_dir_to_dataset(dataset, path_to_dir_to_upload='../junk_files'):
          '../junk_files/subdir/subdir2/junk-200mb-4': 'subdir/subdir2/junk-200mb-4',
          '../junk_files/subdir/subdir2/junk-200mb-9': 'subdir/subdir2/junk-200mb-9',
          '../junk_files/subdir/subdir2/junk-200mb-0': 'subdir/subdir2/junk-200mb-0'}
-    Using this function on 3/[9-10]/24, I get about 70-120 MB/s upload speed.
-    Note there is at least a single-file upload limit of about 2000 MB, which is higher than I reported in an old Issue to Palantir.
+    Note there is at least a single-file upload limit of about 2000 MB, which is higher than reported in an old Issue to Palantir.
     This should be slow.
     """
-    return dataset.upload_directory(path_to_dir_to_upload)
+    output_dir = os.path.join(os.environ["USER_WORKING_DIR"], "outputs")  # per Palantir on 4/10/24: write files and directories to output_dir or a subdir to upload them
+    print(f'Transferring {utils.get_dir_size(path_to_dir_to_upload):.2f} MB from directory {path_to_dir_to_upload}...', end='')
+    shutil.rmtree(output_dir)
+    shutil.copytree(path_to_dir_to_upload, output_dir)
+    start_time = time.time()
+    return_val = dataset.upload_directory(local_dir_path=output_dir)
+    duration_in_sec = time.time() - start_time
+    print(f'done. Transfer took {duration_in_sec:.2f} seconds.')
+    return return_val
+
 
 def download_files_from_dataset(dataset, dataset_filter_func=lambda f: f.path.startswith("junk-200mb"), limit=15):
     """
@@ -57,34 +75,17 @@ def download_files_from_dataset(dataset, dataset_filter_func=lambda f: f.path.st
     return all_downloaded_files
 
 
-# ---- These are likely supplanted by download_files_from_dataset() ----------------------------------------------------------------
-# Actually, not necessarily. For downloads/uploads, yes, but for ultimately getting file listings, no.
 def get_file_objects_from_dataset(dataset):
     """Get a list of file objects in a dataset.
     This is likely supplanted by download_files_from_dataset().
     This is slow.
     """
     return list(dataset.files())
+
+
 def list_files_in_dataset(dataset_file_objects):
     """Get a list of strings of the filenames in a dataset.
     This is likely supplanted by download_files_from_dataset().
     This should be fast.
     """
     return [x.path for x in dataset_file_objects]
-def get_dataset_file_object(dataset_file_objects, selected_filename='sample_txt_file.txt'):
-    """Get the Foundry file object associated with a file.
-    This is likely supplanted by download_files_from_dataset().
-    This should be fast.
-    """
-    dataset_file_list = list_files_in_dataset(dataset_file_objects)
-    return dataset_file_objects[dataset_file_list.index(selected_filename)]
-def download_file_from_dataset(dataset_file_object):
-    """Download a file from a dataset to somewhere local.
-    This never overwrites existing files because the local download path (/tmp/data/RANDOM-STRING/filename) is always different.
-    This returns a string of the local download path.
-    This is likely supplanted by download_files_from_dataset().
-    This is slow.
-    """
-    return dataset_file_object.download()
-    # dataset_files = dataset.files().download()  # <-- This downloads all files in the dataset per the Code Workspaces documentation, consistent with Code Workspaces snippets on 3/10/24
-# ----------------------------------------------------------------------------------------------------------------------------------
