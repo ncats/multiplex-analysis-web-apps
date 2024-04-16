@@ -218,7 +218,7 @@ def phenocluster__default_session_state():
         st.session_state['phenocluster__de_sel_groups'] = ["All"]
         
     if 'phenocluster__plot_diff_intensity_method' not in st.session_state:
-        st.session_state['phenocluster__plot_diff_intensity_method'] = "Rank_Plot"
+        st.session_state['phenocluster__plot_diff_intensity_method'] = "Rank Plot"
         
     if 'phenocluster__plot_diff_intensity_n_genes' not in st.session_state:
         st.session_state['phenocluster__plot_diff_intensity_n_genes'] = 10

@@ -44,7 +44,7 @@ def phenocluster__plot_diff_intensity(adata, groups, method, n_genes, plot_colum
     else:
         cur_groups = groups
     
-    if method == "Rank_Plot":
+    if method == "Rank Plot":
         with plot_column:
             cur_fig = sc.pl.rank_genes_groups(adata, n_genes=n_genes, 
                                               groups=cur_groups, sharey=False)
@@ -76,6 +76,13 @@ def main():
     
     with phenocluster__col3b:
         # Plot differential intensity
+        phenocluster__dif_int_plot_methods = ["Rank Plot", "Heat Map", "Violin Plot"]
+        st.selectbox('Select Plot Type:', phenocluster__dif_int_plot_methods, key='phenocluster__plot_diff_intensity_method')
+        st.number_input(label = "Number of genes to plot", 
+                                key = 'phenocluster__plot_diff_intensity_n_genes',
+                                step = 1)
+        
+        
         st.button('Plot Markers', on_click=phenocluster__plot_diff_intensity, args = [st.session_state['phenocluster__clustering_adata'], 
                                                                                             st.session_state['phenocluster__de_sel_groups'],
                                                                                             st.session_state['phenocluster__plot_diff_intensity_method'],
