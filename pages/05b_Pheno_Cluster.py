@@ -32,17 +32,24 @@ def phenocluster__diff_expr(adata, phenocluster__de_col, phenocluster__de_sel_gr
     with plot_column:
         st.dataframe(phenocluster__de_results, use_container_width=True)
 
-
-def phenocluster__edit_cluster_names(adata, edit_names_result, table_col):
-    #cur_clusters = list(pd.unique(adata.obs["Cluster"]))
-    #edit_names_df = pd.DataFrame({"Cluster": cur_clusters, "New_Name": cur_clusters})
-    #with table_column:
-        #edit_names_result = st.data_editor(edit_names_df)
-        #st.write(edit_names_result)
+# change cluster names
+def phenocluster__edit_cluster_names(adata, edit_names_result):
     adata.obs['Edit_Cluster'] = adata.obs['Cluster'].map(edit_names_result.set_index('Cluster')['New_Name'])
     st.session_state['phenocluster__clustering_adata'] = adata
-    with table_col:
-        st.write(list(pd.unique(st.session_state['phenocluster__clustering_adata'].obs['Edit_Cluster'])))
+
+# make differential intensity plots    
+def phenocluster__plot_diff_intensity(adata, groups, method, n_genes, plot_column):
+    if "All" in groups:
+        cur_groups = None
+    else:
+        cur_groups = groups
+    
+    if method == "Rank_Plot":
+        with plot_column:
+            cur_fig = sc.pl.rank_genes_groups(adata, n_genes=n_genes, 
+                                              groups=cur_groups, sharey=False)
+            st.pyplot(fig = cur_fig, clear_figure=None, use_container_width=True)
+     
     
 
 def main():
@@ -63,16 +70,26 @@ def main():
                                                                                             ])
         
     phenocluster__col3b, phenocluster__col4b  = st.columns([1, 6])
+    phenocluster__col5b, phenocluster__col6b  = st.columns([1, 6])
     cur_clusters = list(pd.unique(st.session_state['phenocluster__clustering_adata'].obs["Cluster"]))
     edit_names_df = pd.DataFrame({"Cluster": cur_clusters, "New_Name": cur_clusters})
-    with phenocluster__col4b:
+    
+    with phenocluster__col3b:
+        # Plot differential intensity
+        st.button('Plot Markers', on_click=phenocluster__plot_diff_intensity, args = [st.session_state['phenocluster__clustering_adata'], 
+                                                                                            st.session_state['phenocluster__de_sel_groups'],
+                                                                                            st.session_state['phenocluster__plot_diff_intensity_method'],
+                                                                                            st.session_state['phenocluster__plot_diff_intensity_n_genes'],
+                                                                                            phenocluster__col4b
+                                                                                            ])   
+    
+    with phenocluster__col6b:
         edit_clustering_names = st.data_editor(edit_names_df)
         st.session_state['phenocluster__edit_names_result'] = edit_clustering_names
-    with phenocluster__col3b:
+    with phenocluster__col5b:
          #Edit cluster names
         st.button('Edit Clusters Names', on_click=phenocluster__edit_cluster_names, args = [st.session_state['phenocluster__clustering_adata'], 
-                                                                                            st.session_state['phenocluster__edit_names_result'],
-                                                                                            phenocluster__col4b
+                                                                                            st.session_state['phenocluster__edit_names_result']
                                                                                             ])
     
         
@@ -81,9 +98,10 @@ def main():
 if __name__ == '__main__':
 
     # Set page settings
-    page_name = 'Your Page Name Here'
+    page_name = 'Differential Intensity'
     st.set_page_config(layout='wide', page_title=page_name)
     st.title(page_name)
+    st.set_option('deprecation.showPyplotGlobalUse', False)
     
     # Run streamlit-dataframe-editor library initialization tasks at the top of the page
     st.session_state = sde.initialize_session_state(st.session_state)
