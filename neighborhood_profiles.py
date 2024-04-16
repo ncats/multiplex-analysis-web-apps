@@ -103,48 +103,11 @@ class NeighborhoodProfiles:
 
     def setup_spatial_umap(self, df, marker_names, pheno_order):
         '''
-        Setup the requirements for running spatial UMAP
+        Silly I know. I will fix it later
         '''
 
-        spatial_umap = SpatialUMAP(dist_bin_um=np.array([25, 50, 100, 150, 200]), um_per_px=0.5, area_downsample=.2)
-        spatial_umap.cells = df
-        spatial_umap.patients = spatial_umap.makeDummyClinic(10)
+        self.spatial_umap = bpl.setup_Spatial_UMAP(df, marker_names, pheno_order)
 
-        # Set Lineage and sort
-        spatial_umap.cells['Lineage'] = spatial_umap.cells['phenotype']
-        spatial_umap.cells['Lineage'] = spatial_umap.cells['Lineage'].astype("category")
-        spatial_umap.cells['Lineage'] = spatial_umap.cells['Lineage'].cat.set_categories(pheno_order)
-        # spatial_umap.cells = spatial_umap.cells.sort_values(["Lineage"])
-
-        # Assign pheno_order
-        spatial_umap.phenoLabel = pheno_order
-
-        # Set regions
-        spatial_umap.cells['TMA_core_id'] = spatial_umap.cells['Slide ID']
-        # Set sample number
-        if 'Sample_number' not in spatial_umap.cells:
-            spatial_umap.cells['Sample_number'] = np.ones(spatial_umap.cells.shape[0])
-        print(f'There are {spatial_umap.cells["TMA_core_id"].unique().size} images in this dataset ')
-
-        # Define the number of species we will be working with (how many different get_dummies)
-        spatial_umap.species = sorted(spatial_umap.cells['Lineage'].unique())
-        spatial_umap.markers = sorted(marker_names)
-        spatial_umap.markers = [x + '+' for x in spatial_umap.markers]
-        spatial_umap.num_species = len(spatial_umap.species)
-        spatial_umap.num_markers = len(spatial_umap.markers)
-
-        # set explicitly as numpy array the cell coordinates (x, y)
-        # Notice here that I needed to change the script to CentroidX, CentroidY
-        spatial_umap.cell_positions = spatial_umap.cells[['Cell X Position', 'Cell Y Position']].values
-        # set explicitly as one hot data frame the cell labels
-        spatial_umap.cell_labels = pd.get_dummies(spatial_umap.cells['Lineage'])
-        spatial_umap.cell_labels = spatial_umap.cell_labels[spatial_umap.species]
-        # set the region is to be analyzed (a TMA core is treated similar to a region of a interest)
-        spatial_umap.region_ids = spatial_umap.cells.TMA_core_id.unique()
-        # default cluster values
-        spatial_umap.cells['clust_label'] = -1
-
-        self.spatial_umap = spatial_umap
 
     def perform_density_calc(self, cpu_pool_size = 1):
         '''
@@ -218,7 +181,6 @@ class NeighborhoodProfiles:
         self.outcomes = self.spatial_umap.cells.columns
 
         self.spatial_umap.prepare_df_umap_plotting(self.outcomes)
-        self.df_umap = self.spatial_umap.df_umap
 
         # Setup the session_state default parameters
 
@@ -242,8 +204,7 @@ class NeighborhoodProfiles:
 
         session_state.wcss_calc_completed = True
         session_state.umap_completed = True
-
-        session_state = self.filter_and_plot(session_state)
+        session_state.umapCompleted = True
 
         return session_state
 
@@ -458,108 +419,6 @@ class NeighborhoodProfiles:
             ax.text(xLim[0], 0.93*yLim[1], feat, c = SlTC, fontsize = 30)
 
         return umap_fig
-
-    @staticmethod
-    def plot_2d_density(d, bins=200, n_pad=40, ax=None, cmap=plt.get_cmap('viridis'), vlim=np.array([0.001, 0.98]), circle_type='bg', box_off=True, return_matrix=False):
-        '''
-        plot_2d_density(X, Y, bins, n_pad, w, ax, gaussian_sigma, cmap, vlim, circle_type, box_off, return_matrix)
-        is a method for drawing 2D histograms figures. In this particular instance, we are plotting the outputs of the UMAP.
-        
-        Parameters:
-        X: X-values
-        Y: Y-values
-        bins: Bins. Vector tickMin and tickMax for X and Y direction.
-        n_pad: number of elements to pad around a bin to make the spectrogram a little prettier. (I think)
-        w: weights used to augment the density maps based on secondary phenotypes
-        ax: Axes handle for the current figure
-        gaussian_sigma: Sigma value for a gaussian filter with weight values
-        cmap: color-map to use for the 2D Histogram
-        vlim: Value range that the colormap should cover
-        circle_type: Type of colormesh to return. ('bg', 'arch'). Will need to investigate further
-        box_off: Flag to turn box around the figure off
-        return_matrix: Flag for returning matrix. Default = 0 to not return density matrix, but intstead draws the figure.
-
-        Returns:
-        
-        '''
-
-        if return_matrix:
-            return d
-        else:
-            if d[d > 0].shape == (0,):
-                vmin = 0
-                vmax = 1
-                vlim = [vmin, vmax]
-            else:
-                if ~all((d < 0)[0]):
-                    if np.isscalar(vlim):
-                        vlim = np.array([0, np.quantile(d[d > 0].flatten(), vlim)])
-                    else:
-                        if np.all((vlim < 1) & (vlim > 0)):
-                            vlim = np.quantile(d[d > 0].flatten(), vlim)
-                else:
-                    vlim = np.zeros(200)
-
-            if ax is None:
-                _, ax = plt.subplots()
-
-            if np.isscalar(bins):
-                n_bins = bins
-            else:
-                n_bins = len(bins[0]) - 1
-
-            if circle_type == 'bg':
-                extend = 'max'
-                c = np.meshgrid(np.arange(2 * n_pad + n_bins), np.arange(2 * n_pad + n_bins))
-                c = np.sqrt(((c[0] - ((2 * n_pad + n_bins) / 2)) ** 2) + ((c[1] - ((2 * n_pad + n_bins) / 2)) ** 2)) < (0.95 * ((2 * n_pad + n_bins) / 2))
-                ax.pcolormesh(np.pad(d, [n_pad, n_pad]) + c, vmin=1, vmax=1 + vlim[1], cmap=cmap, shading='gouraud', alpha=1)
-                # ax.pcolormesh(np.log10(np.pad(d, [n_pad, n_pad]) + c + 1), vmin=np.log10(2), vmax=np.log10(2 + vlim[1]), cmap=cmap, shading='gouraud', alpha=1)
-            elif circle_type == 'arch':
-                extend = 'both'
-                if any((d<0)[0]):
-                    vmin = np.quantile(d[d < 0].flatten(), 0.03)
-                else:
-                    vmin = 0.03
-                if any((d>0)[0]):
-                    vmax = np.quantile(d[d > 0].flatten(), 0.97)
-                else:
-                    vmax = 0.97
-                c = (n_bins / 2)
-                ax.add_artist(plt.Circle((c + n_pad, c + n_pad), 0.95 * (c + n_pad), color='black', fill=False))
-                ax.pcolormesh(np.pad(d, [n_pad, n_pad]), vmin=vmin, vmax=vmax, cmap=cmap, shading='gouraud', alpha=1)
-            else:
-                extend = 'max'
-                ax.pcolormesh(np.pad(d, [n_pad, n_pad]), vmin=0, vmax=vlim[1], cmap=cmap, shading='gouraud', alpha=1)
-
-            cax = ax.inset_axes([0.95, 0.1, 0.01, 0.85])
-            plt_cmap(ax=cax, cmap=cmap, extend=extend, width=0.01)
-
-            if box_off is True:
-                [ax.spines[sp].set_visible(False) for sp in ax.spines]
-                ax.set(xticks=[], yticks=[])
-
-
-    '''plt_cmap(ax, cmap, extend, width, ylabel) draws a colorbar for the current colormap at the correct
-    axes location, and with the correct label.
-
-    Parameters:
-    ax: Matplotlib axes handle
-    cmap: Matplotlib colormap
-    extend: {'neither', 'both', 'min', 'max'}  
-            Make pointed end(s) for out-of-range values (unless 'neither'). 
-            These are set for a given colormap using the colormap set_under and set_over methods.
-    width: Width of the colorbar in Figure coordinates. '0.01' suggested value
-    ylabel: String of the colomap label
-
-    Returns:
-
-    '''
-    cb = mpl.colorbar.Colorbar(ax=ax, cmap=cmap, extend=extend)
-    cb.set_ticks([])
-    pos = ax.get_position().bounds
-    ax.set_position([pos[0], pos[1], width, pos[3]])
-    if ylabel is not None:
-        ax.set(ylabel=ylabel)
 class UMAPDensityProcessing():
     '''
     Individual processing of UMAP density matrices
@@ -576,6 +435,14 @@ class UMAPDensityProcessing():
         self.slc_text = npf.slc_text # Streamlit Color -Text
         self.slc_bg2  = npf.slc_bg2  # Streamlit Color -Secondary Background
 
+        # Preset Summary Stats
+        self.dens_min = 0
+        self.dens_max = 0
+        self.minabs   = 0
+
+        # Feature Label
+        self.feat_label = None
+
         if xx is not None:
             self.xx = xx
             self.yy = yy
@@ -584,7 +451,6 @@ class UMAPDensityProcessing():
             self.yy = np.linspace(np.min(self.df['Y']), np.max(self.df['Y']), self.n_bins + 1)
 
         self.prepare_umap_density(self.df['X'], self.df['Y'])
-
 
     def prepare_umap_density(self, x, y, w=None):
         '''
@@ -596,13 +462,102 @@ class UMAPDensityProcessing():
                                                                         w = w,
                                                                         return_matrix = True)
 
-    def UMAPdraw_density(self, w=None, feat = None, diff = False, figsize=(12, 12)):
-        
+        self.umap_summary_stats()
+
+    def umap_summary_stats(self):
+        '''
+        Identify the minimum and maximum values of the density matrix
+        '''
+
+        self.dens_min = np.min(self.dens_mat)
+        self.dens_max = np.max(self.dens_mat)
+        self.minabs   = np.min([np.abs(self.dens_min), np.abs(self.dens_max)])
+
+    def set_feature_label(self, feature, feat_label):
+        '''
+        Setting feature label
+        '''
+        self.feat_label = f'{feature} {feat_label}'
+
+    def UMAPdraw_density(self, w=None, diff = False, figsize=(12, 12)):
+        '''
+        Calls the UMAPdraw_density function from PlottingTools.py
+        '''
+
         return bpl.UMAPdraw_density(d = self.dens_mat,
                                     bins = [self.xx, self.yy],
                                     w = w,
                                     n_pad = self.n_pad,
                                     vlim = self.vlim,
-                                    feat = feat,
+                                    feat = self.feat_label,
                                     diff = diff,
                                     figsize = figsize)
+
+    def filter_density_matrix(self, cutoff_dec= 0.02):
+        '''
+        filter the current matrix by a cutoff value
+        '''
+
+        cutoff = self.minabs * cutoff_dec
+
+        dens_mat_shape = self.dens_mat.shape
+
+        # Filtering and Masking
+        for x_bin in range(dens_mat_shape[0]):
+            for y_bin in range(dens_mat_shape[1]):
+
+                if self.dens_mat[x_bin, y_bin] > cutoff:
+                    self.dens_mat[x_bin, y_bin] = 1
+                elif self.dens_mat[x_bin, y_bin] < -cutoff:
+                    self.dens_mat[x_bin, y_bin] = -1
+                else:
+                    self.dens_mat[x_bin, y_bin] = 0
+
+    def perform_clustering(self, dens_mat_cmp, num_clus_0, num_clus_1):
+        '''
+        Sets up clustering
+        '''
+
+        kmeans_obj_cond0 = KMeans(n_clusters = num_clus_0,
+                            init ='k-means++',
+                            max_iter = 300,
+                            n_init = 10,
+                            random_state = 42)
+        kmeans_obj_cond1 = KMeans(n_clusters = num_clus_1,
+                            init ='k-means++',
+                            max_iter = 300,
+                            n_init = 10,
+                            random_state = 42)
+
+        cond0_ind = np.nonzero(dens_mat_cmp == -1)
+        cells_cond0 = np.vstack(cond0_ind).T
+        kmeans_obj_cond0.fit(cells_cond0)
+
+        cond1_ind = np.nonzero(dens_mat_cmp == 1)
+        cells_cond1 = np.vstack(cond1_ind).T
+        kmeans_obj_cond1.fit(cells_cond1)
+
+        self.dens_mat[cond0_ind] = -kmeans_obj_cond0.labels_ -1
+        self.dens_mat[cond1_ind] = kmeans_obj_cond1.labels_ + 1
+
+        self.cluster_dict = dict()
+        self.cluster_dict[0] = 'No Cluster'
+        for i in range(num_clus_0):
+            self.cluster_dict[-i-1] = f'False_Cluster{i+1}'
+        for i in range(num_clus_1):
+            self.cluster_dict[i+1] = f'True_Clust{i+1}'
+
+    # def perform_clustering(self, n_clusters, cond):
+    #     '''
+
+    #     '''
+
+    #     kmeans_obj = KMeans(n_clusters = n_clusters,
+    #                         init ='k-means++',
+    #                         max_iter = 300,
+    #                         n_init = 10,
+    #                         random_state = 42)
+
+    #     cond_ind = np.nonzero(self.dens_mat == cond)
+    #     cells_cond = np.vstack(cond_ind).T
+    #     kmeans_obj.fit(cells_cond)
