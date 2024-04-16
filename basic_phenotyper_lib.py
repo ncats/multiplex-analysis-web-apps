@@ -795,7 +795,7 @@ def createHeatMap(df, phenoList, title, normAxis = None):
 
     return fig
 
-def neighProfileDraw(spatial_umap, sel_clus, cmp_clus = None, figsize=(14, 16)):
+def neighProfileDraw(spatial_umap, sel_clus, cmp_clus = None, hide_other = False, figsize=(14, 16)):
     '''
     neighProfileDraw is the method that draws the neighborhood profile
     line plots
@@ -808,7 +808,10 @@ def neighProfileDraw(spatial_umap, sel_clus, cmp_clus = None, figsize=(14, 16)):
     neipro_fig = plt.figure(figsize=figsize, facecolor = slc_bg)
     ax = neipro_fig.add_subplot(1, 1, 1, facecolor = slc_bg)
 
-    # spatial_umap.dens_df_mean = spatial_umap.dens_df_mean.loc[spatial_umap.dens_df_mean['phenotype'] != 'Other', :]
+    if hide_other:
+        spatial_umap.dens_df_mean = spatial_umap.dens_df_mean.loc[spatial_umap.dens_df_mean['phenotype'] != 'Other', :]
+    
+    spatial_umap.maxdens_df   = 1.05*max(spatial_umap.dens_df_mean['density_mean'] + spatial_umap.dens_df_mean['density_sem'])
     dens_df_mean_sel = spatial_umap.dens_df_mean.loc[spatial_umap.dens_df_mean['clust_label'] == sel_clus, :].reset_index(drop=True)
     ylim = [0, spatial_umap.maxdens_df]
     dens_df_mean = dens_df_mean_sel.copy()

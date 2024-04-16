@@ -264,6 +264,7 @@ def main():
                 for key, val in st.session_state.cluster_dict.items():
                     if key != 0:
                         bin_clust = np.argwhere(udp_clus.dens_mat == key)
+                        bin_clust = bin_clust[:, [1, 0]] # Swapping columns to by y, x
                         bin_clust = [tuple(x) for x in bin_clust]
 
                         significant_groups = udp_full.bin_indices_df_group[udp_full.bin_indices_df_group.set_index(['indx', 'indy']).index.isin(bin_clust)]
@@ -378,6 +379,8 @@ def main():
             else:
                 list_clusters = list(range(st.session_state.selected_nClus))
 
+            with st.expander('Neighborhood Profile Options'):
+                st.toggle('Hide "Other" Phenotype', value = False, key = 'toggle_hide_other')
             cluster_sel_col = st.columns([3, 1])
             # Compare Clusters Toggle
             with cluster_sel_col[1]:
@@ -394,8 +397,9 @@ def main():
             if st.session_state.clustering_completed:
                 # Draw the Neighborhood Profile
                 npf_fig = bpl.neighProfileDraw(st.session_state.spatial_umap,
-                                               sel_npf_fig,
-                                               sel_npf_fig2)
+                                               sel_clus = sel_npf_fig,
+                                               cmp_clus = sel_npf_fig2,
+                                               hide_other = st.session_state['toggle_hide_other'],)
                 st.pyplot(fig=npf_fig)
 
                 # Create widgets for exporting the Neighborhood Profile images
