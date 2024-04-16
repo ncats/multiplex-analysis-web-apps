@@ -264,6 +264,7 @@ def main():
                 for key, val in st.session_state.cluster_dict.items():
                     if key != 0:
                         bin_clust = np.argwhere(udp_clus.dens_mat == key)
+                        bin_clust = bin_clust[:, [1, 0]] # Swapping columns to by y, x
                         bin_clust = [tuple(x) for x in bin_clust]
 
                         significant_groups = udp_full.bin_indices_df_group[udp_full.bin_indices_df_group.set_index(['indx', 'indy']).index.isin(bin_clust)]
