@@ -8,6 +8,8 @@ import scipy.spatial
 import streamlit_utils
 import pandas as pd
 import os
+import pytz
+from datetime import datetime
 
 def set_filename_corresp_to_roi(df_paths, roi_name, curr_colname, curr_dir, curr_dir_listing):
     """Update the path in a main paths-holding dataframe corresponding to a particular ROI in a particular directory.
@@ -966,3 +968,10 @@ def get_dir_size(path_to_dir_to_upload):
             fp = os.path.join(dirpath, f)
             total += os.path.getsize(fp)
     return total / (1024 * 1024)  # Convert bytes to MB
+
+
+def get_timestamp(pretty=False):
+    if pretty:
+        return datetime.now(pytz.timezone('US/Eastern')).strftime('%Y-%m-%d %I:%M:%S %p %Z')
+    else:
+        return datetime.now(pytz.timezone('US/Eastern')).strftime("%Y%m%d_%H%M%S_%Z")

@@ -8,6 +8,7 @@ import dataset_formats
 import plotly.express as px
 import matplotlib.pyplot as plt
 import numpy as np
+import utils
 
 # Import relevant libraries
 import app_top_of_page as top
@@ -98,9 +99,6 @@ def update_dependencies_of_button_for_adding_phenotype_to_new_dataset():
 # From the phenotype assignments, add one column per phenotype to the original dataframe containing pluses where all the phenotype criteria are met
 def add_new_phenotypes_to_main_df(df, image_for_filtering):
 
-    # Import relevant library
-    from datetime import datetime
-
     if not st.session_state['mg__df_phenotype_assignments'].empty:
 
         # Reassign the *input* dataframe
@@ -190,7 +188,7 @@ def add_new_phenotypes_to_main_df(df, image_for_filtering):
             datafile_name = os.path.splitext(os.path.basename(st.session_state['input_metadata']['datafile_path']))[0]
         else:
             datafile_name = 'from_memory'
-        gating_filename = 'gating_table_for_{}_for_datafile_{}-{}.csv'.format(filtering_section_name, datafile_name, datetime.now().strftime("date%Y_%m_%d_time%H_%M_%S"))
+        gating_filename = 'gating_table_for_{}_for_datafile_{}-{}.csv'.format(filtering_section_name, datafile_name, utils.get_timestamp())
         df_phenotype_assignments.to_csv(path_or_buf=os.path.join(os.path.join('.', 'output'), gating_filename), index=True)
         st.info('File {} written to disk'.format(gating_filename))
 

@@ -6,6 +6,7 @@ import shutil
 import time
 import streamlit_dataframe_editor as sde
 import streamlit_session_state_management
+import utils
 
 # Constant
 local_input_dir = os.path.join('.', 'input')
@@ -74,18 +75,17 @@ def delete_selected_files_and_dirs(directory, selected_files):
 
 # Write the current settings to disk, including a timestamp, hostname, and git commit
 def write_current_tool_parameters_to_disk(output_dir):
-    from datetime import datetime
     import socket
     import subprocess
     import yaml
     import streamlit_utils
     import sys
     print('Writing the current tool parameters to disk...')
-    settings_yaml_filename = 'settings_as_of_{}.yml'.format(datetime.now().strftime("%Y%m%d_%H%M%S"))
+    settings_yaml_filename = 'settings_as_of_{}.yml'.format(utils.get_timestamp())
     pathname = os.path.join(output_dir, settings_yaml_filename)
     if not os.path.exists(pathname):
         with open(pathname, mode='wt') as file:
-            file.write('# Timestamp: {}\n'.format(datetime.now()))
+            file.write('# Timestamp: {}\n'.format(utils.get_timestamp(pretty=True)))
             file.write('# Hostname: {}\n'.format(socket.gethostname()))
             if os.path.exists('.git'):
                 file.write('# Git commit: {}\n'.format(subprocess.run('git rev-parse HEAD', shell=True, capture_output=True).stdout.decode().split('\n')[:-1][0]))
@@ -104,11 +104,10 @@ def write_current_tool_parameters_to_disk(output_dir):
 
 # Write the current conda/pip environment to disk
 def write_current_environment_to_disk(output_dir):
-    from datetime import datetime
     import subprocess
     import os
     print('Writing the current conda/pip environment to disk...')
-    environment_yaml_filename = 'environment_as_of_{}.yml'.format(datetime.now().strftime("%Y%m%d_%H%M%S"))
+    environment_yaml_filename = 'environment_as_of_{}.yml'.format(utils.get_timestamp())
     pathname = os.path.join(output_dir, environment_yaml_filename)
     if not os.path.exists(pathname):
         subprocess.run('conda env export > {}'.format(pathname), shell=True, capture_output=True)
@@ -117,8 +116,7 @@ def write_current_environment_to_disk(output_dir):
 
 # Create an empty output archive directory
 def create_empty_output_archive(new_output_archive_name, output_dir):
-    from datetime import datetime
-    archive_dirname = 'output_archive-{}-{}'.format(datetime.now().strftime("%Y%m%d_%H%M%S"), new_output_archive_name)
+    archive_dirname = 'output_archive-{}-{}'.format(utils.get_timestamp(), new_output_archive_name)
     archive_path = os.path.join(output_dir, archive_dirname)
     if not os.path.exists(archive_path):
         os.mkdir(archive_path)
@@ -130,9 +128,8 @@ def create_empty_output_archive(new_output_archive_name, output_dir):
 # Copy all contents from the output directory to a new output archive
 # Currently only applies to local
 def copy_output_dir_contents_to_output_archive(new_output_archive_name, output_dir):
-    from datetime import datetime
     print(f'Copying all contents from {output_dir} to a new output archive with descriptive name "{new_output_archive_name}"...')
-    archive_dirname = 'output_archive-{}-{}'.format(datetime.now().strftime("%Y%m%d_%H%M%S"), new_output_archive_name)
+    archive_dirname = 'output_archive-{}-{}'.format(utils.get_timestamp(), new_output_archive_name)
     archive_path = os.path.join(output_dir, archive_dirname)
     if not os.path.exists(archive_path):
         shutil.copytree(output_dir, archive_path, ignore=shutil.ignore_patterns('output_archive-*'))
@@ -144,11 +141,10 @@ def copy_output_dir_contents_to_output_archive(new_output_archive_name, output_d
 def create_zipfile_with_ignores(zipfile_dirpath, basename_suffix_for_zipfile, prefix_to_ignore, local_output_dir, local_tmp_dir):
 
     # Import relevant libraries
-    from datetime import datetime
     import subprocess
 
     # Ultimate zipfile path without the .zip extension
-    zipfile_basename = os.path.join(zipfile_dirpath, 'output_archive-{}-{}'.format(datetime.now().strftime("%Y%m%d_%H%M%S"), basename_suffix_for_zipfile))
+    zipfile_basename = os.path.join(zipfile_dirpath, 'output_archive-{}-{}'.format(utils.get_timestamp(), basename_suffix_for_zipfile))
 
     # Determine if items exist in the local output directory that we want to ignore; otherwise, don't jump through any hoops!
     items_to_ignore_exist = len([x for x in os.listdir(local_output_dir) if x.startswith(prefix_to_ignore)]) > 0
@@ -910,14 +906,13 @@ def back_up_results_to_nidap(local_output_dir, basename_suffix_for_new_results_a
 
     # Import relevant library
     import nidap_io
-    from datetime import datetime
 
     # Create a temporary transfer directory to hold the generated zip files
     local_transfer_dir = os.path.join('.', 'transfer')
     os.makedirs(local_transfer_dir, exist_ok=True)
 
     # Get the file like ../transfer/myfile.zip for which parts will be created like ../transfer/myfile.zip.000_of_007 etc.
-    zipfile_part_prefix = os.path.join(local_transfer_dir, 'output_archive-{}-{}.zip'.format(datetime.now().strftime("%Y%m%d_%H%M%S"), basename_suffix_for_new_results_archive))
+    zipfile_part_prefix = os.path.join(local_transfer_dir, 'output_archive-{}-{}.zip'.format(utils.get_timestamp(), basename_suffix_for_new_results_archive))
 
     # Zip all loaded results to a temporary directory
     print(f'Creating {chunksize_in_mb} MB zip file parts for backup to NIDAP...')

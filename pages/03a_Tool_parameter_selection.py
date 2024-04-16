@@ -170,7 +170,6 @@ def set_session_state_key(settings, str1, str2):
 def create_phenotype_assignments_file_from_phenotyper(df_phenotype_assignments):
 
     # Import relevant libraries
-    from datetime import datetime
     import numpy as np
 
     # Set the full directory path to the phenotypes files
@@ -181,7 +180,7 @@ def create_phenotype_assignments_file_from_phenotyper(df_phenotype_assignments):
         os.makedirs(phenotypes_path)
 
     # Set the filename of the phenotype assignments file to write
-    filename = 'phenotype_assignments_from_phenotyper-{}.tsv'.format(datetime.now().strftime("date%Y_%m_%d_time%H_%M_%S"))
+    filename = 'phenotype_assignments_from_phenotyper-{}.tsv'.format(utils.get_timestamp())
 
     # Assign a new dataframe as a subset of the one containing the phenotype assignments
     df_phenotype_assignments_to_write = df_phenotype_assignments[['species_count', 'species_percent', 'species_name_short', 'phenotype', 'species_name_long']]
@@ -211,11 +210,10 @@ def create_phenotype_assignments_file_from_phenotyper(df_phenotype_assignments):
 def write_dataframe_to_disk(df, prefix='phenotyped_datafile_from_gater'):
 
     # Import relevant library
-    from datetime import datetime
     import shutil
 
     # Set the filename of the phenotype assignments file to write
-    filename = '{}-{}.csv'.format(prefix, datetime.now().strftime("date%Y_%m_%d_time%H_%M_%S"))
+    filename = '{}-{}.csv'.format(prefix, utils.get_timestamp())
 
     # Save the dataframe to disk in both the output and input directories (the former for posterity, the latter so that it can be read in later)
     filepath_to_write = os.path.join(output_directory, filename)

@@ -3,11 +3,11 @@ import streamlit as st
 # import pickle
 import dill as pickle
 import os
-from datetime import datetime
 import os
 import app_top_of_page as top
 import streamlit_dataframe_editor as sde
 import streamlit_dataframe_editor
+import utils
 
 def save_session_state(saved_streamlit_session_states_dir, saved_streamlit_session_state_prefix='streamlit_session_state-', saved_streamlit_session_state_key='session_selection'):
     """
@@ -34,8 +34,7 @@ def save_session_state(saved_streamlit_session_states_dir, saved_streamlit_sessi
     os.makedirs(saved_streamlit_session_states_dir, exist_ok=True)
 
     # Generate the pickle filename with the save date and time
-    now = datetime.now()
-    filename = os.path.join(saved_streamlit_session_states_dir, saved_streamlit_session_state_prefix + now.strftime('%Y%m%d_%H%M%S') + '.pkl')
+    filename = os.path.join(saved_streamlit_session_states_dir, saved_streamlit_session_state_prefix + utils.get_timestamp() + '.pkl')
 
     # Create a dictionary of most items in the session state
     session_dict = {}
@@ -124,11 +123,11 @@ def load_session_state(saved_streamlit_session_states_dir, saved_streamlit_sessi
                 st.session_state[key] = value
 
         # Output a success message
-        st.success('State loaded from ' + filename)
+        st.success(f'{utils.get_timestamp(pretty=True)}: State loaded from ' + filename)
 
     # If no session state files exist, output a warning
     else:
-        st.warning('No session state files exist so none were loaded')
+        st.warning(f'{utils.get_timestamp(pretty=True)}: No session state files exist so none were loaded')
 
 def reset_session_state(saved_streamlit_session_state_key='session_selection', success_message=True):
     """

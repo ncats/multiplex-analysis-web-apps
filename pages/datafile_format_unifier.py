@@ -6,7 +6,6 @@ import app_top_of_page as top
 import streamlit_dataframe_editor as sde
 import re
 import utils
-from datetime import datetime
 
 def list_files(directory, extensions):
     """
@@ -586,7 +585,7 @@ def main():
                 custom_text = custom_text.replace(' ', '_')
 
                 # Generate the filename
-                filename = f'mawa-unified_datafile-{custom_text}-{datetime.now().strftime("date%Y_%m_%d_time%H_%M_%S")}.csv'
+                filename = f'mawa-unified_datafile-{custom_text}-{utils.get_timestamp()}.csv'
 
                 # Create a button to save the dataframe to a CSV file
                 if st.button(':star2: Save dataframe to CSV :star2:'):

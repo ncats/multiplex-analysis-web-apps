@@ -3398,7 +3398,6 @@ def calculate_metrics_for_roi(args_as_single_tuple):
     import numpy as np
     import time
     import contextlib
-    from datetime import datetime
     import tci_squidpy_supp_lib
 
     # Unpack the arguments
@@ -3418,7 +3417,7 @@ def calculate_metrics_for_roi(args_as_single_tuple):
         uroi = df_data_by_roi.loc[roi_index, 'unique_roi']
 
         if do_logging:
-            log_file_handle.write('ROI {:06d} (split 00, {}): ROI processing started at {}\n'.format(roi_index, uroi, datetime.fromtimestamp(datetime.timestamp(datetime.now())).strftime("%Y-%m-%d, %H:%M:%S")))
+            log_file_handle.write('ROI {:06d} (split 00, {}): ROI processing started at {}\n'.format(roi_index, uroi, utils.get_timestamp(pretty=True)))
 
         # If the pickle file doesn't already exist...
         if not os.path.exists(os.path.join(pickle_dir, pickle_file)):
