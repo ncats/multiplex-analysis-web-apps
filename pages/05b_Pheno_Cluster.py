@@ -48,7 +48,16 @@ def phenocluster__plot_diff_intensity(adata, groups, method, n_genes, plot_colum
         with plot_column:
             cur_fig = sc.pl.rank_genes_groups(adata, n_genes=n_genes, 
                                               groups=cur_groups, sharey=False)
-            st.pyplot(fig = cur_fig, clear_figure=None, use_container_width=True)
+    elif method == "Dot Plot":
+        with plot_column:
+            cur_fig = sc.pl.rank_genes_groups_dotplot(adata, n_genes=n_genes, 
+                                                      groups=cur_groups)
+    elif method == "Heat Map":
+        with plot_column:
+            cur_fig = sc.pl.rank_genes_groups_heatmap(adata, n_genes=n_genes, 
+                                                      groups=cur_groups 
+                                                      )
+    st.pyplot(fig = cur_fig, clear_figure=None, use_container_width=True)
      
     
 
@@ -76,7 +85,7 @@ def main():
     
     with phenocluster__col3b:
         # Plot differential intensity
-        phenocluster__dif_int_plot_methods = ["Rank Plot", "Heat Map", "Violin Plot"]
+        phenocluster__dif_int_plot_methods = ["Rank Plot", "Dot Plot", "Heat Map", "Violin Plot"]
         st.selectbox('Select Plot Type:', phenocluster__dif_int_plot_methods, key='phenocluster__plot_diff_intensity_method')
         st.number_input(label = "Number of genes to plot", 
                                 key = 'phenocluster__plot_diff_intensity_n_genes',
