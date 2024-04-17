@@ -539,7 +539,7 @@ def setup_Spatial_UMAP(df, marker_names, pheno_order, cpu_pool_size = 1):
     # set the region is to be analyzed (a TMA core is treated similar to a region of a interest)
     spatial_umap.region_ids = spatial_umap.cells.TMA_core_id.unique()
     # default cluster values
-    spatial_umap.cells['clust_label'] = -1
+    spatial_umap.cells['clust_label'] = 'No Cluster'
 
     return spatial_umap
 
@@ -808,29 +808,30 @@ def neighProfileDraw(spatial_umap, sel_clus, cmp_clus = None, hide_other = False
     neipro_fig = plt.figure(figsize=figsize, facecolor = slc_bg)
     ax = neipro_fig.add_subplot(1, 1, 1, facecolor = slc_bg)
 
+    dens_df_mean_base = spatial_umap.dens_df_mean
     if hide_other:
-        spatial_umap.dens_df_mean = spatial_umap.dens_df_mean.loc[spatial_umap.dens_df_mean['phenotype'] != 'Other', :]
-    
-    spatial_umap.maxdens_df   = 1.05*max(spatial_umap.dens_df_mean['density_mean'] + spatial_umap.dens_df_mean['density_sem'])
-    dens_df_mean_sel = spatial_umap.dens_df_mean.loc[spatial_umap.dens_df_mean['clust_label'] == sel_clus, :].reset_index(drop=True)
-    ylim = [0, spatial_umap.maxdens_df]
+        dens_df_mean_base = dens_df_mean_base.loc[dens_df_mean_base['phenotype'] != 'Other', :]
+
+    maxdens_df   = 1.05*max(dens_df_mean_base['density_mean'] + dens_df_mean_base['density_sem'])
+    dens_df_mean_sel = dens_df_mean_base.loc[dens_df_mean_base['clust_label'] == sel_clus, :].reset_index(drop=True)
+    ylim = [0, maxdens_df]
     dens_df_mean = dens_df_mean_sel.copy()
     cluster_title = f'Cluster {sel_clus}'
 
     if cmp_clus is not None:
-        dens_df_mean_cmp = spatial_umap.dens_df_mean.loc[spatial_umap.dens_df_mean['clust_label'] == cmp_clus, :].reset_index(drop=True)
+        dens_df_mean_cmp = dens_df_mean_base.loc[dens_df_mean_base['clust_label'] == cmp_clus, :].reset_index(drop=True)
 
         dens_df_mean = dens_df_mean_cmp.copy()
         dens_df_mean['density_mean'] = dens_df_mean_sel['density_mean'] - dens_df_mean_cmp['density_mean']
         dens_df_mean['density_sem'] = 0
         range_values = [min(dens_df_mean['density_mean']), max(dens_df_mean['density_mean'])]
-        top_range = 1.05*max(abs(range_values[0]), range_values[1])
+        top_range = 1.05*max(abs(range_values[0]), abs(range_values[1]))
         ylim = [-top_range, top_range]
         cluster_title = f'Cluster {sel_clus} - Cluster {cmp_clus}'
 
     umPT.plot_mean_neighborhood_profile(ax = ax,
                                         dist_bin = spatial_umap.dist_bin_um,
-                                        pheno_order= spatial_umap.phenoLabel,
+                                        pheno_order = spatial_umap.phenoLabel,
                                         npf_dens_mean = dens_df_mean,
                                         cluster_title = cluster_title,
                                         max_dens = ylim,
