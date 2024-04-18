@@ -39,6 +39,21 @@ name = "Thresholded Intensities"
 icon = ""
 
 [[pages]]
+name = "Phenotype Clustering Workflow ✨"
+icon = ""
+is_section = true
+
+[[pages]]
+path = "pages/05a_Pheno_Cluster.py"
+name = "Phenotype Clustering"
+icon = ""
+
+[[pages]]
+path = "pages/05b_Pheno_Cluster.py"
+name = "Clusters Differential Expression"
+icon = ""
+
+[[pages]]
 name = "Spatial Interaction Tool 🔥"
 icon = ""
 is_section = true
@@ -91,19 +106,4 @@ icon = ""
 [[pages]]
 path = "pages/04c_Clusters Analyzer.py"
 name = "Clusters Analyzer"
-icon = ""
-
-[[pages]]
-name = "Phenotype Clustering Workflow ✨"
-icon = ""
-is_section = true
-
-[[pages]]
-path = "pages/05a_Pheno_Cluster.py"
-name = "Phenotype Clustering"
-icon = ""
-
-[[pages]]
-path = "pages/05b_Pheno_Cluster.py"
-name = "Clusters Differential Expression"
 icon = ""
