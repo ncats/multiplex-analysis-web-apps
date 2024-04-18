@@ -608,6 +608,9 @@ class SpatialUMAP:
         Setup density values for means
         '''
 
+        dens_umap_test = self.density[self.cells['umap_test'], :, :]
+        prop_umap_test = self.density[self.cells['umap_test'], :, :]
+
         self.dens_df = pd.DataFrame()
         self.prop_df = pd.DataFrame()
         for clust_label, group in self.df_umap.groupby('clust_label'):
@@ -617,8 +620,8 @@ class SpatialUMAP:
 
                 smalldf_D = pd.DataFrame()
                 smalldf_P = pd.DataFrame()
-                theseDen = self.density[clust_ind]
-                thesePro = self.proportion[clust_ind]
+                theseDen = dens_umap_test[clust_ind]
+                thesePro = prop_umap_test[clust_ind]
                 for i, pheno in enumerate(self.phenoLabel):
 
                     theseDen_pheno = theseDen[:,:,i]
