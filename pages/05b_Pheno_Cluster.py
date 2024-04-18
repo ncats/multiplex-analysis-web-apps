@@ -30,6 +30,7 @@ def phenocluster__diff_expr(adata, phenocluster__de_col, phenocluster__de_sel_gr
     else:
         phenocluster__de_results = sc.get.rank_genes_groups_df(adata, group=phenocluster__de_sel_groups)
     with plot_column:
+        #phenocluster__de_results =  phenocluster__de_results.style.format({'pvlas': '{:1.0e}', 'pvals_adj': '{:1.0e}'}, na_rep='nan')
         st.dataframe(phenocluster__de_results, use_container_width=True)
 
 # change cluster names
@@ -45,19 +46,20 @@ def phenocluster__plot_diff_intensity(adata, groups, method, n_genes, plot_colum
         cur_groups = groups
     
     if method == "Rank Plot":
-        with plot_column:
-            cur_fig = sc.pl.rank_genes_groups(adata, n_genes=n_genes, 
+        cur_fig = sc.pl.rank_genes_groups(adata, n_genes=n_genes, 
                                               groups=cur_groups, sharey=False)
     elif method == "Dot Plot":
-        with plot_column:
-            cur_fig = sc.pl.rank_genes_groups_dotplot(adata, n_genes=n_genes, 
+        cur_fig = sc.pl.rank_genes_groups_dotplot(adata, n_genes=n_genes, 
                                                       groups=cur_groups)
     elif method == "Heat Map":
-        with plot_column:
-            cur_fig = sc.pl.rank_genes_groups_heatmap(adata, n_genes=n_genes, 
-                                                      groups=cur_groups 
-                                                      )
-    st.pyplot(fig = cur_fig, clear_figure=None, use_container_width=True)
+        cur_fig = sc.pl.rank_genes_groups_heatmap(adata, n_genes=n_genes, 
+                                                      groups=cur_groups) 
+    elif method == "Violin Plot":
+        cur_fig = sc.pl.rank_genes_groups_violin(adata, n_genes=n_genes, 
+                                                      groups=cur_groups, split = False)
+        
+    with plot_column:
+         st.pyplot(fig = cur_fig, clear_figure=None, use_container_width=True)
      
     
 
