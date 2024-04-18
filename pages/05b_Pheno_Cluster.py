@@ -30,8 +30,9 @@ def phenocluster__diff_expr(adata, phenocluster__de_col, phenocluster__de_sel_gr
     else:
         phenocluster__de_results = sc.get.rank_genes_groups_df(adata, group=phenocluster__de_sel_groups)
     with plot_column:
-        #phenocluster__de_results =  phenocluster__de_results.style.format({'pvlas': '{:1.0e}', 'pvals_adj': '{:1.0e}'}, na_rep='nan')
+        phenocluster__de_results[['pvals', 'pvals_adj']] = phenocluster__de_results[['pvals', 'pvals_adj']].applymap('{:.1e}'.format)
         st.dataframe(phenocluster__de_results, use_container_width=True)
+        
 
 # change cluster names
 def phenocluster__edit_cluster_names(adata, edit_names_result):
@@ -55,7 +56,7 @@ def phenocluster__plot_diff_intensity(adata, groups, method, n_genes, plot_colum
         cur_fig = sc.pl.rank_genes_groups_heatmap(adata, n_genes=n_genes, 
                                                       groups=cur_groups) 
     elif method == "Violin Plot":
-        cur_fig = sc.pl.rank_genes_groups_violin(adata, n_genes=n_genes, 
+        cur_fig = sc.pl.rank_genes_groups_stacked_violin(adata, n_genes=n_genes, 
                                                       groups=cur_groups, split = False)
         
     with plot_column:
