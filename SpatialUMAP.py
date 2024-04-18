@@ -615,35 +615,34 @@ class SpatialUMAP:
         self.prop_df = pd.DataFrame()
         for clust_label, group in self.df_umap.groupby('clust_label'):
 
-            if clust_label != -1 and clust_label != 'No Cluster':
-                clust_ind = group.index
+            clust_ind = group.index
 
-                smalldf_D = pd.DataFrame()
-                smalldf_P = pd.DataFrame()
-                theseDen = dens_umap_test[clust_ind]
-                thesePro = prop_umap_test[clust_ind]
-                for i, pheno in enumerate(self.phenoLabel):
+            smalldf_D = pd.DataFrame()
+            smalldf_P = pd.DataFrame()
+            theseDen = dens_umap_test[clust_ind]
+            thesePro = prop_umap_test[clust_ind]
+            for i, pheno in enumerate(self.phenoLabel):
 
-                    theseDen_pheno = theseDen[:,:,i]
-                    r, c = theseDen_pheno.shape
-                    theseDen_flat = theseDen_pheno.reshape(-1)
+                theseDen_pheno = theseDen[:,:,i]
+                r, c = theseDen_pheno.shape
+                theseDen_flat = theseDen_pheno.reshape(-1)
 
-                    thesePro_pheno = thesePro[:,:,i]
-                    r, c = thesePro_pheno.shape
-                    thesePro_flat = thesePro_pheno.reshape(-1)
+                thesePro_pheno = thesePro[:,:,i]
+                r, c = thesePro_pheno.shape
+                thesePro_flat = thesePro_pheno.reshape(-1)
 
-                    smalldf_D['dist_bin'] = np.tile(self.dist_bin_um, r)
-                    smalldf_D['density'] = theseDen_flat
-                    smalldf_D['phenotype'] = pheno
-                    smalldf_D['clust_label'] = clust_label
+                smalldf_D['dist_bin'] = np.tile(self.dist_bin_um, r)
+                smalldf_D['density'] = theseDen_flat
+                smalldf_D['phenotype'] = pheno
+                smalldf_D['clust_label'] = clust_label
 
-                    smalldf_P['dist_bin'] = np.tile(self.dist_bin_um, r)
-                    smalldf_P['density'] = thesePro_flat
-                    smalldf_P['phenotype'] = pheno
-                    smalldf_P['clust_label'] = clust_label
+                smalldf_P['dist_bin'] = np.tile(self.dist_bin_um, r)
+                smalldf_P['density'] = thesePro_flat
+                smalldf_P['phenotype'] = pheno
+                smalldf_P['clust_label'] = clust_label
 
-                    self.dens_df = pd.concat([self.dens_df, smalldf_D], axis = 0).reset_index(drop=True)
-                    self.prop_df = pd.concat([self.prop_df, smalldf_P], axis = 0).reset_index(drop=True)
+                self.dens_df = pd.concat([self.dens_df, smalldf_D], axis = 0).reset_index(drop=True)
+                self.prop_df = pd.concat([self.prop_df, smalldf_P], axis = 0).reset_index(drop=True)
 
         # Perform Groupby and Mean calculations
         self.dens_df_mean = self.dens_df.groupby(['clust_label', 'phenotype', 'dist_bin'], as_index=False).mean()
