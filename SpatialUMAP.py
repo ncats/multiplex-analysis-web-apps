@@ -48,6 +48,16 @@ class SpatialUMAP:
     '''
     @staticmethod
     def construct_arcs(dist_bin_px):
+        '''
+        construct_arcs() creates a boolean mask of concentric circles
+        based on the distance bins in pixels.
+
+        Args:
+            dist_bin_px (np.array): distance bins in pixels
+
+        Returns:
+            np.array: boolean mask of concentric circles
+        '''
         # set bool mask of the arcs
         arcs = np.zeros([int(2 * dist_bin_px[-1]) + 1] * 2 + [len(dist_bin_px), ], dtype=bool)
         for i in range(len(dist_bin_px)):
@@ -332,23 +342,24 @@ class SpatialUMAP:
         # downsampling factor for area calculations
         self.area_downsample = area_downsample
         self.arcs_radii = (self.dist_bin_px * self.area_downsample).astype(int)
+        # Create a boolean mask of concentric circles based on the distance bins in pixels
         self.arcs_masks = SpatialUMAP.construct_arcs(self.arcs_radii)
 
         # Attributes to be created in higher level script
-        self.cells = pd.DataFrame()
+        self.cells          = pd.DataFrame()
         self.cell_positions = pd.DataFrame()
-        self.cell_labels = pd.DataFrame()
-        self.region_ids = np.array([])
+        self.cell_labels    = pd.DataFrame()
+        self.region_ids     = np.array([])
         self.pool = None
         self.species = None
         self.counts = None
         self.areas = None
 
         self.phenoLabel = None
-        self.umap_test = np.array([])
-        self.patients = np.array([])
+        self.umap_test  = np.array([])
+        self.patients   = np.array([])
 
-        self.density = None
+        self.density    = None
         self.proportion = None
 
         # Mean Densities
@@ -506,6 +517,10 @@ class SpatialUMAP:
         self.counts = self.calculate_density_matrix_for_all_images(debug_output=False, swap_inequalities=True)
 
     def get_areas(self, area_threshold, pool_size=2, save_file=None, plots_directory=None):
+        '''
+        get_areas begins the process of identifying the
+        cell areas surrounding each given cell in a dataset
+        '''
         self.clear_areas()
         self.cells['area_filter'] = False
         self.start_pool(pool_size)
@@ -525,7 +540,16 @@ class SpatialUMAP:
         That said, this method will allow us to identify an even subset of the dataset
         to fit to be fitted to a model quickly, before the rest of the data is 
         transformed based on the UMAP model.
+
+        Args:
+            n (int): Minimum number of cells to be included in the training set
+            groupby_label (str): Label to group the data by
+            seed (int): Random seed for reproducibility
+
+        Returns:
+            None
         '''
+        # region_ids is a proxy for the collection of images
         region_ids = self.cells['TMA_core_id'].unique()
         min_cells_images = min([sum(self.cells['TMA_core_id'] == reg) for reg in region_ids])
         percent_min = 0.2
@@ -543,7 +567,13 @@ class SpatialUMAP:
 
     def calc_densities(self, area_threshold):
         '''
-        calculate density base on counts of cells / area of each arc examine
+        calculate density base on counts of cells / area of each arc
+
+        Args:
+            area_threshold (float): minimum area threshold for a cell to be considered
+
+        Returns:
+            None
         '''
 
         # instantiate our density output matrix
