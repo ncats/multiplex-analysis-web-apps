@@ -201,7 +201,7 @@ def get_entity_id_to_list_mapper(df, entity_colname='Species int', entity_column
     # Return the mapper
     return entity_id_to_list_mapper
 
-def apply_phenotyping(csv_file_path_or_df, method, phenotype_identification_file, species_int_colname='species_int'):
+def apply_phenotyping(csv_file_path_or_df, method, phenotype_identification_file, species_int_colname='species_int', remove_allneg_phenotypes=True):
     """Load a datafile and apply one of three phenotyping methods: Species, Marker, or Custom.
     """
 
@@ -249,7 +249,10 @@ def apply_phenotyping(csv_file_path_or_df, method, phenotype_identification_file
     df[species_int_colname] = df[marker_cols].dot(powers_of_two)
 
     # Drop objects that aren't positive for any markers of interest
-    df = df[df[species_int_colname] != 0].copy()
+    if remove_allneg_phenotypes:
+        df = df[df[species_int_colname] != 0].copy()  # I probably make a copy to avoid a SettingWithCopyWarning
+    else:
+        any_allneg_present = (df[species_int_colname] == 0).any()
 
     # Print the initial species makeup of the dataframe prior to phenotyping
     value_counts = df[species_int_colname].value_counts()
@@ -289,6 +292,10 @@ def apply_phenotyping(csv_file_path_or_df, method, phenotype_identification_file
 
         # Currently the species IDs are those corresponding to a species phenotyping method; change them to ones corresponding to the custom phenotype assignments file
         df, species_int_to_pheno_name = map_to_common_species_id_and_get_pheno_name_mapping(df)
+
+    # If any all-negative phenotypes are present and we didn't want to remove them, add the mapper for these species
+    if (not remove_allneg_phenotypes) and any_allneg_present:
+        species_int_to_pheno_name[0] = 'All negative'
 
     # Print the phenotype makeup of the dataframe after phenotyping
     if 'phenotype_int' in df.columns:
