@@ -125,10 +125,11 @@ def main():
                                                                                             ])   
     
     with phenocluster__col6b:
+        st.table(st.session_state['phenocluster__edit_names_df'])
         edit_clustering_names = st.data_editor(edit_names_df)
         st.session_state['phenocluster__edit_names_result'] = edit_clustering_names
         if 'phenocluster__edit_names_result_2' not in st.session_state:
-            st.session_state['phenocluster__edit_names_result_2'] = sde.DataframeEditor(df_name='phenocluster__edit_names_result_2', default_df_contents=st.session_state['phenocluster__edit_names_df'])
+            st.session_state['phenocluster__edit_names_result_2'] = sde.DataframeEditor(df_name='phenocluster__edit_names_result_2a', default_df_contents=st.session_state['phenocluster__edit_names_df'])
         st.session_state['phenocluster__edit_names_result_2'].dataframe_editor(on_change=data_editor_change_callback, reset_data_editor_button_text='Reset New Clusters Names')
         
     with phenocluster__col5b:
