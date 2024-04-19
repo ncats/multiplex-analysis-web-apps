@@ -1,3 +1,5 @@
+# If in each function, if columns are added, ensure they're first deleted or initialized properly. For similar blocks in the main code, if columns are created, in addition to doing this, also ask ourselves whether we want to delete the added columns after using them.
+
 # Import relevant libraries
 import numpy as np
 import pandas as pd
@@ -53,6 +55,22 @@ def get_umap_train_and_test_sets(df, frac_train=0.5, frac_test=0.5, image_colnam
 
     # Return the dataframe with the UMAP train and test columns added
     return df
+
+
+# Get the UMAP edges for a dataframe, given the column names of the UMAP x and y coordinates. This function does not add any columns to df
+def get_umap_edges(df, umap_x_colname='UMAP_1_20230327_152849', umap_y_colname='UMAP_2_20230327_152849', num_umap_bins=200):
+
+    # Get a universal set of edges for the UMAPs
+    edges_x = np.linspace(df[umap_x_colname].min(), df[umap_x_colname].max(), num_umap_bins + 1)
+    edges_y = np.linspace(df[umap_y_colname].min(), df[umap_y_colname].max(), num_umap_bins + 1)
+
+    # Return the edges
+    return edges_x, edges_y
+
+
+# get_clusters(df[df[umap_test_colname]])
+def get_clusters(df_test, umap_x_colname='UMAP_1_20230327_152849', umap_y_colname='UMAP_2_20230327_152849'):
+    pass
 
 
 # Calculate a dictionary of clusters as keys and list of bin tuples as values using the normalized histogram differences between two conditions for a single set of UMAP "test" data. This function does not add any columns to df
