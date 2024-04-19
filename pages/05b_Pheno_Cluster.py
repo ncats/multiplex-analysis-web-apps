@@ -17,6 +17,9 @@ from utag import utag
 import numpy as np
 import scanpy.external as sce
 import plotly.express as px
+import streamlit_dataframe_editor as sde
+import basic_phenotyper_lib as bpl
+import nidap_dashboard_lib as ndl 
 
 
 # Functions 
@@ -37,7 +40,7 @@ def phenocluster__diff_expr(adata, phenocluster__de_col, phenocluster__de_sel_gr
 # change cluster names
 def phenocluster__edit_cluster_names(adata, edit_names_result):
     adata.obs['Edit_Cluster'] = adata.obs['Cluster'].map(edit_names_result.set_index('Cluster')['New_Name'])
-    st.session_state['phenocluster__clustering_adata'] = adata
+    st.session_state['phenocluster__clustering_adata'] = adata   
 
 # make differential intensity plots    
 def phenocluster__plot_diff_intensity(adata, groups, method, n_genes, plot_column):
@@ -61,8 +64,26 @@ def phenocluster__plot_diff_intensity(adata, groups, method, n_genes, plot_colum
         
     with plot_column:
          st.pyplot(fig = cur_fig, clear_figure=None, use_container_width=True)
-     
-    
+
+def data_editor_change_callback():
+    '''
+    data_editor_change_callback is a callback function for the streamlit data_editor widget
+    which updates the saved value of the user-created changes after every instance of the 
+    data_editor on_change method. This ensures the dashboard can remake the edited data_editor
+    when the user navigates to a different page.
+    '''
+
+    st.session_state.df = bpl.assign_phenotype_custom(st.session_state.df, st.session_state['pheno__de_phenotype_assignments'].reconstruct_edited_dataframe())
+
+    # Create Phenotypes Summary Table based on 'phenotype' column in df
+    st.session_state.pheno_summ = bpl.init_pheno_summ(st.session_state.df)
+
+    # Perform filtering
+    st.session_state.df_filt = ndl.perform_filtering(st.session_state)
+
+    # Set Figure Objects based on updated df
+    st.session_state = ndl.setFigureObjs(st.session_state, st.session_state.pointstSliderVal_Sel)        
+
 
 def main():
     phenocluster__col1b, phenocluster__col2b  = st.columns([1, 6])
@@ -85,6 +106,7 @@ def main():
     phenocluster__col5b, phenocluster__col6b  = st.columns([1, 6])
     cur_clusters = list(pd.unique(st.session_state['phenocluster__clustering_adata'].obs["Cluster"]))
     edit_names_df = pd.DataFrame({"Cluster": cur_clusters, "New_Name": cur_clusters})
+    st.session_state['phenocluster__edit_names_df'] = edit_names_df
     
     with phenocluster__col3b:
         # Plot differential intensity
@@ -105,6 +127,10 @@ def main():
     with phenocluster__col6b:
         edit_clustering_names = st.data_editor(edit_names_df)
         st.session_state['phenocluster__edit_names_result'] = edit_clustering_names
+        if 'phenocluster__edit_names_result_2' not in st.session_state:
+            st.session_state['phenocluster__edit_names_result_2'] = sde.DataframeEditor(df_name='phenocluster__edit_names_result_2', default_df_contents=st.session_state['phenocluster__edit_names_df'])
+        st.session_state['phenocluster__edit_names_result_2'].dataframe_editor(on_change=data_editor_change_callback, reset_data_editor_button_text='Reset New Clusters Names')
+        
     with phenocluster__col5b:
          #Edit cluster names
         st.button('Edit Clusters Names', on_click=phenocluster__edit_cluster_names, args = [st.session_state['phenocluster__clustering_adata'], 
