@@ -10,29 +10,29 @@ import app_top_of_page as top
 import sit_03a_Tool_parameter_selection as sit
 import new_phenotyping_lib
 import utils
+import anndata
 
 
-def load_input_dataset(input_dataset):
+def load_input_dataset(df_input):
     """
-    Load the input dataset.
+    Load the input dataset into an AnnData object.
 
     Args:
-        input_dataset (pandas.DataFrame): The input dataset.
+        df_input (pandas.DataFrame): The input dataframe.
 
     Returns:
-        pandas.DataFrame: The input dataset.
+        anndata.AnnData: The input dataframe converted to an AnnData object.
     """
-    
-    # Trivially return the input dataset
-    return input_dataset
+
+    return anndata.AnnData(df_input)
 
 
 def load_input_dataset_interactive():
     """
-    Load the input dataset from the session state.
+    Loads the input dataset from the session state and returns the corresponding AnnData object.
 
     Returns:
-        pandas.DataFrame: The input dataset.
+        adata (AnnData): The loaded input dataset.
     """
 
     # If 'input_dataset' isn't in the session state, print an error message and return
@@ -43,10 +43,10 @@ def load_input_dataset_interactive():
     # Load the input dataset
     with st.button('Load input dataset'):
         with st.spinner('Loading input dataset...'):
-            df_input = load_input_dataset(st.session_state['input_dataset'].data)
+            adata = load_input_dataset(st.session_state['input_dataset'].data)
 
-    # Return the input dataset
-    return df_input
+    # Return the AnnData object
+    return adata
 
 
 def apply_phenotyping(phenotyping_method, df_input, df_pheno_assignments, remove_allneg_phenotypes=True):
@@ -414,22 +414,22 @@ def main():
 
     # Parameters
     # TODO: Make these widgets when they're to first be used
+    remove_allneg_phenotypes = False
     smallest_image_size_frac = 0.1
     num_analysis_subsets = 10
     num_test_subsets = 10
-    remove_allneg_phenotypes = False
 
     # Load the input dataset. Since it's required to run Open File first, this will return None if it hasn't been run yet. This uses Python's "new" walrus operator :=
     if (df_input := load_input_dataset_interactive()) is None: return
 
-    # Apply phenotyping to the input dataset. Since it's required to run the Phenotyper first, this will return None if it hasn't been run yet. Note the walrus operator := doesn't supported tuple unpacking, which is why we can't make the following more concise
+    # Apply phenotyping to the input dataset. Since it's required to run the Phenotyper first, this will return None if it hasn't been run yet. Note the walrus operator := doesn't support tuple unpacking, which is why we can't make the following more concise
     df_input, phenotype_colname = apply_phenotyping_interactive(df_input, remove_allneg_phenotypes=remove_allneg_phenotypes) or (None, None)
     if df_input is None: return
 
     # Calculate the densities
     df_density_matrix, timing_string_counts = calculate_densities_interactive(df_input, phenotype_colname=phenotype_colname)
 
-    # Split the input dataframe into training and testing data
+    # Split the input images into training and testing images
     # TODO: Replace this with the actual split
     df_train, df_test = train_test_split_interactive(df_input)
 
