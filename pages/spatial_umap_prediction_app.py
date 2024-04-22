@@ -14,25 +14,27 @@ import anndata
 
 
 def load_input_dataset(df_input):
-    """
-    Load the input dataset into an AnnData object.
+    """Creates an AnnData object from a pandas DataFrame.
 
     Args:
-        df_input (pandas.DataFrame): The input dataframe.
+        df_input (pandas.DataFrame): The input dataframe containing the dataset.
 
     Returns:
-        anndata.AnnData: The input dataframe converted to an AnnData object.
+        anndata.AnnData: The loaded input dataset.
     """
 
-    return anndata.AnnData(df_input)
+    # Create an AnnData object from the input dataframe in the recommended way
+    adata = anndata.AnnData(X=df_input[['Cell X Position', 'Cell Y Position']].values, obs=df_input.drop(columns=['Cell X Position', 'Cell Y Position']), var=pd.DataFrame(index=['Cell X Position', 'Cell Y Position']))
+
+    # Return the AnnData object
+    return adata
 
 
 def load_input_dataset_interactive():
-    """
-    Loads the input dataset from the session state and returns the corresponding AnnData object.
+    """Loads the input dataset from the session state and returns the AnnData object.
 
     Returns:
-        adata (AnnData): The loaded input dataset.
+        anndata.AnnData: The loaded input dataset.
     """
 
     # If 'input_dataset' isn't in the session state, print an error message and return
