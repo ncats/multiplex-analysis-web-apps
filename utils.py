@@ -10,6 +10,7 @@ import pandas as pd
 import os
 import pytz
 from datetime import datetime
+import anndata
 
 def set_filename_corresp_to_roi(df_paths, roi_name, curr_colname, curr_dir, curr_dir_listing):
     """Update the path in a main paths-holding dataframe corresponding to a particular ROI in a particular directory.
@@ -984,3 +985,42 @@ def get_timestamp(pretty=False):
         return datetime.now(pytz.timezone('US/Eastern')).strftime('%Y-%m-%d %I:%M:%S %p %Z')
     else:
         return datetime.now(pytz.timezone('US/Eastern')).strftime("%Y%m%d_%H%M%S_%Z")
+
+
+
+def convert_dataframe_to_anndata(df, columns_for_data_matrix=['Cell X Position', 'Cell Y Position']):
+    """Creates an AnnData object from a pandas DataFrame in the recommended way.
+
+    Args:
+        df (pandas.DataFrame): The dataframe containing the dataset.
+
+    Returns:
+        anndata.AnnData: The loaded dataset.
+    """
+
+    # Create an AnnData object from the dataframe in the recommended way
+    adata = anndata.AnnData(X=df[columns_for_data_matrix].values, obs=df.drop(columns=columns_for_data_matrix), var=pd.DataFrame(index=columns_for_data_matrix))
+
+    # Return the AnnData object
+    return adata
+
+
+def convert_anndata_to_dataframe(adata):
+    """Converts an AnnData object to a pandas DataFrame without duplicating any data.
+
+    Args:
+        adata (anndata.AnnData): An AnnData object containing the data to be converted.
+
+    Returns:
+        pandas.DataFrame: A pandas DataFrame containing the converted data.
+        pandas.Index: Columns used for the data matrix.
+    """
+
+    # Extract the main columns for the data matrix
+    columns_for_data_matrix = adata.var.index
+
+    # Create a DataFrame from the AnnData object
+    df = pd.concat([pd.DataFrame(adata.X, columns=columns_for_data_matrix, index=adata.obs.index), adata.obs], axis='columns')
+
+    # Return the DataFrame and the columns for the data matrix
+    return df, columns_for_data_matrix

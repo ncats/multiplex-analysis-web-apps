@@ -10,27 +10,26 @@ import app_top_of_page as top
 import sit_03a_Tool_parameter_selection as sit
 import new_phenotyping_lib
 import utils
-import anndata
 
 
-def load_input_dataset(df_input):
-    """Creates an AnnData object from a pandas DataFrame.
+def load_input_dataset(df, columns_for_data_matrix=['Cell X Position', 'Cell Y Position']):
+    """Creates an AnnData object from a pandas DataFrame in the recommended way.
 
     Args:
-        df_input (pandas.DataFrame): The input dataframe containing the dataset.
+        df (pandas.DataFrame): The dataframe containing the dataset.
 
     Returns:
-        anndata.AnnData: The loaded input dataset.
+        anndata.AnnData: The loaded dataset.
     """
 
-    # Create an AnnData object from the input dataframe in the recommended way
-    adata = anndata.AnnData(X=df_input[['Cell X Position', 'Cell Y Position']].values, obs=df_input.drop(columns=['Cell X Position', 'Cell Y Position']), var=pd.DataFrame(index=['Cell X Position', 'Cell Y Position']))
+    # Create an AnnData object from the dataframe in the recommended way
+    adata = utils.convert_dataframe_to_anndata(df, columns_for_data_matrix=columns_for_data_matrix)
 
     # Return the AnnData object
     return adata
 
 
-def load_input_dataset_interactive():
+def load_input_dataset_interactive(columns_for_data_matrix=['Cell X Position', 'Cell Y Position']):
     """Loads the input dataset from the session state and returns the AnnData object.
 
     Returns:
@@ -45,25 +44,23 @@ def load_input_dataset_interactive():
     # Load the input dataset
     with st.button('Load input dataset'):
         with st.spinner('Loading input dataset...'):
-            adata = load_input_dataset(st.session_state['input_dataset'].data)
+            adata = load_input_dataset(st.session_state['input_dataset'].data, columns_for_data_matrix=columns_for_data_matrix)
 
     # Return the AnnData object
     return adata
 
 
-def apply_phenotyping(phenotyping_method, df_input, df_pheno_assignments, remove_allneg_phenotypes=True):
-    """
-    Apply phenotyping to a given dataframe.
+def apply_phenotyping(adata, phenotyping_method, df_pheno_assignments, remove_allneg_phenotypes=True):
+    """Apply phenotyping to an AnnData object.
 
     Args:
-        phenotyping_method (str): The phenotyping method to use.
-        df_input (pandas.DataFrame): The input dataframe containing cell data.
-        df_pheno_assignments (pandas.DataFrame): The dataframe containing phenotype assignments.
-        remove_allneg_phenotypes (bool): Whether to remove all negative phenotypes. Default is True.
+        phenotyping_method (str): The method used for phenotyping.
+        adata (AnnData): The AnnData object to apply phenotyping to.
+        df_pheno_assignments (pandas.DataFrame): The phenotype assignments table.
+        remove_allneg_phenotypes (bool, optional): Whether to remove all-negative phenotypes. Defaults to True.
 
     Returns:
-        df_input (pandas.DataFrame): The input dataframe with phenotyping applied.
-        phenotype_colname (str): The column name for the phenotype.
+        tuple: A tuple containing the updated AnnData object and the name of the phenotype column.
     """
 
     # If the Phenotyper's phenotyping method is "Custom", create a phenotype assignments file (and assign the corresponding setting) from its phenotype assignment table
@@ -73,29 +70,33 @@ def apply_phenotyping(phenotyping_method, df_input, df_pheno_assignments, remove
     else:
         phenotype_identification_file = None
 
+    # Convert the AnnData object to a pandas DataFrame including the coordinates without duplicating any data
+    df, columns_for_data_matrix = utils.convert_anndata_to_dataframe(adata)
+
     # Apply phenotyping
-    df_input, _, species_int_to_pheno_name = new_phenotyping_lib.apply_phenotyping(df_input, phenotyping_method, phenotype_identification_file, species_int_colname='Species int', remove_allneg_phenotypes=remove_allneg_phenotypes)
+    df, _, species_int_to_pheno_name = new_phenotyping_lib.apply_phenotyping(df, phenotyping_method, phenotype_identification_file, species_int_colname='Species int', remove_allneg_phenotypes=remove_allneg_phenotypes)
 
     # Convert the integers identifying the species to their corresponding useful names
-    df_input['Species int'] = df_input['Species int'].map(species_int_to_pheno_name)
+    df['Species int'] = df['Species int'].map(species_int_to_pheno_name)
     phenotype_colname = 'pheno_' + utils.get_timestamp()
-    df_input.rename(columns={'Species int': phenotype_colname}, inplace=True)
+    df.rename(columns={'Species int': phenotype_colname}, inplace=True)
+
+    # Convert the dataframe back to an AnnData object
+    adata = utils.convert_dataframe_to_anndata(df, columns_for_data_matrix=columns_for_data_matrix)
 
     # Return the dataframe and the name of the phenotype column
-    return df_input, phenotype_colname
+    return adata, phenotype_colname
 
 
-def apply_phenotyping_interactive(df_input, remove_allneg_phenotypes=True):
-    """
-    Apply phenotyping to a given dataframe using the phenotyping method (and potentially a phenotype assignments file) from the session state.
+def apply_phenotyping_interactive(adata, remove_allneg_phenotypes=True):
+    """Applies phenotyping interactively based on the selected phenotyping method.
 
     Args:
-        df_input (pandas.DataFrame): The input dataframe containing cell data.
-        remove_allneg_phenotypes (bool): Whether to remove all negative phenotypes. Default is True.
+        adata (AnnData): The annotated data object.
+        remove_allneg_phenotypes (bool, optional): Whether to remove all-negative phenotypes. Defaults to True.
 
     Returns:
-        df_input (pandas.DataFrame): The input dataframe with phenotyping applied.
-        phenotype_colname (str): The column name for the phenotype.
+        tuple: A tuple containing the updated annotated data object (adata) and the name of the phenotype column.
     """
 
     # If 'phenoMeth' isn't in the session state, print an error message and return
@@ -112,10 +113,10 @@ def apply_phenotyping_interactive(df_input, remove_allneg_phenotypes=True):
             df_pheno_assignments = st.session_state['pheno__de_phenotype_assignments'].reconstruct_edited_dataframe() if phenotyping_method == 'Custom' else None
 
             # Apply the phenotyping
-            df_input, phenotype_colname = apply_phenotyping(phenotyping_method, df_input, df_pheno_assignments, remove_allneg_phenotypes=remove_allneg_phenotypes)
+            adata, phenotype_colname = apply_phenotyping(adata, phenotyping_method, df_pheno_assignments, remove_allneg_phenotypes=remove_allneg_phenotypes)
 
     # Return the dataframe and the name of the phenotype column
-    return df_input, phenotype_colname
+    return adata, phenotype_colname
 
 
 def calculate_densities(df, radius_edges=[0, 25, 50, 100, 150, 200], spatial_x_colname='Cell X Position', spatial_y_colname='Cell Y Position', image_colname='Slide ID', phenotype_colname='pheno_20240327_152849', debug_output=False, num_cpus_to_use=7, cast_to_float32=False, output_dir=os.path.join('.', 'output'), counts_matrix_csv_filename='counts_matrix.csv'):
@@ -422,7 +423,7 @@ def main():
     num_test_subsets = 10
 
     # Load the input dataset. Since it's required to run Open File first, this will return None if it hasn't been run yet. This uses Python's "new" walrus operator :=
-    if (df_input := load_input_dataset_interactive()) is None: return
+    if (adata_coords := load_input_dataset_interactive(columns_for_data_matrix=['Cell X Position', 'Cell Y Position'])) is None: return
 
     # Apply phenotyping to the input dataset. Since it's required to run the Phenotyper first, this will return None if it hasn't been run yet. Note the walrus operator := doesn't support tuple unpacking, which is why we can't make the following more concise
     df_input, phenotype_colname = apply_phenotyping_interactive(df_input, remove_allneg_phenotypes=remove_allneg_phenotypes) or (None, None)
