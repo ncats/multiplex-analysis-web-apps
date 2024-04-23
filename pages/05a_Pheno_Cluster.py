@@ -17,6 +17,7 @@ from utag import utag
 import numpy as np
 import scanpy.external as sce
 import plotly.express as px
+import time
 
 # make adata from unifier table
 # hard coded column names, nned to think about a better way
@@ -49,9 +50,11 @@ def RunNeighbClust(adata, n_neighbors):
     return adata
 
 # phenograph clustering
-def RunPhenographClust(adata, n_neighbors, k):
+def RunPhenographClust(adata, n_neighbors, k, clustering_algo, min_cluster_size, primary_metric, resolution_parameter, nn_method):
     sc.pp.neighbors(adata, n_neighbors=n_neighbors, n_pcs=None)
-    communities, graph, Q = phenograph.cluster(adata.X, clustering_algo = 'leiden', k=k)
+    communities, graph, Q = phenograph.cluster(adata.X, clustering_algo=clustering_algo, k=k, 
+                                               min_cluster_size=min_cluster_size, primary_metric=primary_metric, 
+                                               resolution_parameter=resolution_parameter, nn_method=nn_method)
     adata.obs['Cluster'] = communities
     adata.obs['Cluster'] = adata.obs['Cluster'].astype(str)
     sc.tl.umap(adata)
@@ -196,12 +199,29 @@ def phenocluster__default_session_state():
     if 'phenocluster__cluster_method' not in st.session_state:
         st.session_state['phenocluster__cluster_method'] = "phenograph"
 
+    # phenograph options
     if 'phenocluster__n_neighbors_state' not in st.session_state:
         st.session_state['phenocluster__n_neighbors_state'] = 10
 
     if 'phenocluster__phenograph_k' not in st.session_state:
         st.session_state['phenocluster__phenograph_k'] = 30
+    
+    if 'phenocluster__phenograph_clustering_algo' not in st.session_state:
+        st.session_state['phenocluster__phenograph_clustering_algo'] = 'louvain'
+    
+    if 'phenocluster__phenograph_min_cluster_size' not in st.session_state:
+        st.session_state['phenocluster__phenograph_min_cluster_size'] = 10
+    
+    if 'phenocluster__phenograph_primary_metric' not in st.session_state:
+        st.session_state['phenocluster__phenograph_primary_metric'] = 'euclidean'
+        
+    if 'phenocluster__phenograph_resolution' not in st.session_state:
+        st.session_state['phenocluster__phenograph_resolution'] = 1.0
+        
+    if 'phenocluster__phenograph_nn_method' not in st.session_state:
+        st.session_state['phenocluster__phenograph_nn_method'] = 'kdtree'
 
+    # umap options
     if 'phenocluster__umap_cur_col' not in st.session_state:
         st.session_state['phenocluster__umap_cur_col'] = "Image"
         
@@ -210,7 +230,8 @@ def phenocluster__default_session_state():
 
     if 'phenocluster__umap_cur_groups' not in st.session_state:
         st.session_state['phenocluster__umap_cur_groups'] = ["All"]
-        
+    
+    # differential intensity options    
     if 'phenocluster__de_col' not in st.session_state:
         st.session_state['phenocluster__de_col'] = "Cluster"
     
@@ -289,13 +310,25 @@ def main():
         if st.session_state['phenocluster__cluster_method'] == "phenograph":
             st.session_state['phenocluster__phenograph_k'] = st.number_input(label = "Phenograph k", 
                                 value=st.session_state['phenocluster__phenograph_k'])
+            st.selectbox('Phenograph clustering algorithm:', ['louvain', 'leiden'], key='phenocluster__phenograph_clustering_algo')
+            st.number_input(label = "Phenograph min cluster size", key='phenocluster__phenograph_min_cluster_size', step = 1)
+            st.selectbox('Phenograph primary metric:', ['euclidean', 'manhattan', 'correlation', 'cosine'], key='phenocluster__phenograph_primary_metric')
+            st.number_input(label = "Phenograph resolution", key='phenocluster__phenograph_resolution')
+            st.selectbox('Phenograph nn method:', ['kdtree', 'brute'], key='phenocluster__phenograph_nn_method')
         
         # add options if clustering has been run
         if st.button('Run Clustering'):
+            start_time = time.time()
             if st.session_state['phenocluster__cluster_method'] == "phenograph":
                 with st.spinner('Wait for it...'):
                     st.session_state['phenocluster__clustering_adata'] = RunPhenographClust(adata=adata, n_neighbors=st.session_state['phenocluster__n_neighbors_state'], 
-                                                                                            k=st.session_state['phenocluster__phenograph_k'])
+                                                                                            k=st.session_state['phenocluster__phenograph_k'],
+                                                                                            clustering_algo=st.session_state['phenocluster__phenograph_clustering_algo'],
+                                                                                            min_cluster_size=st.session_state['phenocluster__phenograph_min_cluster_size'],
+                                                                                            primary_metric=st.session_state['phenocluster__phenograph_primary_metric'],
+                                                                                            resolution_parameter=st.session_state['phenocluster__phenograph_resolution'],
+                                                                                            nn_method=st.session_state['phenocluster__phenograph_nn_method']
+                                                                                            )
             elif st.session_state['phenocluster__cluster_method'] == "neighb":
                 with st.spinner('Wait for it...'):
                     st.session_state['phenocluster__clustering_adata'] = RunNeighbClust(adata=adata, 
@@ -311,7 +344,10 @@ def main():
                                                                                         n_neighbors=st.session_state['phenocluster__n_neighbors_state'], resolutions=[1])
             # save clustering result
             #st.session_state['phenocluster__clustering_adata'].write("input/clust_dat.h5ad")
-                    
+            end_time = time.time()
+            execution_time = end_time - start_time
+            rounded_time = round(execution_time, 2)
+            st.write('Execution time: ', rounded_time, 'seconds')       
                 
             
             # umap
