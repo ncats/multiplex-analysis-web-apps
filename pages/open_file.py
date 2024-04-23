@@ -106,6 +106,7 @@ def main():
                 streamlit_utils.load_input_dataset(input_file_or_df, st.session_state['opener__microns_per_coordinate_unit'])  # this assigns the input dataset to st.session_state['input_dataset'] and the metadata to st.session_state['input_metadata']
             if st.session_state['input_dataset'] is not None:
                 st.session_state['input_dataset'].data, st.session_state['input_dataframe_memory_usage_bytes'] = utils.downcast_dataframe_dtypes(st.session_state['input_dataset'].data, also_return_final_size=True)
+                st.session_state['adata'] = utils.create_anndata_from_dataframe(st.session_state['input_dataset'].data, columns_for_data_matrix='float')
                 st.info('The input data have been successfully loaded and validated.')
                 show_dataframe_updates = True
             else:
