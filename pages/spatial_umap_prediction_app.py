@@ -23,7 +23,7 @@ def load_input_dataset(df, columns_for_data_matrix=['Cell X Position', 'Cell Y P
     """
 
     # Create an AnnData object from the dataframe in the recommended way
-    adata = utils.convert_dataframe_to_anndata(df, columns_for_data_matrix=columns_for_data_matrix)
+    adata = utils.create_anndata_from_dataframe(df, columns_for_data_matrix=columns_for_data_matrix)
 
     # Return the AnnData object
     return adata
@@ -82,7 +82,7 @@ def apply_phenotyping(adata, phenotyping_method, df_pheno_assignments, remove_al
     df.rename(columns={'Species int': phenotype_colname}, inplace=True)
 
     # Convert the dataframe back to an AnnData object
-    adata = utils.convert_dataframe_to_anndata(df, columns_for_data_matrix=columns_for_data_matrix)
+    adata = utils.create_anndata_from_dataframe(df, columns_for_data_matrix=columns_for_data_matrix)
 
     # Return the dataframe and the name of the phenotype column
     return adata, phenotype_colname

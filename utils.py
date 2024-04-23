@@ -987,40 +987,88 @@ def get_timestamp(pretty=False):
         return datetime.now(pytz.timezone('US/Eastern')).strftime("%Y%m%d_%H%M%S_%Z")
 
 
-
-def convert_dataframe_to_anndata(df, columns_for_data_matrix=['Cell X Position', 'Cell Y Position']):
-    """Creates an AnnData object from a pandas DataFrame in the recommended way.
+def create_anndata_from_dataframe(df, columns_for_data_matrix=['Cell X Position', 'Cell Y Position']):
+    """Creates an AnnData object from a pandas DataFrame.
 
     Args:
-        df (pandas.DataFrame): The dataframe containing the dataset.
+        df (pandas.DataFrame): The input DataFrame.
+        columns_for_data_matrix (list or str, optional): The columns to include in the data matrix of the AnnData object.
+            If a string is provided, all columns of that data type will be included. Defaults to ['Cell X Position', 'Cell Y Position'].
 
     Returns:
-        anndata.AnnData: The loaded dataset.
+        anndata.AnnData: The AnnData object created from the DataFrame.
     """
 
+    # Potentially extract all columns of a certain type
+    if not isinstance(columns_for_data_matrix, list):  # then assume it's a string, like 'float'
+        columns_for_data_matrix = list(df.select_dtypes(include=[columns_for_data_matrix]).columns)
+
+    # Create a list of columns to keep in the obs DataFrame
+    obs_columns = [col for col in df.columns if col not in columns_for_data_matrix]
+
     # Create an AnnData object from the dataframe in the recommended way
-    adata = anndata.AnnData(X=df[columns_for_data_matrix].values, obs=df.drop(columns=columns_for_data_matrix), var=pd.DataFrame(index=columns_for_data_matrix))
+    adata = anndata.AnnData(X=df[columns_for_data_matrix], obs=df[obs_columns])
+
+    # Add the original set of metadata so we can revert back later by trimming. These are all pandas.Index types
+    adata.uns['obs_names_orig'] = adata.obs_names
+    adata.uns['var_names_orig'] = adata.var_names
+    adata.uns['obs_columns_orig'] = adata.obs.columns
+    adata.uns['input_dataframe_columns'] = df.columns
+
+    # Print information about adata to the screen
+    print('AnnData object created from the DataFrame:')
+    print(adata)
 
     # Return the AnnData object
     return adata
 
 
-def convert_anndata_to_dataframe(adata):
-    """Converts an AnnData object to a pandas DataFrame without duplicating any data.
+def create_dataframe_from_anndata(adata, indices_to_keep=None, columns_to_keep=None):
+    """Creates a pandas DataFrame from an AnnData object.
 
     Args:
-        adata (anndata.AnnData): An AnnData object containing the data to be converted.
+        adata (anndata.AnnData): The AnnData object from which to create the DataFrame.
+        indices_to_keep (array-like, optional): Indices to keep in the DataFrame. Can be either a boolean mask or a list-like of indices.
+        columns_to_keep (array-like, optional): Columns to keep in the DataFrame.
 
     Returns:
-        pandas.DataFrame: A pandas DataFrame containing the converted data.
-        pandas.Index: Columns used for the data matrix.
+        pandas.DataFrame: The DataFrame created from the AnnData object.
+
+    Raises:
+        AssertionError: If the number of rows in the DataFrame does not match the number of rows in the AnnData object.
     """
 
-    # Extract the main columns for the data matrix
-    columns_for_data_matrix = adata.var.index
+    # Determine which indices and columns to keep
+    if indices_to_keep is None:
+        indices_to_keep = adata.obs_names
+    if columns_to_keep is None:
+        columns_to_keep = adata.var_names.tolist() + adata.obs.columns.tolist()
 
-    # Create a DataFrame from the AnnData object
-    df = pd.concat([pd.DataFrame(adata.X, columns=columns_for_data_matrix, index=adata.obs.index), adata.obs], axis='columns')
+    # Get the common columns for each DataFrame
+    common_columns_X = adata.var_names.intersection(columns_to_keep)
+    common_columns_obs = adata.obs.columns.intersection(columns_to_keep)
 
-    # Return the DataFrame and the columns for the data matrix
-    return df, columns_for_data_matrix
+    # Concatenate the sliced DataFrames
+    df = pd.concat([
+        pd.DataFrame(adata.X, index=adata.obs_names, columns=adata.var_names).loc[indices_to_keep, common_columns_X],
+        adata.obs.loc[indices_to_keep, common_columns_obs]
+    ], axis='columns')
+
+    # Check that the number of rows in the DataFrame matches the number of rows in the AnnData object
+    assert df.shape[0] == len(indices_to_keep), f"The number of rows in the DataFrame ({df.shape[0]}) does not match the number of rows in the AnnData object ({len(indices_to_keep)})."
+
+    # Adhere to the original column order if possible
+    if 'input_dataframe_columns' in adata.uns:
+        missing_columns = [col for col in adata.uns['input_dataframe_columns'] if col not in df.columns]
+        if missing_columns:
+            print(f"Warning: The following columns from the original DataFrame are missing in the current DataFrame so the original column order will not be preserved: {missing_columns}")
+        else:
+            columns_not_in_original_df = [col for col in df.columns if col not in adata.uns['input_dataframe_columns']]
+            df = df[adata.uns['input_dataframe_columns'] + columns_not_in_original_df]
+
+    # Print information about the DataFrame to the screen
+    print('DataFrame created from the AnnData object:')
+    print(df.info())
+
+    # Return the DataFrame
+    return df
