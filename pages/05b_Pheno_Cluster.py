@@ -42,6 +42,11 @@ def phenocluster__edit_cluster_names(adata, edit_names_result):
     adata.obs['Edit_Cluster'] = adata.obs['Cluster'].map(edit_names_result.set_index('Cluster')['New_Name'])
     st.session_state['phenocluster__clustering_adata'] = adata   
 
+def phenocluster__edit_cluster_names_2(adata, edit_names_result):
+    edit_names_result_2 = edit_names_result.reconstruct_edited_dataframe()
+    adata.obs['Edit_Cluster'] = adata.obs['Cluster'].map(dict(zip(edit_names_result_2['Cluster'].to_list(), edit_names_result_2['New_Name'].to_list())))
+    st.session_state['phenocluster__clustering_adata'] = adata
+    
 # make differential intensity plots    
 def phenocluster__plot_diff_intensity(adata, groups, method, n_genes, plot_column):
     if "All" in groups:
@@ -73,7 +78,7 @@ def data_editor_change_callback():
     when the user navigates to a different page.
     '''
 
-    st.session_state.df = bpl.assign_phenotype_custom(st.session_state.df, st.session_state['pheno__de_phenotype_assignments'].reconstruct_edited_dataframe())
+    st.session_state.df = bpl.assign_phenotype_custom(st.session_state.df, st.session_state['phenocluster__edit_names_result_2a'].reconstruct_edited_dataframe())
 
     # Create Phenotypes Summary Table based on 'phenotype' column in df
     st.session_state.pheno_summ = bpl.init_pheno_summ(st.session_state.df)
@@ -125,17 +130,19 @@ def main():
                                                                                             ])   
     
     with phenocluster__col6b:
-        st.table(st.session_state['phenocluster__edit_names_df'])
-        edit_clustering_names = st.data_editor(edit_names_df)
-        st.session_state['phenocluster__edit_names_result'] = edit_clustering_names
+        #st.table(st.session_state['phenocluster__edit_names_df'])
+        #edit_clustering_names = st.data_editor(edit_names_df)
+        #st.session_state['phenocluster__edit_names_result'] = edit_clustering_names
         if 'phenocluster__edit_names_result_2' not in st.session_state:
             st.session_state['phenocluster__edit_names_result_2'] = sde.DataframeEditor(df_name='phenocluster__edit_names_result_2a', default_df_contents=st.session_state['phenocluster__edit_names_df'])
-        st.session_state['phenocluster__edit_names_result_2'].dataframe_editor(on_change=data_editor_change_callback, reset_data_editor_button_text='Reset New Clusters Names')
-        
+            
+        #st.session_state['phenocluster__edit_names_result_2'].dataframe_editor(on_change=data_editor_change_callback, reset_data_editor_button_text='Reset New Clusters Names')
+        st.session_state['phenocluster__edit_names_result_2'].dataframe_editor(reset_data_editor_button_text='Reset New Clusters Names')
+        edit_clustering_names_2 = st.session_state['phenocluster__edit_names_result_2']
     with phenocluster__col5b:
          #Edit cluster names
-        st.button('Edit Clusters Names', on_click=phenocluster__edit_cluster_names, args = [st.session_state['phenocluster__clustering_adata'], 
-                                                                                            st.session_state['phenocluster__edit_names_result']
+        st.button('Edit Clusters Names', on_click=phenocluster__edit_cluster_names_2, args = [st.session_state['phenocluster__clustering_adata'], 
+                                                                                            st.session_state['phenocluster__edit_names_result_2']
                                                                                             ])
     
         
