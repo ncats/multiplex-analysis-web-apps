@@ -990,6 +990,8 @@ def get_timestamp(pretty=False):
 def create_anndata_from_dataframe(df, columns_for_data_matrix=['Cell X Position', 'Cell Y Position']):
     """Creates an AnnData object from a pandas DataFrame.
 
+    This function makes no copies of data anywhere.
+
     Args:
         df (pandas.DataFrame): The input DataFrame.
         columns_for_data_matrix (list or str, optional): The columns to include in the data matrix of the AnnData object.
@@ -1009,11 +1011,11 @@ def create_anndata_from_dataframe(df, columns_for_data_matrix=['Cell X Position'
     # Create an AnnData object from the dataframe in the recommended way
     adata = anndata.AnnData(X=df[columns_for_data_matrix], obs=df[obs_columns])
 
-    # Add the original set of metadata so we can revert back later by trimming. These are all pandas.Index types
+    # Add the original set of metadata so we can revert back later by trimming. These are all pandas.Index types. These should not dynamically update
     adata.uns['obs_names_orig'] = adata.obs_names
     adata.uns['var_names_orig'] = adata.var_names
     adata.uns['obs_columns_orig'] = adata.obs.columns
-    adata.uns['input_dataframe_columns'] = df.columns
+    adata.uns['input_dataframe_columns'] = df.columns  # this includes both var_names_orig and obs_columns_orig but is here so the final column order can be preserved
 
     # Print information about adata to the screen
     print('AnnData object created from the DataFrame:')
@@ -1025,6 +1027,10 @@ def create_anndata_from_dataframe(df, columns_for_data_matrix=['Cell X Position'
 
 def create_dataframe_from_anndata(adata, indices_to_keep=None, columns_to_keep=None):
     """Creates a pandas DataFrame from an AnnData object.
+
+    The point of this function is to efficiently create a dataframe from an anndata object so that analysis code that expects a dataframe can be used without modification. This function is not intended to be used for other purposes like in new functions, where we should instead use the anndata object directly without converting to a dataframe unless absolutely necessary.
+
+    However, to be fair, this function does not copy any data anywhere, so using it should not significantly allocate new memory. Then again, keep in mind that anndata efficiently handles memory potentially better than pandas, so anndata should probably be preferred for new code. E.g., pandas does not support lazy loading, which will be important for very lage datasets. If using this function (i.e., pandas instead of anndata), we need to really consider memory considerations very carefully.
 
     Args:
         adata (anndata.AnnData): The AnnData object from which to create the DataFrame.
@@ -1050,21 +1056,22 @@ def create_dataframe_from_anndata(adata, indices_to_keep=None, columns_to_keep=N
 
     # Concatenate the sliced DataFrames
     df = pd.concat([
-        pd.DataFrame(adata.X, index=adata.obs_names, columns=adata.var_names).loc[indices_to_keep, common_columns_X],
+        adata[indices_to_keep, common_columns_X].to_df(),
         adata.obs.loc[indices_to_keep, common_columns_obs]
     ], axis='columns')
 
     # Check that the number of rows in the DataFrame matches the number of rows in the AnnData object
-    assert df.shape[0] == len(indices_to_keep), f"The number of rows in the DataFrame ({df.shape[0]}) does not match the number of rows in the AnnData object ({len(indices_to_keep)})."
+    if isinstance(indices_to_keep, (np.ndarray, pd.Series)) and indices_to_keep.dtype == bool:
+        len_indices_to_keep = indices_to_keep.sum()
+    else:
+        len_indices_to_keep = len(indices_to_keep)
+    assert df.shape[0] == len_indices_to_keep, f"The number of rows in the final DataFrame ({df.shape[0]}) does not match the number of rows in the sliced AnnData object ({len_indices_to_keep})."
 
     # Adhere to the original column order if possible
     if 'input_dataframe_columns' in adata.uns:
-        missing_columns = [col for col in adata.uns['input_dataframe_columns'] if col not in df.columns]
-        if missing_columns:
-            print(f"Warning: The following columns from the original DataFrame are missing in the current DataFrame so the original column order will not be preserved: {missing_columns}")
-        else:
-            columns_not_in_original_df = [col for col in df.columns if col not in adata.uns['input_dataframe_columns']]
-            df = df[adata.uns['input_dataframe_columns'] + columns_not_in_original_df]
+        columns_in_df_but_not_in_original_set = [col for col in df.columns if col not in adata.uns['input_dataframe_columns']]
+        columns_in_original_set_and_in_df_in_order = [col for col in adata.uns['input_dataframe_columns'] if col in df.columns]
+        df = df[columns_in_original_set_and_in_df_in_order + columns_in_df_but_not_in_original_set]
 
     # Print information about the DataFrame to the screen
     print('DataFrame created from the AnnData object:')

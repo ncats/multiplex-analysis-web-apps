@@ -12,39 +12,36 @@ import new_phenotyping_lib
 import utils
 
 
-def load_input_dataset(df, columns_for_data_matrix=['Cell X Position', 'Cell Y Position']):
-    """Creates an AnnData object from a pandas DataFrame in the recommended way.
+def load_input_dataset(adata):
+    """Trivially loads the input dataset.
 
-    Args:
-        df (pandas.DataFrame): The dataframe containing the dataset.
-
-    Returns:
-        anndata.AnnData: The loaded dataset.
-    """
-
-    # Create an AnnData object from the dataframe in the recommended way
-    adata = utils.create_anndata_from_dataframe(df, columns_for_data_matrix=columns_for_data_matrix)
-
-    # Return the AnnData object
-    return adata
-
-
-def load_input_dataset_interactive(columns_for_data_matrix=['Cell X Position', 'Cell Y Position']):
-    """Loads the input dataset from the session state and returns the AnnData object.
+    Parameters:
+        adata (anndata.AnnData): The input AnnData object.
 
     Returns:
         anndata.AnnData: The loaded input dataset.
     """
 
-    # If 'input_dataset' isn't in the session state, print an error message and return
-    if 'input_dataset' not in st.session_state:
+    # Trivially return the AnnData object
+    return adata
+
+
+def load_input_dataset_interactive():
+    """Loads from the session state the input dataset an an AnnData object and returns it.
+
+    Returns:
+        anndata.AnnData: The loaded input dataset.
+    """
+
+    # If 'adata' isn't in the session state, print an error message and return
+    if 'adata' not in st.session_state:
         st.error('An input dataset has not yet been opened. Please do so using the "Open File" page in the sidebar.')
         return
     
     # Load the input dataset
     with st.button('Load input dataset'):
         with st.spinner('Loading input dataset...'):
-            adata = load_input_dataset(st.session_state['input_dataset'].data, columns_for_data_matrix=columns_for_data_matrix)
+            adata = load_input_dataset(st.session_state['adata'].data)
 
     # Return the AnnData object
     return adata
@@ -423,11 +420,11 @@ def main():
     num_test_subsets = 10
 
     # Load the input dataset. Since it's required to run Open File first, this will return None if it hasn't been run yet. This uses Python's "new" walrus operator :=
-    if (adata_coords := load_input_dataset_interactive(columns_for_data_matrix=['Cell X Position', 'Cell Y Position'])) is None: return
+    if (adata := load_input_dataset_interactive()) is None: return
 
     # Apply phenotyping to the input dataset. Since it's required to run the Phenotyper first, this will return None if it hasn't been run yet. Note the walrus operator := doesn't support tuple unpacking, which is why we can't make the following more concise
-    df_input, phenotype_colname = apply_phenotyping_interactive(df_input, remove_allneg_phenotypes=remove_allneg_phenotypes) or (None, None)
-    if df_input is None: return
+    adata, phenotype_colname = apply_phenotyping_interactive(adata, remove_allneg_phenotypes=remove_allneg_phenotypes) or (None, None)
+    if adata is None: return
 
     # Calculate the densities
     df_density_matrix, timing_string_counts = calculate_densities_interactive(df_input, phenotype_colname=phenotype_colname)
