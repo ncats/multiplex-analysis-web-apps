@@ -808,7 +808,7 @@ def createHeatMap(df, phenoList, title, normAxis = None):
 
     return fig
 
-def neighProfileDraw(spatial_umap, sel_clus, cmp_clus = None, hide_other = False, figsize=(14, 16)):
+def neighProfileDraw(spatial_umap, sel_clus, cmp_clus = None, hide_other = False, hide_no_cluster = False, figsize=(14, 16)):
     '''
     neighProfileDraw is the method that draws the neighborhood profile
     line plots
@@ -824,6 +824,8 @@ def neighProfileDraw(spatial_umap, sel_clus, cmp_clus = None, hide_other = False
     dens_df_mean_base = spatial_umap.dens_df_mean
     if hide_other:
         dens_df_mean_base = dens_df_mean_base.loc[dens_df_mean_base['phenotype'] != 'Other', :]
+    if hide_no_cluster:
+        dens_df_mean_base = dens_df_mean_base.loc[dens_df_mean_base['clust_label'] != 'No Cluster', :]
 
     maxdens_df   = 1.05*max(dens_df_mean_base['density_mean'] + dens_df_mean_base['density_sem'])
     dens_df_mean_sel = dens_df_mean_base.loc[dens_df_mean_base['clust_label'] == sel_clus, :].reset_index(drop=True)

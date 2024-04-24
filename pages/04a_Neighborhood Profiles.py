@@ -218,7 +218,7 @@ def main():
                 st.session_state.UMAPFig = udp_full.UMAPdraw_density()
 
                 col_type = ndl.identify_col_type(st.session_state.spatial_umap.df_umap[st.session_state.dens_diff_feat_sel])
-                
+
                 if col_type == 'not_bool':
                     # Identify UMAP by Condition
                     median = np.round(st.session_state.spatial_umap.df_umap[st.session_state.dens_diff_feat_sel].median(), 2)
@@ -227,7 +227,7 @@ def main():
                     fals_msg = f'<= {median}'
                     true_msg = f'> {median}'
                     appro_feat = True
-                    
+
                 elif col_type == 'bool':
                     # Identify UMAP by Condition
                     values = st.session_state.spatial_umap.df_umap[st.session_state.dens_diff_feat_sel].unique()
@@ -390,17 +390,23 @@ def main():
     # Neighborhood Profiles Figure Column
     with uNeighPCol:
         st.header('Neighborhood Profiles')
-        if 'spatial_umap' in st.session_state:
+        with st.expander('Neighborhood Profile Options'):
+            nei_sett_col = st.columns([1, 2, 1])
+            with nei_sett_col[0]:
+                st.toggle('Hide "Other" Phenotype', value = False, key = 'toggle_hide_other')
+            with nei_sett_col[1]:
+                st.toggle('Hide "No Cluster" Neighborhood Profile', value = False, key = 'toggle_hide_no_cluster')
 
+        # If the spatial-umap is completed...
+        if 'spatial_umap' in st.session_state:
             # List of Clusters to display
             if st.session_state['toggle_clust_diff']:
                 list_clusters = list(st.session_state.cluster_dict.values())
-                # list_clusters.remove('No Cluster')
             else:
                 list_clusters = list(range(st.session_state.selected_nClus))
+            if st.session_state['toggle_hide_no_cluster']:
+                list_clusters.remove('No Cluster')
 
-            with st.expander('Neighborhood Profile Options'):
-                st.toggle('Hide "Other" Phenotype', value = False, key = 'toggle_hide_other')
             cluster_sel_col = st.columns([3, 1])
             # Compare Clusters Toggle
             with cluster_sel_col[1]:
@@ -419,7 +425,8 @@ def main():
                 npf_fig = bpl.neighProfileDraw(st.session_state.spatial_umap,
                                                sel_clus = sel_npf_fig,
                                                cmp_clus = sel_npf_fig2,
-                                               hide_other = st.session_state['toggle_hide_other'],)
+                                               hide_other = st.session_state['toggle_hide_other'],
+                                               hide_no_cluster = st.session_state['toggle_hide_no_cluster'])
                 st.pyplot(fig=npf_fig)
 
                 # Create widgets for exporting the Neighborhood Profile images
