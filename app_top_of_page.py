@@ -31,9 +31,9 @@ def top_of_page_reqs(session_state):
         first_app_run = False
 
     # Apply pages order and indentation
-    add_indentation()
     if first_app_run:
         show_pages_from_config()  # this is slow so only do it once
+    add_indentation()
 
     # Run session state management in the sidebar
     streamlit_session_state_management.execute(first_app_run)

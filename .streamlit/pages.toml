@@ -94,6 +94,11 @@ name = "Clusters Analyzer"
 icon = ""
 
 [[pages]]
+name = "Utilities"
+icon = ""
+is_section = true
+
+[[pages]]
+path = "pages/memory_analyzer.py"
 name = "Memory Analyzer"
 icon = ""
-is_section = false
