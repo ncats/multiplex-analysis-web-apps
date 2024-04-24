@@ -24,17 +24,18 @@ def identify_col_type(col):
     Quick and dirty column identifaction function
     '''
     dtypes = col.dtypes
-    if dtypes == 'category':
-        return 'category'
-    else:
-        unique_vals = col.unique().sort()
+    n_uni = col.nunique()
 
-        if (unique_vals == [0, 1]):
-            return 'bool'
-        elif dtypes == 'object':
-            return 'object'
-        else:
-            return 'not_bool'
+    if n_uni == 2:
+        return 'bool'
+    if n_uni == 1:
+        return 'constant'
+    elif dtypes == 'category':
+        return 'category'
+    elif dtypes == 'object':
+        return 'object'
+    else:
+        return 'not_bool'
 
 def init_session_state(session_state):
     """
