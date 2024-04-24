@@ -50,11 +50,12 @@ def RunNeighbClust(adata, n_neighbors):
     return adata
 
 # phenograph clustering
-def RunPhenographClust(adata, n_neighbors, k, clustering_algo, min_cluster_size, primary_metric, resolution_parameter, nn_method):
+def RunPhenographClust(adata, n_neighbors, clustering_algo, min_cluster_size, primary_metric, resolution_parameter, nn_method):
     sc.pp.neighbors(adata, n_neighbors=n_neighbors, n_pcs=None)
-    communities, graph, Q = phenograph.cluster(adata.X, clustering_algo=clustering_algo, k=k, 
+    communities, graph, Q = phenograph.cluster(adata.X, clustering_algo=clustering_algo, k=n_neighbors, 
                                                min_cluster_size=min_cluster_size, primary_metric=primary_metric, 
-                                               resolution_parameter=resolution_parameter, nn_method=nn_method)
+                                               resolution_parameter=resolution_parameter, nn_method=nn_method,
+                                               seed=42)
     adata.obs['Cluster'] = communities
     adata.obs['Cluster'] = adata.obs['Cluster'].astype(str)
     sc.tl.umap(adata)
@@ -62,9 +63,13 @@ def RunPhenographClust(adata, n_neighbors, k, clustering_algo, min_cluster_size,
     return adata
 
 # parc clustering
-def run_parc_clust(adata, n_neighbors):
+def run_parc_clust(adata, n_neighbors, dist_std_local, jac_std_global, small_pop, random_seed, resolution_parameter, hnsw_param_ef_construction):
     sc.pp.neighbors(adata, n_neighbors=n_neighbors, n_pcs=None)
-    parc_results = parc.PARC(adata.X)
+    parc_results = parc.PARC(adata.X, dist_std_local=dist_std_local, jac_std_global=jac_std_global, 
+                             small_pop=small_pop, random_seed=random_seed, knn=n_neighbors,
+                             resolution_parameter=resolution_parameter, 
+                             hnsw_param_ef_construction=hnsw_param_ef_construction,
+                             partition_type="RBConfigurationVP")
     parc_results.run_PARC()
     adata.obs['Cluster'] = parc_results.labels
     adata.obs['Cluster'] = adata.obs['Cluster'].astype(str)
@@ -220,6 +225,26 @@ def phenocluster__default_session_state():
         
     if 'phenocluster__phenograph_nn_method' not in st.session_state:
         st.session_state['phenocluster__phenograph_nn_method'] = 'kdtree'
+        
+    # parc options
+    # dist_std_local, jac_std_global, small_pop, random_seed, resolution_parameter, hnsw_param_ef_construction
+    if 'phenocluster__parc_dist_std_local' not in st.session_state:
+        st.session_state['phenocluster__parc_dist_std_local'] = 3
+    
+    if 'phenocluster__parc_jac_std_global' not in st.session_state:
+        st.session_state['phenocluster__parc_jac_std_global'] = 0.15
+        
+    if 'phenocluster__parc_small_pop' not in st.session_state:
+        st.session_state['phenocluster__parc_small_pop'] = 50
+        
+    if 'phenocluster__random_seed' not in st.session_state:
+        st.session_state['phenocluster__random_seed'] = 42
+    
+    if 'phenocluster__resolution_parameter' not in st.session_state:
+        st.session_state['phenocluster__resolution_parameter'] = 1.0
+        
+    if 'phenocluster__hnsw_param_ef_construction' not in st.session_state:
+        st.session_state['phenocluster__hnsw_param_ef_construction'] = 150
 
     # umap options
     if 'phenocluster__umap_cur_col' not in st.session_state:
@@ -304,25 +329,34 @@ def main():
         st.session_state['phenocluster__cluster_method'] = selected_clusteringMethod
 
         # default widgets
-        st.session_state['phenocluster__n_neighbors_state']  = st.number_input(label = "Input number of neighbors", 
+        st.session_state['phenocluster__n_neighbors_state']  = st.number_input(label = "K Nearest Neighbors", 
                                 value=st.session_state['phenocluster__n_neighbors_state'])
         
         if st.session_state['phenocluster__cluster_method'] == "phenograph":
-            st.session_state['phenocluster__phenograph_k'] = st.number_input(label = "Phenograph k", 
-                                value=st.session_state['phenocluster__phenograph_k'])
+            # st.session_state['phenocluster__phenograph_k'] = st.number_input(label = "Phenograph k", 
+            #                     value=st.session_state['phenocluster__phenograph_k'])
             st.selectbox('Phenograph clustering algorithm:', ['louvain', 'leiden'], key='phenocluster__phenograph_clustering_algo')
             st.number_input(label = "Phenograph min cluster size", key='phenocluster__phenograph_min_cluster_size', step = 1)
             st.selectbox('Phenograph primary metric:', ['euclidean', 'manhattan', 'correlation', 'cosine'], key='phenocluster__phenograph_primary_metric')
             st.number_input(label = "Phenograph resolution", key='phenocluster__phenograph_resolution')
             st.selectbox('Phenograph nn method:', ['kdtree', 'brute'], key='phenocluster__phenograph_nn_method')
+        elif st.session_state['phenocluster__cluster_method'] == "parc":
+            # make parc specific widgets
+            st.number_input(label = "Parc dist std local", key='phenocluster__parc_dist_std_local', step = 1)
+            st.number_input(label = "Parc jac std global", key='phenocluster__parc_jac_std_global', step = 0.01)
+            st.number_input(label = "Minimum cluster size to be considered a separate population",
+                            key='phenocluster__parc_small_pop', step = 1)
+            st.number_input(label = "Random seed", key='phenocluster__random_seed', step = 1)
+            st.number_input(label = "Resolution parameter", key='phenocluster__resolution_parameter', step = 0.01)
+            st.number_input(label = "HNSW exploration factor for construction", 
+                            key='phenocluster__hnsw_param_ef_construction', step = 1)
         
         # add options if clustering has been run
         if st.button('Run Clustering'):
             start_time = time.time()
             if st.session_state['phenocluster__cluster_method'] == "phenograph":
                 with st.spinner('Wait for it...'):
-                    st.session_state['phenocluster__clustering_adata'] = RunPhenographClust(adata=adata, n_neighbors=st.session_state['phenocluster__n_neighbors_state'], 
-                                                                                            k=st.session_state['phenocluster__phenograph_k'],
+                    st.session_state['phenocluster__clustering_adata'] = RunPhenographClust(adata=adata, n_neighbors=st.session_state['phenocluster__n_neighbors_state'],
                                                                                             clustering_algo=st.session_state['phenocluster__phenograph_clustering_algo'],
                                                                                             min_cluster_size=st.session_state['phenocluster__phenograph_min_cluster_size'],
                                                                                             primary_metric=st.session_state['phenocluster__phenograph_primary_metric'],
@@ -335,9 +369,16 @@ def main():
                                                                                         n_neighbors=st.session_state['phenocluster__n_neighbors_state'])
             #st.session_state['phenocluster__clustering_adata'] = adata
             elif st.session_state['phenocluster__cluster_method'] == "parc":
-                with st.spinner('Wait for it...'):
+                with st.spinner('Wait for it...'):                  
                     st.session_state['phenocluster__clustering_adata'] = run_parc_clust(adata=adata, 
-                                                                                        n_neighbors=st.session_state['phenocluster__n_neighbors_state'])
+                                                                                        n_neighbors=st.session_state['phenocluster__n_neighbors_state'],
+                                                                                        dist_std_local=st.session_state['phenocluster__parc_dist_std_local'],
+                                                                                        jac_std_global= st.session_state['phenocluster__parc_jac_std_global'],
+                                                                                        small_pop=st.session_state['phenocluster__parc_small_pop'],
+                                                                                        random_seed=st.session_state['phenocluster__random_seed'],
+                                                                                        resolution_parameter=st.session_state['phenocluster__resolution_parameter'],
+                                                                                        hnsw_param_ef_construction=st.session_state['phenocluster__hnsw_param_ef_construction']
+                                                                                        )
             elif st.session_state['phenocluster__cluster_method'] == "utag":
                 with st.spinner('Wait for it...'):
                     st.session_state['phenocluster__clustering_adata'] = run_utag_clust(adata=adata, 
