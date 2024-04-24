@@ -92,3 +92,8 @@ icon = ""
 path = "pages/04c_Clusters Analyzer.py"
 name = "Clusters Analyzer"
 icon = ""
+
+[[pages]]
+name = "Memory Analyzer"
+icon = ""
+is_section = false

@@ -28,3 +28,4 @@ dependencies:
     - st-pages
     - streamlit-javascript
     - dill
+    - pympler

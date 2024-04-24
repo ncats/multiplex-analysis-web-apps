@@ -9,3 +9,4 @@ dependencies:
     - st_pages
     - natsort
     - dill
+    - pympler

@@ -109,7 +109,7 @@ def main():
                 st.info('The input data have been successfully loaded and validated.')
                 show_dataframe_updates = True
             else:
-                st.error('The input data are in an unsupported format.')
+                st.error('The input data are in an unsupported format. As long as you use the Datafile Unifier first (even for just a single file), this should work.')
                 return
 
         # Stop if the input dataset is not yet loaded
