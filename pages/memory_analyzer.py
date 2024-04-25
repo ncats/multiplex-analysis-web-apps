@@ -69,7 +69,7 @@ def analyze_memory_usage(saved_streamlit_session_state_key='session_selection'):
     df_do_not_save = df_do_not_save.sort_values(by='size_mb', ascending=False)
     st.write(f'Keys that would not actually be saved (total {tot_size_in_memory_do_not_save:.2f} MB):')
     st.dataframe(df_do_not_save)
-    
+
     # Write a dataframe of the keys and sizes that will be saved, sorted in descending order of size
     df_do_save = pd.DataFrame({'key': keys_holder_do_save, 'size_mb': size_holder_do_save})
     df_do_save = df_do_save.sort_values(by='size_mb', ascending=False)
