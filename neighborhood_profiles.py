@@ -1,5 +1,12 @@
 '''
 Set of scripts responsible for running the neighborhood profiles analysis
+
+Class NeighborhoodProfiles:
+    Organization of the methods and attributes that are required to run
+    the neighborhood profiles analysis
+
+Class UMAPDensityProcessing:
+    Individual processing of UMAP density matrices
 '''
 
 import numpy as np
@@ -107,7 +114,6 @@ class NeighborhoodProfiles:
         '''
 
         self.spatial_umap = bpl.setup_Spatial_UMAP(df, marker_names, pheno_order)
-
 
     def perform_density_calc(self, cpu_pool_size = 1):
         '''

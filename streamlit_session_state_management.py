@@ -8,6 +8,7 @@ import app_top_of_page as top
 import streamlit_dataframe_editor as sde
 import streamlit_dataframe_editor
 import utils
+from pympler import asizeof
 
 def save_session_state(saved_streamlit_session_states_dir, saved_streamlit_session_state_prefix='streamlit_session_state-', saved_streamlit_session_state_key='session_selection'):
     """
@@ -64,11 +65,29 @@ def save_session_state(saved_streamlit_session_states_dir, saved_streamlit_sessi
             del session_dict[key]
 
     # Save the dictionary to the pickle file. Note this no longer randomly crashes with "PicklingError: Can't pickle <class 'streamlit_dataframe_editor.DataframeEditor'>: it's not the same object as streamlit_dataframe_editor.DataframeEditor" because we're no longer saving the DataframeEditor object itself, but rather the initialization data and the current contents. Note that using dill did also solve the problem, which if we were to use dill, we could try saving the entire session at once (instead of individual objects) and also thereby include difficult items such as st.form objects. NOTE: If we start getting the error again, try either using dill or probably better yet, excluding other custom object types from being saved in the first place, e.g., class 'platform_io.Platform'. Such exclusion would be done in keys_to_exclude as above.
+    bytes_to_mb = 1024 ** 2
+    tot_size_in_memory_mb = 0
+    tot_size_on_disk_mb = 0
     with open(filename, 'wb') as f:
-        pickle.dump(session_dict, f)
+        for key, value in session_dict.items():
+            predicted_size_in_mb = asizeof.asizeof(value) / bytes_to_mb
+            print(f'Saving {key} of type {type(value)} to {filename}. This should take around {predicted_size_in_mb:.2f} MB...', end='')
+            size_before = os.path.getsize(filename)
+            pickle.dump({key: value}, f)
+            actual_size_in_mb = (os.path.getsize(filename) - size_before) / bytes_to_mb
+            print(f' {actual_size_in_mb:.2f} MB saved, which is {actual_size_in_mb - predicted_size_in_mb:.2f} MB larger than the predicted size.')
+            tot_size_in_memory_mb += predicted_size_in_mb
+            tot_size_on_disk_mb += actual_size_in_mb
+
+    # Print the total size in memory and on disk in MB, along with the difference
+    print(f'Total size in memory (i.e., predicted): {tot_size_in_memory_mb:.2f} MB')
+    print(f'Total size on disk (i.e., actual): {tot_size_on_disk_mb:.2f} MB')
+    print(f'Total difference: {tot_size_on_disk_mb - tot_size_in_memory_mb:.2f} MB')
     
     # Output a success message
-    st.success('State saved to ' + filename)
+    message = f'{utils.get_timestamp(pretty=True)}: State saved to {filename}, which is {os.path.getsize(filename) / bytes_to_mb:.2f} MB'
+    print(message)
+    st.success(message)
 
 def load_session_state(saved_streamlit_session_states_dir, saved_streamlit_session_state_prefix='streamlit_session_state-', saved_streamlit_session_state_key='session_selection', selected_session=None):
     """
@@ -104,8 +123,23 @@ def load_session_state(saved_streamlit_session_states_dir, saved_streamlit_sessi
                 del st.session_state[key]
 
         # Load the state (as a dictionary) from the pickle file
+        session_dict = {}
+        bytes_to_mb = 1024 ** 2
+        tot_size_in_memory_mb = 0
         with open(filename, 'rb') as f:
-            session_dict = pickle.load(f)
+            while True:
+                try:
+                    curr_dict = pickle.load(f)
+                    key, value = list(curr_dict.items())[0]
+                    predicted_size_in_mb = asizeof.asizeof(value) / bytes_to_mb
+                    print(f'Loading {key} of type {type(value)} from {filename} of predicted size {predicted_size_in_mb:.2f} MB')
+                    tot_size_in_memory_mb += predicted_size_in_mb
+                    session_dict.update(curr_dict)
+                except EOFError:
+                    break
+
+        # Print the total size in memory in MB
+        print(f'Total size in memory (i.e., predicted): {tot_size_in_memory_mb:.2f} MB')
 
         # Load each key-value pair individually into session_state
         for key, value in session_dict.items():
@@ -123,7 +157,9 @@ def load_session_state(saved_streamlit_session_states_dir, saved_streamlit_sessi
                 st.session_state[key] = value
 
         # Output a success message
-        st.success(f'{utils.get_timestamp(pretty=True)}: State loaded from ' + filename)
+        message = f'{utils.get_timestamp(pretty=True)}: State loaded from {filename}, which is {os.path.getsize(filename) / bytes_to_mb:.2f} MB'
+        print(message)
+        st.success(message)
 
     # If no session state files exist, output a warning
     else:

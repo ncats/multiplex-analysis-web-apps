@@ -24,17 +24,18 @@ def identify_col_type(col):
     Quick and dirty column identifaction function
     '''
     dtypes = col.dtypes
-    if dtypes == 'category':
-        return 'category'
-    else:
-        unique_vals = col.unique().sort()
+    n_uni = col.nunique()
 
-        if (unique_vals == [0, 1]):
-            return 'bool'
-        elif dtypes == 'object':
-            return 'object'
-        else:
-            return 'not_bool'
+    if n_uni == 2:
+        return 'bool'
+    if n_uni == 1:
+        return 'constant'
+    elif dtypes == 'category':
+        return 'category'
+    elif dtypes == 'object':
+        return 'object'
+    else:
+        return 'not_bool'
 
 def init_session_state(session_state):
     """
@@ -362,6 +363,8 @@ def assign_phenotype_col(df_raw, spec_summ_load, phenoMeth, marker_names):
         df: Updated dataset
     """
 
+    df = df_raw.copy()
+
     if phenoMeth != 'Custom':
         if phenoMeth == 'Species':
             allow_compound_species=True
@@ -372,13 +375,13 @@ def assign_phenotype_col(df_raw, spec_summ_load, phenoMeth, marker_names):
         # then we have Will's "exclusive" case; otherwise, it's possible cells are
         # overlapping and we must duplicate the coordinates for the rows having
         # multiple positive markers
-        df_raw = bpl.remove_compound_species(df_raw, marker_names, allow_compound_species=allow_compound_species)
+        df = bpl.remove_compound_species(df, marker_names, allow_compound_species=allow_compound_species)
 
         # Assign phenotype column to dataframe based on species name
-        df = bpl.assign_phenotype_species(df_raw)
+        df = bpl.assign_phenotype_species(df)
     else:
         # Assign phenotype column to dataframe based on species summary
-        df = bpl.assign_phenotype_custom(df_raw, spec_summ_load)
+        df = bpl.assign_phenotype_custom(df, spec_summ_load)
 
     return df
 

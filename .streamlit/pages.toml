@@ -102,3 +102,13 @@ is_section = true
 path = "pages/spatial_umap_prediction.py"
 name = "Main"
 icon = ""
+
+[[pages]]
+name = "Utilities"
+icon = ""
+is_section = true
+
+[[pages]]
+path = "pages/memory_analyzer.py"
+name = "Memory Analyzer"
+icon = ""
