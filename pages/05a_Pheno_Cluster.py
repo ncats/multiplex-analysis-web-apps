@@ -79,16 +79,16 @@ def run_parc_clust(adata, n_neighbors, dist_std_local, jac_std_global, small_pop
 
 # utag clustering
 # need to make image selection based on the variable
-def run_utag_clust(adata, n_neighbors, resolutions):
+def run_utag_clust(adata, n_neighbors, resolutions, clustering_method, max_dist):
     sc.pp.neighbors(adata, n_neighbors=n_neighbors, n_pcs=None)
     sc.tl.umap(adata)
     adata.obsm['spatial'] = np.array(adata.obs[["Centroid X (µm)_(standardized)", "Centroid Y (µm)_(standardized)"]])
     utag_results = utag(adata,
         slide_key="Image ID_(standardized)",
-        max_dist=15,
+        max_dist=max_dist,
         normalization_mode='l1_norm',
         apply_clustering=True,
-        clustering_method = 'leiden', 
+        clustering_method = clustering_method, 
         resolutions = resolutions
     )
     curClusterCol = 'UTAG Label_leiden_'  + str(resolutions[0])
@@ -203,6 +203,9 @@ def phenocluster__default_session_state():
     
     if 'phenocluster__cluster_method' not in st.session_state:
         st.session_state['phenocluster__cluster_method'] = "phenograph"
+        
+    if 'phenocluster__resolution' not in st.session_state:
+        st.session_state['phenocluster__resolution'] = 1.0
 
     # phenograph options
     if 'phenocluster__n_neighbors_state' not in st.session_state:
@@ -220,9 +223,6 @@ def phenocluster__default_session_state():
     if 'phenocluster__phenograph_primary_metric' not in st.session_state:
         st.session_state['phenocluster__phenograph_primary_metric'] = 'euclidean'
         
-    if 'phenocluster__phenograph_resolution' not in st.session_state:
-        st.session_state['phenocluster__phenograph_resolution'] = 1.0
-        
     if 'phenocluster__phenograph_nn_method' not in st.session_state:
         st.session_state['phenocluster__phenograph_nn_method'] = 'kdtree'
         
@@ -239,12 +239,17 @@ def phenocluster__default_session_state():
         
     if 'phenocluster__random_seed' not in st.session_state:
         st.session_state['phenocluster__random_seed'] = 42
-    
-    if 'phenocluster__resolution_parameter' not in st.session_state:
-        st.session_state['phenocluster__resolution_parameter'] = 1.0
         
     if 'phenocluster__hnsw_param_ef_construction' not in st.session_state:
         st.session_state['phenocluster__hnsw_param_ef_construction'] = 150
+        
+    # utag options
+    #clustering_method ["leiden", "parc"]; resolutions; max_dist = 20
+    if 'phenocluster__utag_clustering_method' not in st.session_state:
+        st.session_state['phenocluster__utag_clustering_method'] = 'leiden'
+        
+    if 'phenocluster__utag_max_dist' not in st.session_state:
+        st.session_state['phenocluster__utag_max_dist'] = 20
 
     # umap options
     if 'phenocluster__umap_cur_col' not in st.session_state:
@@ -332,13 +337,14 @@ def main():
         st.session_state['phenocluster__n_neighbors_state']  = st.number_input(label = "K Nearest Neighbors", 
                                 value=st.session_state['phenocluster__n_neighbors_state'])
         
+        st.number_input(label = "Clustering resolution", key='phenocluster__resolution')
+        
         if st.session_state['phenocluster__cluster_method'] == "phenograph":
             # st.session_state['phenocluster__phenograph_k'] = st.number_input(label = "Phenograph k", 
             #                     value=st.session_state['phenocluster__phenograph_k'])
             st.selectbox('Phenograph clustering algorithm:', ['louvain', 'leiden'], key='phenocluster__phenograph_clustering_algo')
             st.number_input(label = "Phenograph min cluster size", key='phenocluster__phenograph_min_cluster_size', step = 1)
             st.selectbox('Phenograph primary metric:', ['euclidean', 'manhattan', 'correlation', 'cosine'], key='phenocluster__phenograph_primary_metric')
-            st.number_input(label = "Phenograph resolution", key='phenocluster__phenograph_resolution')
             st.selectbox('Phenograph nn method:', ['kdtree', 'brute'], key='phenocluster__phenograph_nn_method')
         elif st.session_state['phenocluster__cluster_method'] == "parc":
             # make parc specific widgets
@@ -347,9 +353,12 @@ def main():
             st.number_input(label = "Minimum cluster size to be considered a separate population",
                             key='phenocluster__parc_small_pop', step = 1)
             st.number_input(label = "Random seed", key='phenocluster__random_seed', step = 1)
-            st.number_input(label = "Resolution parameter", key='phenocluster__resolution_parameter', step = 0.01)
             st.number_input(label = "HNSW exploration factor for construction", 
                             key='phenocluster__hnsw_param_ef_construction', step = 1)
+        elif st.session_state['phenocluster__cluster_method'] == "utag":
+            # make utag specific widgets
+            st.selectbox('UTAG clustering method:', ['leiden', 'parc'], key='phenocluster__utag_clustering_method')
+            st.number_input(label = "UTAG max dist", key='phenocluster__utag_max_dist', step = 1)
         
         # add options if clustering has been run
         if st.button('Run Clustering'):
@@ -360,7 +369,7 @@ def main():
                                                                                             clustering_algo=st.session_state['phenocluster__phenograph_clustering_algo'],
                                                                                             min_cluster_size=st.session_state['phenocluster__phenograph_min_cluster_size'],
                                                                                             primary_metric=st.session_state['phenocluster__phenograph_primary_metric'],
-                                                                                            resolution_parameter=st.session_state['phenocluster__phenograph_resolution'],
+                                                                                            resolution_parameter=st.session_state['phenocluster__resolution'],
                                                                                             nn_method=st.session_state['phenocluster__phenograph_nn_method']
                                                                                             )
             elif st.session_state['phenocluster__cluster_method'] == "neighb":
@@ -376,13 +385,18 @@ def main():
                                                                                         jac_std_global= st.session_state['phenocluster__parc_jac_std_global'],
                                                                                         small_pop=st.session_state['phenocluster__parc_small_pop'],
                                                                                         random_seed=st.session_state['phenocluster__random_seed'],
-                                                                                        resolution_parameter=st.session_state['phenocluster__resolution_parameter'],
+                                                                                        resolution_parameter=st.session_state['phenocluster__resolution'],
                                                                                         hnsw_param_ef_construction=st.session_state['phenocluster__hnsw_param_ef_construction']
                                                                                         )
             elif st.session_state['phenocluster__cluster_method'] == "utag":
+                phenocluster__utag_resolutions = [st.session_state['phenocluster__resolution']]
                 with st.spinner('Wait for it...'):
                     st.session_state['phenocluster__clustering_adata'] = run_utag_clust(adata=adata, 
-                                                                                        n_neighbors=st.session_state['phenocluster__n_neighbors_state'], resolutions=[1])
+                                                                                        n_neighbors=st.session_state['phenocluster__n_neighbors_state'], 
+                                                                                        resolutions=phenocluster__utag_resolutions,
+                                                                                        clustering_method=st.session_state['phenocluster__utag_clustering_method'],
+                                                                                        max_dist=st.session_state['phenocluster__utag_max_dist']
+                                                                                        )
             # save clustering result
             #st.session_state['phenocluster__clustering_adata'].write("input/clust_dat.h5ad")
             end_time = time.time()
