@@ -99,7 +99,7 @@ icon = ""
 is_section = true
 
 [[pages]]
-path = "pages/spatial_umap_prediction.py"
+path = "pages/spatial_umap_prediction_app.py"
 name = "Main"
 icon = ""
 
