@@ -85,6 +85,13 @@ def apply_umap(umap_style):
     st.session_state.wcss_calc_completed = True
     st.session_state.umapCompleted = True
 
+    # Create Neighborhood Profiles Object
+    st.session_state.npf = NeighborhoodProfiles(bc = st.session_state.bc)
+
+    # Create Full UMAP example
+    st.session_state.udp_full = UMAPDensityProcessing(st.session_state.npf, st.session_state.spatial_umap.df_umap)
+    st.session_state.UMAPFig = st.session_state.udp_full.UMAPdraw_density()
+
     filter_and_plot()
 
 def set_clusters():
@@ -210,12 +217,12 @@ def main():
 
     with npf_cols[2]:
         if st.session_state.umapCompleted:
-            if st.session_state['toggle_clust_diff']:
-                st.session_state.npf = NeighborhoodProfiles(bc = st.session_state.bc)
 
-                # Create Full UMAP example
-                udp_full = UMAPDensityProcessing(st.session_state.npf, st.session_state.spatial_umap.df_umap)
-                st.session_state.UMAPFig = udp_full.UMAPdraw_density()
+            # Showing off the full UMAP
+            with st.columns(3)[1]:
+                st.pyplot(fig=st.session_state.UMAPFig)
+
+            if st.session_state['toggle_clust_diff']:
 
                 col_type = ndl.identify_col_type(st.session_state.spatial_umap.df_umap[st.session_state.dens_diff_feat_sel])
 
@@ -227,7 +234,6 @@ def main():
                     fals_msg = f'<= {median}'
                     true_msg = f'> {median}'
                     appro_feat = True
-
                 elif col_type == 'bool':
                     # Identify UMAP by Condition
                     values = st.session_state.spatial_umap.df_umap[st.session_state.dens_diff_feat_sel].unique()
@@ -242,8 +248,8 @@ def main():
 
                 if appro_feat:
                     # Perform Density Calculations for each Condition
-                    udp_fals = UMAPDensityProcessing(st.session_state.npf, st.session_state.df_umap_fals, xx=udp_full.xx, yy=udp_full.yy)
-                    udp_true = UMAPDensityProcessing(st.session_state.npf, st.session_state.df_umap_true, xx=udp_full.xx, yy=udp_full.yy)
+                    udp_fals = UMAPDensityProcessing(st.session_state.npf, st.session_state.df_umap_fals, xx=st.session_state.udp_full.xx, yy=st.session_state.udp_full.yy)
+                    udp_true = UMAPDensityProcessing(st.session_state.npf, st.session_state.df_umap_true, xx=st.session_state.udp_full.xx, yy=st.session_state.udp_full.yy)
 
                     ## Copy over
                     udp_diff = copy(udp_fals)
@@ -287,7 +293,7 @@ def main():
                             bin_clust = bin_clust[:, [1, 0]] # Swapping columns to by y, x
                             bin_clust = [tuple(x) for x in bin_clust]
 
-                            significant_groups = udp_full.bin_indices_df_group[udp_full.bin_indices_df_group.set_index(['indx', 'indy']).index.isin(bin_clust)]
+                            significant_groups = st.session_state.udp_full.bin_indices_df_group[st.session_state.udp_full.bin_indices_df_group.set_index(['indx', 'indy']).index.isin(bin_clust)]
 
                             umap_ind = significant_groups.index.values
                             st.session_state.spatial_umap.df_umap.loc[umap_ind, 'clust_label'] = val
@@ -300,9 +306,6 @@ def main():
                     # Create the Cluster Scatterplot
                     filter_and_plot()
 
-                    exp_cols = st.columns(3)
-                    with exp_cols[1]:
-                        st.pyplot(fig=st.session_state.UMAPFig)
                     diff_cols = st.columns(3)
                     with diff_cols[0]:
                         st.pyplot(fig=st.session_state.UMAPFig_fals)
