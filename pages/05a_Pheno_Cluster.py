@@ -55,7 +55,7 @@ def RunPhenographClust(adata, n_neighbors, clustering_algo, min_cluster_size, pr
     communities, graph, Q = phenograph.cluster(adata.X, clustering_algo=clustering_algo, k=n_neighbors, 
                                                min_cluster_size=min_cluster_size, primary_metric=primary_metric, 
                                                resolution_parameter=resolution_parameter, nn_method=nn_method,
-                                               seed=42)
+                                               seed=42, n_iterations=-1)
     adata.obs['Cluster'] = communities
     adata.obs['Cluster'] = adata.obs['Cluster'].astype(str)
     sc.tl.umap(adata)
@@ -69,7 +69,8 @@ def run_parc_clust(adata, n_neighbors, dist_std_local, jac_std_global, small_pop
                              small_pop=small_pop, random_seed=random_seed, knn=n_neighbors,
                              resolution_parameter=resolution_parameter, 
                              hnsw_param_ef_construction=hnsw_param_ef_construction,
-                             partition_type="RBConfigurationVP")
+                             partition_type="RBConfigurationVP",
+                             n_iter_leiden=-1)
     parc_results.run_PARC()
     adata.obs['Cluster'] = parc_results.labels
     adata.obs['Cluster'] = adata.obs['Cluster'].astype(str)
@@ -89,8 +90,15 @@ def run_utag_clust(adata, n_neighbors, resolutions, clustering_method, max_dist)
         normalization_mode='l1_norm',
         apply_clustering=True,
         clustering_method = clustering_method, 
-        resolutions = resolutions
+        resolutions = resolutions,
+        leiden_kwargs={"n_iterations": -1, "random_state": 42}
     )
+
+                                
+    curClusterCol = 'UTAG Label_leiden_'  + str(resolutions[0])
+    utag_results.obs['Cluster'] = utag_results.obs[curClusterCol]
+    adata.obs['Cluster'] = utag_results.obs[curClusterCol]
+        
     curClusterCol = 'UTAG Label_leiden_'  + str(resolutions[0])
     utag_results.obs['Cluster'] = utag_results.obs[curClusterCol]
     adata.obs['Cluster'] = utag_results.obs[curClusterCol]
@@ -215,7 +223,7 @@ def phenocluster__default_session_state():
         st.session_state['phenocluster__phenograph_k'] = 30
     
     if 'phenocluster__phenograph_clustering_algo' not in st.session_state:
-        st.session_state['phenocluster__phenograph_clustering_algo'] = 'louvain'
+        st.session_state['phenocluster__phenograph_clustering_algo'] = 'leiden'
     
     if 'phenocluster__phenograph_min_cluster_size' not in st.session_state:
         st.session_state['phenocluster__phenograph_min_cluster_size'] = 10
@@ -361,7 +369,7 @@ def main():
                             key='phenocluster__hnsw_param_ef_construction', step = 1)
         elif st.session_state['phenocluster__cluster_method'] == "utag":
             # make utag specific widgets
-            st.selectbox('UTAG clustering method:', ['leiden', 'parc'], key='phenocluster__utag_clustering_method')
+            #st.selectbox('UTAG clustering method:', ['leiden', 'parc'], key='phenocluster__utag_clustering_method')
             st.number_input(label = "UTAG max dist", key='phenocluster__utag_max_dist', step = 1)
         
         # add options if clustering has been run
