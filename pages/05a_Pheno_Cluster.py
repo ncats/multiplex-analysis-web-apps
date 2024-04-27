@@ -37,12 +37,13 @@ def phenocluster__make_adata(df):
     adata = ad.AnnData(mat)
     adata.obs = meta
     adata.layers["counts"] = adata.X.copy()
+    #adata.write("input/clust_dat.h5ad")
     return adata
 
 
 # scanpy clustering
 def RunNeighbClust(adata, n_neighbors, metric, resolution, random_state):
-    sc.pp.neighbors(adata, n_neighbors=n_neighbors, metric=metric)
+    sc.pp.neighbors(adata, n_neighbors=n_neighbors, metric=metric, n_pcs=0)
     sc.tl.leiden(adata,resolution=resolution, random_state=random_state, n_iterations=-1, flavor="igraph")
     adata.obs['Cluster'] = adata.obs['leiden']
     sc.tl.umap(adata)
@@ -81,7 +82,7 @@ def run_parc_clust(adata, n_neighbors, dist_std_local, jac_std_global, small_pop
 # utag clustering
 # need to make image selection based on the variable
 def run_utag_clust(adata, n_neighbors, resolutions, clustering_method, max_dist):
-    sc.pp.neighbors(adata, n_neighbors=n_neighbors, n_pcs=None)
+    sc.pp.neighbors(adata, n_neighbors=n_neighbors, n_pcs=0)
     sc.tl.umap(adata)
     adata.obsm['spatial'] = np.array(adata.obs[["Centroid X (µm)_(standardized)", "Centroid Y (µm)_(standardized)"]])
     utag_results = utag(adata,
