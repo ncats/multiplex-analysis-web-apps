@@ -293,7 +293,7 @@ def plot_mean_neighborhood_profile(ax, dist_bin, pheno_order, npf_dens_mean, clu
     ax.set_ylim(max_dens)
     ax.set_title(cluster_title, fontsize = 20, color = slc_text)
     ax.set_xlabel('Spatial Bound (\u03BCm)', fontsize = 14, color = slc_text)
-    ax.set_ylabel('Cell Density (Counts/$\u03BCm^2$)', fontsize = 14, color = slc_text)
+    ax.set_ylabel('Cell Density (Counts/$mm^2$)', fontsize = 14, color = slc_text)
 
     # ax.set_frame_on(False)
     ax.spines[['left', 'bottom']].set_color(slc_text)
