@@ -415,6 +415,8 @@ def main():
             with cluster_sel_col[1]:
                 add_vertical_space(2)
                 st.toggle('Compare Cluster Neighborhoods', value = False, key = 'toggle_compare_clusters')
+                if st.session_state['toggle_compare_clusters']:
+                    st.radio('Compare as:', ('Difference', 'Ratio'), index = 0, key = 'compare_clusters_as', horizontal=True)
 
             # Cluster Select Widgets
             with cluster_sel_col[0]:
@@ -428,6 +430,7 @@ def main():
                 npf_fig = bpl.neighProfileDraw(st.session_state.spatial_umap,
                                                sel_clus = sel_npf_fig,
                                                cmp_clus = sel_npf_fig2,
+                                               cmp_style=st.session_state['compare_clusters_as'],
                                                hide_other = st.session_state['toggle_hide_other'],
                                                hide_no_cluster = st.session_state['toggle_hide_no_cluster'])
                 st.pyplot(fig=npf_fig)

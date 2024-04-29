@@ -105,14 +105,6 @@ def plot_2d_density(X, Y=None, bins=200, n_pad=40, w=None, ax=None, gaussian_sig
             # ax.pcolormesh(np.log10(np.pad(d, [n_pad, n_pad]) + c + 1), vmin=np.log10(2), vmax=np.log10(2 + vlim[1]), cmap=cmap, shading='gouraud', alpha=1)
         elif circle_type == 'arch':
             extend = 'both'
-            # if any((d<0)[0]):
-            #     vmin = np.quantile(d[d < 0].flatten(), 0.03)
-            # else:
-            #     vmin = 0.03
-            # if any((d>0)[0]):
-            #     vmax = np.quantile(d[d > 0].flatten(), 0.97)
-            # else:
-            #     vmax = 0.97
             c = (n_bins / 2)
             ax.add_artist(plt.Circle((c + n_pad, c + n_pad), 0.95 * (c + n_pad), color='black', fill=False))
             ax.pcolormesh(np.pad(d, [n_pad, n_pad]), vmin=-vlim[1], vmax=vlim[1], cmap=cmap, shading='gouraud', alpha=1)
@@ -262,10 +254,23 @@ def plot_neighborhood_profile_propor(ax, cell_label, dist_bin, cell_propor, phen
     if legF:
         plt.legend()
 
-def plot_mean_neighborhood_profile(ax, dist_bin, pheno_order, npf_dens_mean, cluster_title, max_dens=0.1, leg_flag=0):
+def plot_mean_neighborhood_profile(ax, dist_bin, pheno_order, npf_dens_mean, cluster_title, cmp_style = None, max_dens=0.1, leg_flag=0):
     '''
     This function generates the line plots of the phenotype density 
     at different distances from a given cell
+
+    Args:
+        ax: Matplotlib axis handle
+        dist_bin: List of distance bins
+        pheno_order: List of phenotype names
+        npf_dens_mean: Pandas DataFrame
+        cluster_title: String of the cluster title
+        cmp_style: If doing a comparison, what style
+        max_dens: Float of the maximum density
+        leg_flag: Boolean flag for the legend
+
+    Returns:
+        None
     '''
 
     slc_bg   = '#0E1117'  # Streamlit Background Color
@@ -286,14 +291,24 @@ def plot_mean_neighborhood_profile(ax, dist_bin, pheno_order, npf_dens_mean, clu
                              color=tab20_new(ii))
         axes_dict[phenotype] = plotax
 
-    plt.axhline(y=0, color='w', linestyle='--')
+    if cmp_style == 'Ratio':
+        cmp_line = 1
+        ylabel = 'Cell Density Ratio'
+    elif cmp_style == 'Difference':
+        cmp_line = 0
+        ylabel = 'Cell Density Difference (Counts/$mm^2$)'
+    else:
+        cmp_line = 0
+        ylabel = 'Cell Density (Counts/$mm^2$)'
+
+    plt.axhline(y=cmp_line, color='w', linestyle='--')
 
     ax.set_xticks(dist_bin)
     ax.set_xlim([0, 225])
     ax.set_ylim(max_dens)
     ax.set_title(cluster_title, fontsize = 20, color = slc_text)
     ax.set_xlabel('Spatial Bound (\u03BCm)', fontsize = 14, color = slc_text)
-    ax.set_ylabel('Cell Density (Counts/$mm^2$)', fontsize = 14, color = slc_text)
+    ax.set_ylabel(ylabel, fontsize = 14, color = slc_text)
 
     # ax.set_frame_on(False)
     ax.spines[['left', 'bottom']].set_color(slc_text)
