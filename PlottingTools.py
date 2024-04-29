@@ -118,9 +118,7 @@ def plot_2d_density(X, Y=None, bins=200, n_pad=40, w=None, ax=None, gaussian_sig
             cmap_lim = None # [np.min(d), np.max(d)]
             plt_cmap(ax=cax, cmap=cmap, extend=extend, width=0.01, lim = cmap_lim)
         elif legendtype == 'legend':
-            cax = ax.inset_axes([0.95, 0.1, 0.01, 0.85])
-            cmap_lim = [-3, -2, -1, 0, 1, 2, 3]
-            plt_cmap(ax=cax, cmap=cmap, extend=extend, width=0.01, lim = cmap_lim)
+            ax.legend()
 
 
         if box_off is True:

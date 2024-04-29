@@ -265,13 +265,13 @@ def main():
                     # Draw UMAPS
                     st.session_state.UMAPFig_fals = udp_fals.UMAPdraw_density()
                     st.session_state.UMAPFig_true = udp_true.UMAPdraw_density()
-                    st.session_state.UMAPFig_diff = udp_diff.UMAPdraw_density(diff= True)
+                    st.session_state.UMAPFig_diff = udp_diff.UMAPdraw_density(diff=True)
 
                     # Assign Masking and plot
                     udp_mask = copy(udp_diff)
                     udp_mask.filter_density_matrix(st.session_state.dens_diff_cutoff)
                     udp_mask.set_feature_label(st.session_state.dens_diff_feat_sel, f'Difference- Masked, cutoff = {st.session_state.dens_diff_cutoff}')
-                    st.session_state.UMAPFig_mask = udp_mask.UMAPdraw_density(diff= True)
+                    st.session_state.UMAPFig_mask = udp_mask.UMAPdraw_density(diff=True)
 
                     # Perform Clustering
                     udp_clus = copy(udp_mask)
@@ -279,7 +279,7 @@ def main():
                                                 num_clus_0=st.session_state.num_clus_0,
                                                 num_clus_1=st.session_state.num_clus_1)
                     udp_clus.set_feature_label(st.session_state.dens_diff_feat_sel, f'Clusters, False-{st.session_state.num_clus_0}, True-{st.session_state.num_clus_1}')
-                    st.session_state.UMAPFig_clus = udp_clus.UMAPdraw_density(diff= True)
+                    st.session_state.UMAPFig_clus = udp_clus.UMAPdraw_density(diff=True, legendtype='legend')
                     st.session_state.cluster_dict = udp_clus.cluster_dict
 
                     # Add cluster label column to cells dataframe
