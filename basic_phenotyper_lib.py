@@ -808,7 +808,7 @@ def createHeatMap(df, phenoList, title, normAxis = None):
 
     return fig
 
-def neighProfileDraw(spatial_umap, sel_clus, cmp_clus = None, hide_other = False, hide_no_cluster = False, figsize=(14, 16)):
+def neighProfileDraw(spatial_umap, sel_clus, cmp_clus = None, cmp_style = 'Difference', hide_other = False, hide_no_cluster = False, figsize=(14, 16)):
     '''
     neighProfileDraw is the method that draws the neighborhood profile
     line plots
@@ -833,22 +833,40 @@ def neighProfileDraw(spatial_umap, sel_clus, cmp_clus = None, hide_other = False
     dens_df_mean = dens_df_mean_sel.copy()
     cluster_title = f'Cluster {sel_clus}'
 
+    cmp_style = None
     if cmp_clus is not None:
         dens_df_mean_cmp = dens_df_mean_base.loc[dens_df_mean_base['clust_label'] == cmp_clus, :].reset_index(drop=True)
 
         dens_df_mean = dens_df_mean_cmp.copy()
-        dens_df_mean['density_mean'] = dens_df_mean_sel['density_mean'] - dens_df_mean_cmp['density_mean']
         dens_df_mean['density_sem'] = 0
-        range_values = [min(dens_df_mean['density_mean']), max(dens_df_mean['density_mean'])]
-        top_range = 1.05*max(abs(range_values[0]), abs(range_values[1]))
-        ylim = [-top_range, top_range]
-        cluster_title = f'Cluster {sel_clus} - Cluster {cmp_clus}'
+        # Subtraction Compare Style
+        if cmp_style == 'Difference':
+            dens_df_mean['density_mean'] = dens_df_mean_sel['density_mean'] - dens_df_mean_cmp['density_mean']
+
+            range_values = [min(dens_df_mean['density_mean']), max(dens_df_mean['density_mean'])]
+            top_range = 1.05*max(abs(range_values[0]), abs(range_values[1]))
+            ylim = [-top_range, top_range]
+            cluster_title = f'{sel_clus} - {cmp_clus}'
+        # Ratio Compare Style
+        elif cmp_style == 'Ratio':
+            dens_df_mean['density_mean'] = dens_df_mean_sel['density_mean'] / dens_df_mean_cmp['density_mean']
+
+            range_values = [min(dens_df_mean['density_mean']), max(dens_df_mean['density_mean'])]
+            if range_values[0] < 0:
+                ymin = 1.05*range_values[0]
+                ymax = 1.05*range_values[1]
+            else:
+                ymin = 0.95*range_values[0]
+                ymax = 1.05*range_values[1]
+            ylim = np.array([ymin, ymax])
+            cluster_title = f'{sel_clus} / {cmp_clus}'
 
     umPT.plot_mean_neighborhood_profile(ax = ax,
                                         dist_bin = spatial_umap.dist_bin_um,
                                         pheno_order = spatial_umap.phenoLabel,
                                         npf_dens_mean = dens_df_mean,
                                         cluster_title = cluster_title,
+                                        cmp_style = cmp_style,
                                         max_dens = ylim,
                                         leg_flag = 1)
 

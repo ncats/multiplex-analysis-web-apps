@@ -485,7 +485,7 @@ class UMAPDensityProcessing():
         '''
         self.feat_label = f'{feature} {feat_label}'
 
-    def UMAPdraw_density(self, w=None, diff = False, figsize=(12, 12)):
+    def UMAPdraw_density(self, w=None, diff = False, figsize=(12, 12), legendtype = 'colorbar'):
         '''
         Calls the UMAPdraw_density function from PlottingTools.py
         '''
@@ -497,7 +497,8 @@ class UMAPDensityProcessing():
                                     vlim = self.vlim,
                                     feat = self.feat_label,
                                     diff = diff,
-                                    figsize = figsize)
+                                    figsize = figsize,
+                                    legendtype = legendtype)
 
     def filter_density_matrix(self, cutoff_dec= 0.02):
         '''
