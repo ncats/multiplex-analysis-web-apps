@@ -125,11 +125,15 @@ def main():
             load_button_disabled = False
             if num_selected_rows == 0:
                 load_button_disabled = True
+            elif num_selected_rows == 1:
+                load_msg = 'Loading File...'
+            else:
+                load_msg = 'Loading and Combining Files...'
             # Create a button to concatenate the selected files
             if st.button(button_text, help=button_help_message, disabled=load_button_disabled):
 
                 # Render a progress spinner while the files are being combined
-                with st.spinner('Combining files...'):
+                with st.spinner(load_msg):
 
                     # Efficiently check if the columns are equal for all input files
                     columns_equal = True
@@ -175,10 +179,10 @@ def main():
             # ---- 2. (Optional) Drop null rows from the dataset --------------------------------------------------------------------------------------------------------------------------------
 
             # Display a header for the null row deletion section
-            st.header('(Optional) :two: Delete null rows')
+            st.markdown('## :two: Delete null rows (optional) ')
 
             # Create an expander for the null row deletion section
-            with st.expander('(Optional) Click to expand:', expanded=False):
+            with st.expander('Click to expand:', expanded=False):
 
                 # Write a note to the user
                 st.write('Observe the combined dataframe at bottom and select columns here by which to remove rows. Rows will be removed if the selected columns have a value of `None`.')
@@ -229,7 +233,7 @@ def main():
             # Allow the user to select the columns by which to uniquely define images
             if 'unifier__columns_to_combine_to_uniquely_define_slides' not in st.session_state:
                 st.session_state['unifier__columns_to_combine_to_uniquely_define_slides'] = []
-            st.multiselect('Select columns to combine to uniquely define images:', df.columns, key='unifier__columns_to_combine_to_uniquely_define_slides')  # removing .select_dtypes(include=['object', 'string']) from df
+            st.multiselect('Select one or more columns to define unique multiplex images:', df.columns, key='unifier__columns_to_combine_to_uniquely_define_slides')  # removing .select_dtypes(include=['object', 'string']) from df
 
             # Create a button to assign images to the dataframe
             if st.button(':star2: Assign images :star2:'):
@@ -274,7 +278,7 @@ def main():
             # Allow the user to select the column by which to uniquely define ROIs
             if 'unifier__roi_explicitly_defined' not in st.session_state:
                 st.session_state['unifier__roi_explicitly_defined'] = False
-            if st.checkbox('Check here if the ROIs are explicitly defined by a column in the dataframe', key='unifier__roi_explicitly_defined', help='Note: This is not often the case, so this can usually be left unchecked.'):
+            if st.toggle('Identify dataframe column which define ROIs', key='unifier__roi_explicitly_defined', help='Note: This is not often the case, so this can usually be left unchecked.'):
                 if 'unifier__roi_column' not in st.session_state:
                     st.session_state['unifier__roi_column'] = df.columns[0]
                 st.selectbox('Select the column containing the ROI names:', df.columns, key='unifier__roi_column')
@@ -437,10 +441,10 @@ def main():
             # ---- 6a. Identify phenotypes --------------------------------------------------------------------------------------------------------------------------------
 
             # Display a header for the phenotype identification section
-            st.header('(Optional) :six: Identify phenotypes')
+            st.header(':six: Identify phenotypes (optional)')
 
             # Create an expander for the phenotype identification section
-            with st.expander('(Optional) Click to expand:', expanded=False):
+            with st.expander('Click to expand:', expanded=False):
             
                 # Write a note to the user
                 st.write('Note: This section is for identifying *categorical* phenotype columns in the dataset. If you wish to use MAWA to perform phenotyping on the intensities (such as in the Multiaxial Gater), there is no need to complete this section.')
@@ -575,9 +579,9 @@ def main():
             # ---- 7. Save the dataframe to a CSV file --------------------------------------------------------------------------------------------------------------------------------
 
             # Display a header for the save dataframe section
-            st.header('(Optional) :seven: Save the dataframe to the `input` directory')
+            st.header(':seven: Save the dataframe to the `input` directory (optional) ')
 
-            with st.expander('(Optional) Click to expand:', expanded=False):
+            with st.expander('Click to expand:', expanded=False):
 
                 # Create an input text box for the custom text to be added to the filename
                 if 'unifier__custom_text_for_output_filename' not in st.session_state:
