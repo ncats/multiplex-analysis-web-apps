@@ -10,6 +10,7 @@ import pandas as pd
 import os
 import pytz
 from datetime import datetime
+import anndata
 
 def set_filename_corresp_to_roi(df_paths, roi_name, curr_colname, curr_dir, curr_dir_listing):
     """Update the path in a main paths-holding dataframe corresponding to a particular ROI in a particular directory.
@@ -503,7 +504,7 @@ def is_symmetric_all(arr):
     # Return the boolean declaring whether all contained matrices are symmetric
     return all_are_symmetric
 
-def execute_data_parallelism_potentially(function=(lambda x: x), list_of_tuple_arguments=[(4444,)], nworkers=0, task_description='', do_benchmarking=False, mp_start_method=None):  # spawn works with name=main block in Home.py
+def execute_data_parallelism_potentially(function=(lambda x: x), list_of_tuple_arguments=[(4444,)], nworkers=0, task_description='', do_benchmarking=False, mp_start_method=None, use_starmap=False):  # spawn works with name=main block in Home.py
     # Note I forced mp_start_method = 'spawn' up until 4/27/23. Removing that and letting Python choose the default for the OS got parallelism working on NIDAP. I likely forced it to be spawn a long time ago maybe to get it working on Biowulf or my laptop or something like that. This worked in all scenarios including on my laptop (in WSL) though I get weird warnings I believe. I got confident about doing it this most basic way on 4/27/23 after reading Goyo's 2/7/23 example [here](https://discuss.streamlit.io/t/streamlit-session-state-with-multiprocesssing/29230/2) showing the same exact method I've been using except for forcing multiprocessing to use the "spawn" start method.
 
     # Import relevant library
@@ -529,7 +530,12 @@ def execute_data_parallelism_potentially(function=(lambda x: x), list_of_tuple_a
     if use_multiprocessing:
         print('Running {} function calls using the "{}" protocol with {} workers for the {}'.format(len(list_of_tuple_arguments), mp_start_method, nworkers, task_description))
         with mp.get_context(mp_start_method).Pool(nworkers) as pool:
-            pool.map(function, list_of_tuple_arguments)
+            if not use_starmap:
+                pool.map(function, list_of_tuple_arguments)
+            else:
+                # Apply the calculate_density_matrix_for_image function to each set of keyword arguments in kwargs_list, i.e., list_of_tuple_arguments is really a kwargs_list
+                # A single call would be something like: calculate_density_matrix_for_image(**kwargs_list[4])
+                results = pool.starmap(function, list_of_tuple_arguments)
 
     # Execute fully in serial without use of the multiprocessing module
     else:
@@ -541,6 +547,10 @@ def execute_data_parallelism_potentially(function=(lambda x: x), list_of_tuple_a
     if do_benchmarking:
         elapsed_time = time.time() - start_time
         print('BENCHMARKING: The task took {} seconds using {} CPU(s) {} hyperthreading'.format(elapsed_time, (nworkers if use_multiprocessing else 1), ('WITH' if use_multiprocessing else 'WITHOUT')))
+
+    # Since I don't usually return the results from .map() and I'm only doing it in the case that's making me implement starmap here, only return results when starmap is used (plus I'm still not returning it in map() above)
+    if use_starmap:
+        return results
 
 # Only used for the not-yet-used multiprocessing functionality in calculate_neighbor_counts_with_possible_chunking
 def wrap_calculate_neighbor_counts(args):
@@ -975,3 +985,97 @@ def get_timestamp(pretty=False):
         return datetime.now(pytz.timezone('US/Eastern')).strftime('%Y-%m-%d %I:%M:%S %p %Z')
     else:
         return datetime.now(pytz.timezone('US/Eastern')).strftime("%Y%m%d_%H%M%S_%Z")
+
+
+def create_anndata_from_dataframe(df, columns_for_data_matrix=['Cell X Position', 'Cell Y Position']):
+    """Creates an AnnData object from a pandas DataFrame.
+
+    This function makes no copies of data anywhere.
+
+    Args:
+        df (pandas.DataFrame): The input DataFrame.
+        columns_for_data_matrix (list or str, optional): The columns to include in the data matrix of the AnnData object.
+            If a string is provided, all columns of that data type will be included. Defaults to ['Cell X Position', 'Cell Y Position'].
+
+    Returns:
+        anndata.AnnData: The AnnData object created from the DataFrame.
+    """
+
+    # Potentially extract all columns of a certain type
+    if not isinstance(columns_for_data_matrix, list):  # then assume it's a string, like 'float'
+        columns_for_data_matrix = list(df.select_dtypes(include=[columns_for_data_matrix]).columns)
+
+    # Create a list of columns to keep in the obs DataFrame
+    obs_columns = [col for col in df.columns if col not in columns_for_data_matrix]
+
+    # Create an AnnData object from the dataframe in the recommended way
+    adata = anndata.AnnData(X=df[columns_for_data_matrix], obs=df[obs_columns])
+
+    # Add the original set of metadata so we can revert back later by trimming. These are all pandas.Index types. These should not dynamically update
+    adata.uns['obs_names_orig'] = adata.obs_names
+    adata.uns['var_names_orig'] = adata.var_names
+    adata.uns['obs_columns_orig'] = adata.obs.columns
+    adata.uns['input_dataframe_columns'] = df.columns  # this includes both var_names_orig and obs_columns_orig but is here so the final column order can be preserved
+
+    # Print information about adata to the screen
+    print('AnnData object created from the DataFrame:')
+    print(adata)
+
+    # Return the AnnData object
+    return adata
+
+
+def create_dataframe_from_anndata(adata, indices_to_keep=None, columns_to_keep=None):
+    """Creates a pandas DataFrame from an AnnData object.
+
+    The point of this function is to efficiently create a dataframe from an anndata object so that analysis code that expects a dataframe can be used without modification. This function is not intended to be used for other purposes like in new functions, where we should instead use the anndata object directly without converting to a dataframe unless absolutely necessary.
+
+    However, to be fair, this function does not copy any data anywhere, so using it should not significantly allocate new memory. Then again, keep in mind that anndata efficiently handles memory potentially better than pandas, so anndata should probably be preferred for new code. E.g., pandas does not support lazy loading, which will be important for very lage datasets. If using this function (i.e., pandas instead of anndata), we need to really consider memory considerations very carefully.
+
+    Args:
+        adata (anndata.AnnData): The AnnData object from which to create the DataFrame.
+        indices_to_keep (array-like, optional): Indices to keep in the DataFrame. Can be either a boolean mask or a list-like of indices.
+        columns_to_keep (array-like, optional): Columns to keep in the DataFrame.
+
+    Returns:
+        pandas.DataFrame: The DataFrame created from the AnnData object.
+
+    Raises:
+        AssertionError: If the number of rows in the DataFrame does not match the number of rows in the AnnData object.
+    """
+
+    # Determine which indices and columns to keep
+    if indices_to_keep is None:
+        indices_to_keep = adata.obs_names
+    if columns_to_keep is None:
+        columns_to_keep = adata.var_names.tolist() + adata.obs.columns.tolist()
+
+    # Get the common columns for each DataFrame
+    common_columns_X = adata.var_names.intersection(columns_to_keep)
+    common_columns_obs = adata.obs.columns.intersection(columns_to_keep)
+
+    # Concatenate the sliced DataFrames
+    df = pd.concat([
+        adata[indices_to_keep, common_columns_X].to_df(),
+        adata.obs.loc[indices_to_keep, common_columns_obs]
+    ], axis='columns')
+
+    # Check that the number of rows in the DataFrame matches the number of rows in the AnnData object
+    if isinstance(indices_to_keep, (np.ndarray, pd.Series)) and indices_to_keep.dtype == bool:
+        len_indices_to_keep = indices_to_keep.sum()
+    else:
+        len_indices_to_keep = len(indices_to_keep)
+    assert df.shape[0] == len_indices_to_keep, f"The number of rows in the final DataFrame ({df.shape[0]}) does not match the number of rows in the sliced AnnData object ({len_indices_to_keep})."
+
+    # Adhere to the original column order if possible
+    if 'input_dataframe_columns' in adata.uns:
+        columns_in_df_but_not_in_original_set = [col for col in df.columns if col not in adata.uns['input_dataframe_columns']]
+        columns_in_original_set_and_in_df_in_order = [col for col in adata.uns['input_dataframe_columns'] if col in df.columns]
+        df = df[columns_in_original_set_and_in_df_in_order + columns_in_df_but_not_in_original_set]
+
+    # Print information about the DataFrame to the screen
+    print('DataFrame created from the AnnData object:')
+    print(df.info())
+
+    # Return the DataFrame
+    return df
