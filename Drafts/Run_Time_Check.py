@@ -8,6 +8,8 @@ import numpy as np
 import time
 import anndata as ad
 
+times_list = []
+
 def timer(func):
     def wrapper(*args, **kwargs):
         start_time = time.time()
@@ -16,14 +18,11 @@ def timer(func):
         execution_time = end_time - start_time
         rounded_time = round(execution_time, 2)
         print(f'Execution time: {rounded_time} seconds')
+        times_list.append(rounded_time)
         return result
     return wrapper
 
-os.getcwd()
-
 os.chdir("/Users/bombina2/github/multiplex-analysis-web-apps/")
-
-adata = sc.read("input/clust_dat.h5ad")
 
 # phenograph clustering
 @timer
@@ -82,8 +81,7 @@ def run_utag_clust(adata, n_neighbors, resolutions, clustering_method, max_dist)
         resolutions = resolutions,
         leiden_kwargs={"n_iterations": -1, "random_state": 42}
     )
-
-                                
+     
     curClusterCol = 'UTAG Label_leiden_'  + str(resolutions[0])
     utag_results.obs['Cluster'] = utag_results.obs[curClusterCol]
     adata.obs['Cluster'] = utag_results.obs[curClusterCol]
@@ -93,30 +91,7 @@ def run_utag_clust(adata, n_neighbors, resolutions, clustering_method, max_dist)
     adata.obs['Cluster'] = utag_results.obs[curClusterCol]
     return utag_results
 
-# standard tests
-# test phenograph
-adata = RunPhenographClust(adata, n_neighbors=10, clustering_algo="leiden", 
-                           min_cluster_size=10, primary_metric="euclidean", 
-                           resolution_parameter=1, nn_method="kdtree")
-
-# test scanpy
-adata = RunNeighbClust(adata, n_neighbors=10, metric="euclidean", 
-                       resolution=1, random_state=42)
-
-# test parc
-adata = run_parc_clust(adata, n_neighbors=10, 
-                       dist_std_local=3, jac_std_global=0.15, 
-                       small_pop=50, random_seed=42, 
-                       resolution_parameter=1, hnsw_param_ef_construction=150)
-
-# test utag
-adata = run_utag_clust(adata, n_neighbors=10, 
-                       resolutions=[1], clustering_method="leiden",
-                       max_dist=20)
-
 ## test with more than a million cells 
-del adata
-
 df = pd.read_csv("input/measurementsthymus-exported.csv")
 list(df.columns)
 meta = df.iloc[:, :4]
@@ -150,3 +125,7 @@ adata = run_parc_clust(adata, n_neighbors=10,
 adata = run_utag_clust(adata, n_neighbors=10, 
                        resolutions=[1], clustering_method="leiden",
                        max_dist=20)
+
+with open('../times.list', 'w') as f:
+    # Write each item on a new line
+    f.writelines(f'{item}\n' for item in times_list)
