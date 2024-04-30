@@ -92,21 +92,64 @@ def run_utag_clust(adata, n_neighbors, resolutions, clustering_method, max_dist)
     return utag_results
 
 ## test with more than a million cells 
-df = pd.read_csv("input/measurementsthymus-exported.csv")
+# df = pd.read_csv("input/measurementsthymus-exported.csv")
+# list(df.columns)
+# meta = df.iloc[:, :4]
+# list(meta.columns)
+# mat = df.iloc[:, 4:]
+# list(mat.columns)
+# meta = meta.rename(columns={"Image": "Image ID_(standardized)", 
+#                             "Centroid X µm": "Centroid X (µm)_(standardized)", 
+#                             "Centroid Y µm": "Centroid Y (µm)_(standardized)"})
+
+# adata = ad.AnnData(mat)
+# adata.obs = meta
+# adata.layers["counts"] = adata.X.copy()
+
+# test phenograph
+# adata = RunPhenographClust(adata, n_neighbors=10, clustering_algo="leiden", 
+#                            min_cluster_size=10, primary_metric="euclidean", 
+#                            resolution_parameter=1, nn_method="kdtree")
+
+# # test scanpy
+# adata = RunNeighbClust(adata, n_neighbors=10, metric="euclidean", 
+#                        resolution=1, random_state=42)
+
+# # test parc
+# adata = run_parc_clust(adata, n_neighbors=10, 
+#                        dist_std_local=3, jac_std_global=0.15, 
+#                        small_pop=50, random_seed=42, 
+#                        resolution_parameter=1, hnsw_param_ef_construction=150)
+
+# # test utag
+# adata = run_utag_clust(adata, n_neighbors=10, 
+#                        resolutions=[1], clustering_method="leiden",
+#                        max_dist=20)
+
+# with open('../times.list', 'w') as f:
+#     # Write each item on a new line
+#     f.writelines(f'{item}\n' for item in times_list)
+
+# test second dataset
+#del adata
+
+df = pd.read_csv("input/measurementsEpCAMLy51MHCII-exported.csv")
 list(df.columns)
 meta = df.iloc[:, :4]
 list(meta.columns)
 mat = df.iloc[:, 4:]
 list(mat.columns)
 meta = meta.rename(columns={"Image": "Image ID_(standardized)", 
-                            "Centroid X µm": "Centroid X (µm)_(standardized)", 
-                            "Centroid Y µm": "Centroid Y (µm)_(standardized)"})
+                             "Centroid X µm": "Centroid X (µm)_(standardized)", 
+                             "Centroid Y µm": "Centroid Y (µm)_(standardized)"})
 
 adata = ad.AnnData(mat)
 adata.obs = meta
 adata.layers["counts"] = adata.X.copy()
 
-# test phenograph
+# run tests
+times_list = []
+#test phenograph
 adata = RunPhenographClust(adata, n_neighbors=10, clustering_algo="leiden", 
                            min_cluster_size=10, primary_metric="euclidean", 
                            resolution_parameter=1, nn_method="kdtree")
@@ -126,6 +169,9 @@ adata = run_utag_clust(adata, n_neighbors=10,
                        resolutions=[1], clustering_method="leiden",
                        max_dist=20)
 
+# save times
 with open('../times.list', 'w') as f:
     # Write each item on a new line
     f.writelines(f'{item}\n' for item in times_list)
+    
+#
