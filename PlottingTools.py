@@ -118,7 +118,15 @@ def plot_2d_density(X, Y=None, bins=200, n_pad=40, w=None, ax=None, gaussian_sig
             cmap_lim = None # [np.min(d), np.max(d)]
             plt_cmap(ax=cax, cmap=cmap, extend=extend, width=0.01, lim = cmap_lim)
         elif legendtype == 'legend':
-            ax.legend()
+            cax = ax.inset_axes([0.925, 0.1, 0.01, 0.85])
+
+            bounds = np.linspace(-3, 4, 8)
+            norm = mpl.colors.BoundaryNorm(bounds, cmap.N)
+
+            cb = mpl.colorbar.ColorbarBase(ax = cax, cmap=cmap, norm=norm,
+                spacing='proportional', ticks=bounds[:-1], boundaries=bounds, format='%1i')
+            cb.ax.tick_params(labelsize=20)
+            # cb.set_ticks(bounds - 0.5)
 
 
         if box_off is True:
@@ -132,17 +140,17 @@ def plt_cmap(ax, cmap, extend, width, lim = None, ylabel = None):
     for the current colormap at the correct
     axes location, and with the correct label.
 
-    Parameters:
-    ax: Matplotlib axes handle
-    cmap: Matplotlib colormap
-    extend: {'neither', 'both', 'min', 'max'}  
-            Make pointed end(s) for out-of-range values (unless 'neither'). 
-            These are set for a given colormap using the colormap set_under and set_over methods.
-    width: Width of the colorbar in Figure coordinates. '0.01' suggested value
-    ylabel: String of the colomap label
+    Args:
+        ax: Matplotlib axes handle
+        cmap: Matplotlib colormap
+        extend: {'neither', 'both', 'min', 'max'}  
+                Make pointed end(s) for out-of-range values (unless 'neither'). 
+                These are set for a given colormap using the colormap set_under and set_over methods.
+        width: Width of the colorbar in Figure coordinates. '0.01' suggested value
+        ylabel: String of the colormap label
 
     Returns:
-
+        None
     '''
     cb = mpl.colorbar.Colorbar(ax=ax, cmap=cmap, extend=extend)
     cb.set_ticks([])
