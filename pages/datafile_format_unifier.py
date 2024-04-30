@@ -65,9 +65,9 @@ def main():
         # ---- 1. Concatenate datafiles together --------------------------------------------------------------------------------------------------------------------------------
 
         # Display a header for the datafile selection section
-        st.header(':one: Select datafiles to combine')
+        st.header(':one: Select datafile(s)')
 
-        # Get a list of files with the given extensions in the requested directory
+        # Retrieve list of files with the given extensions in the requested directory
         files = list_files(directory, extensions)
 
         # If no files are found, write a message to the user
@@ -76,15 +76,16 @@ def main():
 
         # If files are found, display them in a dataframe editor
         else:
-            
+
             # Write messages to the user
             num_files = len(files)
             if num_files == 1:
                 st.write('Detected 1 ".csv" or ".tsv" file in the `input` directory.')
             else:
-                st.write('Detected {} ".csv" and ".tsv" files in the `input` directory.'.format(num_files))
-            st.write('Note: You can double-click on any cell to see a full filename that is too long to fit in the cell.')
-    
+                st.write(f'Detected {num_files} ".csv" and ".tsv" files in the `input` directory.')
+            st.write('Select 1 or more files to load into the MAWA Datafile Unifier.')
+            st.write('Note: Double-click any cell to see the full filename.')
+
             # Create a dataframe from the list of files, including a column for the user to select files
             df_input_files = pd.DataFrame(files, columns=['Filename'])
             df_input_files.insert(0, 'Selected', False)
@@ -121,7 +122,7 @@ def main():
             # Extract the selected files from the dataframe editor
             input_files = sorted(df_reconstructed[selected_rows]['Filename'].to_list())
             st.session_state['unifier__input_files'] = input_files
-            
+
             # Create a button to concatenate the selected files
             if st.button(button_text, help=button_help_message):
 
@@ -503,7 +504,7 @@ def main():
                     st.warning('The format used to define phenotypes has changed since the last time phenotypes were defined. Please re-select the phenotypes or adjust the settings to match the previous ones.')
 
                 # ---- 6b. Add phenotype columns to the dataset --------------------------------------------------------------------------------------------------------------------------------
-                    
+
                 # Create a two-column editable dataframe, where both columns hold the column names of st.session_state['unifier__df_phenotypes'] but the first is not editable and the second is editable, allowing the user to rename the phenotypes
                 if 'unifier__df_phenotypes' in st.session_state:
 
@@ -562,7 +563,7 @@ def main():
 
         # Create a divider
         st.divider()
-        
+
         # Split the page into three main columns again
         main_columns = st.columns(3)
 
@@ -618,7 +619,7 @@ def main():
         :small_orange_diamond: Loaded memory usage: `{usage_str}`
         '''
         st.markdown(information)
-    
+
         # Output a sample of the concatenated dataframe
         st.header('Sample of unified dataframe')
         resample_dataframe = st.button('Refresh dataframe sample')
