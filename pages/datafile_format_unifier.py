@@ -76,7 +76,6 @@ def main():
 
         # If files are found, display them in a dataframe editor
         else:
-
             # Write messages to the user
             num_files = len(files)
             if num_files == 1:
@@ -123,8 +122,11 @@ def main():
             input_files = sorted(df_reconstructed[selected_rows]['Filename'].to_list())
             st.session_state['unifier__input_files'] = input_files
 
+            load_button_disabled = False
+            if num_selected_rows == 0:
+                load_button_disabled = True
             # Create a button to concatenate the selected files
-            if st.button(button_text, help=button_help_message):
+            if st.button(button_text, help=button_help_message, disabled=load_button_disabled):
 
                 # Render a progress spinner while the files are being combined
                 with st.spinner('Combining files...'):
