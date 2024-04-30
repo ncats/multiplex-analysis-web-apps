@@ -37,11 +37,12 @@ def main():
     # Initialization
     show_dataframe_updates = False
 
-    # Display a header
-    st.header('Input options')
-
     # In the first third of the page, create the input file selection and loading widgets
-    with st.columns(3)[0]:
+    open_data_cols = st.columns([1, 1, 2])
+    with open_data_cols[0]:
+
+        # Display a header
+        st.header('Input options')
 
         # Create a toggle to load the dataset from Datafile Unifier
         if 'opener__load_from_datafile_unifier' not in st.session_state:
@@ -117,34 +118,38 @@ def main():
             st.info('To continue, please press the button above to load an input dataset.')
             return
 
-    # Now that we know the input dataset is assigned and is valid, print out a sample of the main, input dataframe, plus some information about it
-    st.header('Loaded dataset')
+    with open_data_cols[2]:
+        # Now that we know the input dataset is assigned and is valid, 
+        # print out a sample of the main, input dataframe, plus some information about it
+        st.header('Loaded dataset')
 
-    # Assign shortcuts to the loaded dataset, metadata, and dataframe
-    dataset_obj = st.session_state['input_dataset']
-    metadata = st.session_state['input_metadata']
-    df = dataset_obj.data  # this (st.session_state['input_dataset'].data) is the dataframe that should be used in the entire app suite
+        # Assign shortcuts to the loaded dataset, metadata, and dataframe
+        dataset_obj = st.session_state['input_dataset']
+        metadata = st.session_state['input_metadata']
+        df = dataset_obj.data  # this (st.session_state['input_dataset'].data) is the dataframe that should be used in the entire app suite
 
-    # Get information about the loaded dataset
-    if metadata['datafile_path'] is not None:
-        datafile_path = os.path.basename(metadata['datafile_path'])
-    else:
-        datafile_path = 'loaded from Datafile Unifier'
-    information = f'''
-    Properties:
+        # Get information about the loaded dataset
+        if metadata['datafile_path'] is not None:
+            datafile_path = os.path.basename(metadata['datafile_path'])
+        else:
+            datafile_path = 'loaded from Datafile Unifier'
+        information = f'''
+        Properties:
 
-      :small_orange_diamond: Datafile: `{datafile_path}`  
-      :small_orange_diamond: Coordinate units: `{metadata['coord_units_in_microns']} microns/coord`  
-      :small_orange_diamond: Dataset format: `{type(dataset_obj)}`  
-      :small_orange_diamond: Number of rows: `{df.shape[0]}`  
-      :small_orange_diamond: Number of columns: `{df.shape[1]}`  
-      :small_orange_diamond: Minimum coordinate spacing: `{dataset_obj.min_coord_spacing_:.4f} microns`  
-      :small_orange_diamond: Loaded memory usage: `{st.session_state['input_dataframe_memory_usage_bytes'] / 1024 ** 2:.2f} MB`
-    '''
+        :small_orange_diamond: Datafile: `{datafile_path}`  
+        :small_orange_diamond: Coordinate units: `{metadata['coord_units_in_microns']} microns/coord`  
+        :small_orange_diamond: Dataset format: `{type(dataset_obj)}`  
+        :small_orange_diamond: Number of rows: `{df.shape[0]}`  
+        :small_orange_diamond: Number of columns: `{df.shape[1]}`  
+        :small_orange_diamond: Minimum coordinate spacing: `{dataset_obj.min_coord_spacing_:.4f} microns`  
+        :small_orange_diamond: Loaded memory usage: `{st.session_state['input_dataframe_memory_usage_bytes'] / 1024 ** 2:.2f} MB`
+        '''
 
-    # Display the information and the sampled dataframe
-    st.markdown(information)
-    st.write('Sampled dataframe:')
+        # Display the information and the sampled dataframe
+        st.markdown(information)
+
+    
+    st.header('Dataframe sample')
     resample_dataframe = st.button('Refresh dataframe sample')
     if ('opener__sampled_df' not in st.session_state) or resample_dataframe or show_dataframe_updates:
         st.session_state['opener__sampled_df'] = df.sample(min(num_rows_to_sample, len(df))).sort_index()
