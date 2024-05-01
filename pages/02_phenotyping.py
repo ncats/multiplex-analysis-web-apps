@@ -261,8 +261,8 @@ def main():
         # Print a column header
         st.header('Phenotype Plot')
 
-        plotSlide1, plotSlide2 = st.columns(2)
-        with plotSlide1:
+        plot_slide = st.columns(2)
+        with plot_slide[0]:
             with st.form('Plotting Num'):
                 st.slider('How many points to plot (%)', 0, 100, key = 'pointstSliderVal_Sel')
                 update_pixels_button = st.form_submit_button('Update Scatterplot')
@@ -270,7 +270,7 @@ def main():
                     st.session_state = ndl.setFigureObjs(st.session_state,
                                                          st.session_state.pointstSliderVal_Sel)
 
-        with plotSlide2:
+        with plot_slide[1]:
             if st.session_state.calcSliderVal < 100:
                 st.warning('Not plotting full scatterplot', icon="⚠️")
             else:
@@ -281,19 +281,19 @@ def main():
                         key = 'selhas_pos_mark',
                         on_change=filter_and_plot)
 
-        imageProgCol = st.columns([3, 1, 1, 2])
-        with imageProgCol[0]:
+        image_prog_col = st.columns([3, 1, 1, 2])
+        with image_prog_col[0]:
             st.selectbox('Slide ID',
                          (st.session_state['uniSlide ID_short']),
                          key = 'selSlide ID_short',
                          on_change=slide_id_callback)
-        with imageProgCol[1]:
+        with image_prog_col[1]:
             add_vertical_space(2)
             st.button('←', on_click=slide_id_prog_left_callback, disabled=st.session_state.prog_left_disabeled)
-        with imageProgCol[2]:
+        with image_prog_col[2]:
             add_vertical_space(2)
             st.button('→', on_click=slide_id_prog_right_callback, disabled=st.session_state.prog_right_disabeled)
-        with imageProgCol[3]:
+        with image_prog_col[3]:
             add_vertical_space(2)
             st.write(f'Image {st.session_state["idxSlide ID"]+1} of {st.session_state["numSlide ID"]}')
 

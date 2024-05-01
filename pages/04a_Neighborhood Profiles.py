@@ -1,22 +1,17 @@
 '''
 This is the python script which produces the NEIGHBORHOOD PROFILES PAGE
 '''
+from copy import copy
 import streamlit as st
 import numpy as np
 from streamlit_extras.add_vertical_space import add_vertical_space
-import matplotlib.pyplot as plt
-import seaborn as sns
-import pandas as pd
-from sklearn.cluster import KMeans # K-Means
 
 # Import relevant libraries
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
 import basic_phenotyper_lib as bpl  # Useful functions for phenotyping collections of cells
 import app_top_of_page as top
 import streamlit_dataframe_editor as sde
-import PlottingTools as umPT
 from neighborhood_profiles import NeighborhoodProfiles, UMAPDensityProcessing
-from copy import copy
 
 def init_spatial_umap():
     '''

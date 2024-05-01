@@ -2,12 +2,12 @@
 Set of scripts which support the other MAWA scripts
 """
 
-# Import relevant library
+import os
+from datetime import datetime
 import numpy as np
 import scipy.spatial
 import streamlit_utils
 import pandas as pd
-import os
 import pytz
 from datetime import datetime
 import anndata
@@ -221,6 +221,16 @@ def get_overlay_info():
     return {'overlay_dir': overlays_dir, 'slide_names': slide_names, 'center_species': center_species, 'neighbor_species': neighbor_species, 'pval_types': pval_types}
 
 def string_has_bad_values(string, bad_values=[' ', 'XMin', 'XMax', 'YMin', 'YMax']):
+    '''
+    Identify if a string has bad values
+
+    Args:
+        string (str): The string to check for bad values
+        bad_values (list): The list of bad values to check for
+
+    Returns:
+        bool: True if the string has a bad value, False otherwise
+    '''
     is_bad = False
     for bad_value in bad_values:
         if bad_value in string:
@@ -905,7 +915,6 @@ def memory_usage_in_mb():
     mem_info = process.memory_info()
     return pid, mem_info.rss / (1024 * 1024)  # Convert bytes to MB
 
-
 def downcast_series_dtype_no_categorical(ser):
     """
     Potentially convert a series to a more efficient datatype for our purposes.
@@ -939,7 +948,6 @@ def downcast_series_dtype_no_categorical(ser):
     # Return the converted series
     return ser
 
-
 def downcast_int_series(ser):
     """
     Downcast an int64 series to the smallest integer type that can safely represent all the values.
@@ -969,16 +977,16 @@ def downcast_int_series(ser):
     # Return the downcasted series
     return ser
 
-
-# Get the size of a directory recursively
 def get_dir_size(path_to_dir_to_upload):
+    '''
+    Get the size of a directory recursively
+    '''
     total = 0
     for dirpath, _, filenames in os.walk(path_to_dir_to_upload):
         for f in filenames:
             fp = os.path.join(dirpath, f)
             total += os.path.getsize(fp)
     return total / (1024 * 1024)  # Convert bytes to MB
-
 
 def get_timestamp(pretty=False):
     if pretty:

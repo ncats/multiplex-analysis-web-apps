@@ -516,7 +516,7 @@ def setup_Spatial_UMAP(df, marker_names, pheno_order, cpu_pool_size = 1):
     # dist_bin_um (np.array): Array of distances in microns
     # um_per_px (float): Microns per pixel
     # area_downsample (float): Area downsample
-    spatial_umap = SpatialUMAP(dist_bin_um=np.array([25, 50, 100, 150, 200]), um_per_px=1.0, area_downsample=.2)
+    spatial_umap = SpatialUMAP(dist_bin_um=np.array([25, 50, 100, 150, 200]), um_per_px=1.0, area_downsample=1.0)
     spatial_umap.cells = df
     spatial_umap.patients = spatial_umap.makeDummyClinic(10)
 
@@ -808,7 +808,7 @@ def createHeatMap(df, phenoList, title, normAxis = None):
 
     return fig
 
-def neighProfileDraw(spatial_umap, sel_clus, cmp_clus = None, cmp_style = 'Difference', hide_other = False, hide_no_cluster = False, figsize=(14, 16)):
+def neighProfileDraw(spatial_umap, sel_clus, cmp_clus = None, cmp_style = None, hide_other = False, hide_no_cluster = False, figsize=(14, 16)):
     '''
     neighProfileDraw is the method that draws the neighborhood profile
     line plots
@@ -833,7 +833,6 @@ def neighProfileDraw(spatial_umap, sel_clus, cmp_clus = None, cmp_style = 'Diffe
     dens_df_mean = dens_df_mean_sel.copy()
     cluster_title = f'Cluster {sel_clus}'
 
-    cmp_style = None
     if cmp_clus is not None:
         dens_df_mean_cmp = dens_df_mean_base.loc[dens_df_mean_base['clust_label'] == cmp_clus, :].reset_index(drop=True)
 
@@ -851,7 +850,8 @@ def neighProfileDraw(spatial_umap, sel_clus, cmp_clus = None, cmp_style = 'Diffe
         elif cmp_style == 'Ratio':
             dens_df_mean['density_mean'] = dens_df_mean_sel['density_mean'] / dens_df_mean_cmp['density_mean']
 
-            range_values = [min(dens_df_mean['density_mean']), max(dens_df_mean['density_mean'])]
+            range_values = [dens_df_mean.loc[np.isfinite(dens_df_mean['density_mean']), 'density_mean'].min(),
+                            dens_df_mean.loc[np.isfinite(dens_df_mean['density_mean']), 'density_mean'].max()]
             if range_values[0] < 0:
                 ymin = 1.05*range_values[0]
                 ymax = 1.05*range_values[1]
@@ -860,6 +860,8 @@ def neighProfileDraw(spatial_umap, sel_clus, cmp_clus = None, cmp_style = 'Diffe
                 ymax = 1.05*range_values[1]
             ylim = np.array([ymin, ymax])
             cluster_title = f'{sel_clus} / {cmp_clus}'
+    else:
+        cmp_style = None
 
     umPT.plot_mean_neighborhood_profile(ax = ax,
                                         dist_bin = spatial_umap.dist_bin_um,
