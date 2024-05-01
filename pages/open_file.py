@@ -1,18 +1,30 @@
-# Import relevant libraries
+'''
+Python Script which produces the "Open File" page of the Multiplex Analysis Web Apps.
+'''
+
+import os
 import streamlit as st
+import streamlit_utils
+
+# Import relevant libraries
 import app_top_of_page as top
 import streamlit_dataframe_editor as sde
-import os
-import streamlit_utils
 import utils
 
 def clear_session_state():
+    '''
+    Function to clear all session state variables 
+    except for the ones that are needed for the app to run.
+    '''
     session_state_keys = list(st.session_state.keys())
     for key in session_state_keys:
         if (not key.startswith(('unifier__', 'opener__'))) and (not key in ['session_selection', 'app_has_been_run_at_least_once']):
             del st.session_state[key]
 
 def load_input_dataset():
+    '''
+    Function to run when the "Load the selected input dataset" button is clicked.
+    '''
     clear_session_state()
     st.session_state['opener__load_input_dataset'] = True
     st.session_state['input_dataset'] = None
@@ -38,7 +50,7 @@ def main():
     show_dataframe_updates = False
 
     # In the first third of the page, create the input file selection and loading widgets
-    open_data_cols = st.columns([1, 1, 2])
+    open_data_cols = st.columns([2, 3])
     with open_data_cols[0]:
 
         # Display a header
@@ -118,15 +130,18 @@ def main():
             st.info('To continue, please press the button above to load an input dataset.')
             return
 
-    with open_data_cols[2]:
-        # Now that we know the input dataset is assigned and is valid, 
+    with open_data_cols[1]:
+        # Now that we know the input dataset is assigned and is valid,
         # print out a sample of the main, input dataframe, plus some information about it
         st.header('Loaded dataset')
 
         # Assign shortcuts to the loaded dataset, metadata, and dataframe
         dataset_obj = st.session_state['input_dataset']
         metadata = st.session_state['input_metadata']
-        df = dataset_obj.data  # this (st.session_state['input_dataset'].data) is the dataframe that should be used in the entire app suite
+
+        # This dataframe (st.session_state['input_dataset'].data) 
+        # is the dataframe that should be used throughout ehe entire MAWA suite
+        df = dataset_obj.data
 
         # Get information about the loaded dataset
         if metadata['datafile_path'] is not None:
@@ -148,7 +163,6 @@ def main():
         # Display the information and the sampled dataframe
         st.markdown(information)
 
-    
     st.header('Dataframe sample')
     resample_dataframe = st.button('Refresh dataframe sample')
     if ('opener__sampled_df' not in st.session_state) or resample_dataframe or show_dataframe_updates:
