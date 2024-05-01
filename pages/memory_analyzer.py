@@ -8,6 +8,8 @@ from pympler import asizeof
 
 
 def assess_whether_same_object(df):
+    # Note that if everything is commented out except for `return df`, the same number of session state keys exists, but instead all are "keys that would actually be saved" and there are none that "would not actually be saved." This is true for calls below like `df_do_not_save = assess_whether_same_object(df_do_not_save)` and `df_do_save = assess_whether_same_object(df_do_save)`. Make no sense to me. Same goes if I merely instead say `df_do_not_save = df_do_not_save` and `df_do_save = df_do_save`.
+    df = df.reset_index(drop=True)
     df['is_same_as_above'] = None
     for i in range(1, len(df)):
         if df.loc[i, 'size_mb'] < 1:
@@ -29,6 +31,8 @@ def assess_whether_same_object(df):
 def analyze_memory_usage(saved_streamlit_session_state_key='session_selection'):
 
     # This function is largely copied from streamlit_session_state_management.save_session_state()
+    
+    st.write(f'Size of session state: {len(st.session_state)}')
 
     # Create a dictionary of most items in the session state
     session_dict = {}
@@ -86,14 +90,16 @@ def analyze_memory_usage(saved_streamlit_session_state_key='session_selection'):
     # Write a dataframe of the keys and sizes that will not be saved, sorted in descending order of size
     df_do_not_save = pd.DataFrame({'key': keys_holder_do_not_save, 'size_mb': size_holder_do_not_save})
     df_do_not_save = df_do_not_save.sort_values(by='size_mb', ascending=False)
-    df_do_not_save = assess_whether_same_object(df_do_not_save)
+    # df_do_not_save = df_do_not_save.copy()  # this does different stuff than df_do_not_save = df_do_not_save a bit strangely
+    df_do_not_save = assess_whether_same_object(df_do_not_save.copy())
     st.write(f'Keys that would not actually be saved (total {tot_size_in_memory_do_not_save:.2f} MB):')
     st.dataframe(df_do_not_save)
 
     # Write a dataframe of the keys and sizes that will be saved, sorted in descending order of size
     df_do_save = pd.DataFrame({'key': keys_holder_do_save, 'size_mb': size_holder_do_save})
     df_do_save = df_do_save.sort_values(by='size_mb', ascending=False)
-    df_do_save = assess_whether_same_object(df_do_save)
+    # df_do_save = df_do_save.copy()  # this does different stuff than df_do_save = df_do_save a bit strangely
+    df_do_save = assess_whether_same_object(df_do_save.copy())
     st.write(f'Keys that would actually be saved (total {tot_size_in_memory_mb_do_save:.2f} MB):')
     st.dataframe(df_do_save)
 
