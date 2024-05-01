@@ -32,6 +32,20 @@ def analyze_memory_usage(saved_streamlit_session_state_key='session_selection'):
 
     # This function is largely copied from streamlit_session_state_management.save_session_state()
     
+    key_holder = []
+    type_holder1 = []
+    type_holder2 = []
+    equals_holder = []
+    for key, value in st.session_state.items():
+        if (not key.endswith('__do_not_persist')) and (not key.startswith('FormSubmitter:')) and (key != saved_streamlit_session_state_key):
+            key_holder.append(key)
+            type1 = type(st.session_state[key])
+            type2 = type(value)
+            type_holder1.append(type1)
+            type_holder2.append(type2)
+            equals_holder.append(type1 == type2)
+    st.dataframe(pd.DataFrame({'key': key_holder, 'type1': type_holder1, 'type2': type_holder2, 'equals': equals_holder}))
+
     st.write(f'Size of session state: {len(st.session_state)}')
 
     # Create a dictionary of most items in the session state
