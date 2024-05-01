@@ -587,9 +587,6 @@ class SpatialUMAP:
         # calculate density (count/area) for filtered cells
         self.density[filtIdx] = self.counts[filtIdx] / self.areas[filtIdx][..., np.newaxis]
 
-        # convert from um2 -> mm2
-        self.density = self.density * 1e6
-
     def calc_proportions(self, area_threshold):
         '''
         calculate proportion base on counts of cells / total cells within an arc examine
