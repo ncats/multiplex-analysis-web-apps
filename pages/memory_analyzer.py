@@ -7,6 +7,25 @@ import streamlit_dataframe_editor
 from pympler import asizeof
 
 
+def assess_whether_same_object(df):
+    df['is_same_as_above'] = None
+    for i in range(1, len(df)):
+        if df.loc[i, 'size_mb'] < 1:
+            df.loc[i, 'is_same_as_above'] = None
+        else:
+            current_key = df.loc[i, 'key']
+            previous_key = df.loc[i-1, 'key']
+            current_data = st.session_state.get(current_key, None)
+            previous_data = st.session_state.get(previous_key, None)
+            current_data_attributes = getattr(current_data, 'data', None)
+            previous_data_attributes = getattr(previous_data, 'data', None)
+            if (current_data is previous_data) or (current_data is previous_data_attributes) or (previous_data is current_data_attributes) or (current_data_attributes is previous_data_attributes):
+                df.loc[i, 'is_same_as_above'] = True
+            else:
+                df.loc[i, 'is_same_as_above'] = False
+    return df
+
+
 def analyze_memory_usage(saved_streamlit_session_state_key='session_selection'):
 
     # This function is largely copied from streamlit_session_state_management.save_session_state()
@@ -67,12 +86,14 @@ def analyze_memory_usage(saved_streamlit_session_state_key='session_selection'):
     # Write a dataframe of the keys and sizes that will not be saved, sorted in descending order of size
     df_do_not_save = pd.DataFrame({'key': keys_holder_do_not_save, 'size_mb': size_holder_do_not_save})
     df_do_not_save = df_do_not_save.sort_values(by='size_mb', ascending=False)
+    df_do_not_save = assess_whether_same_object(df_do_not_save)
     st.write(f'Keys that would not actually be saved (total {tot_size_in_memory_do_not_save:.2f} MB):')
     st.dataframe(df_do_not_save)
 
     # Write a dataframe of the keys and sizes that will be saved, sorted in descending order of size
     df_do_save = pd.DataFrame({'key': keys_holder_do_save, 'size_mb': size_holder_do_save})
     df_do_save = df_do_save.sort_values(by='size_mb', ascending=False)
+    df_do_save = assess_whether_same_object(df_do_save)
     st.write(f'Keys that would actually be saved (total {tot_size_in_memory_mb_do_save:.2f} MB):')
     st.dataframe(df_do_save)
 

@@ -94,6 +94,16 @@ name = "Clusters Analyzer"
 icon = ""
 
 [[pages]]
+name = "Spatial UMAP Prediction"
+icon = ""
+is_section = true
+
+[[pages]]
+path = "pages/spatial_umap_prediction_app.py"
+name = "Main"
+icon = ""
+
+[[pages]]
 name = "Utilities"
 icon = ""
 is_section = true
