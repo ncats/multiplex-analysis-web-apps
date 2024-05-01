@@ -1,9 +1,14 @@
-# Import relevant libraries
+'''
+Set of functions for managing the MAWA platform
+'''
+
 import os
+import time
+import shutil
 import pandas as pd
 import streamlit as st
-import shutil
-import time
+
+# Import relevant libraries
 import streamlit_dataframe_editor as sde
 import streamlit_session_state_management
 import utils
