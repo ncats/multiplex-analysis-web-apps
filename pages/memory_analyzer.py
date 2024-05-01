@@ -7,6 +7,48 @@ import streamlit_dataframe_editor
 from pympler import asizeof
 
 
+def get_object_class(value):
+
+    import neighbors_counts_for_neighborhood_profiles as custom_module__neighbors_counts_for_neighborhood_profiles
+    import benchmark_collector as custom_module__benchmark_collector
+    import dataset_formats as custom_module__dataset_formats
+    import platform_io as custom_module__platform_io
+    import time_cell_interaction_lib as custom_module__time_cell_interaction_lib
+    import SpatialUMAP as custom_module__SpatialUMAP
+    import foundry_IO_lib as custom_module__foundry_IO_lib
+    import streamlit_dataframe_editor as custom_module__streamlit_dataframe_editor
+    import neighborhood_profiles as custom_module__neighborhood_profiles
+
+    if isinstance(value, custom_module__streamlit_dataframe_editor.DataframeEditor):
+        class_str = 'streamlit_dataframe_editor.DataframeEditor'
+    elif isinstance(value, custom_module__neighbors_counts_for_neighborhood_profiles.dummySessionState):
+        class_str = 'neighbors_counts_for_neighborhood_profiles.dummySessionState'
+    elif isinstance(value, custom_module__benchmark_collector.benchmark_collector):
+        class_str = 'benchmark_collector.benchmark_collector'
+    elif isinstance(value, custom_module__dataset_formats.Standardized):
+        class_str = 'dataset_formats.Standardized'
+    elif isinstance(value, custom_module__platform_io.Platform):
+        class_str = 'platform_io.Platform'
+    elif isinstance(value, custom_module__time_cell_interaction_lib.TIMECellInteraction):
+        class_str = 'time_cell_interaction_lib.TIMECellInteraction'
+    elif isinstance(value, custom_module__SpatialUMAP.SpatialUMAP):
+        class_str = 'SpatialUMAP.SpatialUMAP'
+    elif isinstance(value, custom_module__SpatialUMAP.FitEllipse):
+        class_str = 'SpatialUMAP.FitEllipse'
+    elif isinstance(value, custom_module__foundry_IO_lib.foundry_IO_lib):
+        class_str = 'foundry_IO_lib.foundry_IO_lib'
+    elif isinstance(value, custom_module__streamlit_dataframe_editor.DataframeEditor):
+        class_str = 'streamlit_dataframe_editor.DataframeEditor'
+    elif isinstance(value, custom_module__neighborhood_profiles.NeighborhoodProfiles):
+        class_str = 'neighborhood_profiles.NeighborhoodProfiles'
+    elif isinstance(value, custom_module__neighborhood_profiles.UMAPDensityProcessing):
+        class_str = 'neighborhood_profiles.UMAPDensityProcessing'
+    else:
+        class_str = '<"NATIVE">'
+
+    return class_str
+
+
 def assess_whether_same_object(df):
     # Note that if everything is commented out except for `return df`, the same number of session state keys exists, but instead all are "keys that would actually be saved" and there are none that "would not actually be saved." This is true for calls below like `df_do_not_save = assess_whether_same_object(df_do_not_save)` and `df_do_save = assess_whether_same_object(df_do_save)`. Make no sense to me. Same goes if I merely instead say `df_do_not_save = df_do_not_save` and `df_do_save = df_do_save`.
     df = df.reset_index(drop=True)
@@ -35,16 +77,27 @@ def analyze_memory_usage(saved_streamlit_session_state_key='session_selection'):
     key_holder = []
     type_holder1 = []
     type_holder2 = []
-    equals_holder = []
+    size_holder = []
+    bytes_to_mb = 1024 ** 2
     for key, value in st.session_state.items():
         if (not key.endswith('__do_not_persist')) and (not key.startswith('FormSubmitter:')) and (key != saved_streamlit_session_state_key):
-            key_holder.append(key)
             type1 = type(st.session_state[key])
-            type2 = type(value)
+            type2 = get_object_class(value)
+            predicted_size_in_mb = asizeof.asizeof(value) / bytes_to_mb  # note this is slow
+            key_holder.append(key)
             type_holder1.append(type1)
             type_holder2.append(type2)
-            equals_holder.append(type1 == type2)
-    st.dataframe(pd.DataFrame({'key': key_holder, 'type1': type_holder1, 'type2': type_holder2, 'equals': equals_holder}))
+            size_holder.append(predicted_size_in_mb)
+
+            # If in st.session_state, are large, and are custom, we have problems
+            if (predicted_size_in_mb > 1) and (type2 == 'dataset_formats.Standardized'):
+                st.write(f'Key {key} in the session state has a value that is large in size (> 1 MB) and is of custom format {type2}')
+                # WRITE CODE HERE THAT WILL STORE THE DATA ATTRIBUTE SEPARATELY IN THE SESSION STATE AND DELETE IT FROM THE CURRENT OBJECT
+                # THEN, rewrite dataframe showing size of each object to confirm the following will be correct
+                # Save all eligible objects in the session state that are large (which should now be all native) using pickle, and save the rest of the eligible objects in the session state using dill
+                # When loading in the resulting pickle and dill files, check for existence of the separately-saved data attribute and re-combine it with the corresponding object
+
+    st.dataframe(pd.DataFrame({'key': key_holder, 'type1': type_holder1, 'type2': type_holder2, 'size_mb': size_holder}))
 
     st.write(f'Size of session state: {len(st.session_state)}')
 
