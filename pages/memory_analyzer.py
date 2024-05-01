@@ -15,10 +15,10 @@ def assess_whether_same_object(df):
         else:
             current_key = df.loc[i, 'key']
             previous_key = df.loc[i-1, 'key']
-            current_data = st.session_state.get(current_key, None)
-            previous_data = st.session_state.get(previous_key, None)
-            current_data_attributes = getattr(current_data, 'data', None)
-            previous_data_attributes = getattr(previous_data, 'data', None)
+            current_data = st.session_state.get(current_key, 'current_data')
+            previous_data = st.session_state.get(previous_key, 'previous_data')
+            current_data_attributes = getattr(current_data, 'data', 'current_data_attributes')
+            previous_data_attributes = getattr(previous_data, 'data', 'previous_data_attributes')
             if (current_data is previous_data) or (current_data is previous_data_attributes) or (previous_data is current_data_attributes) or (current_data_attributes is previous_data_attributes):
                 df.loc[i, 'is_same_as_above'] = True
             else:
