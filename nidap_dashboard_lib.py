@@ -491,31 +491,31 @@ def setFigureObjs(session_state, InSliderVal = None):
 
     session_state.phenoOrder = list(session_state.pheno_summ.loc[session_state.pheno_summ['phenotype_count'].index, 'phenotype'])
 
-    # NumPoints
+    # num_points
     targCellCount = 150000
     df_plot = session_state.df_filt.copy()
 
     # minXY = df_plot[['Cell X Position', 'Cell Y Position']].min()-1
     # maxXY = df_plot[['Cell X Position', 'Cell Y Position']].max()+1
 
-    numPoints = session_state.df_filt.shape[0]
-    if (numPoints > targCellCount) & (InSliderVal is None):
+    num_points = session_state.df_filt.shape[0]
+    if (num_points > targCellCount) & (InSliderVal is None):
         n = targCellCount
 
-        calcSliderVal = int(np.ceil(100*n/numPoints))
+        calc_slider_val = int(np.ceil(100*n/num_points))
         df_plot = df_plot.sample(n)
         session_state.plotPointsCustom = False
     elif InSliderVal is not None:
 
-        calcSliderVal = InSliderVal
-        df_plot = df_plot.sample(frac = calcSliderVal/100)
+        calc_slider_val = InSliderVal
+        df_plot = df_plot.sample(frac = calc_slider_val/100)
         session_state.plotPointsCustom = True
     else:
-        n = numPoints
-        calcSliderVal = 100
+        n = num_points
+        calc_slider_val = 100
         session_state.plotPointsCustom = False
 
-    session_state.calcSliderVal = calcSliderVal
+    session_state.calcSliderVal = calc_slider_val
     session_state.drawnPoints = df_plot.shape[0]
 
     # Seaborn

@@ -88,7 +88,8 @@ def main():
             platform.add_delete_empty_archives_button()
             platform.create_session_state_snapshot()
 
-    # Since the platform object above was a local copy of that in Streamlit, and it may have been modified, save it back to Streamlit
+    # Since the platform object above was a local copy of that in Streamlit, 
+    # and it may have been modified, save it back to Streamlit
     st.session_state['platform'] = platform
 
     # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
