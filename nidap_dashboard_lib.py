@@ -184,6 +184,9 @@ def reset_neigh_profile_settings(session_state):
     # Default Cluster_Dict()
     session_state.cluster_dict = {0: 'No Cluster'}
 
+    # Neighborhood Profiles Line Plot Settings
+    session_state.compare_clusters_as = 'Difference'
+
     return session_state
 
 def load_listofFiles(fiol, projectPath):
