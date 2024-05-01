@@ -850,7 +850,8 @@ def neighProfileDraw(spatial_umap, sel_clus, cmp_clus = None, cmp_style = None, 
         elif cmp_style == 'Ratio':
             dens_df_mean['density_mean'] = dens_df_mean_sel['density_mean'] / dens_df_mean_cmp['density_mean']
 
-            range_values = [min(dens_df_mean['density_mean']), max(dens_df_mean['density_mean'])]
+            range_values = [dens_df_mean.loc[np.isfinite(dens_df_mean['density_mean']), 'density_mean'].min(),
+                            dens_df_mean.loc[np.isfinite(dens_df_mean['density_mean']), 'density_mean'].max()]
             if range_values[0] < 0:
                 ymin = 1.05*range_values[0]
                 ymax = 1.05*range_values[1]
