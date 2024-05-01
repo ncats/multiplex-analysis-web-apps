@@ -525,7 +525,7 @@ def setFigureObjs(session_state, InSliderVal = None):
                                               hueOrder=session_state.phenoOrder)
 
     # Altair
-    session_state.chart = drawAltairObj(df_plot, title, session_state.phenoOrder, session_state.phenoFig, session_state.ax)
+    # session_state.chart = drawAltairObj(df_plot, title, session_state.phenoOrder, session_state.phenoFig, session_state.ax)
 
     return session_state
 
