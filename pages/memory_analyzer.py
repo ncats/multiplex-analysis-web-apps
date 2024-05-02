@@ -11,6 +11,8 @@ bytes_to_mb = 1024 ** 2
 
 def get_object_class(value):
 
+    # No longer actually used as of 20240502_1706
+
     import neighbors_counts_for_neighborhood_profiles as custom_module__neighbors_counts_for_neighborhood_profiles
     import benchmark_collector as custom_module__benchmark_collector
     import dataset_formats as custom_module__dataset_formats
@@ -60,16 +62,16 @@ def split_off_dataset_formats_data_attribute(memory_usage_in_mb, saved_streamlit
         if (not key.endswith('__do_not_persist')) and (not key.startswith('FormSubmitter:')) and (key != saved_streamlit_session_state_key):
 
             # Get the type and size of the current object
-            # type1 = type(st.session_state[key])
-            type2 = get_object_class(value)
+            type1 = type(st.session_state[key])
+            type2 = str(type1)
             # predicted_size_in_mb = asizeof.asizeof(value) / bytes_to_mb  # note this is slow
             predicted_size_in_mb = memory_usage_in_mb[key]
 
             # If in st.session_state, are large, and are custom, we have problems, see overall comment above
-            if (predicted_size_in_mb > 1) and (type2 == 'dataset_formats.Standardized'):
+            if (predicted_size_in_mb > 1) and (type2 == "<class 'dataset_formats.Standardized'>"):
 
                 # Write what we're doing
-                st.write(f'Key {key} in the session state has a value that is large in size (> 1 MB) and is of custom format {type2}. Storing the "data" attribute separately...')
+                st.write(f'Key {key} in the session state has a value that is large in size (> 1 MB) and is of custom format dataset_formats.Standardized. Storing the "data" attribute separately...')
 
                 # Store the data attribute (which is a pandas.DataFrame) separately in the session state
                 st.session_state[key + '_dataset_formats_data_attribute'] = value.data
@@ -107,7 +109,7 @@ def write_dataframe_info_and_get_memory_usage(saved_streamlit_session_state_key=
     for key, value in st.session_state.items():
         if (not key.endswith('__do_not_persist')) and (not key.startswith('FormSubmitter:')) and (key != saved_streamlit_session_state_key):
             type1 = type(st.session_state[key])
-            type2 = get_object_class(value)
+            type2 = str(type1)
             predicted_size_in_mb = asizeof.asizeof(value) / bytes_to_mb  # note this is slow
             key_holder.append(key)
             type_holder1.append(type1)
@@ -166,6 +168,7 @@ def main():
     # Write the session state object information to screen
     st.write('Session state object information after splitting off data attributes from dataset_formats objects:')
     write_dataframe_info_and_get_memory_usage(saved_streamlit_session_state_key=saved_streamlit_session_state_key)
+    # Add/change to: df_to_write = write_dataframe_info_and_get_memory_usage(saved_streamlit_session_state_key=saved_streamlit_session_state_key, return_val='dataframe')
 
     # Recombine the data attribute with the dataset_formats objects
     recombine_data_attribute_with_dataset_formats_object()
