@@ -99,7 +99,7 @@ def recombine_data_attribute_with_dataset_formats_object():
             del st.session_state[key]
 
 
-def write_dataframe_info_and_get_memory_usage(saved_streamlit_session_state_key='session_selection'):
+def write_dataframe_info_and_get_memory_usage(saved_streamlit_session_state_key='session_selection', return_val=None):
     key_holder = []
     type_holder1 = []
     type_holder2 = []
@@ -120,7 +120,11 @@ def write_dataframe_info_and_get_memory_usage(saved_streamlit_session_state_key=
     df_to_write = pd.concat([df_to_write, ser_is_same_as_above, ser_pickle_or_dill], axis='columns')
     assert len(df_to_write) == len(ser_is_same_as_above) == len(ser_pickle_or_dill), f'Lengths of dataframes (df_to_write: {len(df_to_write)}, ser_is_same_as_above: {len(ser_is_same_as_above)}, ser_pickle_or_dill: {len(ser_pickle_or_dill)}) do not match.'
     st.dataframe(df_to_write)
-    return df_to_write.set_index('key')['size_mb']
+
+    if return_val == 'memory':
+        return df_to_write.set_index('key')['size_mb']
+    elif return_val == 'dataframe':
+        return df_to_write
 
 
 def assess_whether_same_object(df):
@@ -154,21 +158,21 @@ def main():
 
     # Write the session state object information to screen
     st.write('Initial session state object information:')
-    memory_usage_in_mb = write_dataframe_info_and_get_memory_usage(saved_streamlit_session_state_key=saved_streamlit_session_state_key)
+    memory_usage_in_mb = write_dataframe_info_and_get_memory_usage(saved_streamlit_session_state_key=saved_streamlit_session_state_key, return_val='memory')
 
     # Split off the data attribute from the dataset_formats objects
     split_off_dataset_formats_data_attribute(memory_usage_in_mb, saved_streamlit_session_state_key=saved_streamlit_session_state_key)
 
     # Write the session state object information to screen
     st.write('Session state object information after splitting off data attributes from dataset_formats objects:')
-    memory_usage_in_mb = write_dataframe_info_and_get_memory_usage(saved_streamlit_session_state_key=saved_streamlit_session_state_key)
+    write_dataframe_info_and_get_memory_usage(saved_streamlit_session_state_key=saved_streamlit_session_state_key)
 
     # Recombine the data attribute with the dataset_formats objects
     recombine_data_attribute_with_dataset_formats_object()
 
     # Write the session state object information to screen
     st.write('Session state object information after recombining data attributes with dataset_formats objects:')
-    memory_usage_in_mb = write_dataframe_info_and_get_memory_usage(saved_streamlit_session_state_key=saved_streamlit_session_state_key)
+    write_dataframe_info_and_get_memory_usage(saved_streamlit_session_state_key=saved_streamlit_session_state_key)
 
 
 # Run the main function
