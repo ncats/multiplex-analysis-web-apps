@@ -200,19 +200,6 @@ def main():
     '''
     Main function for running the page
     '''
-    # Use the whole page width
-    st.set_page_config(
-        page_title="Neighborhood Profiles",
-        layout="wide"
-    )
-
-    # Run streamlit-dataframe-editor library initialization tasks at the top of the page
-    st.session_state = sde.initialize_session_state(st.session_state)
-
-    # Run Top of Page (TOP) functions
-    st.session_state = top.top_of_page_reqs(st.session_state)
-
-    st.header('Neighborhood Profiles\nNCATS-NCI-DMAP')
 
     clust_minmax = [1, 40]
     npf_cols = st.columns([1, 1, 2])
@@ -482,8 +469,21 @@ def main():
                         ndl.save_png(npf_fig, 'Neighborhood Profiles', st.session_state.neigh_prof_line_suffix)
                         st.toast(f'Added {st.session_state.neigh_prof_line_suffix} to export list')
 
-    # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
-    st.session_state = sde.finalize_session_state(st.session_state)
 
 if __name__ == '__main__':
+
+    # Set a wide layout
+    st.set_page_config(page_title="Neighborhood Profiles",
+                       layout="wide")
+    st.title('Neighborhood Profiles')
+
+    # Run streamlit-dataframe-editor library initialization tasks at the top of the page
+    st.session_state = sde.initialize_session_state(st.session_state)
+
+    # Run Top of Page (TOP) functions
+    st.session_state = top.top_of_page_reqs(st.session_state)
+
     main()
+
+    # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
+    st.session_state = sde.finalize_session_state(st.session_state)
