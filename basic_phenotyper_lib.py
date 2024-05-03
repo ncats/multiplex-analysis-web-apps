@@ -554,6 +554,12 @@ def setup_Spatial_UMAP(df, marker_names, pheno_order, cpu_pool_size = 1):
     # default cluster values
     spatial_umap.cells['clust_label'] = 'No Cluster'
 
+    # sets flags for analysis processing
+    spatial_umap.phenotyping_completed = True
+    spatial_umap.density_completed     = False
+    spatial_umap.umap_completed        = False
+    spatial_umap.cluster_completed     = False
+
     return spatial_umap
 
 def perform_density_calc(spatial_umap, bc, cpu_pool_size = 1):
@@ -595,6 +601,8 @@ def perform_density_calc(spatial_umap, bc, cpu_pool_size = 1):
     # calculate proportions based on species counts/# cells within an arc
     spatial_umap.calc_proportions(area_threshold)
 
+    spatial_umap.density_completed = True
+
     return spatial_umap
 
 def perform_spatialUMAP(spatial_umap, bc, UMAPStyle):
@@ -625,6 +633,8 @@ def perform_spatialUMAP(spatial_umap, bc, UMAPStyle):
     print('Transforming Data')
     spatial_umap.umap_test = spatial_umap.umap_fit.transform(spatial_umap.density[spatial_umap.cells['umap_test'].values].reshape((spatial_umap.cells['umap_test'].sum(), -1)))
     bc.printElapsedTime(f'      Transforming {np.sum(spatial_umap.cells["umap_test"] == 1)} points with the model')
+
+    spatial_umap.umap_completed = True
 
     return spatial_umap
 

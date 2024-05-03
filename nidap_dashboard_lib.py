@@ -150,10 +150,10 @@ def reset_neigh_profile_settings(session_state):
         os.makedirs(session_state.checkpoint_dir)
 
     # Has the UMAP been completed yet?
-    session_state.cell_counts_completed = False
-    session_state.umapCompleted         = False
-    session_state.clustering_completed  = False
-    session_state.UMAPFigType           = 'Density'
+    session_state.density_completed = False
+    session_state.umap_completed    = False
+    session_state.cluster_completed = False
+    session_state.UMAPFigType       = 'Density'
 
     # UMAP Lineage Display
     session_state.lineageDisplayToggle = 'Phenotypes'

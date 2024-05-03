@@ -41,7 +41,7 @@ def init_spatial_umap():
     # Save checkpoint for Neighborhood Profile structure
     save_neipro_struct()
 
-    st.session_state.cell_counts_completed = True
+    st.session_state.density_completed = True
 
 def apply_umap(umap_style):
     '''
@@ -84,7 +84,7 @@ def apply_umap(umap_style):
     # st.session_state.bc.printElapsedTime(msg = 'Calculating possible clusters')
 
     st.session_state.wcss_calc_completed = True
-    st.session_state.umapCompleted = True
+    st.session_state.umap_completed = True
 
     # Create Neighborhood Profiles Object
     st.session_state.npf = NeighborhoodProfiles(bc = st.session_state.bc)
@@ -114,7 +114,7 @@ def set_clusters():
     st.session_state.bc.printElapsedTime(msg = 'Setting Clusters')
     st.session_state.bc.set_value_df('time_to_run_cluster', st.session_state.bc.elapsedTime())
 
-    st.session_state.clustering_completed = True
+    st.session_state.cluster_completed = True
 
     filter_and_plot()
 
@@ -162,7 +162,7 @@ def filter_and_plot():
     if st.session_state['idxSlide ID'] == st.session_state['numSlide ID']-1:
         st.session_state.prog_right_disabeled = True
 
-    if st.session_state.umapCompleted:
+    if st.session_state.umap_completed:
         st.session_state.spatial_umap.df_umap_filt = st.session_state.spatial_umap.df_umap.loc[st.session_state.spatial_umap.df_umap['Slide ID'] == st.session_state['selSlide ID'], :]
         if st.session_state['toggle_clust_diff']:
             palette = 'bwr'
@@ -178,6 +178,11 @@ def load_neipro_struct(file_name):
     # Load the Neighborhood Profile structure
     with open(f'{st.session_state.checkpoint_dir}/{file_name}', "rb") as dill_file:
         st.session_state.spatial_umap = dill.load(dill_file)
+
+    st.session_state.phenotyping_completed = st.session_state.spatial_umap.phenotyping_completed
+    st.session_state.density_completed     = st.session_state.spatial_umap.density_completed
+    st.session_state.umap_completed        = st.session_state.spatial_umap.umap_completed
+    st.session_state.cluster_completed     = st.session_state.spatial_umap.cluster_completed
 
 def save_neipro_struct():
     '''
@@ -223,17 +228,17 @@ def main():
             if st.session_state.phenotyping_completed:
                 init_spatial_umap()
         if umap_butt:
-            if st.session_state.cell_counts_completed:
+            if st.session_state.density_completed:
                 apply_umap(umap_style = 'Densities')
         if clust_butt:
-            if st.session_state.umapCompleted:
+            if st.session_state.umap_completed:
                 set_clusters()
         if st.session_state['toggle_clust_diff']:
             st.selectbox('Feature', options = st.session_state.outcomes, key = 'dens_diff_feat_sel')
             st.number_input('Cutoff Percentage', min_value = 0.01, max_value = 0.99, value = 0.2, step = 0.01, key = 'dens_diff_cutoff')
 
     with npf_cols[2]:
-        if st.session_state.umapCompleted:
+        if st.session_state.umap_completed:
 
             # Showing off the full UMAP
             with st.columns(3)[1]:
@@ -335,7 +340,7 @@ def main():
                         st.pyplot(fig=st.session_state.UMAPFig_mask)
                     with mor_cols[1]:
                         st.pyplot(fig=st.session_state.UMAPFig_clus)
-                    st.session_state.clustering_completed = True
+                    st.session_state.cluster_completed = True
 
                 ### Clustering Meta Analysis and Description ###
                 # with st.expander('Cluster Meta-Analysis', ):
@@ -348,17 +353,17 @@ def main():
                 #                     values exhibit greater variability of the observations within the
                 #                     cluster.''')
                 #     with wcss_cols[1]:
-                #         if st.session_state.umapCompleted:
+                #         if st.session_state.umap_completed:
                 #             elbowFig = bpl.draw_wcss_elbow_plot(st.session_state.clust_range, st.session_state.wcss, st.session_state.selected_nClus)
                 #             st.pyplot(elbowFig)
 
     if not st.session_state.phenotyping_completed:
         st.warning('Step 0: Please complete phentoyping analysis (See Phenotyping Page)', icon="⚠️")
-    elif not st.session_state.cell_counts_completed:
+    elif not st.session_state.density_completed:
         st.warning('Step 1: Please complete Cell Counts and Areas analysis', icon="⚠️")
-    elif not st.session_state.umapCompleted:
+    elif not st.session_state.umap_completed:
         st.warning('Step 2: Please run UMAP analysis', icon="⚠️")
-    elif not st.session_state.clustering_completed:
+    elif not st.session_state.cluster_completed:
         st.warning('Step 3: Please run clustering analysis', icon="⚠️")
     else:
         add_vertical_space(2)
@@ -392,7 +397,7 @@ def main():
             add_vertical_space(2)
             st.write(f'Image {st.session_state["idxSlide ID"]+1} of {st.session_state["numSlide ID"]}')
 
-        if st.session_state.umapCompleted:
+        if st.session_state.umap_completed:
             if clust_or_pheno == 'Clusters':
                 st.pyplot(st.session_state.seabornFig_clust)
             else:
@@ -442,7 +447,7 @@ def main():
                 if st.session_state['toggle_compare_clusters']:
                     sel_npf_fig2 = st.selectbox('Select a cluster to compare', list_clusters)
 
-            if st.session_state.clustering_completed:
+            if st.session_state.cluster_completed:
                 # Draw the Neighborhood Profile
                 npf_fig = bpl.neighProfileDraw(st.session_state.spatial_umap,
                                                sel_clus = sel_npf_fig,
