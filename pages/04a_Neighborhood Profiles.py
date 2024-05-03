@@ -181,21 +181,25 @@ def main():
     clust_minmax = [1, 40]
     npf_cols = st.columns([1, 1, 2])
     with npf_cols[0]:
-        dens_butt = st.button('Perform Cell Counts/Areas Analysis')
-        umap_butt = st.button('Perform UMAP Analysis')
-        st.toggle('Perform Clustering on UMAP Density Difference', value = False, key = 'toggle_clust_diff')
-        if st.session_state['toggle_clust_diff'] is False: # Run Clustering Normally
-            st.slider('Number of K-means clusters', min_value=clust_minmax[0], max_value=clust_minmax[1], key = 'slider_clus_val')
-            clust_butt_disabled = False
-        else:
-            sep_clust_cols = st.columns(2)
-            with sep_clust_cols[0]:
-                st.number_input('Number of Clusters for False Condition', min_value = 1, max_value = 10, value = 3, step = 1, key = 'num_clus_0')
-            with sep_clust_cols[1]:
-                st.number_input('Number of Clusters for True Condition', min_value = 1, max_value = 10, value = 3, step = 1, key = 'num_clus_1')
-            clust_butt_disabled = True
-        clust_butt = st.button('Perform Clustering Analysis', disabled=clust_butt_disabled)
-
+        nei_pro_tabs = st.tabs(['Analyze from Phenotyping', 'Load Previous Analysis'])
+        with nei_pro_tabs[0]:
+            dens_butt = st.button('Perform Cell Counts/Areas Analysis')
+            umap_butt = st.button('Perform UMAP Analysis')
+            st.toggle('Perform Clustering on UMAP Density Difference', value = False, key = 'toggle_clust_diff')
+            if st.session_state['toggle_clust_diff'] is False: # Run Clustering Normally
+                st.slider('Number of K-means clusters', min_value=clust_minmax[0], max_value=clust_minmax[1], key = 'slider_clus_val')
+                clust_butt_disabled = False
+            else:
+                sep_clust_cols = st.columns(2)
+                with sep_clust_cols[0]:
+                    st.number_input('Number of Clusters for False Condition', min_value = 1, max_value = 10, value = 3, step = 1, key = 'num_clus_0')
+                with sep_clust_cols[1]:
+                    st.number_input('Number of Clusters for True Condition', min_value = 1, max_value = 10, value = 3, step = 1, key = 'num_clus_1')
+                clust_butt_disabled = True
+            clust_butt = st.button('Perform Clustering Analysis', disabled=clust_butt_disabled)
+        with nei_pro_tabs[1]:
+            st.selectbox('Select Previous UMAP Results', options = ['test'], key = 'sel_prev_umap')
+            st.button('Load Selected UMAP Results')
     with npf_cols[1]:
         if dens_butt:
             if st.session_state.phenotyping_completed:
