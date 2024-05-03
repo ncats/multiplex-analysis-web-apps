@@ -170,18 +170,31 @@ def filter_and_plot():
             palette = 'tab20'
         st.session_state = ndl.setFigureObjs_UMAP(st.session_state, palette = palette)
 
+def list_checkpoint_files():
+    '''
+    Function to list the checkpoint files
+    '''
+
+    st.session_state.checkpoint_files = os.listdir(st.session_state.checkpoint_dir)
+
+def load_neipro_struct(file_name):
+    '''
+    Function to load the neighborhood profile structure
+    '''
+
+    # Load the Neighborhood Profile structure
+    with open(f'{st.session_state.checkpoint_dir}/{file_name}', "rb") as dill_file:
+        st.session_state.spatial_umap = dill.load(dill_file)
+
 def save_neipro_struct():
     '''
     Function to save the neighborhood profile structure
     '''
 
-    checkpointdir = 'output/checkpoints/neighborhood_profiles'
-    if not os.path.exists(checkpointdir):
-        os.makedirs(checkpointdir)
+    file_name = f'neighborhood_profiles_checkpoint_{datetime.datetime.now().strftime("%d-%m-%Y %H-%M")}'
     # Save the Neighborhood Profile structure
-    with open(f'{checkpointdir}/neighborhood_profiles_checkpoint_{datetime.datetime.now().strftime("%d-%m-%Y %H-%M")}', "wb") as dill_file:
+    with open(f'{st.session_state.checkpoint_dir}/{file_name}', "wb") as dill_file:
         dill.dump(st.session_state.spatial_umap, dill_file)
-
 
 def main():
     '''
@@ -222,7 +235,7 @@ def main():
             clust_butt = st.button('Perform Clustering Analysis', disabled=clust_butt_disabled)
         with nei_pro_tabs[1]:
             st.selectbox('Select Previous UMAP Results', options = ['test'], key = 'sel_prev_umap')
-            st.button('Load Selected UMAP Results')
+            st.button('Load Selected UMAP Results', on_click=load_neipro_struct, args = (st.session_state.sel_prev_umap,))
             add_vertical_space(12)
     with npf_cols[1]:
         if dens_butt:
