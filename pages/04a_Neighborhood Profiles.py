@@ -1,9 +1,12 @@
 '''
 This is the python script which produces the NEIGHBORHOOD PROFILES PAGE
 '''
+import os
+import datetime
 from copy import copy
 import streamlit as st
 import numpy as np
+import dill
 from streamlit_extras.add_vertical_space import add_vertical_space
 
 # Import relevant libraries
@@ -34,6 +37,9 @@ def init_spatial_umap():
 
     # Record time elapsed
     st.session_state.bc.set_value_df('time_to_run_counts', st.session_state.bc.elapsedTime())
+
+    # Save checkpoint for Neighborhood Profile structure
+    save_neipro_struct()
 
     st.session_state.cell_counts_completed = True
 
@@ -87,6 +93,10 @@ def apply_umap(umap_style):
     st.session_state.udp_full = UMAPDensityProcessing(st.session_state.npf, st.session_state.spatial_umap.df_umap)
     st.session_state.UMAPFig = st.session_state.udp_full.UMAPdraw_density()
 
+    # Save checkpoint for Neighborhood Profile structure
+    save_neipro_struct()
+
+    # Plot results
     filter_and_plot()
 
 def set_clusters():
@@ -160,6 +170,19 @@ def filter_and_plot():
             palette = 'tab20'
         st.session_state = ndl.setFigureObjs_UMAP(st.session_state, palette = palette)
 
+def save_neipro_struct():
+    '''
+    Function to save the neighborhood profile structure
+    '''
+
+    checkpointdir = 'output/checkpoints/neighborhood_profiles'
+    if not os.path.exists(checkpointdir):
+        os.makedirs(checkpointdir)
+    # Save the Neighborhood Profile structure
+    with open(f'{checkpointdir}/neighborhood_profiles_checkpoint_{datetime.datetime.now().strftime("%d-%m-%Y %H-%M")}', "wb") as dill_file:
+        dill.dump(st.session_state.spatial_umap, dill_file)
+
+
 def main():
     '''
     Main function for running the page
@@ -200,6 +223,7 @@ def main():
         with nei_pro_tabs[1]:
             st.selectbox('Select Previous UMAP Results', options = ['test'], key = 'sel_prev_umap')
             st.button('Load Selected UMAP Results')
+            add_vertical_space(12)
     with npf_cols[1]:
         if dens_butt:
             if st.session_state.phenotyping_completed:
