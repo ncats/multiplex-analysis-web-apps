@@ -4,6 +4,7 @@ that supports the types of analysis activities needed by the
 NCI researchers with their data on NIDAP.
 '''
 
+import os
 import time
 import numpy as np
 import pandas as pd
@@ -142,6 +143,11 @@ def reset_neigh_profile_settings(session_state):
     '''
 
     print('Resetting Neighborhood Profiles Analysis Settings')
+
+    # Define the checkpoint directory
+    session_state.checkpoint_dir = './output/checkpoints/neighborhood_profiles'
+    if not os.path.exists(session_state.checkpoint_dir):
+        os.makedirs(session_state.checkpoint_dir)
 
     # Has the UMAP been completed yet?
     session_state.cell_counts_completed = False
