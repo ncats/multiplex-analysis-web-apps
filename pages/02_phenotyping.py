@@ -73,10 +73,10 @@ def filter_and_plot():
         st.session_state.prog_right_disabeled = True
 
     # Filtered dataset
-    st.session_state.df_filt = ndl.perform_filtering(st.session_state)
+    df_filt = ndl.perform_filtering(st.session_state)
 
     # Update and reset Figure Objects
-    st.session_state = ndl.setFigureObjs(st.session_state)
+    st.session_state = ndl.setFigureObjs(st.session_state, df_filt)
 
 def marker_multiselect_callback():
     '''
@@ -233,7 +233,7 @@ def main():
         st.dataframe(st.session_state.pheno_summ, use_container_width=True)
 
         # Prepare for Exporting
-        st.session_state.df_update = st.session_state.df.drop(['mark_bits', 'species_name_long', 'species_name_short'], axis=1)
+        df_update = st.session_state.df.drop(['mark_bits', 'species_name_long', 'species_name_short'], axis=1)
 
         phen_summ_cols = st.columns([2, 1])
         with phen_summ_cols[0]:
@@ -253,7 +253,7 @@ def main():
         with updated_df_cols[1]:
             add_vertical_space(2)
             if st.button('Append Export List', key = 'appendexportbutton_updateddf__do_not_persist'):
-                ndl.save_csv(st.session_state.df_update, st.session_state.df_update_filename_U)
+                ndl.save_csv(df_update, st.session_state.df_update_filename_U)
                 st.toast(f'Added {st.session_state.df_update_filename_U} to export list ')
 
     # First column on the page
