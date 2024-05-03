@@ -170,13 +170,6 @@ def filter_and_plot():
             palette = 'tab20'
         st.session_state = ndl.setFigureObjs_UMAP(st.session_state, palette = palette)
 
-def list_checkpoint_files():
-    '''
-    Function to list the checkpoint files
-    '''
-
-    st.session_state.checkpoint_files = os.listdir(st.session_state.checkpoint_dir)
-
 def load_neipro_struct(file_name):
     '''
     Function to load the neighborhood profile structure
@@ -221,7 +214,8 @@ def main():
                 clust_butt_disabled = True
             clust_butt = st.button('Perform Clustering Analysis', disabled=clust_butt_disabled)
         with nei_pro_tabs[1]:
-            st.selectbox('Select Previous UMAP Results', options = ['test'], key = 'sel_prev_umap')
+            neipro_checkpoint_files = os.listdir(st.session_state.checkpoint_dir)
+            st.selectbox('Select Previous UMAP Results', options = neipro_checkpoint_files, key = 'sel_prev_umap')
             st.button('Load Selected UMAP Results', on_click=load_neipro_struct, args = (st.session_state.sel_prev_umap,))
             add_vertical_space(12)
     with npf_cols[1]:
