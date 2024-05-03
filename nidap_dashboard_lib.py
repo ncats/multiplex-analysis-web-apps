@@ -261,12 +261,12 @@ def loadDataButton(session_state, df_import, projectName, fileName):
 
     # Perform Filtering
     session_state.bc.startTimer()
-    session_state.df_filt = perform_filtering(session_state)
+    df_plot = perform_filtering(session_state)
     # session_state.bc.printElapsedTime(msg = 'Performing Filtering')
 
     # Set Figure Objects
     session_state.bc.startTimer()
-    session_state = setFigureObjs(session_state)
+    session_state = setFigureObjs(session_state, df_plot)
     session_state.pointstSliderVal_Sel = session_state.calcSliderVal
     # session_state.bc.printElapsedTime(msg = 'Setting Figure Objects')
 
@@ -341,10 +341,10 @@ def updatePhenotyping(session_state):
     session_state.pheno_summ = bpl.init_pheno_summ(session_state.df)
 
     # Filtered dataset
-    session_state.df_filt = perform_filtering(session_state)
+    df_plot = perform_filtering(session_state)
 
     # Update and reset Figure Objects
-    session_state = setFigureObjs(session_state)
+    session_state = setFigureObjs(session_state, df_plot)
 
     return session_state
 
@@ -414,10 +414,10 @@ def init_filter_struct(session_state, SEL_feat, CHK_feat):
     CHKdict = dict()
 
     for key in SEL_feat:
-        SELdict['{}'.format(key)] = session_state[eval('"sel" + key')]
+        SELdict[f'{key}'] = session_state[eval('"sel" + key')]
 
     for key in CHK_feat:
-        CHKdict['{}'.format(key)] = session_state[eval('"sel" + key')]
+        CHKdict[f'{key}'] = session_state[eval('"sel" + key')]
 
     session_state.SELdict = SELdict
     session_state.CHKdict = CHKdict
@@ -480,7 +480,7 @@ def export_results_dataset(fiol, df, path, filename, saveCompass=False, type = '
     """
     fiol.export_results_dataset(df, path, filename, saveCompass, type)
 
-def setFigureObjs(session_state, InSliderVal = None):
+def setFigureObjs(session_state, df_plot, InSliderVal = None):
     """
     Organize Figure Objects to be used in plotting
     """
@@ -492,15 +492,11 @@ def setFigureObjs(session_state, InSliderVal = None):
     session_state.phenoOrder = list(session_state.pheno_summ.loc[session_state.pheno_summ['phenotype_count'].index, 'phenotype'])
 
     # num_points
-    targCellCount = 150000
-    df_plot = session_state.df_filt.copy()
+    targ_cell_count = 150000
 
-    # minXY = df_plot[['Cell X Position', 'Cell Y Position']].min()-1
-    # maxXY = df_plot[['Cell X Position', 'Cell Y Position']].max()+1
-
-    num_points = session_state.df_filt.shape[0]
-    if (num_points > targCellCount) & (InSliderVal is None):
-        n = targCellCount
+    num_points = df_plot.shape[0]
+    if (num_points > targ_cell_count) & (InSliderVal is None):
+        n = targ_cell_count
 
         calc_slider_val = int(np.ceil(100*n/num_points))
         df_plot = df_plot.sample(n)
