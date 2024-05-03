@@ -233,7 +233,7 @@ def main():
         st.dataframe(st.session_state.pheno_summ, use_container_width=True)
 
         # Prepare for Exporting
-        st.session_state.df_update = st.session_state.df.copy().drop(['mark_bits', 'species_name_long', 'species_name_short'], axis=1)
+        st.session_state.df_update = st.session_state.df.drop(['mark_bits', 'species_name_long', 'species_name_short'], axis=1)
 
         phen_summ_cols = st.columns([2, 1])
         with phen_summ_cols[0]:
