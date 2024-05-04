@@ -9,6 +9,7 @@ import pickle
 import dill
 import os
 import utils
+import time
 
 # For each custom class, add a key-value pair where the class is the key and the value is a list of picklable attributes of that class. Only do this if the size of that attribute can be larger than 1 MB, which you can assess by using this app. See possible classes (at least as of 5/1/24) in the get_object_class function below, which is not used right now
 picklable_attributes_per_class = {
@@ -368,6 +369,9 @@ def main():
     if st.button('Save objects in the session state to disk using pickle and dill'):
 
         # This whole block is as fast as it can be
+
+        start_time = time.time()
+
     
         # Initialize the memory usage series so this is the only function that iterates through the keys in the session state; the rest iterate over the index in ser_memory_usage_in_mb
         ser_memory_usage_in_mb = initialize_memory_usage_series(saved_streamlit_session_state_key=saved_streamlit_session_state_key)  # fast
@@ -386,6 +390,9 @@ def main():
 
         # Recombine the data attribute with the dataset_formats objects
         recombine_picklable_attributes_with_custom_object(ser_memory_usage_in_mb, update_memory_usage=False)  # fast
+
+
+        st.write(f'Time to save objects in the session state to disk using pickle and dill: {time.time() - start_time:.2f} seconds')
 
 
 # Run the main function

@@ -9,6 +9,7 @@ import streamlit_dataframe_editor as sde
 import streamlit_dataframe_editor
 import utils
 from pympler import asizeof
+import time
 
 
 def pickle_dump(dict_to_save, filename):
@@ -48,6 +49,9 @@ def save_session_state(saved_streamlit_session_states_dir, saved_streamlit_sessi
     Returns:
         None
     """
+
+    start_time = time.time()
+
 
     # Print what we're doing
     print('Saving session state...')
@@ -92,6 +96,10 @@ def save_session_state(saved_streamlit_session_states_dir, saved_streamlit_sessi
     message = f'{utils.get_timestamp(pretty=True)}: State saved to {filename}, which is {os.path.getsize(filename) / 1024 ** 2:.2f} MB'
     print(message)
     st.success(message)
+
+
+    print(f'Time taken to save session state: {time.time() - start_time:.2f} seconds')
+
 
 def load_session_state(saved_streamlit_session_states_dir, saved_streamlit_session_state_prefix='streamlit_session_state-', saved_streamlit_session_state_key='session_selection', selected_session=None):
     """
