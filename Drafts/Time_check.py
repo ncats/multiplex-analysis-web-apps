@@ -21,7 +21,8 @@ def timer(func):
 
 os.getcwd()
 
-os.chdir("/Users/bombina2/github/multiplex-analysis-web-apps/")
+#os.chdir("/Users/bombina2/github/multiplex-analysis-web-apps/")
+os.chdir("/home/abombin/Mawa/multiplex-analysis-web-apps")
 
 adata = sc.read("input/clust_dat.h5ad")
 
