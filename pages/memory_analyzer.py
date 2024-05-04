@@ -4,9 +4,12 @@ import app_top_of_page as top
 import streamlit_dataframe_editor as sde
 import pandas as pd
 from pympler import asizeof
+import numpy as np
 
-# For each custom class, add a key-value pair where the class is the key and the value is a list of picklable attributes of that class. Only do this is the size of that attribute can be larger than 1 MB, which you can assess by using this app
-picklable_attributes_per_class = {'dataset_formats.Standardized': ['data']}  # see possible classes (at least as of 5/1/24 in the get_object_class function, which is not used right now)
+# For each custom class, add a key-value pair where the class is the key and the value is a list of picklable attributes of that class. Only do this if the size of that attribute can be larger than 1 MB, which you can assess by using this app. See possible classes (at least as of 5/1/24) in the get_object_class function below, which is not used right now
+picklable_attributes_per_class = {
+    'dataset_formats.Standardized': ['data']
+    }
 
 # Constant
 bytes_to_mb = 1024 ** 2
@@ -14,7 +17,7 @@ bytes_to_mb = 1024 ** 2
 
 def get_object_class(value):
 
-    # No longer actually used as of 20240502_1706
+    # No longer actually used as of 20240502_1706. However, it still lists all the custom classes that are used/present in MAWA. Note that isinstance() doesn't work reliably, so we really need to convert the dtype to a string, which we do elsewhere in this script.
 
     import neighbors_counts_for_neighborhood_profiles as custom_module__neighbors_counts_for_neighborhood_profiles
     import benchmark_collector as custom_module__benchmark_collector
@@ -56,28 +59,53 @@ def get_object_class(value):
     return class_str
 
 
-def initialize_memory_usage_series(saved_streamlit_session_state_key='session_selection'):
+def recombine_picklable_attributes_with_custom_object(memory_usage_in_mb):
 
-    # Initialize a holder for the selected keys in the session state
-    key_holder = []
+    # This is fast except when asizeof is called, which should be infrequent.
 
-    # For every item in the session state...
-    for key in st.session_state:
+    # Initialize a list of main objects to which we will set the picklable attributes
+    main_objects = []
 
-        # If the current key is like '__do_not_persist' or 'FormSubmitter:' or if we're looking at the saved_streamlit_session_state_key, then skip. Otherwise, store the key in the key_holder list
-        if (not key.endswith('__do_not_persist')) and (not key.startswith('FormSubmitter:')) and (key != saved_streamlit_session_state_key):
-            key_holder.append(key)
+    # For every item in memory_usage_in_mb...
+    for key in memory_usage_in_mb.index:
 
-    # Create a series with the keys as the index and the default value of None
-    memory_usage_in_mb = pd.Series(None, index=key_holder)
+        # If the key is a separately-saved data attribute, then recombine it with the corresponding object
+        if key.startswith('memory_analyzer__'):
 
-    # Return the series
+            # Get the key of the object with which we want to recombine the picklable attribute
+            key_of_object = key.removeprefix('memory_analyzer__key_').split('_class_')[0]
+
+            # Get the name of the picklable attribute
+            attribute_name = key.split('_attribute_')[-1]
+
+            # Make sure the key of the object exists in the session state
+            assert key_of_object in st.session_state, f'Key {key_of_object} does not exist in the session state, so we cannot recombine the {attribute_name} attribute with its corresponding object.'
+
+            # Recombine the data attribute with the object
+            setattr(st.session_state[key_of_object], attribute_name, st.session_state[key])
+
+            # Delete the separately-saved data attribute
+            del st.session_state[key]
+
+            # Delete the memory usage of the separately-saved data attribute
+            memory_usage_in_mb.drop(key, inplace=True)
+
+            # Store the current main object
+            main_objects.append(key_of_object)
+
+    # For every main object...
+    for main_object in list(set(main_objects)):
+            
+        # Store the memory usage of the current object
+        memory_usage_in_mb[main_object] = asizeof.asizeof(st.session_state[main_object]) / bytes_to_mb
+
+    # Return the updated memory usage series
     return memory_usage_in_mb
 
 
 def split_off_picklable_attributes_from_custom_object(memory_usage_in_mb):
 
-    # See comments elsewhere in this file but point is that for keys: (1) in st.session_state, (2) are large, and (3) are custom, we have problems
+    # See comments elsewhere in this file but point is that for keys that are: (1) in st.session_state, (2) large, and (3) custom, we have problems.
     
     # This is only done when the object is "large" (> 1 MB).
     
@@ -121,114 +149,7 @@ def split_off_picklable_attributes_from_custom_object(memory_usage_in_mb):
     return memory_usage_in_mb
 
 
-def recombine_picklable_attributes_with_custom_object(memory_usage_in_mb):
-
-    # This is fast except when asizeof is called, which should be infrequent.
-
-    # Initialize a list of main objects to which we will set the picklable attributes
-    main_objects = []
-
-    # For every item in memory_usage_in_mb...
-    for key in memory_usage_in_mb.index:
-
-        # If the key is a separately-saved data attribute, then recombine it with the corresponding object
-        if key.startswith('memory__analyzer'):
-
-            # Get the key of the object with which we want to recombine the picklable attribute
-            key_of_object = key.removeprefix('memory__analyzer__key_').split('_class_')[0]
-
-            # Get the name of the picklable attribute
-            attribute_name = key.split('_attribute_')[-1]
-
-            # Make sure the key of the object exists in the session state
-            assert key_of_object in st.session_state, f'Key {key_of_object} does not exist in the session state, so we cannot recombine the {attribute_name} attribute with its corresponding object.'
-
-            # Recombine the data attribute with the object
-            setattr(st.session_state[key_of_object], attribute_name, st.session_state[key])
-
-            # Delete the separately-saved data attribute
-            del st.session_state[key]
-
-            # Delete the memory usage of the separately-saved data attribute
-            memory_usage_in_mb.drop(key, inplace=True)
-
-            # Store the current main object
-            main_objects.append(key_of_object)
-
-    # For every main object...
-    for main_object in list(set(main_objects)):
-            
-        # Store the memory usage of the current object
-        memory_usage_in_mb[main_object] = asizeof.asizeof(st.session_state[main_object]) / bytes_to_mb
-
-    # Return the updated memory usage series
-    return memory_usage_in_mb
-
-
-def get_session_state_object_info(memory_usage_in_mb, return_val=None, write_dataframe=False):
-
-    # This is generally slow because asizeof is slow for large dataframes. However, if memory_usage_in_mb is not None, then that function is not called and therefore this function is much faster.
-
-    # If we don't want to return anything from this function, then we must mean we want to write the dataframe to the screen (and note that therefore we need to calculate everything in the dataframe)
-    if not return_val:
-        write_dataframe = True
-    
-    # Initialize some of the dataframe columns
-    key_holder = []
-    if write_dataframe:
-        type_holder2 = []
-    size_holder = []
-
-    # For every item in memory_usage_in_mb, save the key, type, and size of the current object
-    for key in memory_usage_in_mb.index:
-        key_holder.append(key)
-        if write_dataframe:
-            type_holder2.append(str(type(st.session_state[key])))
-        if memory_usage_in_mb[key]:
-            size_holder.append(memory_usage_in_mb[key])
-        else:
-            size_holder.append(asizeof.asizeof(st.session_state[key]) / bytes_to_mb)  # note this is slow
-
-    # Create a dataframe from these data, sorting by decreasing size
-    if write_dataframe:
-        df_ss_object_info = pd.DataFrame({'key': key_holder, 'type': type_holder2, 'size_mb': size_holder}).sort_values(by='size_mb', ascending=False)
-    else:
-        df_ss_object_info = pd.DataFrame({'key': key_holder, 'size_mb': size_holder}).sort_values(by='size_mb', ascending=False)
-
-    # Assess whether the current object is the same as the previous object
-    if write_dataframe:
-        ser_is_same_as_above, ser_comparison_string = assess_whether_same_object(df_ss_object_info)
-
-    # Determine whether the key should be saved with pickle (large objects of "native" dtypes) or dill (small objects of any dtype)
-    ser_pickle_or_dill = df_ss_object_info['size_mb'].apply(lambda x: 'pickle' if x > 1 else 'dill')  # this takes trivial time so we'll always do it even though we don't need to if return_val == 'memory'
-    ser_pickle_or_dill.name = 'pickle_or_dill'
-
-    # Add the resulting three columns to the informational dataframe
-    if write_dataframe:
-        df_ss_object_info = pd.concat([df_ss_object_info, ser_is_same_as_above, ser_comparison_string, ser_pickle_or_dill], axis='columns')
-    else:
-        df_ss_object_info = pd.concat([df_ss_object_info, ser_pickle_or_dill], axis='columns')
-
-    # Check that no rows were added during the concatenation
-    if write_dataframe:
-        assert len(df_ss_object_info) == len(ser_is_same_as_above) == len(ser_comparison_string) == len(ser_pickle_or_dill), f'Lengths of dataframes (df_to_write: {len(df_ss_object_info)}, ser_is_same_as_above: {len(ser_is_same_as_above)}, ser_comparison_string: {len(ser_comparison_string)}, ser_pickle_or_dill: {len(ser_pickle_or_dill)}) do not match.'
-    else:
-        assert len(df_ss_object_info) == len(ser_pickle_or_dill), f'Lengths of dataframes (df_to_write: {len(df_ss_object_info)}, ser_pickle_or_dill: {len(ser_pickle_or_dill)}) do not match.'
-
-    # Write the dataframe to the screen if desired
-    if write_dataframe:
-        st.dataframe(df_ss_object_info)
-
-    # Return the desired value, if any
-    if return_val == 'memory':
-        return df_ss_object_info.set_index('key')['size_mb']
-    elif return_val == 'serialization library':
-        return df_ss_object_info.set_index('key')['pickle_or_dill']
-
-
 def assess_whether_same_object(df):
-    # Note that if everything is commented out except for `return df`, the same number of session state keys exists, but instead all are "keys that would actually be saved" and there are none that "would not actually be saved." This is true for calls below like `df_do_not_save = assess_whether_same_object(df_do_not_save)` and `df_do_save = assess_whether_same_object(df_do_save)`. Makse no sense to me. Same goes if I merely instead say `df_do_not_save = df_do_not_save` and `df_do_save = df_do_save`.
-    # Maybe this won't happen anymore since I'm just creating a separate series so I'm not modifying df in any way
 
     # String to indicate that the previous is not the same as the current
     different_string = 'Nothing is the same as above'
@@ -275,6 +196,86 @@ def assess_whether_same_object(df):
     return ser_is_same_as_above, ser_comparison_string
 
 
+def get_session_state_object_info(memory_usage_in_mb, return_val=None, write_dataframe=False):
+
+    # This is generally slow because asizeof is slow for large dataframes. However, if the elements in memory_usage_in_mb are not None, then that function is not called and therefore this function is much faster.
+
+    # If we don't want to return anything from this function, then we must mean we want to write the dataframe to the screen (and note that therefore we need to calculate everything in the dataframe)
+    if not return_val:
+        write_dataframe = True
+    
+    # Initialize some of the dataframe columns
+    key_holder = []
+    if write_dataframe:
+        type_holder2 = []
+    size_holder = []
+
+    # For every item in memory_usage_in_mb, save the key, type, and size of the current object
+    for key in memory_usage_in_mb.index:
+        key_holder.append(key)
+        if write_dataframe:
+            type_holder2.append(str(type(st.session_state[key])))
+        if not np.isnan(memory_usage_in_mb[key]):
+            size_holder.append(memory_usage_in_mb[key])
+        else:
+            size_holder.append(asizeof.asizeof(st.session_state[key]) / bytes_to_mb)  # note this is slow
+
+    # Create a dataframe from these data, sorting by decreasing size
+    if write_dataframe:
+        df_ss_object_info = pd.DataFrame({'key': key_holder, 'type': type_holder2, 'size_mb': size_holder}).sort_values(by='size_mb', ascending=False)
+    else:
+        df_ss_object_info = pd.DataFrame({'key': key_holder, 'size_mb': size_holder}).sort_values(by='size_mb', ascending=False)
+
+    # Assess whether the current object is the same as the previous object
+    if write_dataframe:
+        ser_is_same_as_above, ser_comparison_string = assess_whether_same_object(df_ss_object_info)
+
+    # Determine whether the key should be saved with pickle (large objects of "native" dtypes) or dill (small objects of any dtype)
+    ser_pickle_or_dill = df_ss_object_info['size_mb'].apply(lambda x: 'pickle' if x > 1 else 'dill')  # this takes trivial time so we'll always do it even though we don't need to if return_val == 'memory'
+    ser_pickle_or_dill.name = 'pickle_or_dill'
+
+    # Add the resulting three columns to the informational dataframe
+    if write_dataframe:
+        df_ss_object_info = pd.concat([df_ss_object_info, ser_is_same_as_above, ser_comparison_string, ser_pickle_or_dill], axis='columns')
+    else:
+        df_ss_object_info = pd.concat([df_ss_object_info, ser_pickle_or_dill], axis='columns')
+
+    # Check that no rows were added during the concatenation
+    if write_dataframe:
+        assert len(df_ss_object_info) == len(ser_is_same_as_above) == len(ser_comparison_string) == len(ser_pickle_or_dill), f'Lengths of dataframes (df_to_write: {len(df_ss_object_info)}, ser_is_same_as_above: {len(ser_is_same_as_above)}, ser_comparison_string: {len(ser_comparison_string)}, ser_pickle_or_dill: {len(ser_pickle_or_dill)}) do not match.'
+    else:
+        assert len(df_ss_object_info) == len(ser_pickle_or_dill), f'Lengths of dataframes (df_to_write: {len(df_ss_object_info)}, ser_pickle_or_dill: {len(ser_pickle_or_dill)}) do not match.'
+
+    # Write the dataframe to the screen if desired
+    if write_dataframe:
+        st.dataframe(df_ss_object_info)
+
+    # Return the desired value, if any
+    if return_val == 'memory':
+        return df_ss_object_info.set_index('key')['size_mb']
+    elif return_val == 'serialization library':
+        return df_ss_object_info.set_index('key')['pickle_or_dill']
+
+
+def initialize_memory_usage_series(saved_streamlit_session_state_key='session_selection'):
+
+    # Initialize a holder for the selected keys in the session state
+    key_holder = []
+
+    # For every item in the session state...
+    for key in st.session_state:
+
+        # If the current key is like '__do_not_persist' or 'FormSubmitter:' or if we're looking at the saved_streamlit_session_state_key, then skip. Otherwise, store the key in the key_holder list
+        if (not key.endswith('__do_not_persist')) and (not key.startswith('FormSubmitter:')) and (key != saved_streamlit_session_state_key):
+            key_holder.append(key)
+
+    # Create a series with the keys as the index and the default value of None, which gets converted to np.nan when the series is created
+    memory_usage_in_mb = pd.Series(None, index=key_holder)
+
+    # Return the series
+    return memory_usage_in_mb
+
+
 def write_session_state_to_disk():
 
     # Split off the data attribute from the dataset_formats objects in the session state
@@ -299,25 +300,31 @@ def main():
 
     # The idea is that pickle cannot generally pickle objects from custom classes so we want to use dill for that. However, dill is much slower for large data structures such as large pandas dataframes, which are supported by pickle. Therefore, we want to use pickle for large "native" objects and use dill for everything else. Therefore we need to know both the type and size of each object and save the small ones using dill and save the large ones using pickle. However, sometimes there are large objects that are of custom classes, which we can't save using pickle. Therefore, we need to save the data attribute of such objects separately and then delete the data attribute from the object before saving the object using pickle. Upon loading the object, we need to check for the existence of the separately-saved data attribute and re-combine it with the object.
 
-    memory_usage_in_mb = initialize_memory_usage_series()
+    # The one parameter
+    saved_streamlit_session_state_key = 'session_selection'
+    
+    if st.button('Analyze memory usage of relevant objects in the session state'):
+    
+        # Initialize the memory usage series so this is the only function that iterates through the keys in the session state; the rest iterate over the index in memory_usage_in_mb
+        memory_usage_in_mb = initialize_memory_usage_series(saved_streamlit_session_state_key=saved_streamlit_session_state_key)
 
-    # Write the session state object information to screen
-    st.write('Initial session state object information:')
-    memory_usage_in_mb = get_session_state_object_info(return_val='memory', write_dataframe=True)
+        # Calculate the memory used by every object and write the session state object information to screen
+        st.write(f'Initial session state object information ({len(memory_usage_in_mb)} relevant objects):')
+        memory_usage_in_mb = get_session_state_object_info(memory_usage_in_mb, return_val='memory', write_dataframe=True)
 
-    # Split off the data attribute from the dataset_formats objects
-    memory_usage_in_mb = split_off_picklable_attributes_from_custom_object(memory_usage_in_mb)
+        # Split off the data attribute from the dataset_formats objects
+        memory_usage_in_mb = split_off_picklable_attributes_from_custom_object(memory_usage_in_mb)
 
-    # Write the session state object information to screen
-    st.write('Session state object information after splitting off data attributes from dataset_formats objects:')
-    get_session_state_object_info(write_dataframe=True)
+        # Write the session state object information to screen
+        st.write(f'Session state object information after splitting off picklable attributes from large custom objects ({len(memory_usage_in_mb)} relevant objects):')
+        get_session_state_object_info(memory_usage_in_mb, return_val=None, write_dataframe=True)
 
-    # Recombine the data attribute with the dataset_formats objects
-    recombine_picklable_attributes_with_custom_object()
+        # Recombine the data attribute with the dataset_formats objects
+        memory_usage_in_mb = recombine_picklable_attributes_with_custom_object(memory_usage_in_mb)
 
-    # Write the session state object information to screen
-    st.write('Session state object information after recombining data attributes with dataset_formats objects:')
-    get_session_state_object_info(write_dataframe=True)
+        # Write the session state object information to screen
+        st.write(f'Session state object information after recombining picklable attributes with custom objects ({len(memory_usage_in_mb)} relevant objects):')
+        get_session_state_object_info(memory_usage_in_mb, return_val=None, write_dataframe=True)
 
 
 # Run the main function
