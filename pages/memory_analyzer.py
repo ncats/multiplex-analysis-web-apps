@@ -64,7 +64,20 @@ def get_object_class(value):
     return class_str
 
 
-def serialize_dict(dict_to_save, filepath, serialization_lib, output_func=print, calculate_size_in_mem=False):
+def deserialize_file_to_dict(filepath, serialization_lib, output_func=print, calculate_size_in_mem=False):
+    # This is as fast as can be as long as calculate_size_in_mem == False
+    with open(filepath, 'rb') as f:
+        dict_to_load = serialization_lib.load(f)
+    if calculate_size_in_mem:
+        predicted_size_in_mb = asizeof.asizeof(dict_to_load) / bytes_to_mb
+    else:
+        predicted_size_in_mb = 0
+    actual_size_in_mb = os.path.getsize(filepath) / bytes_to_mb
+    output_func(f'Loading dict_to_load from {filepath} (which is {actual_size_in_mb} MB) of predicted size {predicted_size_in_mb:.2f} MB using serialization library `{serialization_lib}`')
+    return dict_to_load
+
+
+def serialize_dict_to_file(dict_to_save, filepath, serialization_lib, output_func=print, calculate_size_in_mem=False):
     # This is as fast as can be as long as calculate_size_in_mem == False and dict_to_save contains objects of types that are quickly dumped depending on the serialization library, which is the point of this module
     if calculate_size_in_mem:
         predicted_size_in_mb = asizeof.asizeof(dict_to_save) / bytes_to_mb
@@ -73,13 +86,58 @@ def serialize_dict(dict_to_save, filepath, serialization_lib, output_func=print,
     output_func(f'Saving dict_to_save ({len(dict_to_save)} objects) to {filepath} using serialization library `{serialization_lib}`. This should take around {predicted_size_in_mb:.2f} MB...', end='', flush=True)
     with open(filepath, 'wb') as f:
         serialization_lib.dump(dict_to_save, f)
-        actual_size_in_mb = os.path.getsize(filepath) / bytes_to_mb
+    actual_size_in_mb = os.path.getsize(filepath) / bytes_to_mb
     output_func(f' {actual_size_in_mb:.2f} MB saved, which is {actual_size_in_mb - predicted_size_in_mb:.2f} MB larger than the predicted size.')
+
+
+def load_session_state_from_disk(saved_streamlit_session_states_dir, saved_streamlit_session_state_prefix='streamlit_session_state-', saved_streamlit_session_state_key='session_selection', selected_session=None):
+
+    # This essentially replaces streamlit_session_state_management.load_session_state()
+
+    # This is fast as can be
+
+    # Print what we're doing
+    print('Loading session state...')
+
+    # Get the selected session basename to load
+    if selected_session is None:
+        selected_session = st.session_state[saved_streamlit_session_state_key]
+
+    # If no session file was explicitly input and if no session files exist, do nothing
+    if selected_session is None:
+        st.warning(f'{utils.get_timestamp(pretty=True)}: No session state files exist so none were loaded')
+        return
+
+    # Choose one of the selected sessions... if not a manually input one (nominally the most recent), then the one selected in the session state file selection dropdown
+    filepath_without_extension = os.path.join(saved_streamlit_session_states_dir, saved_streamlit_session_state_prefix + selected_session)
+
+    # Delete every key in the current session state except for the selected session
+    for key in st.session_state.keys():
+        if key != saved_streamlit_session_state_key:
+            del st.session_state[key]
+
+    # Load the state (as a dictionary) from the binary files
+    pickle_dict = deserialize_file_to_dict(filepath_without_extension + '.pickle', pickle)
+    dill_dict = deserialize_file_to_dict(filepath_without_extension + '.dill', dill)
+
+    # Check that there is no key overlap between the pickle and dill dictionaries since we're about to combine them
+    assert not set(pickle_dict.keys()) & set(dill_dict.keys()), f'There is a key overlap of keys between the pickle and dill dictionaries: {set(pickle_dict.keys()) & set(dill_dict.keys())}'
+
+    # Combine the two dictionaries into one
+    session_dict = {**pickle_dict, **dill_dict}
+
+    # Load each key-value pair individually into session_state
+    for key, value in session_dict.items():
+        print(f'Loading {key} of type {type(value)}')
+        st.session_state[key] = value
+
+    # Output a success message
+    print(f'{utils.get_timestamp(pretty=True)}: State loaded from {filepath_without_extension}.pickle/.dill, which is {os.path.getsize(filepath_without_extension) / 1024 ** 2:.2f} MB')
 
 
 def write_session_state_to_disk(ser_serialization_lib, saved_streamlit_session_states_dir, saved_streamlit_session_state_prefix='streamlit_session_state-'):
 
-    # This essentially replaces streamlit_session_state_management.save_session_state()
+    # This essentially replaces streamlit_session_state_management.save_session_state()... well probably use entire button block in main() function below
 
     # Print what we're doing
     print('Saving session state...')
@@ -92,14 +150,14 @@ def write_session_state_to_disk(ser_serialization_lib, saved_streamlit_session_s
 
     # Save large, picklable objects to disk using pickle, which is faster than dill for large objects. At this point, all large objects have necessarily been made picklable using the functionality in this script
     pickle_dict = {key: st.session_state[key] for key in ser_serialization_lib[ser_serialization_lib == 'pickle'].index}
-    serialize_dict(pickle_dict, filepath_without_extension + '.pickle', pickle)
+    serialize_dict_to_file(pickle_dict, filepath_without_extension + '.pickle', pickle)
 
     # Save small objects to disk using dill, which can serialize custom objects but is slow for large objects. At this point, all custom objects have been made small enough to be saved efficiently using dill using the functionality in this script
     dill_dict = {key: st.session_state[key] for key in ser_serialization_lib[ser_serialization_lib == 'dill'].index}
-    serialize_dict(dill_dict, filepath_without_extension + '.dill', dill)
+    serialize_dict_to_file(dill_dict, filepath_without_extension + '.dill', dill)
 
     # Output a success message
-    print(f'{utils.get_timestamp(pretty=True)}: State saved to {filepath_without_extension}.pickle/.dill')
+    print(f'{utils.get_timestamp(pretty=True)}: State saved to {filepath_without_extension}.pickle/.dill, which is {os.path.getsize(filepath_without_extension) / 1024 ** 2:.2f} MB')
 
 
 def recombine_picklable_attributes_with_custom_object(ser_memory_usage_in_mb, update_memory_usage=True):
@@ -372,7 +430,7 @@ def main():
 
         start_time = time.time()
 
-    
+
         # Initialize the memory usage series so this is the only function that iterates through the keys in the session state; the rest iterate over the index in ser_memory_usage_in_mb
         ser_memory_usage_in_mb = initialize_memory_usage_series(saved_streamlit_session_state_key=saved_streamlit_session_state_key)  # fast
 
@@ -393,6 +451,9 @@ def main():
 
 
         st.write(f'Time to save objects in the session state to disk using pickle and dill: {time.time() - start_time:.2f} seconds')
+
+    if st.button('Load objects to the session state from pickle+dill files on disk'):
+        pass
 
 
 # Run the main function
