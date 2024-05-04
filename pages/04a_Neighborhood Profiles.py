@@ -38,10 +38,10 @@ def init_spatial_umap():
     # Record time elapsed
     st.session_state.bc.set_value_df('time_to_run_counts', st.session_state.bc.elapsedTime())
 
+    st.session_state.density_completed = True
+
     # Save checkpoint for Neighborhood Profile structure
     save_neipro_struct()
-
-    st.session_state.density_completed = True
 
 def apply_umap(umap_style):
     '''
@@ -93,11 +93,11 @@ def apply_umap(umap_style):
     st.session_state.udp_full = UMAPDensityProcessing(st.session_state.npf, st.session_state.spatial_umap.df_umap)
     st.session_state.UMAPFig = st.session_state.udp_full.UMAPdraw_density()
 
-    # Save checkpoint for Neighborhood Profile structure
-    save_neipro_struct()
-
     # Plot results
     filter_and_plot()
+
+    # Save checkpoint for Neighborhood Profile structure
+    save_neipro_struct()
 
 def set_clusters():
     '''
@@ -177,6 +177,7 @@ def load_neipro_struct(file_name):
 
     # Load the Neighborhood Profile structure
     with open(f'{st.session_state.checkpoint_dir}/{file_name}', "rb") as dill_file:
+        print(f'Loading Neighborhood Profiles Checkpoint-{file_name}')
         st.session_state.spatial_umap = dill.load(dill_file)
 
     st.session_state.phenotyping_completed = st.session_state.spatial_umap.phenotyping_completed
@@ -184,14 +185,25 @@ def load_neipro_struct(file_name):
     st.session_state.umap_completed        = st.session_state.spatial_umap.umap_completed
     st.session_state.cluster_completed     = st.session_state.spatial_umap.cluster_completed
 
+    if st.session_state.umap_completed:
+        # Create Neighborhood Profiles Object
+        st.session_state.npf = NeighborhoodProfiles(bc = st.session_state.bc)
+
+        # Create Full UMAP example
+        st.session_state.udp_full = UMAPDensityProcessing(npf = st.session_state.npf, df = st.session_state.spatial_umap.df_umap)
+        st.session_state.UMAPFig = st.session_state.udp_full.UMAPdraw_density()
+
+        filter_and_plot()
+
 def save_neipro_struct():
     '''
     Function to save the neighborhood profile structure
     '''
 
-    file_name = f'neighborhood_profiles_checkpoint_{datetime.datetime.now().strftime("%d-%m-%Y %H-%M")}'
+    file_name = f'neighborhood_profiles_checkpoint_{datetime.datetime.now().strftime("%d-%m-%Y %H-%M-%S")}'
     # Save the Neighborhood Profile structure
     with open(f'{st.session_state.checkpoint_dir}/{file_name}', "wb") as dill_file:
+        print(f'Pickling Neighborhood Profiles Checkpoint-{file_name}')
         dill.dump(st.session_state.spatial_umap, dill_file)
 
 def main():
