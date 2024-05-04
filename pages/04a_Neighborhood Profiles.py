@@ -185,6 +185,19 @@ def load_neipro_struct(file_name):
     st.session_state.umap_completed        = st.session_state.spatial_umap.umap_completed
     st.session_state.cluster_completed     = st.session_state.spatial_umap.cluster_completed
 
+    # Slide ID Progression Initializeion
+    st.session_state['uniSlide ID'] = st.session_state.spatial_umap.df_umap['Slide ID'].unique()
+    st.session_state['selSlide ID'] = st.session_state['uniSlide ID'][0]
+    st.session_state['idxSlide ID'] = 0
+    st.session_state['numSlide ID'] = len(st.session_state['uniSlide ID'])
+    st.session_state['uniSlide ID_short'] = st.session_state['uniSlide ID']
+    st.session_state['selSlide ID_short'] = st.session_state['uniSlide ID_short'][0]
+
+    st.session_state.prog_left_disabeled = True
+    st.session_state.prog_right_disabeled = False
+    if st.session_state['numSlide ID'] == 1:
+        st.session_state.prog_right_disabeled = True
+
     if st.session_state.umap_completed:
         # Create Neighborhood Profiles Object
         st.session_state.npf = NeighborhoodProfiles(bc = st.session_state.bc)
