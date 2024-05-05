@@ -50,8 +50,8 @@ def save_session_state(saved_streamlit_session_states_dir, saved_streamlit_sessi
         None
     """
 
+    # Save the start time for benchmarking
     start_time = time.time()
-
 
     # Print what we're doing
     print('Saving session state...')
@@ -93,12 +93,9 @@ def save_session_state(saved_streamlit_session_states_dir, saved_streamlit_sessi
     pickle_dump(session_dict, filename)
 
     # Output a success message
-    message = f'{utils.get_timestamp(pretty=True)}: State saved to {filename}, which is {os.path.getsize(filename) / 1024 ** 2:.2f} MB'
+    message = f'{utils.get_timestamp(pretty=True)}: State saved to {filename}, which is {os.path.getsize(filename) / 1024 ** 2:.2f} MB (took {time.time() - start_time:.2f} seconds using the old method)'
     print(message)
     st.success(message)
-
-
-    print(f'Time taken to save session state: {time.time() - start_time:.2f} seconds')
 
 
 def load_session_state(saved_streamlit_session_states_dir, saved_streamlit_session_state_prefix='streamlit_session_state-', saved_streamlit_session_state_key='session_selection', selected_session=None):
@@ -125,6 +122,12 @@ def load_session_state(saved_streamlit_session_states_dir, saved_streamlit_sessi
 
     # If no session file was explicitly input and if no session files exist, do nothing; otherwise, load one of these selected sessions (if not a manually input one [nominally the most recent], then the one selected in the session state file selection dropdown)
     if selected_session is not None:
+
+        # Save start time for benchmarking
+        start_time = time.time()
+
+        # Print what we're doing
+        print('Loading session state...')
 
         # Generate the filename based on the selected session
         filename = os.path.join(saved_streamlit_session_states_dir, saved_streamlit_session_state_prefix + selected_session + '.pkl')
@@ -153,7 +156,7 @@ def load_session_state(saved_streamlit_session_states_dir, saved_streamlit_sessi
                 st.session_state[key] = value
 
         # Output a success message
-        message = f'{utils.get_timestamp(pretty=True)}: State loaded from {filename}, which is {os.path.getsize(filename) / 1024 ** 2:.2f} MB'
+        message = f'{utils.get_timestamp(pretty=True)}: State loaded from {filename}, which is {os.path.getsize(filename) / 1024 ** 2:.2f} MB (took {time.time() - start_time:.2f} seconds using the old method)'
         print(message)
         st.success(message)
 
