@@ -164,12 +164,19 @@ def recombine_picklable_attributes_with_custom_object(ser_memory_usage_in_mb, up
 
     # This is fast except when asizeof is called, which should be infrequent.
 
+    # If we haven't defined ser_memory_usage_in_mb (as we do when we are *writing* the pickle/dill files), then we assume that we are *loading* the pickle/dill files and therefore we need to iterate over the keys just loaded into the session state from those files
+    if ser_memory_usage_in_mb:
+        key_iterable = ser_memory_usage_in_mb.index
+    else:
+        key_iterable = st.session_state.keys()
+        update_memory_usage = False
+
     # Initialize a list of main objects to which we will set the picklable attributes
     if update_memory_usage:
         main_objects = []
 
-    # For every item in ser_memory_usage_in_mb...
-    for key in ser_memory_usage_in_mb.index:
+    # For every item in ser_memory_usage_in_mb (or the session state)...
+    for key in key_iterable:
 
         # If the key is a separately-saved data attribute, then recombine it with the corresponding object
         if key.startswith('memory_analyzer__'):
@@ -410,14 +417,14 @@ def main():
         st.write(f'Initial session state object information ({len(ser_memory_usage_in_mb)} relevant objects):')
         ser_memory_usage_in_mb = get_session_state_object_info(ser_memory_usage_in_mb, return_val='memory', write_dataframe=True)
 
-        # Split off the data attribute from the dataset_formats objects
+        # Split off the picklable attributes from the custom objects
         ser_memory_usage_in_mb = split_off_picklable_attributes_from_custom_object(ser_memory_usage_in_mb, output_func=st.write)
 
         # Write the session state object information to screen
         st.write(f'Session state object information after splitting off picklable attributes from large custom objects ({len(ser_memory_usage_in_mb)} relevant objects):')
         get_session_state_object_info(ser_memory_usage_in_mb, return_val=None, write_dataframe=True)
 
-        # Recombine the data attribute with the dataset_formats objects
+        # Recombine the picklable attributes with the corresponding custom objects
         ser_memory_usage_in_mb = recombine_picklable_attributes_with_custom_object(ser_memory_usage_in_mb)
 
         # Write the session state object information to screen
@@ -430,14 +437,13 @@ def main():
 
         start_time = time.time()
 
-
         # Initialize the memory usage series so this is the only function that iterates through the keys in the session state; the rest iterate over the index in ser_memory_usage_in_mb
         ser_memory_usage_in_mb = initialize_memory_usage_series(saved_streamlit_session_state_key=saved_streamlit_session_state_key)  # fast
 
         # Calculate the memory used by every object
         ser_memory_usage_in_mb = get_session_state_object_info(ser_memory_usage_in_mb, return_val='memory', write_dataframe=False)  # as fast as it can be
 
-        # Split off the data attribute from the dataset_formats objects
+        # Split off the picklable attributes from the custom objects
         ser_memory_usage_in_mb = split_off_picklable_attributes_from_custom_object(ser_memory_usage_in_mb)  # as fast as it can be
 
         # Get the series specifying the serialization library to use for each relevant object in the session state
@@ -446,14 +452,24 @@ def main():
         # Save the session state to disk using pickle and dill
         write_session_state_to_disk(ser_serialization_lib, saved_streamlit_session_states_dir, saved_streamlit_session_state_prefix=saved_streamlit_session_state_prefix)  # as fast as it can be
 
-        # Recombine the data attribute with the dataset_formats objects
+        # Recombine the picklable attributes with the corresponding custom objects
         recombine_picklable_attributes_with_custom_object(ser_memory_usage_in_mb, update_memory_usage=False)  # fast
-
 
         st.write(f'Time to save objects in the session state to disk using pickle and dill: {time.time() - start_time:.2f} seconds')
 
     if st.button('Load objects to the session state from pickle+dill files on disk'):
-        pass
+
+        # This whole block is as fast as it can be
+
+        start_time = time.time()
+
+        # Load the session state variables from the pickle+dill files
+        load_session_state_from_disk(saved_streamlit_session_states_dir, saved_streamlit_session_state_prefix=saved_streamlit_session_state_prefix, saved_streamlit_session_state_key=saved_streamlit_session_state_key, selected_session=None)  # as fast as it can be
+
+        # Recombine the picklable attributes with the corresponding custom objects
+        recombine_picklable_attributes_with_custom_object(ser_memory_usage_in_mb=None)  # fast
+
+        st.write(f'Time to load objects to the session state from pickle+dill files on disk: {time.time() - start_time:.2f} seconds')
 
 
 # Run the main function
