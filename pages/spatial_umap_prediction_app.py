@@ -7,7 +7,7 @@ import os
 import streamlit as st
 import streamlit_dataframe_editor as sde
 import app_top_of_page as top
-import sit_03a_Tool_parameter_selection as sit
+from pages import sit_03a_Tool_parameter_selection as sit
 import new_phenotyping_lib
 import utils
 

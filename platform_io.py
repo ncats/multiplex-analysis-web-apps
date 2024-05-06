@@ -2,16 +2,16 @@
 Set of functions for managing the MAWA platform
 '''
 
+# Import relevant libraries
 import os
 import time
 import shutil
 import pandas as pd
 import streamlit as st
-
-# Import relevant libraries
 import streamlit_dataframe_editor as sde
 import streamlit_session_state_management
 import utils
+from pages import memory_analyzer
 
 # Constant
 local_input_dir = os.path.join('.', 'input')
@@ -594,7 +594,7 @@ class Platform:
             delete_selected_files_and_dirs(local_output_dir, [x for x in os.listdir(local_output_dir) if x.startswith('streamlit_session_state-')])
 
             # Save the current session state to the current/loaded results
-            streamlit_session_state_management.save_session_state(local_output_dir)
+            memory_analyzer.save_session_state(local_output_dir)
 
             # If working locally...
             if self.platform == 'local':
@@ -688,7 +688,7 @@ class Platform:
     # Create a snapshot of the session state in the "output" directory
     def create_session_state_snapshot(self):
         st.subheader(':tractor: Create snapshot of session state')
-        st.button(':camera: Create snapshot', on_click=streamlit_session_state_management.save_session_state, args=(local_output_dir))
+        st.button(':camera: Create snapshot', on_click=memory_analyzer.save_session_state, args=(local_output_dir))
 
 # Determine whether a full string contains any of a tuple of substrings
 def multi_contains(full_str, substrs):
