@@ -74,15 +74,10 @@ def load_session_state(saved_streamlit_session_states_dir, saved_streamlit_sessi
     start_time = time.time()
 
     # Print what we're doing
-    print('Loading session state...')
+    print('Loading session state using the new method...')
 
     # Load the session state variables from the pickle+dill files
     success_message = load_session_state_from_disk(saved_streamlit_session_states_dir, saved_streamlit_session_state_prefix=saved_streamlit_session_state_prefix, saved_streamlit_session_state_key=saved_streamlit_session_state_key, selected_session=selected_session)  # as fast as it can be
-
-    # If no session files exist, then do nothing
-    if not success_message:
-        st.warning(f'{utils.get_timestamp(pretty=True)}: No session state files exist so none were loaded')
-        return
 
     # Recombine the picklable attributes with the corresponding custom objects
     recombine_picklable_attributes_with_custom_object(ser_memory_usage_in_mb=None)  # fast
@@ -159,13 +154,7 @@ def load_session_state_from_disk(saved_streamlit_session_states_dir, saved_strea
 
     # This is fast as can be
 
-    # Get the selected session basename to load
-    if selected_session is None:
-        selected_session = st.session_state[saved_streamlit_session_state_key]
-
-    # If no session file was explicitly input and if no session files exist, do nothing
-    if selected_session is None:
-        return
+    # At this point, a session state file exists (so selected_session is not None) and was selected in load_session_state_preprocessing(), so load one of these selected sessions (if not a manually input one [nominally the most recent], then the one selected in the session state file selection dropdown)
 
     # Choose one of the selected sessions... if not a manually input one (nominally the most recent), then the one selected in the session state file selection dropdown
     filepath_without_extension = os.path.join(saved_streamlit_session_states_dir, saved_streamlit_session_state_prefix + selected_session)
@@ -462,12 +451,13 @@ def main():
 
     # Parameters
     saved_streamlit_session_state_key = 'session_selection'
-    saved_streamlit_session_states_dir = 'saved_streamlit_session_states'
-    saved_streamlit_session_state_prefix = 'streamlit_session_state-'
 
+    st.write('Note that the session state Save and Load buttons in the left sidebar mirror the functionality of the button below, so this page can be used to help answer potential questions about what\'s happening in the session state management in the sidebar. Of course, this is in addition to its main purpose of analyzing the variables stored in Streamlit\'s session state.')
+    
+    # Add a button to clear the current screen output from the following button
     if st.button('Reset screen'):
         pass
-    
+
     if st.button('Analyze memory usage of relevant objects in the session state'):
     
         # Initialize the memory usage series so this is the only function that iterates through the keys in the session state; the rest iterate over the index in ser_memory_usage_in_mb
@@ -490,22 +480,6 @@ def main():
         # Write the session state object information to screen
         st.write(f'Session state object information after recombining picklable attributes with custom objects ({len(ser_memory_usage_in_mb)} relevant objects):')
         get_session_state_object_info(ser_memory_usage_in_mb, return_val=None, write_dataframe=True)
-
-    if st.button('Save objects in the session state to disk using pickle and dill'):
-
-        start_time = time.time()
-
-        save_session_state()
-
-        st.write(f'Time to save objects in the session state to disk using pickle and dill: {time.time() - start_time:.2f} seconds')
-
-    if st.button('Load objects to the session state from pickle+dill files on disk'):
-
-        start_time = time.time()
-
-        load_session_state()
-
-        st.write(f'Time to load objects to the session state from pickle+dill files on disk: {time.time() - start_time:.2f} seconds')
 
 
 # Run the main function
