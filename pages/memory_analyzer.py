@@ -133,7 +133,7 @@ def deserialize_file_to_dict(filepath, serialization_lib, output_func=print, cal
     else:
         predicted_size_in_mb = 0
     actual_size_in_mb = os.path.getsize(filepath) / bytes_to_mb
-    output_func(f'Loading dict_to_load from {filepath} (which is {actual_size_in_mb} MB) of predicted size {predicted_size_in_mb:.2f} MB using serialization library `{serialization_lib}`')
+    output_func(f'Loading dict_to_load from {filepath} (which is {actual_size_in_mb:.2f} MB) of predicted size {predicted_size_in_mb:.2f} MB using serialization library `{serialization_lib}`')
     return dict_to_load
 
 
@@ -182,7 +182,7 @@ def load_session_state_from_disk(saved_streamlit_session_states_dir, saved_strea
         st.session_state[key] = value
 
     # Return an informational message
-    return f'{utils.get_timestamp(pretty=True)}: State loaded from {pickle_filepath} ({os.path.getsize(pickle_filepath) / bytes_to_mb} MB) and {dill_filepath} ({os.path.getsize(dill_filepath) / bytes_to_mb} MB)'
+    return f'{utils.get_timestamp(pretty=True)}: State loaded from {pickle_filepath} ({os.path.getsize(pickle_filepath) / bytes_to_mb:.2f} MB) and {dill_filepath} ({os.path.getsize(dill_filepath) / bytes_to_mb:.2f} MB)'
 
 
 def write_session_state_to_disk(ser_serialization_lib, saved_streamlit_session_states_dir, saved_streamlit_session_state_prefix='streamlit_session_state-'):
@@ -206,7 +206,7 @@ def write_session_state_to_disk(ser_serialization_lib, saved_streamlit_session_s
     serialize_dict_to_file(dill_dict, dill_filepath, dill)
 
     # Return an informational message
-    return f'{utils.get_timestamp(pretty=True)}: State saved to {pickle_filepath} ({os.path.getsize(pickle_filepath) / bytes_to_mb} MB) and {dill_filepath} ({os.path.getsize(dill_filepath) / bytes_to_mb} MB)'
+    return f'{utils.get_timestamp(pretty=True)}: State saved to {pickle_filepath} ({os.path.getsize(pickle_filepath) / bytes_to_mb:.2f} MB) and {dill_filepath} ({os.path.getsize(dill_filepath) / bytes_to_mb:.2f} MB)'
 
 
 def recombine_picklable_attributes_with_custom_object(ser_memory_usage_in_mb, update_memory_usage=True):
@@ -214,7 +214,7 @@ def recombine_picklable_attributes_with_custom_object(ser_memory_usage_in_mb, up
     # This is fast except when asizeof is called, which should be infrequent.
 
     # If we haven't defined ser_memory_usage_in_mb (as we do when we are *writing* the pickle/dill files), then we assume that we are *loading* the pickle/dill files and therefore we need to iterate over the keys just loaded into the session state from those files
-    if ser_memory_usage_in_mb:
+    if ser_memory_usage_in_mb is not None:
         key_iterable = ser_memory_usage_in_mb.index
     else:
         key_iterable = st.session_state.keys()
