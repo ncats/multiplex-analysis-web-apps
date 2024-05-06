@@ -17,7 +17,7 @@ picklable_attributes_per_class = {
     }
 
 # Constant
-bytes_to_mb = 1024 ** 2
+bytes_per_mb = 1024 ** 2
 
 
 def get_object_class(value):
@@ -129,10 +129,10 @@ def deserialize_file_to_dict(filepath, serialization_lib, output_func=print, cal
     with open(filepath, 'rb') as f:
         dict_to_load = serialization_lib.load(f)
     if calculate_size_in_mem:
-        predicted_size_in_mb = asizeof.asizeof(dict_to_load) / bytes_to_mb
+        predicted_size_in_mb = asizeof.asizeof(dict_to_load) / bytes_per_mb
     else:
         predicted_size_in_mb = 0
-    actual_size_in_mb = os.path.getsize(filepath) / bytes_to_mb
+    actual_size_in_mb = os.path.getsize(filepath) / bytes_per_mb
     output_func(f'Loading dict_to_load from {filepath} (which is {actual_size_in_mb:.2f} MB) of predicted size {predicted_size_in_mb:.2f} MB using serialization library `{serialization_lib}`')
     return dict_to_load
 
@@ -140,13 +140,13 @@ def deserialize_file_to_dict(filepath, serialization_lib, output_func=print, cal
 def serialize_dict_to_file(dict_to_save, filepath, serialization_lib, output_func=print, calculate_size_in_mem=False):
     # This is as fast as can be as long as calculate_size_in_mem == False and dict_to_save contains objects of types that are quickly dumped depending on the serialization library, which is the point of this module
     if calculate_size_in_mem:
-        predicted_size_in_mb = asizeof.asizeof(dict_to_save) / bytes_to_mb
+        predicted_size_in_mb = asizeof.asizeof(dict_to_save) / bytes_per_mb
     else:
         predicted_size_in_mb = 0
     output_func(f'Saving dict_to_save ({len(dict_to_save)} objects) to {filepath} using serialization library `{serialization_lib}`. This should take around {predicted_size_in_mb:.2f} MB...', end='', flush=True)
     with open(filepath, 'wb') as f:
         serialization_lib.dump(dict_to_save, f)
-    actual_size_in_mb = os.path.getsize(filepath) / bytes_to_mb
+    actual_size_in_mb = os.path.getsize(filepath) / bytes_per_mb
     output_func(f' {actual_size_in_mb:.2f} MB saved, which is {actual_size_in_mb - predicted_size_in_mb:.2f} MB larger than the predicted size.')
 
 
@@ -178,11 +178,10 @@ def load_session_state_from_disk(saved_streamlit_session_states_dir, saved_strea
 
     # Load each key-value pair individually into session_state
     for key, value in session_dict.items():
-        print(f'Loading {key} of type {type(value)}')
         st.session_state[key] = value
 
     # Return an informational message
-    return f'{utils.get_timestamp(pretty=True)}: State loaded from {pickle_filepath} ({os.path.getsize(pickle_filepath) / bytes_to_mb:.2f} MB) and {dill_filepath} ({os.path.getsize(dill_filepath) / bytes_to_mb:.2f} MB)'
+    return f'{utils.get_timestamp(pretty=True)}: State loaded from {pickle_filepath} ({os.path.getsize(pickle_filepath) / bytes_per_mb:.2f} MB) and {dill_filepath} ({os.path.getsize(dill_filepath) / bytes_per_mb:.2f} MB)'
 
 
 def write_session_state_to_disk(ser_serialization_lib, saved_streamlit_session_states_dir, saved_streamlit_session_state_prefix='streamlit_session_state-'):
@@ -206,7 +205,7 @@ def write_session_state_to_disk(ser_serialization_lib, saved_streamlit_session_s
     serialize_dict_to_file(dill_dict, dill_filepath, dill)
 
     # Return an informational message
-    return f'{utils.get_timestamp(pretty=True)}: State saved to {pickle_filepath} ({os.path.getsize(pickle_filepath) / bytes_to_mb:.2f} MB) and {dill_filepath} ({os.path.getsize(dill_filepath) / bytes_to_mb:.2f} MB)'
+    return f'{utils.get_timestamp(pretty=True)}: State saved to {pickle_filepath} ({os.path.getsize(pickle_filepath) / bytes_per_mb:.2f} MB) and {dill_filepath} ({os.path.getsize(dill_filepath) / bytes_per_mb:.2f} MB)'
 
 
 def recombine_picklable_attributes_with_custom_object(ser_memory_usage_in_mb, update_memory_usage=True):
@@ -261,7 +260,7 @@ def recombine_picklable_attributes_with_custom_object(ser_memory_usage_in_mb, up
         for main_object in list(set(main_objects)):
                 
             # Store the memory usage of the current object
-            ser_memory_usage_in_mb[main_object] = asizeof.asizeof(st.session_state[main_object]) / bytes_to_mb
+            ser_memory_usage_in_mb[main_object] = asizeof.asizeof(st.session_state[main_object]) / bytes_per_mb
 
         # Return the updated memory usage series
         return ser_memory_usage_in_mb
@@ -304,10 +303,10 @@ def split_off_picklable_attributes_from_custom_object(ser_memory_usage_in_mb, ou
                         delattr(st.session_state[key], picklable_attribute)
 
                         # Store the memory usage of the standalone picklable attribute
-                        ser_memory_usage_in_mb[attribute_key] = asizeof.asizeof(st.session_state[attribute_key]) / bytes_to_mb  # note this is slow
+                        ser_memory_usage_in_mb[attribute_key] = asizeof.asizeof(st.session_state[attribute_key]) / bytes_per_mb  # note this is slow
 
                     # Store the new memory usage of the current object
-                    ser_memory_usage_in_mb[key] = asizeof.asizeof(st.session_state[key]) / bytes_to_mb  # note this is slow
+                    ser_memory_usage_in_mb[key] = asizeof.asizeof(st.session_state[key]) / bytes_per_mb  # note this is slow
 
     # Return the updated memory usage series
     return ser_memory_usage_in_mb
@@ -382,7 +381,7 @@ def get_session_state_object_info(ser_memory_usage_in_mb, return_val=None, write
         if not np.isnan(ser_memory_usage_in_mb[key]):
             size_holder.append(ser_memory_usage_in_mb[key])
         else:
-            size_holder.append(asizeof.asizeof(st.session_state[key]) / bytes_to_mb)  # note this is slow
+            size_holder.append(asizeof.asizeof(st.session_state[key]) / bytes_per_mb)  # note this is slow
 
     # Create a dataframe from these data, sorting by decreasing size
     if write_dataframe:

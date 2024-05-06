@@ -51,21 +51,21 @@ def load_session_state_preprocessing(saved_streamlit_session_states_dir, saved_s
 
 
 def pickle_dump(dict_to_save, filename):
-    bytes_to_mb = 1024 ** 2
-    predicted_size_in_mb = asizeof.asizeof(dict_to_save) / bytes_to_mb
+    bytes_per_mb = 1024 ** 2
+    predicted_size_in_mb = asizeof.asizeof(dict_to_save) / bytes_per_mb
     print(f'Saving dict_to_save to {filename}. This should take around {predicted_size_in_mb:.2f} MB...', end='', flush=True)
     with open(filename, 'wb') as f:
         size_before = os.path.getsize(filename)
         pickle.dump(dict_to_save, f)
-        actual_size_in_mb = (os.path.getsize(filename) - size_before) / bytes_to_mb
+        actual_size_in_mb = (os.path.getsize(filename) - size_before) / bytes_per_mb
     print(f' {actual_size_in_mb:.2f} MB saved, which is {actual_size_in_mb - predicted_size_in_mb:.2f} MB larger than the predicted size.')
 
 
 def pickle_load(filename):
-    bytes_to_mb = 1024 ** 2
+    bytes_per_mb = 1024 ** 2
     with open(filename, 'rb') as f:
         dict_to_load = pickle.load(f)
-    predicted_size_in_mb = asizeof.asizeof(dict_to_load) / bytes_to_mb
+    predicted_size_in_mb = asizeof.asizeof(dict_to_load) / bytes_per_mb
     print(f'Loading dict_to_load from {filename} of predicted size {predicted_size_in_mb:.2f} MB')
     return dict_to_load
 
