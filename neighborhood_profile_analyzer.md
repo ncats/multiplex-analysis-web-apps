@@ -2,11 +2,16 @@
 nav_order: 8
 ---
 
-# Neighborhood profiles analyzer
+# Neighborhood Profiles Workflow
 
-## More to come!
+## Introduction and Theory
 
-### UMAP Differences Analyzer
+## Workflow
+
+### Neighborhood Profiles
+
+### UMAP Differences
+
 After completing the UMAP decomposition and clustering analysis, the user may now take a look at the down-stream figures generated as a result of these analyses. While there are not many levers and knobs to change the data implicitly here, the user can generate different figures.
 
 1. Before starting to view these Clustering Differences, you must complete at least the UMAP processing seen on the previous page. To experience the full offering of the Clustering Differences page, you must also complete the Clustering step on the previous page. There are warnings on the page to help you remember what needs to be completed in order to see each figure.
@@ -17,15 +22,19 @@ After completing the UMAP decomposition and clustering analysis, the user may no
 `Difference UMAP scaled by features`  
 
 #### Full 2D UMAP
-This is purely the outcome of UMAP decomposition colored by density of cells. This is meant to be a template to compare all additional UMAPs, both within this study design as well as for future reproduceability. 
+
+This is purely the outcome of UMAP decomposition colored by density of cells. This is meant to be a template to compare all additional UMAPs, both within this study design as well as for future reproduceability.
 
 #### 2D UMAP filtered by lineage and features
+
 This is a copy of the UMAP on the left, but with additional filtering options.
 
 #### Differnce UMAP scaled by features
-These are again further copies of the 2D UMAP. This give you options to check differences between feature conditions. At this time, this works best with Boolean data (True/False), but also works with range data (x>0, x<0). 
 
-### Cluster Analyzer
+These are again further copies of the 2D UMAP. This give you options to check differences between feature conditions. At this time, this works best with Boolean data (True/False), but also works with range data (x>0, x<0).
+
+### Clusters Analyzer
+
 After completing the UMAP decomposition and clustering analysis, the user may now take a look at the down-stream figures generated as a result of these analyses. The Cluster Analyzer page contains two figures generated from the upstream data analysis:
 
 `Cluster/Phenotype Heatmap`  
