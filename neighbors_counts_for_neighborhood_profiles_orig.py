@@ -153,19 +153,20 @@ def calculate_density_matrix_for_image(df_image, phenotypes, phenotype_column_na
     # Return the dataframe with the number of neighbors for the current image
     return df_num_neighbors_image
 
+
 # Define the main function
 def main():
     """
     This is a sample of how to calculate the density matrix for the entire dataset.
     """
 
-    # Constants
+    # Parameters
     input_file = os.path.join('.', 'input', 'Combo_CSVfiles_20230327_152849.csv')
-    radii_small_spacing = np.arange(0, 251, 25)
-    radii_large_spacing = np.arange(0, 251, 50)
+    radii = np.array([0, 25, 50, 100, 150, 200])
     coord_column_names = ['CentroidX', 'CentroidY']
     image_column_name = 'ShortName'
     phenotype_column_name = 'pheno_20230327_152849'
+    method = 'kdtree'
 
     # Read in the datafile
     df = pd.read_csv(input_file)
@@ -174,27 +175,41 @@ def main():
     # print(df.iloc[:, 83:92].drop_duplicates())
 
     # Variables
-    image_names = df[image_column_name].unique()
-    phenotypes = df[phenotype_column_name].unique()
-    radii = radii_small_spacing
-    # radii = radii_large_spacing
+    image_names = sorted(df[image_column_name].unique())
+    phenotypes = df[phenotype_column_name].value_counts().index
     debug_output = True
     num_ranges = len(radii) - 1
-    # range_strings = ['[{}, {})'.format(radii[iradius], radii[iradius + 1]) for iradius in range(num_ranges)]
     range_strings = ['({}, {}]'.format(radii[iradius], radii[iradius + 1]) for iradius in range(num_ranges)]
     num_cpus_to_use = int(multiprocessing.cpu_count() / 2)
 
-    # Calculate the density matrix for all images
-    df_density_matrix = calculate_density_matrix_for_all_images(image_names, df, phenotypes, phenotype_column_name, image_column_name, coord_column_names, radii, num_ranges, range_strings, debug_output=debug_output, num_cpus_to_use=num_cpus_to_use, swap_inequalities=True)
+    if method == 'cdist':
+    
+        # Calculate the counts matrix for all images
+        df_counts_matrix = calculate_density_matrix_for_all_images(image_names, df, phenotypes, phenotype_column_name, image_column_name, coord_column_names, radii, num_ranges, range_strings, debug_output=debug_output, num_cpus_to_use=num_cpus_to_use, swap_inequalities=True)
+
+        # Fill in any NaN values with 0 and convert to integers
+        df_counts_matrix = df_counts_matrix.fillna(0).astype(int)
+
+    elif method == 'kdtree':
+
+        # Create the list of tuple arguments
+        list_of_tuple_arguments = [(df, image_column_name, image_name, coord_column_names, phenotypes, radii, phenotype_column_name) for image_name in image_names]
+        
+        # Fan out the function to num_cpus_to_use CPUs
+        results = utils.execute_data_parallelism_potentially(function=utils.fast_neighbors_counts_for_block, list_of_tuple_arguments=list_of_tuple_arguments, nworkers=num_cpus_to_use, task_description='calculation of the counts matrix for all images', do_benchmarking=True, mp_start_method=None, use_starmap=True)
+
+        # Concatenate the results into a single dataframe
+        df_counts_matrix = pd.concat(results)
 
     # Print the shape final density matrix dataframe, which can be concatenated with the original dataframe
-    print(f'Shape of final density matrix: {df_density_matrix.shape}')
-
-    # Fill in any NaN values with 0 and convert to integers
-    df_density_matrix = df_density_matrix.fillna(0).astype(int)
+    print(f'Shape of final density matrix: {df_counts_matrix.shape}')
 
     # To concatenate the density matrix with the original dataframe
     # pd.concat([df, df_density_matrix], axis='columns')
+
+    # Return the final counts matrix
+    return df_counts_matrix
+
 
 # Call the main function
 if __name__ == '__main__':
