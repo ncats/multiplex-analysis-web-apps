@@ -556,7 +556,7 @@ def execute_data_parallelism_potentially(function=(lambda x: x), list_of_tuple_a
     # Output how long the task took
     if do_benchmarking:
         elapsed_time = time.time() - start_time
-        print('BENCHMARKING: The task took {} seconds using {} CPU(s) {} hyperthreading'.format(elapsed_time, (nworkers if use_multiprocessing else 1), ('WITH' if use_multiprocessing else 'WITHOUT')))
+        print('BENCHMARKING: The task took {:.2f} seconds using {} CPU(s) {} hyperthreading'.format(elapsed_time, (nworkers if use_multiprocessing else 1), ('WITH' if use_multiprocessing else 'WITHOUT')))
 
     # Since I don't usually return the results from .map() and I'm only doing it in the case that's making me implement starmap here, only return results when starmap is used (plus I'm still not returning it in map() above)
     if use_starmap:
@@ -1089,32 +1089,29 @@ def create_dataframe_from_anndata(adata, indices_to_keep=None, columns_to_keep=N
     return df
 
 
-def fast_neighbors_counts_for_block(df_all_images, image_column_name, image_name, coord_column_names, phenotypes, radii, phenotype_column_name):
+def fast_neighbors_counts_for_block(df_image, image_name, coord_column_names, phenotypes, radii, phenotype_column_name):
     # A block can be an image, ROI, etc. It's the entity over which it makes sense to calculate the neighbors of centers. Here, we're assuming it's an image, but in the SIT for e.g., we generally want it to refer to a ROI.
 
-    # Print the image name
-    print(f'Calculating neighbor counts for image {image_name}...')
-
-    # Get the boolean series identifying the current image specified by image_name
-    ser_curr_image = df_all_images[image_column_name] == image_name
-    
     # Get the number of cells in the current image
-    num_cells_in_image = ser_curr_image.sum()
+    num_cells_in_image = len(df_image)
     
+    # Print the image info
+    print(f'Calculating neighbor counts for image {image_name} ({num_cells_in_image} cells)...')
+
     # Construct the KDTree for the entire current image. This represents the centers
-    center_tree = scipy.spatial.KDTree(df_all_images.loc[ser_curr_image, coord_column_names])
+    center_tree = scipy.spatial.KDTree(df_image[coord_column_names])
 
     # Initialize a list to hold the dataframes of neighbor counts for each radius (not each radius range)
-    df_counts_holder = [pd.DataFrame(0, index=phenotypes, columns=range(num_cells_in_image)) for _ in radii]
+    df_counts_holder = [pd.DataFrame(0, index=phenotypes, columns=range(num_cells_in_image), dtype=np.int32) for _ in radii]
+
+    # # Convert the phenotype column to an object type since otherwise, as a categorical, the following may slow down
+    # df_image[phenotype_column_name] = df_image[phenotype_column_name].astype('object')
 
     # For each phenotype...
     for neighbor_phenotype in phenotypes:
 
-        # Get the boolean series identifying the current neighbor phenotype
-        ser_curr_neighbor_phenotype = df_all_images[phenotype_column_name] == neighbor_phenotype
-    
         # Construct the KDTree for the current phenotype in the entire current image. This represents the neighbors
-        curr_neighbor_tree = scipy.spatial.KDTree(df_all_images.loc[ser_curr_image & ser_curr_neighbor_phenotype, coord_column_names])
+        curr_neighbor_tree = scipy.spatial.KDTree(df_image.loc[df_image[phenotype_column_name] == neighbor_phenotype, coord_column_names])
 
         # For each radius, which should be monotonically increasing and start with 0...
         for iradius, radius in enumerate(radii):
@@ -1134,7 +1131,8 @@ def fast_neighbors_counts_for_block(df_all_images, image_column_name, image_name
 
         # Rename the index to reflect the current radius range
         radius_range_str = f'({radii[iradius]}, {radii[iradius + 1]}]'
-        df_counts_curr_annulus.index = df_counts_curr_annulus.index + f' in {radius_range_str}'
+        # df_counts_curr_annulus.index = df_counts_curr_annulus.index + f' in {radius_range_str}'
+        df_counts_curr_annulus.index = [f'{phenotype} in {radius_range_str}' for phenotype in phenotypes]
 
         # Add a transpose of this (so centers are in rows and phenotypes/radii are in columns) to the running list of annulus dataframes
         df_counts_holder_annulus.append(df_counts_curr_annulus.T)
@@ -1143,7 +1141,7 @@ def fast_neighbors_counts_for_block(df_all_images, image_column_name, image_name
     df_curr_counts = pd.concat(df_counts_holder_annulus, axis='columns')
 
     # Set the index of the final dataframe to correspond to that of the original dataframe
-    df_curr_counts.index = df_all_images[ser_curr_image].index
+    df_curr_counts.index = df_image.index
 
     # Return the final dataframe of neighbor counts for the current image
     return df_curr_counts
