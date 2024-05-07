@@ -248,6 +248,8 @@ def main():
             st.selectbox('Select Previous UMAP Results', options = neipro_checkpoint_files, key = 'sel_prev_umap')
             st.button('Load Selected UMAP Results', on_click=load_neipro_struct, args = (st.session_state.sel_prev_umap,))
             add_vertical_space(12)
+    
+    # Button results and difference settings
     with npf_cols[1]:
         if dens_butt:
             if st.session_state.phenotyping_completed:
@@ -260,17 +262,22 @@ def main():
                 set_clusters()
         if st.session_state['toggle_clust_diff']:
             st.selectbox('Feature', options = st.session_state.outcomes, key = 'dens_diff_feat_sel')
-            st.number_input('Cutoff Percentage', min_value = 0.01, max_value = 0.99, value = 0.2, step = 0.01, key = 'dens_diff_cutoff')
+            st.number_input('Cutoff Percentage', min_value = 0.01, max_value = 0.95, value = 0.1, step = 0.05, key = 'dens_diff_cutoff')
 
+    # UMAP Density Difference Analysis
     with npf_cols[2]:
+
+        # As long as the UMAP is completed, perform the density difference analysis
         if st.session_state.umap_completed:
 
-            # Showing off the full UMAP
+            # Display visualization off the full UMAP
             with st.columns(3)[1]:
                 st.pyplot(fig=st.session_state.UMAPFig)
 
+            # If clustering is to be performed on the UMAP density difference
             if st.session_state['toggle_clust_diff']:
 
+                # Idenfify the column type that is splitting the UMAP
                 col_type = ndl.identify_col_type(st.session_state.spatial_umap.df_umap[st.session_state.dens_diff_feat_sel])
 
                 if col_type == 'not_bool':
@@ -293,7 +300,9 @@ def main():
                     appro_feat = False
                     st.write('Feature must be boolean or numeric to perform density difference analysis')
 
+                # If the feature is appropriate, perform the density difference split/clustering
                 if appro_feat:
+
                     # Perform Density Calculations for each Condition
                     udp_fals = UMAPDensityProcessing(st.session_state.npf, st.session_state.df_umap_fals, xx=st.session_state.udp_full.xx, yy=st.session_state.udp_full.yy)
                     udp_true = UMAPDensityProcessing(st.session_state.npf, st.session_state.df_umap_true, xx=st.session_state.udp_full.xx, yy=st.session_state.udp_full.yy)
@@ -301,9 +310,10 @@ def main():
                     ## Copy over
                     udp_diff = copy(udp_fals)
                     ## Perform difference calculation
-                    udp_diff.dens_mat = udp_true.dens_mat - udp_fals.dens_mat
+                    udp_diff.dens_mat = np.log10(udp_true.dens_mat + 1) - np.log10(udp_fals.dens_mat + 1)
                     ## Rerun the min/max calcs
                     udp_diff.umap_summary_stats()
+                    print(udp_diff.dens_mat.min(), udp_diff.dens_mat.max())
                     ## Set Feature Labels
                     udp_fals.set_feature_label(st.session_state.dens_diff_feat_sel, fals_msg)
                     udp_true.set_feature_label(st.session_state.dens_diff_feat_sel, true_msg)
@@ -492,7 +502,6 @@ def main():
 
                         ndl.save_png(npf_fig, 'Neighborhood Profiles', st.session_state.neigh_prof_line_suffix)
                         st.toast(f'Added {st.session_state.neigh_prof_line_suffix} to export list')
-
 
 if __name__ == '__main__':
 
