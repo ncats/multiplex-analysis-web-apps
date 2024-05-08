@@ -6,8 +6,8 @@ import app_top_of_page as top
 import streamlit_dataframe_editor as sde
 import streamlit_dataframe_editor
 import utils
-from pympler.asizeof import asizeof as deep_mem_usage_in_bytes
-# from objsize import get_deep_size as deep_mem_usage_in_bytes
+# from pympler.asizeof import asizeof as deep_mem_usage_in_bytes
+from objsize import get_deep_size as deep_mem_usage_in_bytes
 import time
 from pages import memory_analyzer
 

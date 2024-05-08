@@ -3,8 +3,8 @@ import streamlit as st
 import app_top_of_page as top
 import streamlit_dataframe_editor as sde
 import pandas as pd
-from pympler.asizeof import asizeof as deep_mem_usage_in_bytes
-# from objsize import get_deep_size as deep_mem_usage_in_bytes
+# from pympler.asizeof import asizeof as deep_mem_usage_in_bytes
+from objsize import get_deep_size as deep_mem_usage_in_bytes
 import numpy as np
 import pickle
 import dill
