@@ -10,3 +10,4 @@ dependencies:
     - natsort
     - dill
     - pympler
+    - objsize
