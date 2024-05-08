@@ -11,6 +11,7 @@ import pandas as pd
 import pytz
 from datetime import datetime
 import anndata
+import time
 
 def set_filename_corresp_to_roi(df_paths, roi_name, curr_colname, curr_dir, curr_dir_listing):
     """Update the path in a main paths-holding dataframe corresponding to a particular ROI in a particular directory.
@@ -519,7 +520,6 @@ def execute_data_parallelism_potentially(function=(lambda x: x), list_of_tuple_a
 
     # Import relevant library
     import multiprocessing as mp
-    import time
 
     # Determine whether we're requesting to use the multiprocessing module in the first place
     if nworkers == 0:
@@ -1092,26 +1092,26 @@ def create_dataframe_from_anndata(adata, indices_to_keep=None, columns_to_keep=N
 def fast_neighbors_counts_for_block(df_image, image_name, coord_column_names, phenotypes, radii, phenotype_column_name):
     # A block can be an image, ROI, etc. It's the entity over which it makes sense to calculate the neighbors of centers. Here, we're assuming it's an image, but in the SIT for e.g., we generally want it to refer to a ROI.
 
-    # Get the number of cells in the current image
-    num_cells_in_image = len(df_image)
-    
-    # Print the image info
-    print(f'Calculating neighbor counts for image {image_name} ({num_cells_in_image} cells)...')
+    # Print the image name
+    print(f'Calculating neighbor counts for image {image_name} ({len(df_image)} cells)...')
+
+    # Record the start time
+    start_time = time.time()
 
     # Construct the KDTree for the entire current image. This represents the centers
     center_tree = scipy.spatial.KDTree(df_image[coord_column_names])
 
     # Initialize a list to hold the dataframes of neighbor counts for each radius (not each radius range)
-    df_counts_holder = [pd.DataFrame(0, index=phenotypes, columns=range(num_cells_in_image), dtype=np.int32) for _ in radii]
-
-    # # Convert the phenotype column to an object type since otherwise, as a categorical, the following may slow down
-    # df_image[phenotype_column_name] = df_image[phenotype_column_name].astype('object')
+    df_counts_holder = [pd.DataFrame(0, index=phenotypes, columns=df_image.index) for _ in radii]
 
     # For each phenotype...
     for neighbor_phenotype in phenotypes:
 
+        # Get the boolean series identifying the current neighbor phenotype
+        ser_curr_neighbor_phenotype = df_image[phenotype_column_name] == neighbor_phenotype
+
         # Construct the KDTree for the current phenotype in the entire current image. This represents the neighbors
-        curr_neighbor_tree = scipy.spatial.KDTree(df_image.loc[df_image[phenotype_column_name] == neighbor_phenotype, coord_column_names])
+        curr_neighbor_tree = scipy.spatial.KDTree(df_image.loc[ser_curr_neighbor_phenotype, coord_column_names])
 
         # For each radius, which should be monotonically increasing and start with 0...
         for iradius, radius in enumerate(radii):
@@ -1131,17 +1131,19 @@ def fast_neighbors_counts_for_block(df_image, image_name, coord_column_names, ph
 
         # Rename the index to reflect the current radius range
         radius_range_str = f'({radii[iradius]}, {radii[iradius + 1]}]'
-        # df_counts_curr_annulus.index = df_counts_curr_annulus.index + f' in {radius_range_str}'
         df_counts_curr_annulus.index = [f'{phenotype} in {radius_range_str}' for phenotype in phenotypes]
 
         # Add a transpose of this (so centers are in rows and phenotypes/radii are in columns) to the running list of annulus dataframes
         df_counts_holder_annulus.append(df_counts_curr_annulus.T)
-    
+
     # Concatenate the annulus dataframes to get the final dataframe of neighbor counts for the current image
     df_curr_counts = pd.concat(df_counts_holder_annulus, axis='columns')
 
-    # Set the index of the final dataframe to correspond to that of the original dataframe
-    df_curr_counts.index = df_image.index
+    # Convert the dataframe to a more efficient dtype (from int64)
+    df_curr_counts = df_curr_counts.astype(np.int32)
+
+    # Print the time taken to calculate the neighbor counts for the current image
+    print(f'  ...finished calculating neighbor counts for image {image_name} ({len(df_image)} cells) in {time.time() - start_time:.2f} seconds')
 
     # Return the final dataframe of neighbor counts for the current image
     return df_curr_counts

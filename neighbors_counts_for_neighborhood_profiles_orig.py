@@ -169,8 +169,8 @@ def main():
     method = 'kdtree'
 
     # Read in the datafile
-    df = pd.read_csv(input_file)
-    # df = utils.downcast_dataframe_dtypes(pd.read_csv(input_file))
+    # df = pd.read_csv(input_file)
+    df = utils.downcast_dataframe_dtypes(pd.read_csv(input_file))
 
     # To see mapping of phenotype names
     # print(df.iloc[:, 83:92].drop_duplicates())
@@ -194,15 +194,13 @@ def main():
     elif method == 'kdtree':
 
         # Create the list of tuple arguments
-        list_of_tuple_arguments = [(df[df[image_column_name] == image_name], image_name, coord_column_names, phenotypes, radii, phenotype_column_name) for image_name in image_names[:1]]
-        
+        list_of_tuple_arguments = [(df[df[image_column_name] == image_name], image_name, coord_column_names, phenotypes, radii, phenotype_column_name) for image_name in image_names]
+
         # Fan out the function to num_cpus_to_use CPUs
-        num_cpus_to_use = 1
-        use_starmap = True
-        results = utils.execute_data_parallelism_potentially(function=utils.fast_neighbors_counts_for_block, list_of_tuple_arguments=list_of_tuple_arguments, nworkers=num_cpus_to_use, task_description='calculation of the counts matrix for all images', do_benchmarking=True, mp_start_method=None, use_starmap=use_starmap)
+        df_counts_holder = utils.execute_data_parallelism_potentially(function=utils.fast_neighbors_counts_for_block, list_of_tuple_arguments=list_of_tuple_arguments, nworkers=num_cpus_to_use, task_description='calculation of the counts matrix for all images', do_benchmarking=True, mp_start_method=None, use_starmap=True)
 
         # Concatenate the results into a single dataframe
-        df_counts_matrix = pd.concat(results)
+        df_counts_matrix = pd.concat(df_counts_holder, axis='index')
 
     # Print the shape final density matrix dataframe, which can be concatenated with the original dataframe
     print(f'Shape of final density matrix: {df_counts_matrix.shape}')
