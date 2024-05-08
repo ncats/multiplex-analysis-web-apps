@@ -154,8 +154,8 @@ def calculate_density_matrix_for_image(df_image, phenotypes, phenotype_column_na
     return df_num_neighbors_image
 
 
-# Define the main function
-def main():
+# Define a function to test the neighbors counting
+def test_neighbors_counts(num_cpus_to_use=None, method='kdtree', num_images_to_run=None):
     """
     This is a sample of how to calculate the density matrix for the entire dataset.
     """
@@ -166,7 +166,6 @@ def main():
     coord_column_names = ['CentroidX', 'CentroidY']
     image_column_name = 'ShortName'
     phenotype_column_name = 'pheno_20230327_152849'
-    method = 'kdtree'
 
     # Read in the datafile
     # df = pd.read_csv(input_file)
@@ -181,12 +180,17 @@ def main():
     debug_output = True
     num_ranges = len(radii) - 1
     range_strings = ['({}, {}]'.format(radii[iradius], radii[iradius + 1]) for iradius in range(num_ranges)]
-    num_cpus_to_use = int(multiprocessing.cpu_count() / 2)
+    if num_cpus_to_use is None:
+        num_cpus_to_use = int(multiprocessing.cpu_count() / 2)
+
+    # Determine the number of images on which to perform neighbors counts
+    if num_images_to_run is None:
+        num_images_to_run = len(image_names)
 
     if method == 'cdist':
-    
+
         # Calculate the counts matrix for all images
-        df_counts_matrix = calculate_density_matrix_for_all_images(image_names, df, phenotypes, phenotype_column_name, image_column_name, coord_column_names, radii, num_ranges, range_strings, debug_output=debug_output, num_cpus_to_use=num_cpus_to_use, swap_inequalities=True)
+        df_counts_matrix = calculate_density_matrix_for_all_images(image_names[:num_images_to_run], df, phenotypes, phenotype_column_name, image_column_name, coord_column_names, radii, num_ranges, range_strings, debug_output=debug_output, num_cpus_to_use=num_cpus_to_use, swap_inequalities=True)
 
         # Fill in any NaN values with 0 and convert to integers
         df_counts_matrix = df_counts_matrix.fillna(0).astype(int)
@@ -194,7 +198,7 @@ def main():
     elif method == 'kdtree':
 
         # Create the list of tuple arguments
-        list_of_tuple_arguments = [(df[df[image_column_name] == image_name], image_name, coord_column_names, phenotypes, radii, phenotype_column_name) for image_name in image_names]
+        list_of_tuple_arguments = [(df[df[image_column_name] == image_name], image_name, coord_column_names, phenotypes, radii, phenotype_column_name) for image_name in image_names[:num_images_to_run]]
 
         # Fan out the function to num_cpus_to_use CPUs
         df_counts_holder = utils.execute_data_parallelism_potentially(function=utils.fast_neighbors_counts_for_block, list_of_tuple_arguments=list_of_tuple_arguments, nworkers=num_cpus_to_use, task_description='calculation of the counts matrix for all images', do_benchmarking=True, mp_start_method=None, use_starmap=True)
@@ -210,6 +214,36 @@ def main():
 
     # Return the final counts matrix
     return df_counts_matrix
+
+
+def test_neighbors_counts_for_neighborhood_profiles(num_images_to_compare=1, num_cpus_to_use_for_kdtree=1, num_cpus_to_use_for_cdist=None):
+    
+    # Get the neighbors counts using kdtree
+    df_counts_kdtree = test_neighbors_counts(num_cpus_to_use=num_cpus_to_use_for_kdtree, method='kdtree', num_images_to_run=num_images_to_compare)
+
+    # Get the neighbors counts using cdist
+    df_counts_cdist = test_neighbors_counts(num_cpus_to_use=num_cpus_to_use_for_cdist, method='cdist', num_images_to_run=num_images_to_compare)
+
+    # Just a sanity check to ensure the two dataframes are not referring to the same one, silly but makes me feel better
+    assert not df_counts_cdist.equals(df_counts_kdtree)
+
+    # Make the format of the columns in cdist match that in kdtree
+    cdist_columns_orig = df_counts_cdist.columns.copy()
+    df_counts_cdist.columns = df_counts_cdist.columns.str.replace('Number of neighbors of type ', '').str.replace('range ', '')
+
+    # Check if the actual results are equal
+    results_are_equal = df_counts_kdtree[df_counts_cdist.columns].equals(df_counts_cdist.astype(np.int32))
+    if results_are_equal:
+        print('The results are equal!')
+    else:
+        print('The results are not equal')
+
+    # Return the dataframes and original cdist columns that have since been renamed
+    return df_counts_kdtree, df_counts_cdist, cdist_columns_orig
+
+
+def main():
+    pass
 
 
 # Call the main function
