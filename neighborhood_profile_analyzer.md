@@ -5,29 +5,53 @@ nav_order: 8
 # Neighborhood Profiles Workflow
 
 ## Introduction and Theory
+Neighborhood Profiles identifies the types of cells that often cluster with one another, and find patterns of these types of clusterings occuring more often in certain tissue types or conditions. 
 
 ## Workflow
 
+The Neighborhood Profiles Workflow can be used once your data has been properly loaded and phenotyped. Of particular importance is that the your data contains X/Y coordinates for 
+
 ### Neighborhood Profiles
+
+This page is the starting point for running the Neighborhood Profiles. On the top of this page you will see options for running each step of the analysis. At the bottom of the page are placeholder spaces for two figures.
+
+In the top panel, there are the following buttons
+
+* Perform Cell Counts/Areas Analysis
+* Perform UMAP Analysis
+* Perform Clustering Analysis
+
+The bottom figure panels are labeled
+
+* Clusters Plot
+* Neighborhood Profiles
+
+#### Instructions for Use
+
+1. Start by checking the message text that can be seen in the middle of the screen. If you have completed the previous phenotyping step correctly, this message will read as the following. If you have not finished the phenotying step, you will be instructed 
+1. If you see 
+
+
 
 ### UMAP Differences
 
-After completing the UMAP decomposition and clustering analysis, the user may now take a look at the down-stream figures generated as a result of these analyses. While there are not many levers and knobs to change the data implicitly here, the user can generate different figures.
+Upon completing the analysis steps on the Neighborhood Profiles page, the user may now take a look at the down-stream figures generated as a result of these analyses. While there are not many levers and knobs to change the data implicitly here, the user can generate different figures based other outcome variables from the input dataset, and the phenotypes that were defined earlier in the MAWA worklow
 
-1. Before starting to view these Clustering Differences, you must complete at least the UMAP processing seen on the previous page. To experience the full offering of the Clustering Differences page, you must also complete the Clustering step on the previous page. There are warnings on the page to help you remember what needs to be completed in order to see each figure.
+Before starting to view these Clustering Differences, you must complete at least the UMAP processing seen on the previous page. To experience the full offering of effects of clustering, you must also complete the Clustering step on the Neighborhood Profiles page. There are warnings on the page to help you remember what needs to be completed in order to see each figure.
 
-2. The Figures that are available for viewing:  
-`Full 2D UMAP`  
-`2D UMAP filtered by lineage and features`  
-`Difference UMAP scaled by features`  
+The Figures that are available for viewing are:
+
+1. `Full 2D UMAP`  
+1. `2D UMAP filtered by lineage and features`  
+1. `Difference UMAP scaled by features`  
 
 #### Full 2D UMAP
 
-This is purely the outcome of UMAP decomposition colored by density of cells. This is meant to be a template to compare all additional UMAPs, both within this study design as well as for future reproduceability.
+This is purely the outcome of UMAP decomposition colored by density of cells. This is meant to be a template to compare to, after the other UMAP permutations are generated, both within this study design as well as for future reproduceability.
 
 #### 2D UMAP filtered by lineage and features
 
-This is a copy of the UMAP on the left, but with additional filtering options.
+This is a copy of the UMAP on the left, but with additional filtering options. Specifically, this allows you 
 
 #### Differnce UMAP scaled by features
 
