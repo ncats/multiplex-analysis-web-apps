@@ -68,6 +68,7 @@ def apply_umap(umap_style):
 
     # Identify all of the features in the dataframe
     st.session_state.outcomes = st.session_state.spatial_umap.cells.columns
+    st.session_state.spatial_umap.outcomes = st.session_state.spatial_umap.cells.columns
 
     # List of possible outcome variables as defined by the config yaml files
     st.session_state.umapOutcomes = [st.session_state.defumapOutcomes]
@@ -260,8 +261,8 @@ def main():
         if clust_butt:
             if st.session_state.umap_completed:
                 set_clusters()
-        if st.session_state['toggle_clust_diff']:
-            st.selectbox('Feature', options = st.session_state.outcomes, key = 'dens_diff_feat_sel')
+        if st.session_state['toggle_clust_diff'] and st.session_state.umap_completed:
+            st.selectbox('Feature', options = st.session_state.spatial_umap.outcomes, key = 'dens_diff_feat_sel')
             st.number_input('Cutoff Percentage', min_value = 0.01, max_value = 0.95, value = 0.1, step = 0.05, key = 'dens_diff_cutoff')
 
     # UMAP Density Difference Analysis
@@ -313,7 +314,6 @@ def main():
                     udp_diff.dens_mat = np.log10(udp_true.dens_mat + 1) - np.log10(udp_fals.dens_mat + 1)
                     ## Rerun the min/max calcs
                     udp_diff.umap_summary_stats()
-                    print(udp_diff.dens_mat.min(), udp_diff.dens_mat.max())
                     ## Set Feature Labels
                     udp_fals.set_feature_label(st.session_state.dens_diff_feat_sel, fals_msg)
                     udp_true.set_feature_label(st.session_state.dens_diff_feat_sel, true_msg)
