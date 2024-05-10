@@ -6,13 +6,55 @@ import plotly.graph_objects as go
 import os
 import dataset_formats
 import plotly.express as px
-import matplotlib.pyplot as plt
 import numpy as np
 import utils
-
-# Import relevant libraries
+from scipy.stats import gaussian_kde
 import app_top_of_page as top
 import streamlit_dataframe_editor as sde
+
+
+def calculate_histogram(ser):
+    # calculate_histogram(df.loc[image_loc_group_1, column_for_filtering])
+    if len(ser) != 0:
+        vc = ser.value_counts(sort=False)
+        df = pd.DataFrame({'Values': vc.index.to_list(), 'Counts': vc.to_list()})
+    else:
+        df = pd.DataFrame({'Values': [], 'Counts': []})
+    return df
+
+
+def calculate_kde(ser, kde_grid_size):
+    # calculate_kde(df_batch_normalized.loc[image_loc_group_1, column_for_filtering], st.session_state['mg__kde_grid_size'])
+    if len(ser) != 0:
+        kde = gaussian_kde(ser)  # create a gaussian_kde object
+        x = np.linspace(min(ser), max(ser), kde_grid_size)  # create a range of values over which to evaluate the KDE
+        y = kde.evaluate(x)  # evaluate the KDE over the range of values
+        df = pd.DataFrame({'Value': x, 'Density': y})
+    else:
+        df = pd.DataFrame({'Value': [], 'Density': []})
+    return df
+
+
+def calculate_kdes_on_same_grid(ser1, ser2, kde_grid_size):
+    # calculate_kdes_on_same_grid(df_batch_normalized.loc[image_loc_group_1, column_for_filtering], df_batch_normalized.loc[image_loc_group_2, column_for_filtering], st.session_state['mg__kde_grid_size'])
+    if (len(ser1) != 0) and (len(ser2) != 0):
+        kde1 = gaussian_kde(ser1)  # create a gaussian_kde object
+        kde2 = gaussian_kde(ser2)  # create a gaussian_kde object
+        x = np.linspace(min(min(ser1), min(ser2)), max(max(ser1), max(ser2)), kde_grid_size)  # create a range of values over which to evaluate the KDE
+        y1 = kde1.evaluate(x)  # evaluate the KDE over the range of values
+        y2 = kde2.evaluate(x)  # evaluate the KDE over the range of values
+        df1 = pd.DataFrame({'Value': x, 'Density': y1})
+        df2 = pd.DataFrame({'Value': x, 'Density': y2})
+    else:
+        df1 = calculate_kde(ser1, kde_grid_size)
+        df2 = calculate_kde(ser2, kde_grid_size)
+    return df1, df2
+
+
+# Add a function to reset the KDEs (numerical) and histograms (categorical) since we want to update this not just initially but also if the KDE resolution changes or they are calculated based on a different selection of images
+def reset_kdes_and_hists(df):
+    st.session_state['mg__kdes_or_hists_to_plot'] = pd.DataFrame(columns=st.session_state['mg__all_columns'], index=(['All images'] + df['Slide ID'].unique().tolist()), dtype='object')
+
 
 def load_data(input_datafile_path, coord_units_in_microns, dataset_format):
     '''
@@ -380,6 +422,10 @@ def main():
         # Data column filter
         with main_columns[0]:
 
+            # Initialize the extra settings toggle to off
+            if 'mg__extra_settings' not in st.session_state:
+                st.session_state['mg__extra_settings'] = False
+
             # Column header
             st.header(':one: Column filter')
 
@@ -420,33 +466,82 @@ def main():
             # If the selected column contains more than one value...
             else:
 
+                # If extra settings are to be displayed, create widgets for selecting particular images to define two groups
+                if st.session_state['mg__extra_settings']:
+                    st.multiselect('Images in plotting group 1:', options=df['Slide ID'].unique().tolist(), key='mg__images_in_plotting_group_1', on_change=reset_kdes_and_hists, args=(df,))
+                    st.multiselect('Images in plotting group 2:', options=df['Slide ID'].unique().tolist(), key='mg__images_in_plotting_group_2', on_change=reset_kdes_and_hists, args=(df,))
+                else:
+                    st.session_state['mg__images_in_plotting_group_1'] = []
+                    st.session_state['mg__images_in_plotting_group_2'] = []
+
+                # If either list is not empty, then we know we want to plot 1 or 2 groups instead of all images or a single image
+                if st.session_state['mg__images_in_plotting_group_1'] or st.session_state['mg__images_in_plotting_group_2']:
+                    use_groups_for_plotting = True
+                else:
+                    use_groups_for_plotting = False
+                if ('mg__use_groups_for_plotting_previous' in st.session_state) and (use_groups_for_plotting != st.session_state['mg__use_groups_for_plotting_previous']):
+                    reset_kdes_and_hists(df)
+                st.session_state['mg__use_groups_for_plotting_previous'] = use_groups_for_plotting
+
                 # Determine the x-y data to plot for the selected column, calculating the KDE for each column (and each image) only once ever
                 if 'mg__kdes_or_hists_to_plot' not in st.session_state:
-                    st.session_state['mg__kdes_or_hists_to_plot'] = pd.DataFrame(columns=st.session_state['mg__all_columns'], index=(['All images'] + df['Slide ID'].unique().tolist()), dtype='object')
-                if st.session_state['mg__kdes_or_hists_to_plot'].loc[image_for_filtering, column_for_filtering] is np.nan:
-                    if image_for_filtering == 'All images':
-                        image_loc = df.index
-                    else:
-                        image_loc = df[df['Slide ID'] == image_for_filtering].index
-                    if st.session_state['mg__selected_column_type'] == 'numeric':
-                        line2d = sns.kdeplot(data=df_batch_normalized.loc[image_loc, :], x=column_for_filtering).get_lines()[0]
-                        curr_df = pd.DataFrame({'Value': line2d.get_xdata(), 'Density': line2d.get_ydata()})
-                        st.session_state['mg__kdes_or_hists_to_plot'].loc[image_for_filtering, column_for_filtering] = [curr_df[(curr_df['Value'] >= column_range[0]) & (curr_df['Value'] <= column_range[1])]]  # needed because the KDE can extend outside the possible value range
-                    else:
-                        vc = df.loc[image_loc, column_for_filtering].value_counts(sort=False)
-                        curr_df = pd.DataFrame({'Values': vc.index.to_list(), 'Counts': vc.to_list()})
-                        st.session_state['mg__kdes_or_hists_to_plot'].loc[image_for_filtering, column_for_filtering] = [curr_df]
-                kde_or_hist_to_plot_full = st.session_state['mg__kdes_or_hists_to_plot'].loc[image_for_filtering, column_for_filtering][0]
+                    reset_kdes_and_hists(df)
+
+                # If we want to plot all or one image...
+                if not use_groups_for_plotting:
+                    if st.session_state['mg__kdes_or_hists_to_plot'].loc[image_for_filtering, column_for_filtering] is np.nan:
+                        if image_for_filtering == 'All images':
+                            image_loc = df.index
+                        else:
+                            image_loc = df[df['Slide ID'] == image_for_filtering].index
+                        if st.session_state['mg__selected_column_type'] == 'numeric':
+                            if 'mg__kde_grid_size' not in st.session_state:
+                                st.session_state['mg__kde_grid_size'] = 200
+                            line2d = sns.kdeplot(data=df_batch_normalized.loc[image_loc, :], x=column_for_filtering, gridsize=st.session_state['mg__kde_grid_size']).get_lines()[0]
+                            curr_df = pd.DataFrame({'Value': line2d.get_xdata(), 'Density': line2d.get_ydata()})
+                            st.session_state['mg__kdes_or_hists_to_plot'].loc[image_for_filtering, column_for_filtering] = [curr_df[(curr_df['Value'] >= column_range[0]) & (curr_df['Value'] <= column_range[1])]]  # needed because the KDE can extend outside the possible value range
+                        else:
+                            vc = df.loc[image_loc, column_for_filtering].value_counts(sort=False)
+                            curr_df = pd.DataFrame({'Values': vc.index.to_list(), 'Counts': vc.to_list()})
+                            st.session_state['mg__kdes_or_hists_to_plot'].loc[image_for_filtering, column_for_filtering] = [curr_df]
+                    kde_or_hist_to_plot_full = st.session_state['mg__kdes_or_hists_to_plot'].loc[image_for_filtering, column_for_filtering][0]
+
+                # If we want to plot 1 or 2 groups...
+                else:
+                    if st.session_state['mg__kdes_or_hists_to_plot'].loc[image_for_filtering, column_for_filtering] is np.nan:
+                        image_loc_group_1 = df[df['Slide ID'].isin(st.session_state['mg__images_in_plotting_group_1'])].index
+                        image_loc_group_2 = df[df['Slide ID'].isin(st.session_state['mg__images_in_plotting_group_2'])].index
+                        if st.session_state['mg__selected_column_type'] == 'numeric':
+                            if 'mg__kde_grid_size' not in st.session_state:
+                                st.session_state['mg__kde_grid_size'] = 200
+                            # curr_df_group_1 = calculate_kde(df_batch_normalized.loc[image_loc_group_1, column_for_filtering], st.session_state['mg__kde_grid_size'])
+                            # curr_df_group_2 = calculate_kde(df_batch_normalized.loc[image_loc_group_2, column_for_filtering], st.session_state['mg__kde_grid_size'])
+                            curr_df_group_1, curr_df_group_2 = calculate_kdes_on_same_grid(df_batch_normalized.loc[image_loc_group_1, column_for_filtering], df_batch_normalized.loc[image_loc_group_2, column_for_filtering], st.session_state['mg__kde_grid_size'])
+                        else:
+                            curr_df_group_1 = calculate_histogram(df.loc[image_loc_group_1, column_for_filtering])
+                            curr_df_group_2 = calculate_histogram(df.loc[image_loc_group_2, column_for_filtering])
+                        st.session_state['mg__kdes_or_hists_to_plot'].loc[image_for_filtering, column_for_filtering] = [(curr_df_group_1, curr_df_group_2)]
+                    kde_or_hist_to_plot_full = st.session_state['mg__kdes_or_hists_to_plot'].loc[image_for_filtering, column_for_filtering][0]
 
                 # If the selected column is numeric...
                 if st.session_state['mg__selected_column_type'] == 'numeric':
+
+                    # If extra settings are requested, add an option to update the KDE grid size from its default of 200
+                    if st.session_state['mg__extra_settings']:
+                        st.number_input('KDE grid size:', min_value=1, max_value=1000, key='mg__kde_grid_size', on_change=reset_kdes_and_hists, args=(df,))
 
                     # Draw a range slider widget for selecting the range min and max
                     st.slider(label='Selected value range:', min_value=float(column_range[0]), max_value=float(column_range[1]), key='mg__selected_value_range')
                     selected_min_val, selected_max_val = st.session_state['mg__selected_value_range']
 
                     # Create a view of the full dataframe that is the selected subset
-                    df_to_plot_selected = kde_or_hist_to_plot_full[(kde_or_hist_to_plot_full['Value'] >= selected_min_val) & (kde_or_hist_to_plot_full['Value'] <= selected_max_val)]
+                    if not use_groups_for_plotting:
+                        df_to_plot_selected = kde_or_hist_to_plot_full[(kde_or_hist_to_plot_full['Value'] >= selected_min_val) & (kde_or_hist_to_plot_full['Value'] <= selected_max_val)]
+                    else:  # kde_or_hist_to_plot_full is a tuple
+                        df_to_plot_selected = (
+                            kde_or_hist_to_plot_full[0][(kde_or_hist_to_plot_full[0]['Value'] >= selected_min_val) & (kde_or_hist_to_plot_full[0]['Value'] <= selected_max_val)],
+                            kde_or_hist_to_plot_full[1][(kde_or_hist_to_plot_full[1]['Value'] >= selected_min_val) & (kde_or_hist_to_plot_full[1]['Value'] <= selected_max_val)]
+                        )
 
                     # Initialize the raw intensity cutoff number to None
                     intensity_cutoff = None
@@ -489,12 +584,22 @@ def main():
 
                     # Plot the Plotly figure in Streamlit
                     fig = go.Figure()
-                    fig.add_trace(go.Scatter(x=kde_or_hist_to_plot_full['Value'], y=kde_or_hist_to_plot_full['Density'], fill='tozeroy', mode='none', fillcolor='yellow', name='Full dataset', hovertemplate=' '))
-                    fig.add_trace(go.Scatter(x=df_to_plot_selected['Value'], y=df_to_plot_selected['Density'], fill='tozeroy', mode='none', fillcolor='red', name='Selection', hoverinfo='skip'))
-                    if intensity_cutoff is not None:
-                        fig.add_vline(x=intensity_cutoff, line_color='green', line_width=3, line_dash="dash", annotation_text="Previous threshold: ~{}".format((intensity_cutoff)), annotation_font_size=18, annotation_font_color="green")
-                    fig.update_layout(hovermode='x unified', xaxis_title='Column value', yaxis_title='Density')
-                    fig.update_layout(legend=dict(yanchor="top", y=1.2, xanchor="left", x=0.01, orientation="h"))
+                    if not use_groups_for_plotting:
+                        fig.add_trace(go.Scatter(x=kde_or_hist_to_plot_full['Value'], y=kde_or_hist_to_plot_full['Density'], fill='tozeroy', mode='none', fillcolor='rgba(255, 0, 0, 0.25)', name='All selected images', hovertemplate=' '))
+                        fig.add_trace(go.Scatter(x=df_to_plot_selected['Value'], y=df_to_plot_selected['Density'], fill='tozeroy', mode='none', fillcolor='rgba(255, 0, 0, 0.5)', name='Selection', hoverinfo='skip'))
+                        if intensity_cutoff is not None:
+                            fig.add_vline(x=intensity_cutoff, line_color='green', line_width=3, line_dash="dash", annotation_text="Previous threshold: ~{}".format((intensity_cutoff)), annotation_font_size=18, annotation_font_color="green")
+                        fig.update_layout(hovermode='x unified', xaxis_title='Column value', yaxis_title='Density')
+                        fig.update_layout(legend=dict(yanchor="top", y=1.2, xanchor="left", x=0.01, orientation="h"))
+                    else:
+                        fig.add_trace(go.Scatter(x=kde_or_hist_to_plot_full[0]['Value'], y=kde_or_hist_to_plot_full[0]['Density'], fill='tozeroy', mode='none', fillcolor='rgba(0, 255, 255, 0.25)', name='Group 1', hovertemplate=' '))
+                        fig.add_trace(go.Scatter(x=df_to_plot_selected[0]['Value'], y=df_to_plot_selected[0]['Density'], fill='tozeroy', mode='none', fillcolor='rgba(0, 255, 255, 0.5)', name='Group 1 selection', hoverinfo='skip'))
+                        fig.add_trace(go.Scatter(x=kde_or_hist_to_plot_full[1]['Value'], y=kde_or_hist_to_plot_full[1]['Density'], fill='tozeroy', mode='none', fillcolor='rgba(255, 0, 0, 0.25)', name='Group 2', hovertemplate=' '))
+                        fig.add_trace(go.Scatter(x=df_to_plot_selected[1]['Value'], y=df_to_plot_selected[1]['Density'], fill='tozeroy', mode='none', fillcolor='rgba(255, 0, 0, 0.5)', name='Group 2 selection', hoverinfo='skip'))
+                        if intensity_cutoff is not None:
+                            fig.add_vline(x=intensity_cutoff, line_color='green', line_width=3, line_dash="dash", annotation_text="Previous threshold: ~{}".format((intensity_cutoff)), annotation_font_size=18, annotation_font_color="green")
+                        fig.update_layout(hovermode='x unified', xaxis_title='Column value', yaxis_title='Density')
+                        fig.update_layout(legend=dict(yanchor="top", y=1.2, xanchor="left", x=0.01, orientation="h"))
                     
                     # Set Plotly chart in streamlit
                     st.plotly_chart(fig, use_container_width=True)
@@ -515,16 +620,20 @@ def main():
                         st.multiselect(label='Selected value items:', options=curr_column_unique_values, key='mg__selected_column_values')
                         selected_items = st.session_state['mg__selected_column_values']
 
-                        # Plot in Streamlit the Matplotlib histogram of the possible values in the full dataset
-                        # sns.histplot(data=kde_or_hist_to_plot_full, x=column_for_filtering, shrink=.8, ax=ax)
-                        fig, ax = plt.subplots()
-                        bar_colors = ['tab:red' if value in selected_items else 'y' for value in kde_or_hist_to_plot_full['Values']]
-                        ax.bar(kde_or_hist_to_plot_full['Values'], kde_or_hist_to_plot_full['Counts'], color=bar_colors)
-                        ax.set_xlabel('Value')
-                        ax.set_ylabel('Count')
-                        ax.set_title('Counts of values of column {}'.format(column_for_filtering))
-                        ax.set_xticklabels(labels=ax.get_xticklabels(), rotation=45, ha='right')
-                        st.pyplot(fig)
+                        # Plot the plotly figure in Streamlit
+                        fig = go.Figure()
+                        if not use_groups_for_plotting:
+                            bar_colors = ['rgba(255, 0, 0, 0.5)' if value in selected_items else 'rgba(255, 0, 0, 0.25)' for value in kde_or_hist_to_plot_full['Values']]  # define bar colors
+                            fig.add_trace(go.Bar(x=kde_or_hist_to_plot_full['Values'], y=kde_or_hist_to_plot_full['Counts'], marker_color=bar_colors))  # create bar chart
+                            fig.update_layout(xaxis_title='Value', yaxis_title='Count', title_text='Counts of values of column {}'.format(column_for_filtering))  # set labels and title
+                            st.plotly_chart(fig)  # display plot
+                        else:
+                            bar_colors_group_1 = ['rgba(0, 255, 255, 0.5)' if value in selected_items else 'rgba(0, 255, 255, 0.25)' for value in kde_or_hist_to_plot_full[0]['Values']]  # define bar colors
+                            bar_colors_group_2 = ['rgba(255, 0, 0, 0.5)' if value in selected_items else 'rgba(255, 0, 0, 0.25)' for value in kde_or_hist_to_plot_full[1]['Values']]
+                            fig.add_trace(go.Bar(x=kde_or_hist_to_plot_full[0]['Values'], y=kde_or_hist_to_plot_full[0]['Counts'], marker_color=bar_colors_group_1, name='Group 1'))  # create bar chart
+                            fig.add_trace(go.Bar(x=kde_or_hist_to_plot_full[1]['Values'], y=kde_or_hist_to_plot_full[1]['Counts'], marker_color=bar_colors_group_2, name='Group 2'))
+                            fig.update_layout(xaxis_title='Value', yaxis_title='Count', title_text='Counts of values of column {}'.format(column_for_filtering))  # set labels and title
+                            st.plotly_chart(fig)  # display plot
 
                         # Set the selection dictionary for the current filter to pass on to the current phenotype definition
                         selection_dict = {'column_for_filtering': column_for_filtering, 'selected_min_val': None, 'selected_max_val': None, 'selected_column_values': selected_items}
@@ -540,6 +649,9 @@ def main():
 
                 # Add the current column filter to the current phenotype assignment
                 st.button(':star2: Add column filter to current phenotype :star2:', use_container_width=True, on_click=update_dependencies_of_button_for_adding_column_filter_to_current_phenotype, kwargs=selection_dict, disabled=add_column_button_disabled)
+
+                # Create a toggle for extra options
+                st.toggle('Extra settings', key='mg__extra_settings')
 
         # Current phenotype and phenotype assignments
         with main_columns[1]:
