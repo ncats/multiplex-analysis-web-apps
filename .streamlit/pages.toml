@@ -102,8 +102,3 @@ is_section = true
 path = "pages/memory_analyzer.py"
 name = "Memory Analyzer"
 icon = ""
-
-[[pages]]
-path = "pages/child_process_killer.py"
-name = "Child Process Killer"
-icon = ""

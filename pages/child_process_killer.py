@@ -6,12 +6,31 @@ import os
 import subprocess
 import psutil
 import pandas as pd
+import time
 
 def get_system_info():
-    # Get a list of all running processes
+    # Run the top command and get its output
+    output = subprocess.check_output(
+        ["top", "-b", "-n", "1"], 
+        universal_newlines=True
+    )
+
+    # Split the output into lines
+    lines = output.split("\n")
+
+    # Filter out the lines that contain the process information
+    process_lines = [line for line in lines if line.startswith(" ")]
+
+    # Parse the process information into a list of dictionaries
     processes = []
-    for process in psutil.process_iter(['pid', 'name', 'cpu_percent', 'memory_percent']):
-        processes.append(process.info)
+    for line in process_lines:
+        parts = line.split()
+        processes.append({
+            'pid': parts[0],
+            'name': parts[11],
+            'cpu_percent': parts[8],
+            'memory_percent': parts[9],
+        })
 
     # Convert the list of processes to a DataFrame
     df = pd.DataFrame(processes)
@@ -37,7 +56,8 @@ def kill_child_processes(dry_run=False):
         for child in children:
             print(f'Would kill process ID {child.pid}, name {child.name()}')
     else:
-        subprocess.run(['pkill', '-P', str(parent_pid)])  # Run the pkill command
+        for child in psutil.Process(parent_pid).children(recursive=True):
+            child.kill()  # Send a SIGKILL signal
 
 
 def main():
