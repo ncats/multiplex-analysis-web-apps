@@ -3,6 +3,7 @@ nav_order: 8
 ---
 
 # Neighborhood Profiles Workflow
+!['Neighborhood Profiles'](./assets/images/NeiPro_splash.png)
 
 ## Introduction and Theory
 
