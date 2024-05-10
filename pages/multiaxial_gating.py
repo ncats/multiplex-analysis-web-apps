@@ -13,6 +13,18 @@ import app_top_of_page as top
 import streamlit_dataframe_editor as sde
 
 
+def update_selected_value_range_from_minimum_selection_value():
+    min_selection_value = st.session_state['mg__min_selection_value']
+    selected_value_range = st.session_state['mg__selected_value_range']
+    st.session_state['mg__selected_value_range'] = (min_selection_value, selected_value_range[1])
+
+
+def update_minimum_selection_value_from_selected_value_range():
+    if st.session_state['mg__extra_settings']:
+        selected_value_range = st.session_state['mg__selected_value_range']
+        st.session_state['mg__min_selection_value'] = selected_value_range[0]
+
+
 def calculate_histogram(ser):
     # calculate_histogram(df.loc[image_loc_group_1, column_for_filtering])
     if len(ser) != 0:
@@ -529,9 +541,12 @@ def main():
                     # If extra settings are requested, add an option to update the KDE grid size from its default of 200
                     if st.session_state['mg__extra_settings']:
                         st.number_input('KDE grid size:', min_value=1, max_value=1000, key='mg__kde_grid_size', on_change=reset_kdes_and_hists, args=(df,))
+                        if 'mg__min_selection_value' not in st.session_state:
+                            st.session_state['mg__min_selection_value'] = column_range[0]
+                        st.number_input('Minimum selection value:', min_value=float(column_range[0]), max_value=float(column_range[1]), key='mg__min_selection_value', on_change=update_selected_value_range_from_minimum_selection_value)
 
                     # Draw a range slider widget for selecting the range min and max
-                    st.slider(label='Selected value range:', min_value=float(column_range[0]), max_value=float(column_range[1]), key='mg__selected_value_range')
+                    st.slider(label='Selected value range:', min_value=float(column_range[0]), max_value=float(column_range[1]), key='mg__selected_value_range', on_change=update_minimum_selection_value_from_selected_value_range)
                     selected_min_val, selected_max_val = st.session_state['mg__selected_value_range']
 
                     # Create a view of the full dataframe that is the selected subset
@@ -651,7 +666,10 @@ def main():
                 st.button(':star2: Add column filter to current phenotype :star2:', use_container_width=True, on_click=update_dependencies_of_button_for_adding_column_filter_to_current_phenotype, kwargs=selection_dict, disabled=add_column_button_disabled)
 
                 # Create a toggle for extra options
-                st.toggle('Extra settings', key='mg__extra_settings')
+                extra_settings = st.toggle('Extra settings', key='mg__extra_settings')
+
+                if extra_settings:
+                    pass
 
         # Current phenotype and phenotype assignments
         with main_columns[1]:
