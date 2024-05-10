@@ -26,20 +26,20 @@ From within this page you can see the following settings:
 
 Tool Components for running Analysis
 
-* Instantiate TIME Class
-* Plot ROIs
-* Calculate P values
-* Check Metrics, impose plotting settings and convert to numpy format
-* Plot desnity heatmaps per ROI
-* Plot ROI outlines individually on the whole slides
-* Average density P values over ROIS for each slide
-* Average Density P values over TOIs for each annotation Region Type
-* Plot density P values for each ROI over slide spatial plot
+* **Instantiate TIME Class**: Default. Should always remained checked
+* **Plot ROIs**: Default. Should always remained checked
+* **Calculate P values**: Default. Should always remainded checked
+* **Check Metrics, impose plotting settings and convert to numpy format**: Default. Should always remainded checked
+* **Plot desnity heatmaps per ROI**: Default. Should always remainded checked
+* **Plot ROI outlines individually on the whole slides**: Default. Should always remainded checked
+* **Average density P values over ROIS for each slide**: Default. Should always remainded checked
+* **Average Density P values over TOIs for each annotation Region Type**: Default. Should always remainded checked
+* **Plot density P values for each ROI over slide spatial plot**: Default. Should always remainded checked
 
 Job Execution Parameters:
 
-* Should we use multiple logical CPUS to speed up calculations?
-* Select number of threads for calculations:
+* **Should we use multiple logical CPUS to speed up calculations?**: Default. Should always remainded checked
+* **Select number of threads for calculations**: Default. Keep this number at 7.
 
 ### Display Individual ROI Heatmaps
 
