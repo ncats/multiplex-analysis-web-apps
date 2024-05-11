@@ -214,7 +214,7 @@ def save_neipro_struct():
     Function to save the neighborhood profile structure
     '''
 
-    file_name = f'neighborhood_profiles_checkpoint_{datetime.datetime.now().strftime("%d-%m-%Y %H-%M-%S")}'
+    file_name = 'neighborhood_profiles_checkpoint'
     # Save the Neighborhood Profile structure
     with open(f'{st.session_state.checkpoint_dir}/{file_name}', "wb") as dill_file:
         print(f'Pickling Neighborhood Profiles Checkpoint-{file_name}')
