@@ -20,9 +20,8 @@ def update_selected_value_range_from_minimum_selection_value():
 
 
 def update_minimum_selection_value_from_selected_value_range():
-    if st.session_state['mg__extra_settings']:
-        selected_value_range = st.session_state['mg__selected_value_range']
-        st.session_state['mg__min_selection_value'] = selected_value_range[0]
+    selected_value_range = st.session_state['mg__selected_value_range']
+    st.session_state['mg__min_selection_value'] = selected_value_range[0]
 
 
 def calculate_histogram(ser):
@@ -669,7 +668,17 @@ def main():
                 extra_settings = st.toggle('Extra settings', key='mg__extra_settings')
 
                 if extra_settings:
-                    pass
+                    st.write(st.session_state['mg__min_selection_value'])
+                    if st.session_state['mg__images_in_plotting_group_1']:
+                        st.write('group 1 images present')
+                    ser_filt_col_group_1 = df.loc[df['Slide ID'].isin(st.session_state['mg__images_in_plotting_group_1']), st.session_state['mg__column_for_filtering']]
+                    group_1_mean = ser_filt_col_group_1.mean()
+                    group_1_std = ser_filt_col_group_1.std()
+                    z_score_thresholds = np.arange(2, 11)
+                    thresholds = group_1_mean + z_score_thresholds * group_1_std
+                    ser_filt_col_all = st.session_state[st.session_state['mg__column_for_filtering']]
+                    for threshold in thresholds:
+                        ser_above_thresh_all = ser_filt_col_all >= threshold
 
         # Current phenotype and phenotype assignments
         with main_columns[1]:

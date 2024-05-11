@@ -104,7 +104,7 @@ name = "Memory Analyzer"
 icon = ""
 
 [[pages]]
-name = "In development"
+name = "In Development"
 icon = ""
 is_section = true
 
