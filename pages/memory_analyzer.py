@@ -3,7 +3,8 @@ import streamlit as st
 import app_top_of_page as top
 import streamlit_dataframe_editor as sde
 import pandas as pd
-from pympler import asizeof
+# from pympler.asizeof import asizeof as deep_mem_usage_in_bytes
+from objsize import get_deep_size as deep_mem_usage_in_bytes
 import numpy as np
 import pickle
 import dill
@@ -13,7 +14,9 @@ import time
 
 # For each custom class, add a key-value pair where the class is the key and the value is a list of picklable attributes of that class. Only do this if the size of that attribute can be larger than 1 MB, which you can assess by using this app. See possible classes (at least as of 5/1/24) in the get_object_class function below, which is not used right now
 picklable_attributes_per_class = {
-    'dataset_formats.Standardized': ['data']
+    'dataset_formats.Standardized': ['data'],
+    'SpatialUMAP.SpatialUMAP': ['arcs_masks', 'cells', 'cell_positions', 'cell_labels', 'region_ids', 'umap_test', 'patients', 'dens_df', 'prop_df', 'dens_df_mean', 'dens_df_se', 'maxdens_df', 'df_umap', 'counts', 'areas', 'density', 'proportion'],
+    'SpatialUMAP.FitEllipse': ['img_ellipse', 'w', 'h', 'img_ellipse']
     }
 
 # Constant
@@ -129,7 +132,7 @@ def deserialize_file_to_dict(filepath, serialization_lib, output_func=print, cal
     with open(filepath, 'rb') as f:
         dict_to_load = serialization_lib.load(f)
     if calculate_size_in_mem:
-        predicted_size_in_mb = asizeof.asizeof(dict_to_load) / bytes_per_mb
+        predicted_size_in_mb = deep_mem_usage_in_bytes(dict_to_load) / bytes_per_mb
     else:
         predicted_size_in_mb = 0
     actual_size_in_mb = os.path.getsize(filepath) / bytes_per_mb
@@ -140,7 +143,7 @@ def deserialize_file_to_dict(filepath, serialization_lib, output_func=print, cal
 def serialize_dict_to_file(dict_to_save, filepath, serialization_lib, output_func=print, calculate_size_in_mem=False):
     # This is as fast as can be as long as calculate_size_in_mem == False and dict_to_save contains objects of types that are quickly dumped depending on the serialization library, which is the point of this module
     if calculate_size_in_mem:
-        predicted_size_in_mb = asizeof.asizeof(dict_to_save) / bytes_per_mb
+        predicted_size_in_mb = deep_mem_usage_in_bytes(dict_to_save) / bytes_per_mb
     else:
         predicted_size_in_mb = 0
     output_func(f'Saving dict_to_save ({len(dict_to_save)} objects) to {filepath} using serialization library `{serialization_lib}`. This should take around {predicted_size_in_mb:.2f} MB...', end='', flush=True)
@@ -210,7 +213,7 @@ def write_session_state_to_disk(ser_serialization_lib, saved_streamlit_session_s
 
 def recombine_picklable_attributes_with_custom_object(ser_memory_usage_in_mb, update_memory_usage=True):
 
-    # This is fast except when asizeof is called, which should be infrequent.
+    # This is fast except when deep_mem_usage_in_bytes is called, which should be infrequent.
 
     # If we haven't defined ser_memory_usage_in_mb (as we do when we are *writing* the pickle/dill files), then we assume that we are *loading* the pickle/dill files and therefore we need to iterate over the keys just loaded into the session state from those files
     if ser_memory_usage_in_mb is not None:
@@ -260,7 +263,7 @@ def recombine_picklable_attributes_with_custom_object(ser_memory_usage_in_mb, up
         for main_object in list(set(main_objects)):
                 
             # Store the memory usage of the current object
-            ser_memory_usage_in_mb[main_object] = asizeof.asizeof(st.session_state[main_object]) / bytes_per_mb
+            ser_memory_usage_in_mb[main_object] = deep_mem_usage_in_bytes(st.session_state[main_object]) / bytes_per_mb
 
         # Return the updated memory usage series
         return ser_memory_usage_in_mb
@@ -272,7 +275,7 @@ def split_off_picklable_attributes_from_custom_object(ser_memory_usage_in_mb, ou
     
     # This is only done when the object is "large" (> 1 MB).
     
-    # This is fast except when asizeof is called, which should be infrequent.
+    # This is fast except when deep_mem_usage_in_bytes is called, which should be infrequent.
 
     # For every item in ser_memory_usage_in_mb...
     for key in ser_memory_usage_in_mb.index:
@@ -303,10 +306,10 @@ def split_off_picklable_attributes_from_custom_object(ser_memory_usage_in_mb, ou
                         delattr(st.session_state[key], picklable_attribute)
 
                         # Store the memory usage of the standalone picklable attribute
-                        ser_memory_usage_in_mb[attribute_key] = asizeof.asizeof(st.session_state[attribute_key]) / bytes_per_mb  # note this is slow
+                        ser_memory_usage_in_mb[attribute_key] = deep_mem_usage_in_bytes(st.session_state[attribute_key]) / bytes_per_mb  # note this is slow
 
                     # Store the new memory usage of the current object
-                    ser_memory_usage_in_mb[key] = asizeof.asizeof(st.session_state[key]) / bytes_per_mb  # note this is slow
+                    ser_memory_usage_in_mb[key] = deep_mem_usage_in_bytes(st.session_state[key]) / bytes_per_mb  # note this is slow
 
     # Return the updated memory usage series
     return ser_memory_usage_in_mb
@@ -361,7 +364,7 @@ def assess_whether_same_object(df):
 
 def get_session_state_object_info(ser_memory_usage_in_mb, return_val=None, write_dataframe=False):
 
-    # This is generally slow because asizeof is slow for large dataframes. However, if the elements in ser_memory_usage_in_mb are not None, then that function is not called and therefore this function is much faster.
+    # This is generally slow because deep_mem_usage_in_bytes is slow for large dataframes. However, if the elements in ser_memory_usage_in_mb are not None, then that function is not called and therefore this function is much faster.
 
     # If we don't want to return anything from this function, then we must mean we want to write the dataframe to the screen (and note that therefore we need to calculate everything in the dataframe)
     if not return_val:
@@ -381,7 +384,7 @@ def get_session_state_object_info(ser_memory_usage_in_mb, return_val=None, write
         if not np.isnan(ser_memory_usage_in_mb[key]):
             size_holder.append(ser_memory_usage_in_mb[key])
         else:
-            size_holder.append(asizeof.asizeof(st.session_state[key]) / bytes_per_mb)  # note this is slow
+            size_holder.append(deep_mem_usage_in_bytes(st.session_state[key]) / bytes_per_mb)  # note this is slow
 
     # Create a dataframe from these data, sorting by decreasing size
     if write_dataframe:

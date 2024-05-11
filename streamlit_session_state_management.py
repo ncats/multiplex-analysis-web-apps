@@ -6,7 +6,8 @@ import app_top_of_page as top
 import streamlit_dataframe_editor as sde
 import streamlit_dataframe_editor
 import utils
-from pympler import asizeof
+# from pympler.asizeof import asizeof as deep_mem_usage_in_bytes
+from objsize import get_deep_size as deep_mem_usage_in_bytes
 import time
 from pages import memory_analyzer
 
@@ -52,7 +53,7 @@ def load_session_state_preprocessing(saved_streamlit_session_states_dir, saved_s
 
 def pickle_dump(dict_to_save, filename):
     bytes_per_mb = 1024 ** 2
-    predicted_size_in_mb = asizeof.asizeof(dict_to_save) / bytes_per_mb
+    predicted_size_in_mb = deep_mem_usage_in_bytes(dict_to_save) / bytes_per_mb
     print(f'Saving dict_to_save to {filename}. This should take around {predicted_size_in_mb:.2f} MB...', end='', flush=True)
     with open(filename, 'wb') as f:
         size_before = os.path.getsize(filename)
@@ -65,7 +66,7 @@ def pickle_load(filename):
     bytes_per_mb = 1024 ** 2
     with open(filename, 'rb') as f:
         dict_to_load = pickle.load(f)
-    predicted_size_in_mb = asizeof.asizeof(dict_to_load) / bytes_per_mb
+    predicted_size_in_mb = deep_mem_usage_in_bytes(dict_to_load) / bytes_per_mb
     print(f'Loading dict_to_load from {filename} of predicted size {predicted_size_in_mb:.2f} MB')
     return dict_to_load
 

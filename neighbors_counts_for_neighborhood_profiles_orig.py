@@ -153,48 +153,98 @@ def calculate_density_matrix_for_image(df_image, phenotypes, phenotype_column_na
     # Return the dataframe with the number of neighbors for the current image
     return df_num_neighbors_image
 
-# Define the main function
-def main():
+
+# Define a function to test the neighbors counting
+def test_neighbors_counts(num_cpus_to_use=None, method='kdtree', num_images_to_run=None):
     """
     This is a sample of how to calculate the density matrix for the entire dataset.
     """
 
-    # Constants
+    # Parameters
     input_file = os.path.join('.', 'input', 'Combo_CSVfiles_20230327_152849.csv')
-    radii_small_spacing = np.arange(0, 251, 25)
-    radii_large_spacing = np.arange(0, 251, 50)
+    radii = np.array([0, 25, 50, 100, 150, 200])
     coord_column_names = ['CentroidX', 'CentroidY']
     image_column_name = 'ShortName'
     phenotype_column_name = 'pheno_20230327_152849'
 
     # Read in the datafile
-    df = pd.read_csv(input_file)
+    # df = pd.read_csv(input_file)
+    df = utils.downcast_dataframe_dtypes(pd.read_csv(input_file))
 
     # To see mapping of phenotype names
     # print(df.iloc[:, 83:92].drop_duplicates())
 
     # Variables
-    image_names = df[image_column_name].unique()
-    phenotypes = df[phenotype_column_name].unique()
-    radii = radii_small_spacing
-    # radii = radii_large_spacing
+    image_names = sorted(df[image_column_name].unique())
+    phenotypes = df[phenotype_column_name].value_counts().index
     debug_output = True
     num_ranges = len(radii) - 1
-    # range_strings = ['[{}, {})'.format(radii[iradius], radii[iradius + 1]) for iradius in range(num_ranges)]
     range_strings = ['({}, {}]'.format(radii[iradius], radii[iradius + 1]) for iradius in range(num_ranges)]
-    num_cpus_to_use = int(multiprocessing.cpu_count() / 2)
+    if num_cpus_to_use is None:
+        num_cpus_to_use = int(multiprocessing.cpu_count() / 2)
 
-    # Calculate the density matrix for all images
-    df_density_matrix = calculate_density_matrix_for_all_images(image_names, df, phenotypes, phenotype_column_name, image_column_name, coord_column_names, radii, num_ranges, range_strings, debug_output=debug_output, num_cpus_to_use=num_cpus_to_use, swap_inequalities=True)
+    # Determine the number of images on which to perform neighbors counts
+    if num_images_to_run is None:
+        num_images_to_run = len(image_names)
+
+    if method == 'cdist':
+
+        # Calculate the counts matrix for all images
+        df_counts_matrix = calculate_density_matrix_for_all_images(image_names[:num_images_to_run], df, phenotypes, phenotype_column_name, image_column_name, coord_column_names, radii, num_ranges, range_strings, debug_output=debug_output, num_cpus_to_use=num_cpus_to_use, swap_inequalities=True)
+
+        # Fill in any NaN values with 0 and convert to integers
+        df_counts_matrix = df_counts_matrix.fillna(0).astype(int)
+
+    elif method == 'kdtree':
+
+        # Create the list of tuple arguments
+        list_of_tuple_arguments = [(df[df[image_column_name] == image_name], image_name, coord_column_names, phenotypes, radii, phenotype_column_name) for image_name in image_names[:num_images_to_run]]
+
+        # Fan out the function to num_cpus_to_use CPUs
+        df_counts_holder = utils.execute_data_parallelism_potentially(function=utils.fast_neighbors_counts_for_block, list_of_tuple_arguments=list_of_tuple_arguments, nworkers=num_cpus_to_use, task_description='calculation of the counts matrix for all images', do_benchmarking=True, mp_start_method=None, use_starmap=True)
+
+        # Concatenate the results into a single dataframe
+        df_counts_matrix = pd.concat(df_counts_holder, axis='index')
 
     # Print the shape final density matrix dataframe, which can be concatenated with the original dataframe
-    print(f'Shape of final density matrix: {df_density_matrix.shape}')
-
-    # Fill in any NaN values with 0 and convert to integers
-    df_density_matrix = df_density_matrix.fillna(0).astype(int)
+    print(f'Shape of final density matrix: {df_counts_matrix.shape}')
 
     # To concatenate the density matrix with the original dataframe
     # pd.concat([df, df_density_matrix], axis='columns')
+
+    # Return the final counts matrix
+    return df_counts_matrix
+
+
+def test_neighbors_counts_for_neighborhood_profiles(num_images_to_compare=1, num_cpus_to_use_for_kdtree=1, num_cpus_to_use_for_cdist=None):
+    
+    # Get the neighbors counts using kdtree
+    df_counts_kdtree = test_neighbors_counts(num_cpus_to_use=num_cpus_to_use_for_kdtree, method='kdtree', num_images_to_run=num_images_to_compare)
+
+    # Get the neighbors counts using cdist
+    df_counts_cdist = test_neighbors_counts(num_cpus_to_use=num_cpus_to_use_for_cdist, method='cdist', num_images_to_run=num_images_to_compare)
+
+    # Just a sanity check to ensure the two dataframes are not referring to the same one, silly but makes me feel better
+    assert not df_counts_cdist.equals(df_counts_kdtree)
+
+    # Make the format of the columns in cdist match that in kdtree
+    cdist_columns_orig = df_counts_cdist.columns.copy()
+    df_counts_cdist.columns = df_counts_cdist.columns.str.replace('Number of neighbors of type ', '').str.replace('range ', '')
+
+    # Check if the actual results are equal
+    results_are_equal = df_counts_kdtree[df_counts_cdist.columns].equals(df_counts_cdist.astype(np.int32))
+    if results_are_equal:
+        print('The results are equal!')
+    else:
+        print('The results are not equal')
+
+    # Return the dataframes and original cdist columns that have since been renamed
+    return df_counts_kdtree, df_counts_cdist, cdist_columns_orig
+
+
+def main():
+    pass
+
 
 # Call the main function
 if __name__ == '__main__':
