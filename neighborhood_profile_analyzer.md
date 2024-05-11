@@ -4,6 +4,8 @@ nav_order: 8
 
 # Neighborhood Profiles Workflow
 
+!['Neighborhood Profiles'](./assets/images/NeiPro_splash.png)
+
 ## Introduction and Theory
 
 Neighborhood Profiles identifies the types of cells that often cluster with one another, and find patterns of these types of clusterings occurring more often in certain tissue types or health-conditions. This goal of these analyses is to help identify the specific neighborhoods present in a given dataset, and characterize their makeup based on the phenotypes present.
