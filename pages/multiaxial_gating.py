@@ -529,8 +529,8 @@ def main():
             st.session_state['mg__all_another_filter_data_previous'] = all_another_filter_data
 
             # If no KDE or histogram has been calculated for the current image(s) and column for filtering, then calculate it. Otherwise, skip for efficiency since at this point there's no need to recalculate them (per the reset_kdes_and_hists(df) line above)
-            kde_or_hist_to_plot_full = st.session_state['mg__kdes_or_hists_to_plot'].loc[image_for_filtering, column_for_filtering]  # first save a shortcut
-            if kde_or_hist_to_plot_full is np.nan:
+            # kde_or_hist_to_plot_full = st.session_state['mg__kdes_or_hists_to_plot'].loc[image_for_filtering, column_for_filtering]  # first save a shortcut
+            if st.session_state['mg__kdes_or_hists_to_plot'].loc[image_for_filtering, column_for_filtering] is np.nan:
 
                 # Initialize st.session_state['mg__kde_grid_size'] if the column of interest is numeric, since we're using it below
                 if st.session_state['mg__selected_column_type'] == 'numeric':
@@ -550,9 +550,9 @@ def main():
                     else:
                         image_loc = df['Slide ID'] == image_for_filtering & filter_loc
                     if st.session_state['mg__selected_column_type'] == 'numeric':
-                        kde_or_hist_to_plot_full = calculate_kde(df_batch_normalized.loc[image_loc, column_for_filtering], st.session_state['mg__kde_grid_size'])
+                        st.session_state['mg__kdes_or_hists_to_plot'].loc[image_for_filtering, column_for_filtering] = [calculate_kde(df_batch_normalized.loc[image_loc, column_for_filtering], st.session_state['mg__kde_grid_size'])]
                     else:
-                        kde_or_hist_to_plot_full = calculate_histogram(df.loc[image_loc, column_for_filtering])
+                        st.session_state['mg__kdes_or_hists_to_plot'].loc[image_for_filtering, column_for_filtering] = [calculate_histogram(df.loc[image_loc, column_for_filtering])]
 
                 # If we want to plot 1 or 2 groups...
                 else:
@@ -560,13 +560,52 @@ def main():
                     image_loc_group_2 = df['Slide ID'].isin(st.session_state['mg__images_in_plotting_group_2']) & filter_loc
                     if st.session_state['mg__selected_column_type'] == 'numeric':
                         curr_df_group_1, curr_df_group_2 = calculate_kdes_on_same_grid(df_batch_normalized.loc[image_loc_group_1, column_for_filtering], df_batch_normalized.loc[image_loc_group_2, column_for_filtering], st.session_state['mg__kde_grid_size'])
+                        # ------------------------------------------------------
+                        # TODO: Fix two issues here: (1) Plotting is really slow and doesn't seem to generate at all (check my numbers/dataframes), and (2) The plot is only shown up when st.session_state['mg__kdes_or_hists_to_plot'].loc[image_for_filtering, column_for_filtering] is np.nan, so I need to move this part of the code outside of here in order to continue to plot it
+                        if st.session_state['mg__extra_settings'] and True:  # temporarily disable this part of the code
+                            st.write('here1')
+                            ser_for_z_score = df_batch_normalized.loc[image_loc_group_1, column_for_filtering]
+                            thresholds = ser_for_z_score.mean() + np.arange(2, 11) * ser_for_z_score.std()
+                            group_1_holder = []
+                            group_2_holder = []
+                            for threshold in thresholds:
+                                positive_loc = df_batch_normalized[column_for_filtering] >= threshold
+                                ser_group_1_pos_perc = df_batch_normalized.loc[image_loc_group_1 & positive_loc, 'Slide ID'].value_counts() / df_batch_normalized.loc[image_loc_group_1, 'Slide ID'].value_counts() * 100
+                                ser_group_2_pos_perc = df_batch_normalized.loc[image_loc_group_2 & positive_loc, 'Slide ID'].value_counts() / df_batch_normalized.loc[image_loc_group_2, 'Slide ID'].value_counts() * 100
+                                ser_group_1_pos_perc.name = threshold
+                                ser_group_2_pos_perc.name = threshold
+                                group_1_holder.append(ser_group_1_pos_perc)
+                                group_2_holder.append(ser_group_2_pos_perc)
+                            df_group_1_pos_perc = pd.concat(group_1_holder, axis='columns')
+                            df_group_2_pos_perc = pd.concat(group_2_holder, axis='columns')
+                            # Get box and whisker from the above later. For now, in plotly, just plot the average of each column vs. the column name, using df_group_1_pos_perc for one trace and df_group_2_pos_perc for the other
+                            fig = go.Figure()
+
+                            # Calculate the average of each column for group 1 and group 2
+                            avg_group_1 = df_group_1_pos_perc.mean()
+                            avg_group_2 = df_group_2_pos_perc.mean()
+
+                            # Plot average of each column vs. column name for group 1
+                            fig.add_trace(go.Scatter(x=avg_group_1.index, y=avg_group_1.values, mode='lines', name='Group 1'))
+
+                            # Plot average of each column vs. column name for group 2
+                            fig.add_trace(go.Scatter(x=avg_group_2.index, y=avg_group_2.values, mode='lines', name='Group 2'))
+
+                            fig.update_layout(title='Average of Each Column vs. Column Name',
+                                            xaxis_title='Column Name',
+                                            yaxis_title='Average',
+                                            legend_title='Group')
+
+                            fig.show()
+                            st.write('here2')
+                        # ------------------------------------------------------
                     else:
                         curr_df_group_1 = calculate_histogram(df.loc[image_loc_group_1, column_for_filtering])
                         curr_df_group_2 = calculate_histogram(df.loc[image_loc_group_2, column_for_filtering])
-                    kde_or_hist_to_plot_full = (curr_df_group_1, curr_df_group_2)
+                    st.session_state['mg__kdes_or_hists_to_plot'].loc[image_for_filtering, column_for_filtering] = [(curr_df_group_1, curr_df_group_2)]
 
             # Assign the KDE/histogram to a dataframe that will be saved
-            st.session_state['mg__kdes_or_hists_to_plot'].loc[image_for_filtering, column_for_filtering] = kde_or_hist_to_plot_full
+            kde_or_hist_to_plot_full = st.session_state['mg__kdes_or_hists_to_plot'].loc[image_for_filtering, column_for_filtering][0]
 
             # If the selected column is numeric...
             if st.session_state['mg__selected_column_type'] == 'numeric':
@@ -700,19 +739,6 @@ def main():
 
             # Create a toggle for extra options
             extra_settings = st.toggle('Extra settings', key='mg__extra_settings')
-
-            if extra_settings:
-                st.write(st.session_state['mg__min_selection_value'])
-                if st.session_state['mg__images_in_plotting_group_1']:
-                    st.write('group 1 images present')
-                ser_filt_col_group_1 = df.loc[df['Slide ID'].isin(st.session_state['mg__images_in_plotting_group_1']), st.session_state['mg__column_for_filtering']]
-                group_1_mean = ser_filt_col_group_1.mean()
-                group_1_std = ser_filt_col_group_1.std()
-                z_score_thresholds = np.arange(2, 11)
-                thresholds = group_1_mean + z_score_thresholds * group_1_std
-                ser_filt_col_all = df[st.session_state['mg__column_for_filtering']]
-                for threshold in thresholds:
-                    ser_above_thresh_all = ser_filt_col_all >= threshold
 
     # Current phenotype and phenotype assignments
     with main_columns[1]:
