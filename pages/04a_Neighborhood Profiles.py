@@ -521,30 +521,47 @@ def main():
 
     if st.session_state.umap_completed and st.session_state['toggle_clust_diff']:
 
-        npf_fig_big = plt.figure(figsize=(16, 16), facecolor = '#0E1117')
+        npf_fig_big = plt.figure(figsize=(16, 30), facecolor = '#0E1117')
 
-        list_figures = list_clusters[1:]
+        list_figures = [['False_Cluster1', None],
+                        ['False_Cluster2', None],
+                        ['False_Cluster3', None],
+                        ['True_Cluster1', None],
+                        ['True_Cluster2', None],
+                        ['False_Cluster1', 'True_Cluster1'],
+                        ['False_Cluster1', 'True_Cluster2'],
+                        ['False_Cluster2', 'True_Cluster1'],
+                        ['False_Cluster2', 'True_Cluster2'],
+                        ['False_Cluster3', 'True_Cluster1'],
+                        ['False_Cluster3', 'True_Cluster2']
+                        ]
+
         num_figs = len(list_figures)
+        num_cols = 3
         num_rows = np.ceil(num_figs/3).astype(int)
         for ii, cluster in enumerate(list_figures):
             axii = npf_fig_big.add_subplot(num_rows, 3, ii+1, facecolor = '#0E1117')
 
-            if ii == 3:
+            if ii == ((num_rows*num_cols)-2):
                 legend_flag = True
             else:
                 legend_flag = False
 
             bpl.neighProfileDraw(st.session_state.spatial_umap,
                                 ax = axii,
-                                sel_clus = cluster,
-                                cmp_clus = None,
+                                sel_clus = cluster[0],
+                                cmp_clus = cluster[1],
                                 cmp_style = st.session_state['compare_clusters_as'],
                                 hide_other = st.session_state['toggle_hide_other'],
                                 hide_no_cluster = st.session_state['toggle_hide_no_cluster'],
                                 legend_flag = legend_flag)
 
-            axii.set_ylim([0.1, 10000])
             axii.set_yscale('log')
+            if cluster[1] is not None:
+                axii.set_ylim([0.001 , 1000])
+            else:
+                axii.set_ylim([0.1, 10000])
+            
 
         st.pyplot(fig=npf_fig_big)
 
