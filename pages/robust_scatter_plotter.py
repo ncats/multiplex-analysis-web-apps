@@ -4,12 +4,11 @@ import app_top_of_page as top
 import streamlit_dataframe_editor as sde
 import plotly.graph_objects as go
 import plotly.express as px
+import pandas as pd
 
 
-# * Allow the user to customize the colors of the phenotypes
-# * Improve tooltip over each cell
-# * Add parameters for all remaining things that can be parametrized below
-# * More?
+# TODO:
+# Allow the user to customize the colors of the phenotypes
 
 
 def go_to_previous_image(unique_images):
@@ -63,15 +62,16 @@ def main():
     # Get the unique images in the dataset
     unique_images = df['Slide ID'].unique()
 
-    settings_columns = st.columns(3)
+    # Define the main settings columns
+    settings_columns_main = st.columns(3)
 
-    # Shrink widgets to 1/3 of the page width
-    with settings_columns[0]:
+    # In the first column...
+    with settings_columns_main[0]:
 
         # Definitely calculate and optionally show the number of objects in each image
-        with st.expander('Size of each image:', expanded=False):
-            ser_size_of_each_image = df['Slide ID'].value_counts()
-            st.write(ser_size_of_each_image)
+        ser_size_of_each_image = df['Slide ID'].value_counts()
+        # with st.expander('Size of each image:', expanded=False):
+        #     st.write(ser_size_of_each_image)
 
         # Create an image selection selectbox
         if 'rsp__image_to_view' not in st.session_state:
@@ -88,54 +88,89 @@ def main():
         with cols[1]:
             st.button('Next', on_click=go_to_next_image, args=(unique_images, ), disabled=(st.session_state['rsp__image_to_view'] == unique_images[-1]), use_container_width=True)
 
+        # Store columns of certain types
+        categorical_columns = df.select_dtypes(include=('category', 'object')).columns
+        numeric_columns = df.select_dtypes(include='number').columns
+
+        # Choose a column to plot
+        if 'rsp__column_to_plot' not in st.session_state:
+            st.session_state['rsp__column_to_plot'] = categorical_columns[0]
+        column_to_plot = st.selectbox('Select a column to plot:', categorical_columns, key='rsp__column_to_plot')
+
+    # In the second column...
+    with settings_columns_main[1]:
+
+        # Optionally add another filter
+        if 'rsp__add_another_filter' not in st.session_state:
+            st.session_state['rsp__add_another_filter'] = False
+        add_another_filter = st.checkbox('Add another filter', key='rsp__add_another_filter')
+        if 'rsp__column_to_filter_by' not in st.session_state:
+            st.session_state['rsp__column_to_filter_by'] = categorical_columns[0]
+        column_to_filter_by = st.selectbox('Select a column to filter by:', categorical_columns, key='rsp__column_to_filter_by', disabled=(not st.session_state['rsp__add_another_filter']))
+        if 'rsp__values_to_filter_by' not in st.session_state:
+            st.session_state['rsp__values_to_filter_by'] = []
+        values_to_filter_by = st.multiselect('Select values to filter by:', df[st.session_state['rsp__column_to_filter_by']].unique(), key='rsp__values_to_filter_by', disabled=(not st.session_state['rsp__add_another_filter']))
+
         # Add an option to invert the y-axis
         if 'rsp__invert_y_axis' not in st.session_state:
             st.session_state['rsp__invert_y_axis'] = False
         st.checkbox('Invert y-axis', key='rsp__invert_y_axis')
 
+    # In the third column...
+    with settings_columns_main[2]:
+        
+        # Choose the opacity of objects
         if 'rsp__opacity' not in st.session_state:
             st.session_state['rsp__opacity'] = 0.7
         st.number_input('Opacity:', min_value=0.0, max_value=1.0, step=0.1, key='rsp__opacity')
 
-    if 'rsp__use_coordinate_mins_and_maxs' not in st.session_state:
-        st.session_state['rsp__use_coordinate_mins_and_maxs'] = False
-    st.checkbox('Use coordinate mins and maxs', key='rsp__use_coordinate_mins_and_maxs')
+        # Optionally plot minimum and maximum coordinate fields
+        if 'rsp__use_coordinate_mins_and_maxs' not in st.session_state:
+            st.session_state['rsp__use_coordinate_mins_and_maxs'] = False
+        st.checkbox('Use coordinate mins and maxs', key='rsp__use_coordinate_mins_and_maxs')
+        settings_columns_refined = st.columns(2)
+        if 'rsp__x_min_coordinate_column' not in st.session_state:
+            st.session_state['rsp__x_min_coordinate_column'] = numeric_columns[0]
+        if 'rsp__y_min_coordinate_column' not in st.session_state:
+            st.session_state['rsp__y_min_coordinate_column'] = numeric_columns[0]
+        if 'rsp__x_max_coordinate_column' not in st.session_state:
+            st.session_state['rsp__x_max_coordinate_column'] = numeric_columns[0]
+        if 'rsp__y_max_coordinate_column' not in st.session_state:
+            st.session_state['rsp__y_max_coordinate_column'] = numeric_columns[0]
+        with settings_columns_refined[0]:
+            st.selectbox('Select a column for the minimum x-coordinate:', numeric_columns, key='rsp__x_min_coordinate_column', disabled=(not st.session_state['rsp__use_coordinate_mins_and_maxs']))
+        with settings_columns_refined[1]:
+            st.selectbox('Select a column for the maximum x-coordinate:', numeric_columns, key='rsp__x_max_coordinate_column', disabled=(not st.session_state['rsp__use_coordinate_mins_and_maxs']))
+        with settings_columns_refined[0]:
+            st.selectbox('Select a column for the minimum y-coordinate:', numeric_columns, key='rsp__y_min_coordinate_column', disabled=(not st.session_state['rsp__use_coordinate_mins_and_maxs']))
+        with settings_columns_refined[1]:
+            st.selectbox('Select a column for the maximum y-coordinate:', numeric_columns, key='rsp__y_max_coordinate_column', disabled=(not st.session_state['rsp__use_coordinate_mins_and_maxs']))
+        units = ('coordinate units' if st.session_state['rsp__use_coordinate_mins_and_maxs'] else 'microns')
 
-    settings_columns = st.columns(3)
-
-    numeric_columns = df.select_dtypes(include='number').columns
-    if 'rsp__x_min_coordinate_column' not in st.session_state:
-        st.session_state['rsp__x_min_coordinate_column'] = numeric_columns[0]
-    if 'rsp__y_min_coordinate_column' not in st.session_state:
-        st.session_state['rsp__y_min_coordinate_column'] = numeric_columns[0]
-    if 'rsp__x_max_coordinate_column' not in st.session_state:
-        st.session_state['rsp__x_max_coordinate_column'] = numeric_columns[0]
-    if 'rsp__y_max_coordinate_column' not in st.session_state:
-        st.session_state['rsp__y_max_coordinate_column'] = numeric_columns[0]
-    with settings_columns[0]:
-        st.selectbox('Select a column for the minimum x-coordinate:', numeric_columns, key='rsp__x_min_coordinate_column', disabled=(not st.session_state['rsp__use_coordinate_mins_and_maxs']))
-    with settings_columns[1]:
-        st.selectbox('Select a column for the maximum x-coordinate:', numeric_columns, key='rsp__x_max_coordinate_column', disabled=(not st.session_state['rsp__use_coordinate_mins_and_maxs']))
-    with settings_columns[0]:
-        st.selectbox('Select a column for the minimum y-coordinate:', numeric_columns, key='rsp__y_min_coordinate_column', disabled=(not st.session_state['rsp__use_coordinate_mins_and_maxs']))
-    with settings_columns[1]:
-        st.selectbox('Select a column for the maximum y-coordinate:', numeric_columns, key='rsp__y_max_coordinate_column', disabled=(not st.session_state['rsp__use_coordinate_mins_and_maxs']))
+    # Draw a divider
+    st.divider()
 
     # If the user wants to display the scatter plot, indicated by a toggle...
     if 'rsp__show_scatter_plot' not in st.session_state:
-        st.session_state['rsp__show_scatter_plot'] = True
+        st.session_state['rsp__show_scatter_plot'] = False
     if st.toggle('Show scatter plot', key='rsp__show_scatter_plot'):
 
-        # Filter the DataFrame to include only the selected image
-        df_selected_image = df[df['Slide ID'] == st.session_state['rsp__image_to_view']]
+        # Optionally set up another filter
+        if add_another_filter:
+            filter_loc = df[column_to_filter_by].isin(values_to_filter_by)
+        else:
+            filter_loc = pd.Series(True, index=df.index)
+
+        # Filter the DataFrame to include only the selected image and filter
+        df_selected_image_and_filter = df[(df['Slide ID'] == st.session_state['rsp__image_to_view']) & filter_loc]
 
         # Create a color sequence based on the phenotype frequency in the entire dataset
-        phenotypes = df['phenotype'].value_counts().index
+        phenotypes = df[column_to_plot].value_counts().index
         colors = px.colors.qualitative.Plotly[:len(phenotypes)]  # get enough colors for all phenotypes
         color_dict = dict(zip(phenotypes, colors))  # map phenotypes to colors
 
         # Group the DataFrame for the selected image by phenotype
-        selected_image_grouped_by_phenotype = df_selected_image.groupby('phenotype')
+        selected_image_grouped_by_phenotype = df_selected_image_and_filter.groupby(column_to_plot)
 
         # Create the scatter plot
         fig = go.Figure()
@@ -149,9 +184,12 @@ def main():
                 # Store the dataframe for the current phenotype for the selected image
                 df_group = selected_image_grouped_by_phenotype.get_group(phenotype)
 
-                phenotype_str_cleaned = phenotype.replace('(plus)', '+').replace('(dash)', '-')
+                # If phenotype is a string, replace '(plus)' with '+' and '(dash)' with '-'
+                if isinstance(phenotype, str):
+                    phenotype_str_cleaned = phenotype.replace('(plus)', '+').replace('(dash)', '-')
 
-                df_group['hover_label'] = 'Phenotype: ' + phenotype_str_cleaned + '<br>Index: ' + df_group.index.astype(str)
+                # Add the object index to the label
+                df_group['hover_label'] = 'Index: ' + df_group.index.astype(str)
 
                 # Works but doesn't scale the shapes
                 if not st.session_state['rsp__use_coordinate_mins_and_maxs']:
@@ -176,8 +214,6 @@ def main():
                         hovertemplate=df_group['hover_label']
                     ))
 
-        units = ('coordinate units' if st.session_state['rsp__use_coordinate_mins_and_maxs'] else 'microns')
-        
         # Update the layout
         fig.update_layout(
             xaxis=dict(
@@ -190,7 +226,7 @@ def main():
             title=f'Scatter plot for {st.session_state["rsp__image_to_view"]}',
             xaxis_title=f'Cell X Position ({units})',
             yaxis_title=f'Cell Y Position ({units})',
-            legend_title='Phenotype',
+            legend_title=column_to_plot,
             height=800,  # Set the height of the figure
             width=800,  # Set the width of the figure
         )
@@ -203,7 +239,7 @@ def main():
 if __name__ == '__main__':
 
     # Set page settings
-    page_name = 'Robust Scatter Plotter'
+    page_name = 'Scatter Plotter'
     st.set_page_config(layout='wide', page_title=page_name)
     st.title(page_name)
 

@@ -24,6 +24,16 @@ name = "Open File"
 icon = ""
 
 [[pages]]
+name = "Scatter Plotter"
+icon = ""
+is_section = true
+
+[[pages]]
+path = "pages/robust_scatter_plotter.py"
+name = "Main"
+icon = ""
+
+[[pages]]
 name = "Phenotyping 🖊️"
 icon = ""
 is_section = true
@@ -36,16 +46,6 @@ icon = ""
 [[pages]]
 path = "pages/02_phenotyping.py"
 name = "Thresholded Intensities"
-icon = ""
-
-[[pages]]
-name = "Robust Scatter Plotter"
-icon = ""
-is_section = true
-
-[[pages]]
-path = "pages/robust_scatter_plotter.py"
-name = "Main"
 icon = ""
 
 [[pages]]
