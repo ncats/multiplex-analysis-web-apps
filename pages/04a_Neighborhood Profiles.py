@@ -533,9 +533,12 @@ def main():
 
     if st.session_state.umap_completed and st.session_state['toggle_clust_diff']:
 
-        npf_fig_big = plt.figure(figsize=(16, 30), facecolor = '#0E1117')
+        npf_fig_big = plt.figure(figsize=(16, 45), facecolor = '#0E1117')
 
-        list_figures = [['False_Cluster1', None],
+        list_figures = [['Average False_Cluster', None],
+                        ['Average True_Cluster', None],
+                        ['Average False_Cluster', 'Average True_Cluster'],
+                        ['False_Cluster1', None],
                         ['False_Cluster2', None],
                         ['False_Cluster3', None],
                         ['True_Cluster1', None],
@@ -545,7 +548,10 @@ def main():
                         ['False_Cluster2', 'True_Cluster1'],
                         ['False_Cluster2', 'True_Cluster2'],
                         ['False_Cluster3', 'True_Cluster1'],
-                        ['False_Cluster3', 'True_Cluster2']
+                        ['False_Cluster3', 'True_Cluster2'],
+                        ['False_Cluster1', 'Average True_Cluster'],
+                        ['False_Cluster2', 'Average True_Cluster'],
+                        ['False_Cluster3', 'Average True_Cluster'],
                         ]
 
         num_figs = len(list_figures)
@@ -554,7 +560,7 @@ def main():
         for ii, cluster in enumerate(list_figures):
             axii = npf_fig_big.add_subplot(num_rows, 3, ii+1, facecolor = '#0E1117')
 
-            if ii == ((num_rows*num_cols)-2):
+            if ii == ((num_rows*num_cols)-3):
                 legend_flag = True
             else:
                 legend_flag = False
