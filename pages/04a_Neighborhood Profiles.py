@@ -461,6 +461,7 @@ def main():
             nei_sett_col = st.columns([1, 2, 1])
             with nei_sett_col[0]:
                 st.toggle('Hide "Other" Phenotype', value = False, key = 'toggle_hide_other')
+                st.toggle('Plot on Log Scale', value = True, key = 'nei_pro_toggle_log_scale')
             with nei_sett_col[1]:
                 st.toggle('Hide "No Cluster" Neighborhood Profile', value = False, key = 'toggle_hide_no_cluster')
 
@@ -501,6 +502,10 @@ def main():
                                      cmp_style=st.session_state['compare_clusters_as'],
                                      hide_other = st.session_state['toggle_hide_other'],
                                      hide_no_cluster = st.session_state['toggle_hide_no_cluster'])
+                
+                if st.session_state['nei_pro_toggle_log_scale']:
+                    ax.set_ylim([0.1, 10000])
+                    ax.set_yscale('log')
                 st.pyplot(fig=npf_fig)
 
                 # Create widgets for exporting the Neighborhood Profile images
@@ -539,6 +544,9 @@ def main():
                                 hide_other = st.session_state['toggle_hide_other'],
                                 hide_no_cluster = st.session_state['toggle_hide_no_cluster'],
                                 legend_flag = legend_flag)
+            
+            axii.set_ylim([0.1, 10000])
+            axii.set_yscale('log')
 
 
         st.pyplot(fig=npf_fig_big)

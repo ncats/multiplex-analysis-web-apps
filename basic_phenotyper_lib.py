@@ -838,7 +838,7 @@ def neighProfileDraw(spatial_umap, ax, sel_clus, cmp_clus = None, cmp_style = No
     dens_df_mean_sel = dens_df_mean_base.loc[dens_df_mean_base['clust_label'] == sel_clus, :].reset_index(drop=True)
     ylim = [0, maxdens_df]
     dens_df_mean = dens_df_mean_sel.copy()
-    cluster_title = f'Cluster {sel_clus}'
+    cluster_title = f'{sel_clus}'
 
     if cmp_clus is not None:
         dens_df_mean_cmp = dens_df_mean_base.loc[dens_df_mean_base['clust_label'] == cmp_clus, :].reset_index(drop=True)
