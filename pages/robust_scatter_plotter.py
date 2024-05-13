@@ -6,10 +6,9 @@ import plotly.graph_objects as go
 import plotly.express as px
 
 
-# * Remove the (plus) and (dash) symbols
 # * Allow the user to customize the colors of the phenotypes
-# * Adjust tooltip over each cell
-# * Add parameters for min/max fields, adjusting things below that are affected by that such as the plotting method (scatter vs. bar) and units on the axes, and also all things that can be parametrized below such as opacity
+# * Improve tooltip over each cell
+# * Add parameters for all remaining things that can be parametrized below
 # * More?
 
 
@@ -64,8 +63,10 @@ def main():
     # Get the unique images in the dataset
     unique_images = df['Slide ID'].unique()
 
+    settings_columns = st.columns(3)
+
     # Shrink widgets to 1/3 of the page width
-    with st.columns(3)[0]:
+    with settings_columns[0]:
 
         # Definitely calculate and optionally show the number of objects in each image
         with st.expander('Size of each image:', expanded=False):
@@ -91,6 +92,34 @@ def main():
         if 'rsp__invert_y_axis' not in st.session_state:
             st.session_state['rsp__invert_y_axis'] = False
         st.checkbox('Invert y-axis', key='rsp__invert_y_axis')
+
+        if 'rsp__opacity' not in st.session_state:
+            st.session_state['rsp__opacity'] = 0.7
+        st.number_input('Opacity:', min_value=0.0, max_value=1.0, step=0.1, key='rsp__opacity')
+
+    if 'rsp__use_coordinate_mins_and_maxs' not in st.session_state:
+        st.session_state['rsp__use_coordinate_mins_and_maxs'] = False
+    st.checkbox('Use coordinate mins and maxs', key='rsp__use_coordinate_mins_and_maxs')
+
+    settings_columns = st.columns(3)
+
+    numeric_columns = df.select_dtypes(include='number').columns
+    if 'rsp__x_min_coordinate_column' not in st.session_state:
+        st.session_state['rsp__x_min_coordinate_column'] = numeric_columns[0]
+    if 'rsp__y_min_coordinate_column' not in st.session_state:
+        st.session_state['rsp__y_min_coordinate_column'] = numeric_columns[0]
+    if 'rsp__x_max_coordinate_column' not in st.session_state:
+        st.session_state['rsp__x_max_coordinate_column'] = numeric_columns[0]
+    if 'rsp__y_max_coordinate_column' not in st.session_state:
+        st.session_state['rsp__y_max_coordinate_column'] = numeric_columns[0]
+    with settings_columns[0]:
+        st.selectbox('Select a column for the minimum x-coordinate:', numeric_columns, key='rsp__x_min_coordinate_column', disabled=(not st.session_state['rsp__use_coordinate_mins_and_maxs']))
+    with settings_columns[1]:
+        st.selectbox('Select a column for the maximum x-coordinate:', numeric_columns, key='rsp__x_max_coordinate_column', disabled=(not st.session_state['rsp__use_coordinate_mins_and_maxs']))
+    with settings_columns[0]:
+        st.selectbox('Select a column for the minimum y-coordinate:', numeric_columns, key='rsp__y_min_coordinate_column', disabled=(not st.session_state['rsp__use_coordinate_mins_and_maxs']))
+    with settings_columns[1]:
+        st.selectbox('Select a column for the maximum y-coordinate:', numeric_columns, key='rsp__y_max_coordinate_column', disabled=(not st.session_state['rsp__use_coordinate_mins_and_maxs']))
 
     # If the user wants to display the scatter plot, indicated by a toggle...
     if 'rsp__show_scatter_plot' not in st.session_state:
@@ -120,22 +149,35 @@ def main():
                 # Store the dataframe for the current phenotype for the selected image
                 df_group = selected_image_grouped_by_phenotype.get_group(phenotype)
 
-                # # Works but doesn't scale the shapes
-                # fig.add_trace(go.Scatter(x=group['Cell X Position'], y=group['Cell Y Position'], mode='markers', name=phenotype, marker_color=color_dict[phenotype]))
+                phenotype_str_cleaned = phenotype.replace('(plus)', '+').replace('(dash)', '-')
 
-                # Works really well!
-                fig.add_trace(go.Bar(
-                    x=((df_group['XMin'] + df_group['XMax']) / 2),
-                    y=df_group['YMax'] - df_group['YMin'],
-                    width=df_group['XMax'] - df_group['XMin'],
-                    base=df_group['YMin'],
-                    name=phenotype,
-                    marker=dict(
-                        color=color_dict[phenotype],
-                        opacity=0.5,
-                    )
-                ))
+                df_group['hover_label'] = 'Phenotype: ' + phenotype_str_cleaned + '<br>Index: ' + df_group.index.astype(str)
 
+                # Works but doesn't scale the shapes
+                if not st.session_state['rsp__use_coordinate_mins_and_maxs']:
+                    fig.add_trace(go.Scatter(x=df_group['Cell X Position'], y=df_group['Cell Y Position'], mode='markers', name=phenotype_str_cleaned, marker_color=color_dict[phenotype], hovertemplate=df_group['hover_label']))
+
+                # Works really well
+                else:
+                    xmin_col = st.session_state['rsp__x_min_coordinate_column']
+                    xmax_col = st.session_state['rsp__x_max_coordinate_column']
+                    ymin_col = st.session_state['rsp__y_min_coordinate_column']
+                    ymax_col = st.session_state['rsp__y_max_coordinate_column']
+                    fig.add_trace(go.Bar(
+                        x=((df_group[xmin_col] + df_group[xmax_col]) / 2),
+                        y=df_group[ymax_col] - df_group[ymin_col],
+                        width=df_group[xmax_col] - df_group[xmin_col],
+                        base=df_group[ymin_col],
+                        name=phenotype_str_cleaned,
+                        marker=dict(
+                            color=color_dict[phenotype],
+                            opacity=st.session_state['rsp__opacity'],
+                        ),
+                        hovertemplate=df_group['hover_label']
+                    ))
+
+        units = ('coordinate units' if st.session_state['rsp__use_coordinate_mins_and_maxs'] else 'microns')
+        
         # Update the layout
         fig.update_layout(
             xaxis=dict(
@@ -146,8 +188,8 @@ def main():
                 autorange=('reversed' if st.session_state['rsp__invert_y_axis'] else True),
             ),
             title=f'Scatter plot for {st.session_state["rsp__image_to_view"]}',
-            xaxis_title='Cell X Position',
-            yaxis_title='Cell Y Position',
+            xaxis_title=f'Cell X Position ({units})',
+            yaxis_title=f'Cell Y Position ({units})',
             legend_title='Phenotype',
             height=800,  # Set the height of the figure
             width=800,  # Set the width of the figure
