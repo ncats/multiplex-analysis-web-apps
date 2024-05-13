@@ -552,7 +552,7 @@ class UMAPDensityProcessing():
         for i in range(num_clus_0):
             self.cluster_dict[-i-1] = f'False_Cluster{i+1}'
         for i in range(num_clus_1):
-            self.cluster_dict[i+1] = f'True_Clust{i+1}'
+            self.cluster_dict[i+1] = f'True_Cluster{i+1}'
 
     # def perform_clustering(self, n_clusters, cond):
     #     '''
