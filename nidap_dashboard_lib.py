@@ -575,7 +575,7 @@ def setFigureObjs_UMAPDifferences(session_state):
              f'SLIDE ID: {session_state["selSlide ID_short"]}']
 
     df_umap = session_state.spatial_umap.df_umap
-    clust_order = sorted(df_umap['Cluster'].unique())
+    clust_order = sorted(df_umap['clust_label'].unique())
 
     n_bins = 200
     xx = np.linspace(np.min(df_umap['X']), np.max(df_umap['X']), n_bins + 1)
@@ -673,21 +673,21 @@ def setFigureObjs_UMAPDifferences(session_state):
                                                          bins=[xx, yy], w=w, return_matrix=True)
         session_state.UMAPFigInsp = bpl.UMAPdraw_density(umap_dens_insp, bins = [xx, yy], w=w_Ins, n_pad=n_pad, vlim=vlim)
 
-    # UMAP colored by Clusters
+    # UMAP colored by clust_label
     elif session_state.UMAPFigType == 'Clusters':
         # Make a new dataframe to send to the phenotyping library scatterplot function
 
         # All UMAP Figure
         session_state.UMAPFig, session_state.UMAPax = bpl.draw_scatter_fig(figsize=session_state.figsize)
         session_state.UMAPFig = bpl.scatter_plot(df_umap, session_state.UMAPFig, session_state.UMAPax, title,
-                                                 xVar = 'X', yVar = 'Y', hueVar = 'Cluster',
+                                                 xVar = 'X', yVar = 'Y', hueVar = 'clust_label',
                                                  hueOrder = clust_order,
                                                  xLim = [minXY[0], maxXY[0]], yLim = [minXY[1], maxXY[1]], boxoff=True, clusters_label = True)
 
         # UMAP for Lineage/Outcome Inspection
         session_state.UMAPFigInsp, session_state.UMAPInspax = bpl.draw_scatter_fig(figsize=session_state.figsize)
         session_state.UMAPFigInsp = bpl.scatter_plot(df_umapI, session_state.UMAPFigInsp, session_state.UMAPInspax, title,
-                                                 xVar = 'X', yVar = 'Y', hueVar = 'Cluster',
+                                                 xVar = 'X', yVar = 'Y', hueVar = 'clust_label',
                                                  hueOrder = clust_order,
                                                  xLim = [minXY[0], maxXY[0]], yLim = [minXY[1], maxXY[1]], boxoff=True, clusters_label = True)
 
@@ -703,7 +703,7 @@ def setFigureObjs_UMAPDifferences(session_state):
     for i in range(3):
         fig, ax = bpl.draw_scatter_fig()
         fig = bpl.scatter_plot(df_umapDs[i], fig, ax, title,
-                                xVar = 'X', yVar = 'Y', hueVar = 'Cluster',
+                                xVar = 'X', yVar = 'Y', hueVar = 'clust_label',
                                 hueOrder = clust_order, boxoff=True, 
                                 xLim = [minXY[0], maxXY[0]], yLim = [minXY[1], maxXY[1]],
                                 feat = feat_labels[i], small_ver = True, clusters_label = True)

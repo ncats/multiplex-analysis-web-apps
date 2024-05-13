@@ -525,25 +525,33 @@ class UMAPDensityProcessing():
         Sets up clustering
         '''
 
+        # Perform k-menas clustering for the Negative Condition
         kmeans_obj_cond0 = KMeans(n_clusters = num_clus_0,
-                            init ='k-means++',
-                            max_iter = 300,
-                            n_init = 10,
-                            random_state = 42)
+                                  init ='k-means++',
+                                  max_iter = 300,
+                                  n_init = 10,
+                                  random_state = 42)
+        
+        # Perform k-menas clustering for the Positive Condition
         kmeans_obj_cond1 = KMeans(n_clusters = num_clus_1,
-                            init ='k-means++',
-                            max_iter = 300,
-                            n_init = 10,
-                            random_state = 42)
+                                  init ='k-means++',
+                                  max_iter = 300,
+                                  n_init = 10,
+                                  random_state = 42)
 
+        # Identify the indices of the negative condition
         cond0_ind = np.nonzero(dens_mat_cmp == -1)
         cells_cond0 = np.vstack(cond0_ind).T
+        # Fit the negative condition to the negative kmeans object
         kmeans_obj_cond0.fit(cells_cond0)
 
+        # Identify the indices of the positive condition
         cond1_ind = np.nonzero(dens_mat_cmp == 1)
         cells_cond1 = np.vstack(cond1_ind).T
+        # Fit the positive condition to the positive kmeans object
         kmeans_obj_cond1.fit(cells_cond1)
 
+        # Replace the labels in the density matrix with the cluster labels
         self.dens_mat[cond0_ind] = -kmeans_obj_cond0.labels_ -1
         self.dens_mat[cond1_ind] = kmeans_obj_cond1.labels_ + 1
 

@@ -9,6 +9,7 @@ import numpy as np
 import dill
 from streamlit_extras.add_vertical_space import add_vertical_space
 import matplotlib.pyplot as plt
+import pandas as pd
 
 # Import relevant libraries
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
@@ -367,6 +368,17 @@ def main():
                     # After assigning cluster labels, perform mean calculations
                     st.session_state.spatial_umap.mean_measures()
 
+                    dens_df_fals = st.session_state.spatial_umap.dens_df_mean.loc[st.session_state.spatial_umap.dens_df_mean['clust_label'].str.contains('False'), :]
+                    dens_df_true = st.session_state.spatial_umap.dens_df_mean.loc[st.session_state.spatial_umap.dens_df_mean['clust_label'].str.contains('True'), :]
+
+                    dens_df_fals['clust_label'] = 'Average False_Cluster'
+                    dens_df_mean_fals = dens_df_fals.groupby(['clust_label', 'phenotype', 'dist_bin'], as_index=False).mean()
+
+                    dens_df_true['clust_label'] = 'Average True_Cluster'
+                    dens_df_mean_true = dens_df_true.groupby(['clust_label', 'phenotype', 'dist_bin'], as_index=False).mean()
+
+                    st.session_state.spatial_umap.dens_df_mean = pd.concat([st.session_state.spatial_umap.dens_df_mean, dens_df_mean_fals, dens_df_mean_true], axis=0)
+
                     # Create the Cluster Scatterplot
                     filter_and_plot()
 
@@ -469,7 +481,7 @@ def main():
         if 'spatial_umap' in st.session_state:
             # List of Clusters to display
             if st.session_state['toggle_clust_diff']:
-                list_clusters = list(st.session_state.cluster_dict.values())
+                list_clusters = list(st.session_state.spatial_umap.dens_df_mean['clust_label'].unique())
             else:
                 list_clusters = list(range(st.session_state.selected_nClus))
             if st.session_state['toggle_hide_no_cluster']:
@@ -502,7 +514,7 @@ def main():
                                      cmp_style=st.session_state['compare_clusters_as'],
                                      hide_other = st.session_state['toggle_hide_other'],
                                      hide_no_cluster = st.session_state['toggle_hide_no_cluster'])
-                
+
                 if st.session_state['nei_pro_toggle_log_scale']:
                     ax.set_ylim([0.1, 10000])
                     ax.set_yscale('log')
