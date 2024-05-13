@@ -9,10 +9,10 @@ import pandas as pd
 
 
 # * Plot ellipses
-# * Make the main plot a larger height
 # * Remove the (plus) and (dash) symbols
 # * Allow the user to customize the colors of the phenotypes
 # * Adjust tooltip over each cell
+# * Option to flip y-axis
 # * More?
 
 
@@ -50,39 +50,40 @@ def main():
     unique_images = df['Slide ID'].unique()
 
     # st.write() a series containing the number of rows in each image
-    st.write(df['Slide ID'].value_counts())
+    if True:
+        st.write(df['Slide ID'].value_counts())
 
-    df['Width'] = df['XMax'] - df['XMin']
-    df['Height'] = df['YMax'] - df['YMin']
-    df['XCenter'] = df['XMin'] + df['Width'] / 2
-    df['YCenter'] = df['YMin'] + df['Height'] / 2
+    # df['Width'] = df['XMax'] - df['XMin']
+    # df['Height'] = df['YMax'] - df['YMin']
+    # df['XCenter'] = df['XMin'] + df['Width'] / 2
+    # df['YCenter'] = df['YMin'] + df['Height'] / 2
 
-    start_time = time.time()
+    # start_time = time.time()
 
-    df['Path'] = 'M ' + (df['XCenter'] - df['Width'] / 2).astype(str) + ',' + df['YCenter'].astype(str) + ' a ' + (df['Width'] / 2).astype(str) + ',' + (df['Height'] / 2).astype(str) + ' 0 1,0 ' + df['Width'].astype(str) + ',0 a ' + (df['Width'] / 2).astype(str) + ',' + (df['Height'] / 2).astype(str) + ' 0 1,0 -' + df['Width'].astype(str) + ',0'
+    # df['Path'] = 'M ' + (df['XCenter'] - df['Width'] / 2).astype(str) + ',' + df['YCenter'].astype(str) + ' a ' + (df['Width'] / 2).astype(str) + ',' + (df['Height'] / 2).astype(str) + ' 0 1,0 ' + df['Width'].astype(str) + ',0 a ' + (df['Width'] / 2).astype(str) + ',' + (df['Height'] / 2).astype(str) + ' 0 1,0 -' + df['Width'].astype(str) + ',0'
 
-    # # Create the components of the path as separate columns
-    # df['M'] = 'M'
-    # df['X1'] = df['XCenter'] - df['Width'] / 2
-    # df['Y1'] = df['YCenter']
-    # df['A1'] = 'a'
-    # df['Width1'] = df['Width'] / 2
-    # df['Height1'] = df['Height'] / 2
-    # df['Zero1'] = '0'
-    # df['One1'] = '1,0'
-    # df['Width2'] = df['Width']
-    # df['Zero2'] = ',0'
-    # df['A2'] = 'a'
-    # df['Width3'] = df['Width'] / 2
-    # df['Height2'] = df['Height'] / 2
-    # df['Zero3'] = '0'
-    # df['One2'] = '1,0'
-    # df['Width4'] = '-' + df['Width'].astype(str)
-    # df['Zero4'] = ',0'
-    # # Concatenate the columns to create the path
-    # df['Path'] = df[['M', 'X1', 'Y1', 'A1', 'Width1', 'Height1', 'Zero1', 'One1', 'Width2', 'Zero2', 'A2', 'Width3', 'Height2', 'Zero3', 'One2', 'Width4', 'Zero4']].astype(str).agg(' '.join, axis=1)
+    # # # Create the components of the path as separate columns
+    # # df['M'] = 'M'
+    # # df['X1'] = df['XCenter'] - df['Width'] / 2
+    # # df['Y1'] = df['YCenter']
+    # # df['A1'] = 'a'
+    # # df['Width1'] = df['Width'] / 2
+    # # df['Height1'] = df['Height'] / 2
+    # # df['Zero1'] = '0'
+    # # df['One1'] = '1,0'
+    # # df['Width2'] = df['Width']
+    # # df['Zero2'] = ',0'
+    # # df['A2'] = 'a'
+    # # df['Width3'] = df['Width'] / 2
+    # # df['Height2'] = df['Height'] / 2
+    # # df['Zero3'] = '0'
+    # # df['One2'] = '1,0'
+    # # df['Width4'] = '-' + df['Width'].astype(str)
+    # # df['Zero4'] = ',0'
+    # # # Concatenate the columns to create the path
+    # # df['Path'] = df[['M', 'X1', 'Y1', 'A1', 'Width1', 'Height1', 'Zero1', 'One1', 'Width2', 'Zero2', 'A2', 'Width3', 'Height2', 'Zero3', 'One2', 'Width4', 'Zero4']].astype(str).agg(' '.join, axis=1)
 
-    st.write(f'Creating the path took {time.time() - start_time:.2f} seconds.')
+    # st.write(f'Creating the path took {time.time() - start_time:.2f} seconds.')
 
     with st.columns(3)[0]:
 
@@ -101,6 +102,7 @@ def main():
 
         # Filter the DataFrame to include only the selected image
         df_selected_image = df[df['Slide ID'] == st.session_state['rsp__image_to_view']]
+        # df_selected_image = df_selected_image.iloc[:100, :]
 
         # Create a color sequence based on the phenotype frequency in the entire dataset
         phenotypes = df['phenotype'].value_counts().index
@@ -113,13 +115,31 @@ def main():
         # Group the DataFrame for the selected image by phenotype
         grouped = df_selected_image.groupby('phenotype')
 
+        # Create a list of ellipses
+        ellipses = []
+
         # Loop over the phenotypes in order of their frequency
         for phenotype in phenotypes:
             if phenotype in grouped.groups:  # Check if the phenotype exists in the selected image
                 group = grouped.get_group(phenotype)
 
-                # Works
-                fig.add_trace(go.Scatter(x=group['Cell X Position'], y=group['Cell Y Position'], mode='markers', name=phenotype, marker_color=color_dict[phenotype]))
+                # # Works but doesn't scale the shapes
+                # fig.add_trace(go.Scatter(x=group['Cell X Position'], y=group['Cell Y Position'], mode='markers', name=phenotype, marker_color=color_dict[phenotype]))
+
+                fig.add_trace(go.Bar(
+                    x=group['XMin'],
+                    y=group['YMax'] - group['YMin'],
+                    width=group['XMax'] - group['XMin'],
+                    base=group['YMin'],
+                    name=phenotype,
+                    marker=dict(
+                        color=color_dict[phenotype],
+                        opacity=0.5,
+                        # line=dict(color='black', width=1)  # Add outlines
+                    )
+                    # marker_color=color_dict[phenotype],
+                    # opacity=0.5,
+                ))
 
                 # # This never finished even with just 11K rows, maybe I should have tried again
                 # for _, row in group.iterrows():
@@ -129,40 +149,49 @@ def main():
                 #         line=dict(color=color_dict[phenotype]),
                 #     )
 
+                # # This works but is really slow, with type either "circle" or "rect"
                 # # ----
-                # # Create a list of ellipses
-                # ellipses = []
-                # for _, row in df.iterrows():
+                # # irow = 0
+                # for _, row in group.iterrows():
+                #     # print(irow)                    
                 #     ellipse = dict(
-                #         type="circle",
+                #         type="rect",
                 #         xref="x",
                 #         yref="y",
                 #         x0=row['XMin'],
                 #         y0=row['YMin'],
                 #         x1=row['XMax'],
                 #         y1=row['YMax'],
-                #         opacity=0.5,
+                #         # opacity=0.5,
+                #         opacity=1,
                 #         # fillcolor="blue",
                 #         # line_color="blue",
                 #         fillcolor=color_dict[phenotype],
                 #         line_color=color_dict[phenotype],
                 #     )
                 #     ellipses.append(ellipse)
+                #     # irow = irow + 1
 
-                # # Add the list of ellipses to the layout
-                # fig.update_layout(shapes=ellipses)
-                # # ----
+        # Add the list of ellipses to the layout
+        fig.update_layout(shapes=ellipses)
+            # # ----
 
         # Update the layout once, after all traces have been added
         fig.update_layout(
             xaxis=dict(
                 scaleanchor="y",
                 scaleratio=1,
+                # range=[df_selected_image['XMin'].min(), df_selected_image['XMax'].max()],  # Set the range of x-axis
+            ),
+            yaxis=dict(
+                # range=[df_selected_image['YMin'].min(), df_selected_image['YMax'].max()],  # Set the range of y-axis
             ),
             title=f'Scatter plot for {st.session_state["rsp__image_to_view"]}',
             xaxis_title='Cell X Position (microns)',
             yaxis_title='Cell Y Position (microns)',
-            legend_title='Phenotype'
+            legend_title='Phenotype',
+            height=800,  # Set the height of the figure
+            width=800,  # Set the width of the figure
         )
 
         st.plotly_chart(fig, use_container_width=True)
