@@ -237,9 +237,9 @@ def plot_neighborhood_profile(ax, cell_label, dist_bin, cell_density, phenoSet, 
 
     if legF:
         ax.legend(plotaxes, plotLabels,
-                bbox_to_anchor=(-0.05, -0.1), 
-                loc='upper left', 
-                borderaxespad=0, 
+                bbox_to_anchor=(-0.05, -0.1),
+                loc='upper left',
+                borderaxespad=0,
                 ncols = 4,
                 facecolor = Sl2BgC,
                 edgecolor = Sl2BgC,

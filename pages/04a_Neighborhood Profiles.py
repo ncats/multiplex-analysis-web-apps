@@ -519,16 +519,26 @@ def main():
 
         npf_fig_big = plt.figure(figsize=(16, 16), facecolor = '#0E1117')
 
+        list_figures = list_clusters[1:]
+        for ii in range(len(list_figures)):
+            axii = npf_fig_big.add_subplot(2, 3, ii+1, facecolor = '#0E1117')
 
-        for ii in range(4):
-            axii = npf_fig_big.add_subplot(2, 2, ii+1, facecolor = '#0E1117')
+            if ii == 3:
+                legend_flag = True
+            else:
+                legend_flag = False
+
+            big_sel_clus = list_figures[ii]
+            big_cmp_clus = None
 
             bpl.neighProfileDraw(st.session_state.spatial_umap,
                                 ax = axii,
-                                sel_clus = sel_npf_fig,
-                                cmp_clus = sel_npf_fig2,cmp_style=st.session_state['compare_clusters_as'],
+                                sel_clus = big_sel_clus,
+                                cmp_clus = big_cmp_clus,
+                                cmp_style=st.session_state['compare_clusters_as'],
                                 hide_other = st.session_state['toggle_hide_other'],
-                                hide_no_cluster = st.session_state['toggle_hide_no_cluster'])
+                                hide_no_cluster = st.session_state['toggle_hide_no_cluster'],
+                                legend_flag = legend_flag)
 
 
         st.pyplot(fig=npf_fig_big)

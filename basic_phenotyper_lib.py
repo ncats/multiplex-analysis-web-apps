@@ -818,7 +818,7 @@ def createHeatMap(df, phenoList, title, normAxis = None):
 
     return fig
 
-def neighProfileDraw(spatial_umap, ax, sel_clus, cmp_clus = None, cmp_style = None, hide_other = False, hide_no_cluster = False, figsize=(14, 16)):
+def neighProfileDraw(spatial_umap, ax, sel_clus, cmp_clus = None, cmp_style = None, hide_other = False, hide_no_cluster = False, legend_flag = True):
     '''
     neighProfileDraw is the method that draws the neighborhood profile
     line plots
@@ -877,7 +877,7 @@ def neighProfileDraw(spatial_umap, ax, sel_clus, cmp_clus = None, cmp_style = No
                                         cluster_title = cluster_title,
                                         cmp_style = cmp_style,
                                         max_dens = ylim,
-                                        leg_flag = 1)
+                                        leg_flag = legend_flag)
 
 
 def preprocess_weighted_umap(w, df_umap):
