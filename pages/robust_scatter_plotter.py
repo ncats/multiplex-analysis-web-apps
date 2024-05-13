@@ -4,6 +4,8 @@ import app_top_of_page as top
 import streamlit_dataframe_editor as sde
 import plotly.graph_objects as go
 import plotly.express as px
+import time
+import pandas as pd
 
 
 # * Plot ellipses
@@ -47,6 +49,41 @@ def main():
 
     unique_images = df['Slide ID'].unique()
 
+    # st.write() a series containing the number of rows in each image
+    st.write(df['Slide ID'].value_counts())
+
+    df['Width'] = df['XMax'] - df['XMin']
+    df['Height'] = df['YMax'] - df['YMin']
+    df['XCenter'] = df['XMin'] + df['Width'] / 2
+    df['YCenter'] = df['YMin'] + df['Height'] / 2
+
+    start_time = time.time()
+
+    df['Path'] = 'M ' + (df['XCenter'] - df['Width'] / 2).astype(str) + ',' + df['YCenter'].astype(str) + ' a ' + (df['Width'] / 2).astype(str) + ',' + (df['Height'] / 2).astype(str) + ' 0 1,0 ' + df['Width'].astype(str) + ',0 a ' + (df['Width'] / 2).astype(str) + ',' + (df['Height'] / 2).astype(str) + ' 0 1,0 -' + df['Width'].astype(str) + ',0'
+
+    # # Create the components of the path as separate columns
+    # df['M'] = 'M'
+    # df['X1'] = df['XCenter'] - df['Width'] / 2
+    # df['Y1'] = df['YCenter']
+    # df['A1'] = 'a'
+    # df['Width1'] = df['Width'] / 2
+    # df['Height1'] = df['Height'] / 2
+    # df['Zero1'] = '0'
+    # df['One1'] = '1,0'
+    # df['Width2'] = df['Width']
+    # df['Zero2'] = ',0'
+    # df['A2'] = 'a'
+    # df['Width3'] = df['Width'] / 2
+    # df['Height2'] = df['Height'] / 2
+    # df['Zero3'] = '0'
+    # df['One2'] = '1,0'
+    # df['Width4'] = '-' + df['Width'].astype(str)
+    # df['Zero4'] = ',0'
+    # # Concatenate the columns to create the path
+    # df['Path'] = df[['M', 'X1', 'Y1', 'A1', 'Width1', 'Height1', 'Zero1', 'One1', 'Width2', 'Zero2', 'A2', 'Width3', 'Height2', 'Zero3', 'One2', 'Width4', 'Zero4']].astype(str).agg(' '.join, axis=1)
+
+    st.write(f'Creating the path took {time.time() - start_time:.2f} seconds.')
+
     with st.columns(3)[0]:
 
         if 'rsp__image_to_view' not in st.session_state:
@@ -80,7 +117,41 @@ def main():
         for phenotype in phenotypes:
             if phenotype in grouped.groups:  # Check if the phenotype exists in the selected image
                 group = grouped.get_group(phenotype)
+
+                # Works
                 fig.add_trace(go.Scatter(x=group['Cell X Position'], y=group['Cell Y Position'], mode='markers', name=phenotype, marker_color=color_dict[phenotype]))
+
+                # # This never finished even with just 11K rows, maybe I should have tried again
+                # for _, row in group.iterrows():
+                #     fig.add_shape(
+                #         type="path",
+                #         path=row['Path'],
+                #         line=dict(color=color_dict[phenotype]),
+                #     )
+
+                # # ----
+                # # Create a list of ellipses
+                # ellipses = []
+                # for _, row in df.iterrows():
+                #     ellipse = dict(
+                #         type="circle",
+                #         xref="x",
+                #         yref="y",
+                #         x0=row['XMin'],
+                #         y0=row['YMin'],
+                #         x1=row['XMax'],
+                #         y1=row['YMax'],
+                #         opacity=0.5,
+                #         # fillcolor="blue",
+                #         # line_color="blue",
+                #         fillcolor=color_dict[phenotype],
+                #         line_color=color_dict[phenotype],
+                #     )
+                #     ellipses.append(ellipse)
+
+                # # Add the list of ellipses to the layout
+                # fig.update_layout(shapes=ellipses)
+                # # ----
 
         # Update the layout once, after all traces have been added
         fig.update_layout(
