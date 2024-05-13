@@ -521,33 +521,30 @@ def main():
 
     if st.session_state.umap_completed and st.session_state['toggle_clust_diff']:
 
-
         npf_fig_big = plt.figure(figsize=(16, 16), facecolor = '#0E1117')
 
         list_figures = list_clusters[1:]
-        for ii in range(len(list_figures)):
-            axii = npf_fig_big.add_subplot(2, 3, ii+1, facecolor = '#0E1117')
+        num_figs = len(list_figures)
+        num_rows = np.ceil(num_figs/3).astype(int)
+        for ii, cluster in enumerate(list_figures):
+            axii = npf_fig_big.add_subplot(num_rows, 3, ii+1, facecolor = '#0E1117')
 
             if ii == 3:
                 legend_flag = True
             else:
                 legend_flag = False
 
-            big_sel_clus = list_figures[ii]
-            big_cmp_clus = None
-
             bpl.neighProfileDraw(st.session_state.spatial_umap,
                                 ax = axii,
-                                sel_clus = big_sel_clus,
-                                cmp_clus = big_cmp_clus,
-                                cmp_style=st.session_state['compare_clusters_as'],
+                                sel_clus = cluster,
+                                cmp_clus = None,
+                                cmp_style = st.session_state['compare_clusters_as'],
                                 hide_other = st.session_state['toggle_hide_other'],
                                 hide_no_cluster = st.session_state['toggle_hide_no_cluster'],
                                 legend_flag = legend_flag)
-            
+
             axii.set_ylim([0.1, 10000])
             axii.set_yscale('log')
-
 
         st.pyplot(fig=npf_fig_big)
 
