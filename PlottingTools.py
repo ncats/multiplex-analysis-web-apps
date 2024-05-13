@@ -116,8 +116,12 @@ def plot_2d_density(X, Y=None, bins=200, n_pad=40, w=None, ax=None, gaussian_sig
         # Create the color bar
         if legendtype == 'colorbar':
             cax = ax.inset_axes([0.95, 0.1, 0.01, 0.85])
-            cmap_lim = None # [np.min(d), np.max(d)]
-            plt_cmap(ax=cax, cmap=cmap, extend=extend, width=0.01, lim = cmap_lim)
+            cmap_lim = np.around([np.min(d), np.max(d)], 3)
+            if circle_type == 'arch':
+                label_color = 'black'
+            else:
+                label_color = 'white'
+            plt_cmap(ax=cax, cmap=cmap, extend=extend, width=0.01, lim = cmap_lim, label_color= label_color)
         elif legendtype == 'legend':
             cax = ax.inset_axes([0.925, 0.1, 0.01, 0.85])
 
@@ -135,7 +139,7 @@ def plot_2d_density(X, Y=None, bins=200, n_pad=40, w=None, ax=None, gaussian_sig
             ax.set(xticks=[], yticks=[])
 
 
-def plt_cmap(ax, cmap, extend, width, lim = None, ylabel = None):
+def plt_cmap(ax, cmap, extend, width, lim = None, ylabel = None, label_color = 'white'):
     '''
     plt_cmap(ax, cmap, extend, width, ylabel) draws a colorbar 
     for the current colormap at the correct
@@ -153,7 +157,9 @@ def plt_cmap(ax, cmap, extend, width, lim = None, ylabel = None):
     Returns:
         None
     '''
-    cb = mpl.colorbar.Colorbar(ax=ax, cmap=cmap, extend=extend)
+    cb = mpl.colorbar.Colorbar(ax=ax, cmap=cmap, extend=extend, location='left')
+    cb.ax.yaxis.set_tick_params(color=label_color, labelcolor = label_color)  # Change the color of x tick labels to white
+    cb.set_label('Density Percentage (%)', color=label_color, fontsize=16, labelpad=-65)
     cb.set_ticks([])
     pos = ax.get_position().bounds
     ax.set_position([pos[0], pos[1], width, pos[3]])
