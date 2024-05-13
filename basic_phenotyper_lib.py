@@ -824,10 +824,6 @@ def neighProfileDraw(spatial_umap, ax, sel_clus, cmp_clus = None, cmp_style = No
     line plots
     '''
 
-    slc_bg   = '#0E1117'  # Streamlit Background Color
-    slc_text = '#FAFAFA'  # Streamlit Text Color
-    slc_bg2  = '#262730'  # Streamlit Secondary Background Color
-
     dens_df_mean_base = spatial_umap.dens_df_mean
     if hide_other:
         dens_df_mean_base = dens_df_mean_base.loc[dens_df_mean_base['phenotype'] != 'Other', :]

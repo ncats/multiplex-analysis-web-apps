@@ -319,7 +319,7 @@ def plot_mean_neighborhood_profile(ax, dist_bin, pheno_order, npf_dens_mean, clu
     ax.set_xticks(dist_bin)
     ax.set_xlim([0, 225])
     ax.set_ylim(max_dens)
-    ax.set_title(cluster_title, fontsize = 20, color = slc_text)
+    ax.set_title(cluster_title, fontsize = 14, color = slc_text)
     ax.set_xlabel('Spatial Bound (\u03BCm)', fontsize = 14, color = slc_text)
     ax.set_ylabel(ylabel, fontsize = 14, color = slc_text)
 
