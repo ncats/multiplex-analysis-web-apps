@@ -73,10 +73,10 @@ def filter_and_plot():
         st.session_state.prog_right_disabeled = True
 
     # Filtered dataset
-    st.session_state.df_filt = ndl.perform_filtering(st.session_state)
+    df_filt = ndl.perform_filtering(st.session_state)
 
     # Update and reset Figure Objects
-    st.session_state = ndl.setFigureObjs(st.session_state)
+    st.session_state = ndl.setFigureObjs(st.session_state, df_filt)
 
 def marker_multiselect_callback():
     '''
@@ -233,7 +233,7 @@ def main():
         st.dataframe(st.session_state.pheno_summ, use_container_width=True)
 
         # Prepare for Exporting
-        st.session_state.df_update = st.session_state.df.copy().drop(['mark_bits', 'species_name_long', 'species_name_short'], axis=1)
+        df_update = st.session_state.df.drop(['mark_bits', 'species_name_long', 'species_name_short'], axis=1)
 
         phen_summ_cols = st.columns([2, 1])
         with phen_summ_cols[0]:
@@ -253,7 +253,7 @@ def main():
         with updated_df_cols[1]:
             add_vertical_space(2)
             if st.button('Append Export List', key = 'appendexportbutton_updateddf__do_not_persist'):
-                ndl.save_csv(st.session_state.df_update, st.session_state.df_update_filename_U)
+                ndl.save_csv(df_update, st.session_state.df_update_filename_U)
                 st.toast(f'Added {st.session_state.df_update_filename_U} to export list ')
 
     # First column on the page
@@ -261,8 +261,8 @@ def main():
         # Print a column header
         st.header('Phenotype Plot')
 
-        plotSlide1, plotSlide2 = st.columns(2)
-        with plotSlide1:
+        plot_slide = st.columns(2)
+        with plot_slide[0]:
             with st.form('Plotting Num'):
                 st.slider('How many points to plot (%)', 0, 100, key = 'pointstSliderVal_Sel')
                 update_pixels_button = st.form_submit_button('Update Scatterplot')
@@ -270,7 +270,7 @@ def main():
                     st.session_state = ndl.setFigureObjs(st.session_state,
                                                          st.session_state.pointstSliderVal_Sel)
 
-        with plotSlide2:
+        with plot_slide[1]:
             if st.session_state.calcSliderVal < 100:
                 st.warning('Not plotting full scatterplot', icon="⚠️")
             else:
@@ -281,19 +281,19 @@ def main():
                         key = 'selhas_pos_mark',
                         on_change=filter_and_plot)
 
-        imageProgCol = st.columns([3, 1, 1, 2])
-        with imageProgCol[0]:
+        image_prog_col = st.columns([3, 1, 1, 2])
+        with image_prog_col[0]:
             st.selectbox('Slide ID',
                          (st.session_state['uniSlide ID_short']),
                          key = 'selSlide ID_short',
                          on_change=slide_id_callback)
-        with imageProgCol[1]:
+        with image_prog_col[1]:
             add_vertical_space(2)
             st.button('←', on_click=slide_id_prog_left_callback, disabled=st.session_state.prog_left_disabeled)
-        with imageProgCol[2]:
+        with image_prog_col[2]:
             add_vertical_space(2)
             st.button('→', on_click=slide_id_prog_right_callback, disabled=st.session_state.prog_right_disabeled)
-        with imageProgCol[3]:
+        with image_prog_col[3]:
             add_vertical_space(2)
             st.write(f'Image {st.session_state["idxSlide ID"]+1} of {st.session_state["numSlide ID"]}')
 

@@ -105,14 +105,6 @@ def plot_2d_density(X, Y=None, bins=200, n_pad=40, w=None, ax=None, gaussian_sig
             # ax.pcolormesh(np.log10(np.pad(d, [n_pad, n_pad]) + c + 1), vmin=np.log10(2), vmax=np.log10(2 + vlim[1]), cmap=cmap, shading='gouraud', alpha=1)
         elif circle_type == 'arch':
             extend = 'both'
-            # if any((d<0)[0]):
-            #     vmin = np.quantile(d[d < 0].flatten(), 0.03)
-            # else:
-            #     vmin = 0.03
-            # if any((d>0)[0]):
-            #     vmax = np.quantile(d[d > 0].flatten(), 0.97)
-            # else:
-            #     vmax = 0.97
             c = (n_bins / 2)
             ax.add_artist(plt.Circle((c + n_pad, c + n_pad), 0.95 * (c + n_pad), color='black', fill=False))
             ax.pcolormesh(np.pad(d, [n_pad, n_pad]), vmin=-vlim[1], vmax=vlim[1], cmap=cmap, shading='gouraud', alpha=1)
@@ -126,9 +118,15 @@ def plot_2d_density(X, Y=None, bins=200, n_pad=40, w=None, ax=None, gaussian_sig
             cmap_lim = None # [np.min(d), np.max(d)]
             plt_cmap(ax=cax, cmap=cmap, extend=extend, width=0.01, lim = cmap_lim)
         elif legendtype == 'legend':
-            cax = ax.inset_axes([0.95, 0.1, 0.01, 0.85])
-            cmap_lim = [-3, -2, -1, 0, 1, 2, 3]
-            plt_cmap(ax=cax, cmap=cmap, extend=extend, width=0.01, lim = cmap_lim)
+            cax = ax.inset_axes([0.925, 0.1, 0.01, 0.85])
+
+            bounds = np.linspace(-3, 4, 8)
+            norm = mpl.colors.BoundaryNorm(bounds, cmap.N)
+
+            cb = mpl.colorbar.ColorbarBase(ax = cax, cmap=cmap, norm=norm,
+                spacing='proportional', ticks=bounds[:-1], boundaries=bounds, format='%1i')
+            cb.ax.tick_params(labelsize=20)
+            # cb.set_ticks(bounds - 0.5)
 
 
         if box_off is True:
@@ -142,17 +140,17 @@ def plt_cmap(ax, cmap, extend, width, lim = None, ylabel = None):
     for the current colormap at the correct
     axes location, and with the correct label.
 
-    Parameters:
-    ax: Matplotlib axes handle
-    cmap: Matplotlib colormap
-    extend: {'neither', 'both', 'min', 'max'}  
-            Make pointed end(s) for out-of-range values (unless 'neither'). 
-            These are set for a given colormap using the colormap set_under and set_over methods.
-    width: Width of the colorbar in Figure coordinates. '0.01' suggested value
-    ylabel: String of the colomap label
+    Args:
+        ax: Matplotlib axes handle
+        cmap: Matplotlib colormap
+        extend: {'neither', 'both', 'min', 'max'}  
+                Make pointed end(s) for out-of-range values (unless 'neither'). 
+                These are set for a given colormap using the colormap set_under and set_over methods.
+        width: Width of the colorbar in Figure coordinates. '0.01' suggested value
+        ylabel: String of the colormap label
 
     Returns:
-
+        None
     '''
     cb = mpl.colorbar.Colorbar(ax=ax, cmap=cmap, extend=extend)
     cb.set_ticks([])
@@ -262,10 +260,23 @@ def plot_neighborhood_profile_propor(ax, cell_label, dist_bin, cell_propor, phen
     if legF:
         plt.legend()
 
-def plot_mean_neighborhood_profile(ax, dist_bin, pheno_order, npf_dens_mean, cluster_title, max_dens=0.1, leg_flag=0):
+def plot_mean_neighborhood_profile(ax, dist_bin, pheno_order, npf_dens_mean, cluster_title, cmp_style = None, max_dens=0.1, leg_flag=0):
     '''
     This function generates the line plots of the phenotype density 
     at different distances from a given cell
+
+    Args:
+        ax: Matplotlib axis handle
+        dist_bin: List of distance bins
+        pheno_order: List of phenotype names
+        npf_dens_mean: Pandas DataFrame
+        cluster_title: String of the cluster title
+        cmp_style: If doing a comparison, what style
+        max_dens: Float of the maximum density
+        leg_flag: Boolean flag for the legend
+
+    Returns:
+        None
     '''
 
     slc_bg   = '#0E1117'  # Streamlit Background Color
@@ -286,14 +297,24 @@ def plot_mean_neighborhood_profile(ax, dist_bin, pheno_order, npf_dens_mean, clu
                              color=tab20_new(ii))
         axes_dict[phenotype] = plotax
 
-    plt.axhline(y=0, color='w', linestyle='--')
+    if cmp_style == 'Ratio':
+        cmp_line = 1
+        ylabel = 'Cell Density Ratio'
+    elif cmp_style == 'Difference':
+        cmp_line = 0
+        ylabel = 'Cell Density Difference (Counts/$mm^2$)'
+    else:
+        cmp_line = 0
+        ylabel = 'Cell Density (Counts/$mm^2$)'
+
+    plt.axhline(y=cmp_line, color='w', linestyle='--')
 
     ax.set_xticks(dist_bin)
     ax.set_xlim([0, 225])
     ax.set_ylim(max_dens)
     ax.set_title(cluster_title, fontsize = 20, color = slc_text)
     ax.set_xlabel('Spatial Bound (\u03BCm)', fontsize = 14, color = slc_text)
-    ax.set_ylabel('Cell Density', fontsize = 14, color = slc_text)
+    ax.set_ylabel(ylabel, fontsize = 14, color = slc_text)
 
     # ax.set_frame_on(False)
     ax.spines[['left', 'bottom']].set_color(slc_text)

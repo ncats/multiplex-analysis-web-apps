@@ -14,8 +14,10 @@ import utils
 import app_top_of_page as top
 import streamlit_dataframe_editor as sde
 
-# Function to load the data in a unified format
 def load_data(input_datafile_path, coord_units_in_microns, dataset_format):
+    '''
+    Function to load the data in a unified format
+    '''
     dataset_class = getattr(dataset_formats, dataset_format)
     dataset_obj = dataset_class(input_datafile=input_datafile_path, coord_units_in_microns=coord_units_in_microns)
     dataset_obj.process_dataset(do_calculate_minimum_coordinate_spacing_per_roi=False, do_trimming=False, do_extra_processing=False)

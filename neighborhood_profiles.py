@@ -1,5 +1,12 @@
 '''
 Set of scripts responsible for running the neighborhood profiles analysis
+
+Class NeighborhoodProfiles:
+    Organization of the methods and attributes that are required to run
+    the neighborhood profiles analysis
+
+Class UMAPDensityProcessing:
+    Individual processing of UMAP density matrices
 '''
 
 import numpy as np
@@ -107,7 +114,6 @@ class NeighborhoodProfiles:
         '''
 
         self.spatial_umap = bpl.setup_Spatial_UMAP(df, marker_names, pheno_order)
-
 
     def perform_density_calc(self, cpu_pool_size = 1):
         '''
@@ -479,7 +485,7 @@ class UMAPDensityProcessing():
         '''
         self.feat_label = f'{feature} {feat_label}'
 
-    def UMAPdraw_density(self, w=None, diff = False, figsize=(12, 12)):
+    def UMAPdraw_density(self, w=None, diff = False, figsize=(12, 12), legendtype = 'colorbar'):
         '''
         Calls the UMAPdraw_density function from PlottingTools.py
         '''
@@ -491,7 +497,8 @@ class UMAPDensityProcessing():
                                     vlim = self.vlim,
                                     feat = self.feat_label,
                                     diff = diff,
-                                    figsize = figsize)
+                                    figsize = figsize,
+                                    legendtype = legendtype)
 
     def filter_density_matrix(self, cutoff_dec= 0.02):
         '''

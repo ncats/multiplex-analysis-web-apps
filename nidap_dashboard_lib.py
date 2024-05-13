@@ -24,17 +24,18 @@ def identify_col_type(col):
     Quick and dirty column identifaction function
     '''
     dtypes = col.dtypes
-    if dtypes == 'category':
-        return 'category'
-    else:
-        unique_vals = col.unique().sort()
+    n_uni = col.nunique()
 
-        if (unique_vals == [0, 1]):
-            return 'bool'
-        elif dtypes == 'object':
-            return 'object'
-        else:
-            return 'not_bool'
+    if n_uni == 2:
+        return 'bool'
+    if n_uni == 1:
+        return 'constant'
+    elif dtypes == 'category':
+        return 'category'
+    elif dtypes == 'object':
+        return 'object'
+    else:
+        return 'not_bool'
 
 def init_session_state(session_state):
     """
@@ -183,6 +184,9 @@ def reset_neigh_profile_settings(session_state):
     # Default Cluster_Dict()
     session_state.cluster_dict = {0: 'No Cluster'}
 
+    # Neighborhood Profiles Line Plot Settings
+    session_state.compare_clusters_as = 'Difference'
+
     return session_state
 
 def load_listofFiles(fiol, projectPath):
@@ -257,12 +261,12 @@ def loadDataButton(session_state, df_import, projectName, fileName):
 
     # Perform Filtering
     session_state.bc.startTimer()
-    session_state.df_filt = perform_filtering(session_state)
+    df_plot = perform_filtering(session_state)
     # session_state.bc.printElapsedTime(msg = 'Performing Filtering')
 
     # Set Figure Objects
     session_state.bc.startTimer()
-    session_state = setFigureObjs(session_state)
+    session_state = setFigureObjs(session_state, df_plot)
     session_state.pointstSliderVal_Sel = session_state.calcSliderVal
     # session_state.bc.printElapsedTime(msg = 'Setting Figure Objects')
 
@@ -337,10 +341,10 @@ def updatePhenotyping(session_state):
     session_state.pheno_summ = bpl.init_pheno_summ(session_state.df)
 
     # Filtered dataset
-    session_state.df_filt = perform_filtering(session_state)
+    df_plot = perform_filtering(session_state)
 
     # Update and reset Figure Objects
-    session_state = setFigureObjs(session_state)
+    session_state = setFigureObjs(session_state, df_plot)
 
     return session_state
 
@@ -362,6 +366,8 @@ def assign_phenotype_col(df_raw, spec_summ_load, phenoMeth, marker_names):
         df: Updated dataset
     """
 
+    df = df_raw.copy()
+
     if phenoMeth != 'Custom':
         if phenoMeth == 'Species':
             allow_compound_species=True
@@ -372,13 +378,13 @@ def assign_phenotype_col(df_raw, spec_summ_load, phenoMeth, marker_names):
         # then we have Will's "exclusive" case; otherwise, it's possible cells are
         # overlapping and we must duplicate the coordinates for the rows having
         # multiple positive markers
-        df_raw = bpl.remove_compound_species(df_raw, marker_names, allow_compound_species=allow_compound_species)
+        df = bpl.remove_compound_species(df, marker_names, allow_compound_species=allow_compound_species)
 
         # Assign phenotype column to dataframe based on species name
-        df = bpl.assign_phenotype_species(df_raw)
+        df = bpl.assign_phenotype_species(df)
     else:
         # Assign phenotype column to dataframe based on species summary
-        df = bpl.assign_phenotype_custom(df_raw, spec_summ_load)
+        df = bpl.assign_phenotype_custom(df, spec_summ_load)
 
     return df
 
@@ -408,10 +414,10 @@ def init_filter_struct(session_state, SEL_feat, CHK_feat):
     CHKdict = dict()
 
     for key in SEL_feat:
-        SELdict['{}'.format(key)] = session_state[eval('"sel" + key')]
+        SELdict[f'{key}'] = session_state[eval('"sel" + key')]
 
     for key in CHK_feat:
-        CHKdict['{}'.format(key)] = session_state[eval('"sel" + key')]
+        CHKdict[f'{key}'] = session_state[eval('"sel" + key')]
 
     session_state.SELdict = SELdict
     session_state.CHKdict = CHKdict
@@ -474,7 +480,7 @@ def export_results_dataset(fiol, df, path, filename, saveCompass=False, type = '
     """
     fiol.export_results_dataset(df, path, filename, saveCompass, type)
 
-def setFigureObjs(session_state, InSliderVal = None):
+def setFigureObjs(session_state, df_plot, InSliderVal = None):
     """
     Organize Figure Objects to be used in plotting
     """
@@ -485,31 +491,27 @@ def setFigureObjs(session_state, InSliderVal = None):
 
     session_state.phenoOrder = list(session_state.pheno_summ.loc[session_state.pheno_summ['phenotype_count'].index, 'phenotype'])
 
-    # NumPoints
-    targCellCount = 150000
-    df_plot = session_state.df_filt.copy()
+    # num_points
+    targ_cell_count = 150000
 
-    # minXY = df_plot[['Cell X Position', 'Cell Y Position']].min()-1
-    # maxXY = df_plot[['Cell X Position', 'Cell Y Position']].max()+1
+    num_points = df_plot.shape[0]
+    if (num_points > targ_cell_count) & (InSliderVal is None):
+        n = targ_cell_count
 
-    numPoints = session_state.df_filt.shape[0]
-    if (numPoints > targCellCount) & (InSliderVal is None):
-        n = targCellCount
-
-        calcSliderVal = int(np.ceil(100*n/numPoints))
+        calc_slider_val = int(np.ceil(100*n/num_points))
         df_plot = df_plot.sample(n)
         session_state.plotPointsCustom = False
     elif InSliderVal is not None:
 
-        calcSliderVal = InSliderVal
-        df_plot = df_plot.sample(frac = calcSliderVal/100)
+        calc_slider_val = InSliderVal
+        df_plot = df_plot.sample(frac = calc_slider_val/100)
         session_state.plotPointsCustom = True
     else:
-        n = numPoints
-        calcSliderVal = 100
+        n = num_points
+        calc_slider_val = 100
         session_state.plotPointsCustom = False
 
-    session_state.calcSliderVal = calcSliderVal
+    session_state.calcSliderVal = calc_slider_val
     session_state.drawnPoints = df_plot.shape[0]
 
     # Seaborn
@@ -519,7 +521,7 @@ def setFigureObjs(session_state, InSliderVal = None):
                                               hueOrder=session_state.phenoOrder)
 
     # Altair
-    session_state.chart = drawAltairObj(df_plot, title, session_state.phenoOrder, session_state.phenoFig, session_state.ax)
+    # session_state.chart = drawAltairObj(df_plot, title, session_state.phenoOrder, session_state.phenoFig, session_state.ax)
 
     return session_state
 

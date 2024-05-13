@@ -19,7 +19,7 @@ def main():
         return
 
     # Set default widget values
-    streamlit_utils.assign_default_values_in_session_state('num_workers', 8)
+    streamlit_utils.assign_default_values_in_session_state('num_workers', 7)
     streamlit_utils.assign_default_values_in_session_state('use_multiprocessing', True)
     block_names = ['Instantiate TIME class', 'Plot ROIs', 'Calculate P values', 'Check metrics, impose plotting settings, and convert to numpy format', 'Plot density heatmaps per ROI', 'Plot ROI outlines individually on the whole slides', 'Average density P values over ROIs for each slide', 'Plot all ROI outlines on the whole slides', 'Average density P values over ROIs for each annotation region type', 'Plot density P values for each ROI over slide spatial plot']
     component_bool_defaults = [True, True, True, True, True, True, True, True, False, False]

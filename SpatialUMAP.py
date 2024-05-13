@@ -48,6 +48,16 @@ class SpatialUMAP:
     '''
     @staticmethod
     def construct_arcs(dist_bin_px):
+        '''
+        construct_arcs() creates a boolean mask of concentric circles
+        based on the distance bins in pixels.
+
+        Args:
+            dist_bin_px (np.array): distance bins in pixels
+
+        Returns:
+            np.array: boolean mask of concentric circles
+        '''
         # set bool mask of the arcs
         arcs = np.zeros([int(2 * dist_bin_px[-1]) + 1] * 2 + [len(dist_bin_px), ], dtype=bool)
         for i in range(len(dist_bin_px)):
@@ -332,23 +342,24 @@ class SpatialUMAP:
         # downsampling factor for area calculations
         self.area_downsample = area_downsample
         self.arcs_radii = (self.dist_bin_px * self.area_downsample).astype(int)
+        # Create a boolean mask of concentric circles based on the distance bins in pixels
         self.arcs_masks = SpatialUMAP.construct_arcs(self.arcs_radii)
 
         # Attributes to be created in higher level script
-        self.cells = pd.DataFrame()
+        self.cells          = pd.DataFrame()
         self.cell_positions = pd.DataFrame()
-        self.cell_labels = pd.DataFrame()
-        self.region_ids = np.array([])
+        self.cell_labels    = pd.DataFrame()
+        self.region_ids     = np.array([])
         self.pool = None
         self.species = None
         self.counts = None
         self.areas = None
 
         self.phenoLabel = None
-        self.umap_test = np.array([])
-        self.patients = np.array([])
+        self.umap_test  = np.array([])
+        self.patients   = np.array([])
 
-        self.density = None
+        self.density    = None
         self.proportion = None
 
         # Mean Densities
@@ -506,6 +517,10 @@ class SpatialUMAP:
         self.counts = self.calculate_density_matrix_for_all_images(debug_output=False, swap_inequalities=True)
 
     def get_areas(self, area_threshold, pool_size=2, save_file=None, plots_directory=None):
+        '''
+        get_areas begins the process of identifying the
+        cell areas surrounding each given cell in a dataset
+        '''
         self.clear_areas()
         self.cells['area_filter'] = False
         self.start_pool(pool_size)
@@ -525,7 +540,16 @@ class SpatialUMAP:
         That said, this method will allow us to identify an even subset of the dataset
         to fit to be fitted to a model quickly, before the rest of the data is 
         transformed based on the UMAP model.
+
+        Args:
+            n (int): Minimum number of cells to be included in the training set
+            groupby_label (str): Label to group the data by
+            seed (int): Random seed for reproducibility
+
+        Returns:
+            None
         '''
+        # region_ids is a proxy for the collection of images
         region_ids = self.cells['TMA_core_id'].unique()
         min_cells_images = min([sum(self.cells['TMA_core_id'] == reg) for reg in region_ids])
         percent_min = 0.2
@@ -543,7 +567,13 @@ class SpatialUMAP:
 
     def calc_densities(self, area_threshold):
         '''
-        calculate density base on counts of cells / area of each arc examine
+        calculate density base on counts of cells / area of each arc
+
+        Args:
+            area_threshold (float): minimum area threshold for a cell to be considered
+
+        Returns:
+            None
         '''
 
         # instantiate our density output matrix
@@ -578,39 +608,41 @@ class SpatialUMAP:
         Setup density values for means
         '''
 
+        dens_umap_test = self.density[self.cells['umap_test'], :, :]
+        prop_umap_test = self.density[self.cells['umap_test'], :, :]
+
         self.dens_df = pd.DataFrame()
         self.prop_df = pd.DataFrame()
         for clust_label, group in self.df_umap.groupby('clust_label'):
 
-            if clust_label != -1 and clust_label != 'No Cluster':
-                clust_ind = group.index
+            clust_ind = group.index
 
-                smalldf_D = pd.DataFrame()
-                smalldf_P = pd.DataFrame()
-                theseDen = self.density[clust_ind]
-                thesePro = self.proportion[clust_ind]
-                for i, pheno in enumerate(self.phenoLabel):
+            smalldf_D = pd.DataFrame()
+            smalldf_P = pd.DataFrame()
+            theseDen = dens_umap_test[clust_ind]
+            thesePro = prop_umap_test[clust_ind]
+            for i, pheno in enumerate(self.phenoLabel):
 
-                    theseDen_pheno = theseDen[:,:,i]
-                    r, c = theseDen_pheno.shape
-                    theseDen_flat = theseDen_pheno.reshape(-1)
+                theseDen_pheno = theseDen[:,:,i]
+                r, c = theseDen_pheno.shape
+                theseDen_flat = theseDen_pheno.reshape(-1)
 
-                    thesePro_pheno = thesePro[:,:,i]
-                    r, c = thesePro_pheno.shape
-                    thesePro_flat = thesePro_pheno.reshape(-1)
+                thesePro_pheno = thesePro[:,:,i]
+                r, c = thesePro_pheno.shape
+                thesePro_flat = thesePro_pheno.reshape(-1)
 
-                    smalldf_D['dist_bin'] = np.tile(self.dist_bin_um, r)
-                    smalldf_D['density'] = theseDen_flat
-                    smalldf_D['phenotype'] = pheno
-                    smalldf_D['clust_label'] = clust_label
+                smalldf_D['dist_bin'] = np.tile(self.dist_bin_um, r)
+                smalldf_D['density'] = theseDen_flat
+                smalldf_D['phenotype'] = pheno
+                smalldf_D['clust_label'] = clust_label
 
-                    smalldf_P['dist_bin'] = np.tile(self.dist_bin_um, r)
-                    smalldf_P['density'] = thesePro_flat
-                    smalldf_P['phenotype'] = pheno
-                    smalldf_P['clust_label'] = clust_label
+                smalldf_P['dist_bin'] = np.tile(self.dist_bin_um, r)
+                smalldf_P['density'] = thesePro_flat
+                smalldf_P['phenotype'] = pheno
+                smalldf_P['clust_label'] = clust_label
 
-                    self.dens_df = pd.concat([self.dens_df, smalldf_D], axis = 0).reset_index(drop=True)
-                    self.prop_df = pd.concat([self.prop_df, smalldf_P], axis = 0).reset_index(drop=True)
+                self.dens_df = pd.concat([self.dens_df, smalldf_D], axis = 0).reset_index(drop=True)
+                self.prop_df = pd.concat([self.prop_df, smalldf_P], axis = 0).reset_index(drop=True)
 
         # Perform Groupby and Mean calculations
         self.dens_df_mean = self.dens_df.groupby(['clust_label', 'phenotype', 'dist_bin'], as_index=False).mean()
@@ -618,7 +650,10 @@ class SpatialUMAP:
         self.dens_df_mean = self.dens_df_mean.rename(columns = {'density': 'density_mean'})
         self.dens_df_se   = self.dens_df_se.rename(columns = {'density': 'density_sem'})
         self.dens_df_mean['density_sem'] = self.dens_df_se['density_sem']
-        self.maxdens_df   = 1.05*max(self.dens_df_mean['density_mean'] + self.dens_df_mean['density_sem'])
+
+        # Convert to mm^2
+        self.dens_df_mean['density_mean'] = self.dens_df_mean['density_mean'] * 1e6
+        self.dens_df_mean['density_sem'] = self.dens_df_mean['density_sem'] * 1e6
 
     def prepare_df_umap_plotting(self, features):
         '''

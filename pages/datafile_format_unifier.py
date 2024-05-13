@@ -65,9 +65,9 @@ def main():
         # ---- 1. Concatenate datafiles together --------------------------------------------------------------------------------------------------------------------------------
 
         # Display a header for the datafile selection section
-        st.header(':one: Select datafiles to combine')
+        st.header(':one: Select datafile(s)')
 
-        # Get a list of files with the given extensions in the requested directory
+        # Retrieve list of files with the given extensions in the requested directory
         files = list_files(directory, extensions)
 
         # If no files are found, write a message to the user
@@ -76,15 +76,15 @@ def main():
 
         # If files are found, display them in a dataframe editor
         else:
-            
             # Write messages to the user
             num_files = len(files)
             if num_files == 1:
                 st.write('Detected 1 ".csv" or ".tsv" file in the `input` directory.')
             else:
-                st.write('Detected {} ".csv" and ".tsv" files in the `input` directory.'.format(num_files))
-            st.write('Note: You can double-click on any cell to see a full filename that is too long to fit in the cell.')
-    
+                st.write(f'Detected {num_files} ".csv" and ".tsv" files in the `input` directory.')
+            st.write('Select 1 or more files to load into the MAWA Datafile Unifier.')
+            st.write('Note: Double-click any cell to see the full filename.')
+
             # Create a dataframe from the list of files, including a column for the user to select files
             df_input_files = pd.DataFrame(files, columns=['Filename'])
             df_input_files.insert(0, 'Selected', False)
@@ -121,12 +121,19 @@ def main():
             # Extract the selected files from the dataframe editor
             input_files = sorted(df_reconstructed[selected_rows]['Filename'].to_list())
             st.session_state['unifier__input_files'] = input_files
-            
+
+            load_button_disabled = False
+            if num_selected_rows == 0:
+                load_button_disabled = True
+            elif num_selected_rows == 1:
+                load_msg = 'Loading File...'
+            else:
+                load_msg = 'Loading and Combining Files...'
             # Create a button to concatenate the selected files
-            if st.button(button_text, help=button_help_message):
+            if st.button(button_text, help=button_help_message, disabled=load_button_disabled):
 
                 # Render a progress spinner while the files are being combined
-                with st.spinner('Combining files...'):
+                with st.spinner(load_msg):
 
                     # Efficiently check if the columns are equal for all input files
                     columns_equal = True
@@ -172,10 +179,10 @@ def main():
             # ---- 2. (Optional) Drop null rows from the dataset --------------------------------------------------------------------------------------------------------------------------------
 
             # Display a header for the null row deletion section
-            st.header('(Optional) :two: Delete null rows')
+            st.markdown('## :two: Delete null rows (optional) ')
 
             # Create an expander for the null row deletion section
-            with st.expander('(Optional) Click to expand:', expanded=False):
+            with st.expander('Click to expand:', expanded=False):
 
                 # Write a note to the user
                 st.write('Observe the combined dataframe at bottom and select columns here by which to remove rows. Rows will be removed if the selected columns have a value of `None`.')
@@ -226,7 +233,7 @@ def main():
             # Allow the user to select the columns by which to uniquely define images
             if 'unifier__columns_to_combine_to_uniquely_define_slides' not in st.session_state:
                 st.session_state['unifier__columns_to_combine_to_uniquely_define_slides'] = []
-            st.multiselect('Select columns to combine to uniquely define images:', df.columns, key='unifier__columns_to_combine_to_uniquely_define_slides')  # removing .select_dtypes(include=['object', 'string']) from df
+            st.multiselect('Select one or more columns to define unique multiplex images:', df.columns, key='unifier__columns_to_combine_to_uniquely_define_slides')  # removing .select_dtypes(include=['object', 'string']) from df
 
             # Create a button to assign images to the dataframe
             if st.button(':star2: Assign images :star2:'):
@@ -271,7 +278,7 @@ def main():
             # Allow the user to select the column by which to uniquely define ROIs
             if 'unifier__roi_explicitly_defined' not in st.session_state:
                 st.session_state['unifier__roi_explicitly_defined'] = False
-            if st.checkbox('Check here if the ROIs are explicitly defined by a column in the dataframe', key='unifier__roi_explicitly_defined', help='Note: This is not often the case, so this can usually be left unchecked.'):
+            if st.toggle('Identify dataframe column which define ROIs', key='unifier__roi_explicitly_defined', help='Note: This is not often the case, so this can usually be left unchecked.'):
                 if 'unifier__roi_column' not in st.session_state:
                     st.session_state['unifier__roi_column'] = df.columns[0]
                 st.selectbox('Select the column containing the ROI names:', df.columns, key='unifier__roi_column')
@@ -434,10 +441,10 @@ def main():
             # ---- 6a. Identify phenotypes --------------------------------------------------------------------------------------------------------------------------------
 
             # Display a header for the phenotype identification section
-            st.header('(Optional) :six: Identify phenotypes')
+            st.header(':six: Identify phenotypes (optional)')
 
             # Create an expander for the phenotype identification section
-            with st.expander('(Optional) Click to expand:', expanded=False):
+            with st.expander('Click to expand:', expanded=False):
             
                 # Write a note to the user
                 st.write('Note: This section is for identifying *categorical* phenotype columns in the dataset. If you wish to use MAWA to perform phenotyping on the intensities (such as in the Multiaxial Gater), there is no need to complete this section.')
@@ -503,7 +510,7 @@ def main():
                     st.warning('The format used to define phenotypes has changed since the last time phenotypes were defined. Please re-select the phenotypes or adjust the settings to match the previous ones.')
 
                 # ---- 6b. Add phenotype columns to the dataset --------------------------------------------------------------------------------------------------------------------------------
-                    
+
                 # Create a two-column editable dataframe, where both columns hold the column names of st.session_state['unifier__df_phenotypes'] but the first is not editable and the second is editable, allowing the user to rename the phenotypes
                 if 'unifier__df_phenotypes' in st.session_state:
 
@@ -562,7 +569,7 @@ def main():
 
         # Create a divider
         st.divider()
-        
+
         # Split the page into three main columns again
         main_columns = st.columns(3)
 
@@ -572,9 +579,9 @@ def main():
             # ---- 7. Save the dataframe to a CSV file --------------------------------------------------------------------------------------------------------------------------------
 
             # Display a header for the save dataframe section
-            st.header('(Optional) :seven: Save the dataframe to the `input` directory')
+            st.header(':seven: Save the dataframe to the `input` directory (optional) ')
 
-            with st.expander('(Optional) Click to expand:', expanded=False):
+            with st.expander('Click to expand:', expanded=False):
 
                 # Create an input text box for the custom text to be added to the filename
                 if 'unifier__custom_text_for_output_filename' not in st.session_state:
@@ -618,7 +625,7 @@ def main():
         :small_orange_diamond: Loaded memory usage: `{usage_str}`
         '''
         st.markdown(information)
-    
+
         # Output a sample of the concatenated dataframe
         st.header('Sample of unified dataframe')
         resample_dataframe = st.button('Refresh dataframe sample')

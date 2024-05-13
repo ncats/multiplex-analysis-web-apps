@@ -501,9 +501,22 @@ def wrapTitleText(title):
 def setup_Spatial_UMAP(df, marker_names, pheno_order, cpu_pool_size = 1):
     '''
     Setup the requirements for running spatial UMAP
+
+    Args:
+        df (Pandas dataframe): Dataframe containing the data
+        marker_names (list): List of marker names
+        pheno_order (list): List of phenotype order
+        cpu_pool_size (int): Number of CPUs to use for parallel processing
+    
+    Returns:
+        SpatialUMAP: SpatialUMAP object
     '''
 
-    spatial_umap = SpatialUMAP(dist_bin_um=np.array([25, 50, 100, 150, 200]), um_per_px=0.5, area_downsample=.2)
+    # Initialize the SpatialUMAP object
+    # dist_bin_um (np.array): Array of distances in microns
+    # um_per_px (float): Microns per pixel
+    # area_downsample (float): Area downsample
+    spatial_umap = SpatialUMAP(dist_bin_um=np.array([25, 50, 100, 150, 200]), um_per_px=1.0, area_downsample=1.0)
     spatial_umap.cells = df
     spatial_umap.patients = spatial_umap.makeDummyClinic(10)
 
@@ -539,7 +552,7 @@ def setup_Spatial_UMAP(df, marker_names, pheno_order, cpu_pool_size = 1):
     # set the region is to be analyzed (a TMA core is treated similar to a region of a interest)
     spatial_umap.region_ids = spatial_umap.cells.TMA_core_id.unique()
     # default cluster values
-    spatial_umap.cells['clust_label'] = -1
+    spatial_umap.cells['clust_label'] = 'No Cluster'
 
     return spatial_umap
 
@@ -795,7 +808,7 @@ def createHeatMap(df, phenoList, title, normAxis = None):
 
     return fig
 
-def neighProfileDraw(spatial_umap, sel_clus, cmp_clus = None, hide_other = False, figsize=(14, 16)):
+def neighProfileDraw(spatial_umap, sel_clus, cmp_clus = None, cmp_style = None, hide_other = False, hide_no_cluster = False, figsize=(14, 16)):
     '''
     neighProfileDraw is the method that draws the neighborhood profile
     line plots
@@ -808,31 +821,54 @@ def neighProfileDraw(spatial_umap, sel_clus, cmp_clus = None, hide_other = False
     neipro_fig = plt.figure(figsize=figsize, facecolor = slc_bg)
     ax = neipro_fig.add_subplot(1, 1, 1, facecolor = slc_bg)
 
+    dens_df_mean_base = spatial_umap.dens_df_mean
     if hide_other:
-        spatial_umap.dens_df_mean = spatial_umap.dens_df_mean.loc[spatial_umap.dens_df_mean['phenotype'] != 'Other', :]
-    
-    spatial_umap.maxdens_df   = 1.05*max(spatial_umap.dens_df_mean['density_mean'] + spatial_umap.dens_df_mean['density_sem'])
-    dens_df_mean_sel = spatial_umap.dens_df_mean.loc[spatial_umap.dens_df_mean['clust_label'] == sel_clus, :].reset_index(drop=True)
-    ylim = [0, spatial_umap.maxdens_df]
+        dens_df_mean_base = dens_df_mean_base.loc[dens_df_mean_base['phenotype'] != 'Other', :]
+    if hide_no_cluster:
+        dens_df_mean_base = dens_df_mean_base.loc[dens_df_mean_base['clust_label'] != 'No Cluster', :]
+
+    maxdens_df   = 1.05*max(dens_df_mean_base['density_mean'] + dens_df_mean_base['density_sem'])
+    dens_df_mean_sel = dens_df_mean_base.loc[dens_df_mean_base['clust_label'] == sel_clus, :].reset_index(drop=True)
+    ylim = [0, maxdens_df]
     dens_df_mean = dens_df_mean_sel.copy()
     cluster_title = f'Cluster {sel_clus}'
 
     if cmp_clus is not None:
-        dens_df_mean_cmp = spatial_umap.dens_df_mean.loc[spatial_umap.dens_df_mean['clust_label'] == cmp_clus, :].reset_index(drop=True)
+        dens_df_mean_cmp = dens_df_mean_base.loc[dens_df_mean_base['clust_label'] == cmp_clus, :].reset_index(drop=True)
 
         dens_df_mean = dens_df_mean_cmp.copy()
-        dens_df_mean['density_mean'] = dens_df_mean_sel['density_mean'] - dens_df_mean_cmp['density_mean']
         dens_df_mean['density_sem'] = 0
-        range_values = [min(dens_df_mean['density_mean']), max(dens_df_mean['density_mean'])]
-        top_range = 1.05*max(abs(range_values[0]), range_values[1])
-        ylim = [-top_range, top_range]
-        cluster_title = f'Cluster {sel_clus} - Cluster {cmp_clus}'
+        # Subtraction Compare Style
+        if cmp_style == 'Difference':
+            dens_df_mean['density_mean'] = dens_df_mean_sel['density_mean'] - dens_df_mean_cmp['density_mean']
+
+            range_values = [min(dens_df_mean['density_mean']), max(dens_df_mean['density_mean'])]
+            top_range = 1.05*max(abs(range_values[0]), abs(range_values[1]))
+            ylim = [-top_range, top_range]
+            cluster_title = f'{sel_clus} - {cmp_clus}'
+        # Ratio Compare Style
+        elif cmp_style == 'Ratio':
+            dens_df_mean['density_mean'] = dens_df_mean_sel['density_mean'] / dens_df_mean_cmp['density_mean']
+
+            range_values = [dens_df_mean.loc[np.isfinite(dens_df_mean['density_mean']), 'density_mean'].min(),
+                            dens_df_mean.loc[np.isfinite(dens_df_mean['density_mean']), 'density_mean'].max()]
+            if range_values[0] < 0:
+                ymin = 1.05*range_values[0]
+                ymax = 1.05*range_values[1]
+            else:
+                ymin = 0.95*range_values[0]
+                ymax = 1.05*range_values[1]
+            ylim = np.array([ymin, ymax])
+            cluster_title = f'{sel_clus} / {cmp_clus}'
+    else:
+        cmp_style = None
 
     umPT.plot_mean_neighborhood_profile(ax = ax,
                                         dist_bin = spatial_umap.dist_bin_um,
-                                        pheno_order= spatial_umap.phenoLabel,
+                                        pheno_order = spatial_umap.phenoLabel,
                                         npf_dens_mean = dens_df_mean,
                                         cluster_title = cluster_title,
+                                        cmp_style = cmp_style,
                                         max_dens = ylim,
                                         leg_flag = 1)
 

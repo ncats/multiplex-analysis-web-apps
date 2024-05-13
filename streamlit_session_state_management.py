@@ -1,17 +1,81 @@
 # Import relevant libraries
 import streamlit as st
-# import pickle
 import dill as pickle
-import os
 import os
 import app_top_of_page as top
 import streamlit_dataframe_editor as sde
 import streamlit_dataframe_editor
 import utils
+# from pympler.asizeof import asizeof as deep_mem_usage_in_bytes
+from objsize import get_deep_size as deep_mem_usage_in_bytes
+import time
+from pages import memory_analyzer
+
+
+def load_session_state_preprocessing(saved_streamlit_session_states_dir, saved_streamlit_session_state_prefix='streamlit_session_state-', saved_streamlit_session_state_key='session_selection', selected_session=None):
+
+    # We always want to use the new method for dumping; this is here just for compatibility with *loading* old .pkl session state files
+
+    # Call this function in all cases for loading the session state. It has the exact same API as load_session_state() in both files
+
+    # Get the selected session basename to load
+    if selected_session is None:
+        selected_session = st.session_state[saved_streamlit_session_state_key]
+
+    # If no session files exist, then do nothing
+    if selected_session is None:
+        st.warning(f'{utils.get_timestamp(pretty=True)}: No session state files exist so none were loaded')
+        return
+    
+    # At this point, selected_session is not None, so we can proceed with loading the session state
+
+    # List all files in saved_streamlit_session_states_dir the start with saved_streamlit_session_state_prefix + selected_session
+    files = [f for f in os.listdir(saved_streamlit_session_states_dir) if f.startswith(saved_streamlit_session_state_prefix + selected_session)]
+    num_matches = len(files)
+
+    # If num_matches is 2, then we have a .pickle and a .dill file, so use the new loader
+    if num_matches == 2:
+        print(f'{utils.get_timestamp(pretty=True)}: Found {num_matches} session state files for {selected_session} ({files}), so using the new loader')
+        memory_analyzer.load_session_state(saved_streamlit_session_states_dir, saved_streamlit_session_state_prefix=saved_streamlit_session_state_prefix, saved_streamlit_session_state_key=saved_streamlit_session_state_key, selected_session=selected_session)
+
+    # If num_matches is 1, then we have a .pkl file, so use the old loader
+    elif num_matches == 1:
+        print(f'{utils.get_timestamp(pretty=True)}: Found {num_matches} session state file for {selected_session} ({files}), so using the old loader')
+        load_session_state(saved_streamlit_session_states_dir, saved_streamlit_session_state_prefix=saved_streamlit_session_state_prefix, saved_streamlit_session_state_key=saved_streamlit_session_state_key, selected_session=selected_session)
+
+    # If num_matches is not 1 or 2, then something is wrong
+    else:
+        message = f'{utils.get_timestamp(pretty=True)}: It was determined there were {num_matches} session state files for {selected_session}, which is not 1 or 2, which can\'t be possible at this point, so something is wrong. No session state files were loaded.'
+        print(message)
+        st.error(message)
+        return
+
+
+def pickle_dump(dict_to_save, filename):
+    bytes_per_mb = 1024 ** 2
+    predicted_size_in_mb = deep_mem_usage_in_bytes(dict_to_save) / bytes_per_mb
+    print(f'Saving dict_to_save to {filename}. This should take around {predicted_size_in_mb:.2f} MB...', end='', flush=True)
+    with open(filename, 'wb') as f:
+        size_before = os.path.getsize(filename)
+        pickle.dump(dict_to_save, f)
+        actual_size_in_mb = (os.path.getsize(filename) - size_before) / bytes_per_mb
+    print(f' {actual_size_in_mb:.2f} MB saved, which is {actual_size_in_mb - predicted_size_in_mb:.2f} MB larger than the predicted size.')
+
+
+def pickle_load(filename):
+    bytes_per_mb = 1024 ** 2
+    with open(filename, 'rb') as f:
+        dict_to_load = pickle.load(f)
+    predicted_size_in_mb = deep_mem_usage_in_bytes(dict_to_load) / bytes_per_mb
+    print(f'Loading dict_to_load from {filename} of predicted size {predicted_size_in_mb:.2f} MB')
+    return dict_to_load
+
 
 def save_session_state(saved_streamlit_session_states_dir, saved_streamlit_session_state_prefix='streamlit_session_state-', saved_streamlit_session_state_key='session_selection'):
     """
     Save the session state to a pickle file.
+
+    As of 5/5/24, this should no longer ever be called. Instead, save_session_state() in memory_analyzer.py should be called. This function is here just for posterity.
 
     The session state is saved to a pickle file in the `saved_streamlit_session_states_dir`
     directory. The session state is saved as a dictionary and each key-value pair is saved
@@ -26,6 +90,9 @@ def save_session_state(saved_streamlit_session_states_dir, saved_streamlit_sessi
     Returns:
         None
     """
+
+    # Save the start time for benchmarking
+    start_time = time.time()
 
     # Print what we're doing
     print('Saving session state...')
@@ -64,11 +131,13 @@ def save_session_state(saved_streamlit_session_states_dir, saved_streamlit_sessi
             del session_dict[key]
 
     # Save the dictionary to the pickle file. Note this no longer randomly crashes with "PicklingError: Can't pickle <class 'streamlit_dataframe_editor.DataframeEditor'>: it's not the same object as streamlit_dataframe_editor.DataframeEditor" because we're no longer saving the DataframeEditor object itself, but rather the initialization data and the current contents. Note that using dill did also solve the problem, which if we were to use dill, we could try saving the entire session at once (instead of individual objects) and also thereby include difficult items such as st.form objects. NOTE: If we start getting the error again, try either using dill or probably better yet, excluding other custom object types from being saved in the first place, e.g., class 'platform_io.Platform'. Such exclusion would be done in keys_to_exclude as above.
-    with open(filename, 'wb') as f:
-        pickle.dump(session_dict, f)
-    
+    pickle_dump(session_dict, filename)
+
     # Output a success message
-    st.success('State saved to ' + filename)
+    message = f'{utils.get_timestamp(pretty=True)}: State saved to {filename}, which is {os.path.getsize(filename) / 1024 ** 2:.2f} MB (took {time.time() - start_time:.2f} seconds using the old method)'
+    print(message)
+    st.success(message)
+
 
 def load_session_state(saved_streamlit_session_states_dir, saved_streamlit_session_state_prefix='streamlit_session_state-', saved_streamlit_session_state_key='session_selection', selected_session=None):
     """
@@ -88,46 +157,42 @@ def load_session_state(saved_streamlit_session_states_dir, saved_streamlit_sessi
         None
     """
 
-    # Get the selected session basename to load
-    if selected_session is None:
-        selected_session = st.session_state[saved_streamlit_session_state_key]
+    # At this point, a session state file exists (so selected_session is not None) and was selected in load_session_state_preprocessing(), so load one of these selected sessions (if not a manually input one [nominally the most recent], then the one selected in the session state file selection dropdown)
 
-    # If no session file was explicitly input and if no session files exist, do nothing; otherwise, load one of these selected sessions (if not a manually input one [nominally the most recent], then the one selected in the session state file selection dropdown)
-    if selected_session is not None:
+    # Save start time for benchmarking
+    start_time = time.time()
 
-        # Generate the filename based on the selected session
-        filename = os.path.join(saved_streamlit_session_states_dir, saved_streamlit_session_state_prefix + selected_session + '.pkl')
+    # Print what we're doing
+    print('Loading session state using the old method...')
 
-        # Delete every key in the current session state except for the selected session
-        for key in st.session_state.keys():
-            if key != saved_streamlit_session_state_key:
-                del st.session_state[key]
+    # Generate the filename based on the selected session
+    filename = os.path.join(saved_streamlit_session_states_dir, saved_streamlit_session_state_prefix + selected_session + '.pkl')
 
-        # Load the state (as a dictionary) from the pickle file
-        with open(filename, 'rb') as f:
-            session_dict = pickle.load(f)
+    # Delete every key in the current session state except for the selected session
+    for key in st.session_state.keys():
+        if key != saved_streamlit_session_state_key:
+            del st.session_state[key]
 
-        # Load each key-value pair individually into session_state
-        for key, value in session_dict.items():
-            if key.startswith('dataframe_editor_components__'):
-                print(f'Initializing dataframe editor {key.removeprefix("dataframe_editor_components__")}')
-                dataframe_editor_key = key.removeprefix('dataframe_editor_components__')
-                dataframe_editor_components = value
-                # curr_dataframe_editor = sde.DataframeEditor(df_name=dataframe_editor_components['df_name'], default_df_contents=dataframe_editor_components['default_df_contents'])
-                # curr_dataframe_editor.update_editor_contents(new_df_contents=dataframe_editor_components['edited_dataframe'], reset_key=True)
-                # st.session_state[dataframe_editor_key] = curr_dataframe_editor
-                st.session_state[dataframe_editor_key] = sde.DataframeEditor(df_name=dataframe_editor_components['df_name'], default_df_contents=dataframe_editor_components['default_df_contents'])
-                st.session_state[dataframe_editor_key].update_editor_contents(new_df_contents=dataframe_editor_components['edited_dataframe'], reset_key=True)  # no real point of setting reset_key=True here since that's the default, but keeping it as a reminder that it's something we can modify
-            else:
-                print(f'Loading {key} of type {type(value)}')
-                st.session_state[key] = value
+    # Load the state (as a dictionary) from the pickle file
+    session_dict = pickle_load(filename)
 
-        # Output a success message
-        st.success(f'{utils.get_timestamp(pretty=True)}: State loaded from ' + filename)
+    # Load each key-value pair individually into session_state
+    for key, value in session_dict.items():
+        if key.startswith('dataframe_editor_components__'):
+            print(f'Initializing dataframe editor {key.removeprefix("dataframe_editor_components__")}')
+            dataframe_editor_key = key.removeprefix('dataframe_editor_components__')
+            dataframe_editor_components = value
+            st.session_state[dataframe_editor_key] = sde.DataframeEditor(df_name=dataframe_editor_components['df_name'], default_df_contents=dataframe_editor_components['default_df_contents'])
+            st.session_state[dataframe_editor_key].update_editor_contents(new_df_contents=dataframe_editor_components['edited_dataframe'], reset_key=True)  # no real point of setting reset_key=True here since that's the default, but keeping it as a reminder that it's something we can modify
+        else:
+            print(f'Loading {key} of type {type(value)}')
+            st.session_state[key] = value
 
-    # If no session state files exist, output a warning
-    else:
-        st.warning(f'{utils.get_timestamp(pretty=True)}: No session state files exist so none were loaded')
+    # Output a success message
+    message = f'{utils.get_timestamp(pretty=True)}: State loaded from {filename}, which is {os.path.getsize(filename) / 1024 ** 2:.2f} MB (took {time.time() - start_time:.2f} seconds using the old method)'
+    print(message)
+    st.success(message)
+
 
 def reset_session_state(saved_streamlit_session_state_key='session_selection', success_message=True):
     """
@@ -182,25 +247,25 @@ def app_session_management(saved_streamlit_session_states_dir, saved_streamlit_s
     session_state_files_in_output_dir = []
     if os.path.exists('output'):
         for f in os.listdir('output'):
-            if f.endswith('.pkl') and f.startswith(saved_streamlit_session_state_prefix):
+            if f.endswith(('.pkl', '.pickle', '.dill')) and f.startswith(saved_streamlit_session_state_prefix):
                 symlink_path = os.path.join(saved_streamlit_session_states_dir, f)
                 os.symlink(os.path.join('..', 'output', f), symlink_path)
                 session_state_files_in_output_dir.append(f)
 
     # Get the list of pickle files in the saved session state directory (unsorted)
-    files = [f for f in os.listdir(saved_streamlit_session_states_dir) if (f.endswith('.pkl') and f.startswith(saved_streamlit_session_state_prefix))]
+    files = [f for f in os.listdir(saved_streamlit_session_states_dir) if (f.endswith(('.pkl', '.pickle', '.dill')) and f.startswith(saved_streamlit_session_state_prefix))]
 
     # Name the relevant section in the sidebar
     st.sidebar.subheader('App Session Management')
 
     # Create the sidebar with the 'Save', 'Load', and 'Reset' buttons
     col1, col2, col3 = st.sidebar.columns(3)
-    col1.button('Save', on_click=save_session_state, use_container_width=True, kwargs={'saved_streamlit_session_states_dir': saved_streamlit_session_states_dir, 'saved_streamlit_session_state_prefix': saved_streamlit_session_state_prefix, 'saved_streamlit_session_state_key': saved_streamlit_session_state_key})
-    col2.button('Load', on_click=load_session_state, use_container_width=True, disabled=not files, kwargs={'saved_streamlit_session_states_dir': saved_streamlit_session_states_dir, 'saved_streamlit_session_state_prefix': saved_streamlit_session_state_prefix, 'saved_streamlit_session_state_key': saved_streamlit_session_state_key})
+    col1.button('Save', on_click=memory_analyzer.save_session_state, use_container_width=True, kwargs={'saved_streamlit_session_states_dir': saved_streamlit_session_states_dir, 'saved_streamlit_session_state_prefix': saved_streamlit_session_state_prefix, 'saved_streamlit_session_state_key': saved_streamlit_session_state_key})
+    col2.button('Load', on_click=load_session_state_preprocessing, use_container_width=True, disabled=not files, kwargs={'saved_streamlit_session_states_dir': saved_streamlit_session_states_dir, 'saved_streamlit_session_state_prefix': saved_streamlit_session_state_prefix, 'saved_streamlit_session_state_key': saved_streamlit_session_state_key})
     col3.button('Reset', on_click=reset_session_state, use_container_width=True, kwargs={'saved_streamlit_session_state_key': saved_streamlit_session_state_key})
 
     # Create the dropdown to select the checkpoint to load
-    session_basenames_in_reverse_order = sorted([f.removeprefix(saved_streamlit_session_state_prefix).removesuffix('.pkl') for f in files], reverse=True)
+    session_basenames_in_reverse_order = sorted(set([os.path.splitext(f.removeprefix(saved_streamlit_session_state_prefix))[0] for f in files]), reverse=True)
     if saved_streamlit_session_state_key in st.session_state:
         if st.session_state[saved_streamlit_session_state_key] not in session_basenames_in_reverse_order:
             st.session_state[saved_streamlit_session_state_key] = session_basenames_in_reverse_order[0] if session_basenames_in_reverse_order else None
@@ -208,7 +273,7 @@ def app_session_management(saved_streamlit_session_states_dir, saved_streamlit_s
 
     # Write to screen the session state files in the output directory
     if session_state_files_in_output_dir:
-        st.sidebar.write('Session state files in the "output" directory: `{}`'.format([f.removeprefix(saved_streamlit_session_state_prefix).removesuffix('.pkl') for f in session_state_files_in_output_dir]))
+        st.sidebar.write('Session state files in the "output" directory: `{}`'.format(set([os.path.splitext(f.removeprefix(saved_streamlit_session_state_prefix))[0] for f in session_state_files_in_output_dir])))
 
     # Return the most recent session state file, or None
     return session_basenames_in_reverse_order[0] if session_basenames_in_reverse_order else None
@@ -247,7 +312,7 @@ def execute(first_app_run):
         else:
             load_most_recent_session = True
         if load_most_recent_session:
-            load_session_state(saved_streamlit_session_states_dir, saved_streamlit_session_state_prefix, saved_streamlit_session_state_key, selected_session=most_recent_session_management_file)
+            load_session_state_preprocessing(saved_streamlit_session_states_dir, saved_streamlit_session_state_prefix, saved_streamlit_session_state_key, selected_session=most_recent_session_management_file)
 
 def main():
     """

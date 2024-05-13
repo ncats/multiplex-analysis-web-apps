@@ -3,12 +3,14 @@ import streamlit as st
 import app_top_of_page as top
 import streamlit_dataframe_editor as sde
 
+
 def main():
     """
     Main function for the page.
     """
 
     st.write('Insert your code here.')
+
 
 # Run the main function
 if __name__ == '__main__':
