@@ -372,17 +372,17 @@ def draw_scatter_fig(figsize=(12, 12)):
     Setup Scatter plot figure and axes
     '''
 
-    SlBgC  = '#0E1117'  # Streamlit Background Color
-    SlTC   = '#FAFAFA'  # Streamlit Text Color
-    Sl2BgC = '#262730'  # Streamlit Secondary Background Color
+    slc_bg   = '#0E1117'  # Streamlit Background Color
+    slc_text = '#FAFAFA'  # Streamlit Text Color
+    slc_bg2  = '#262730'  # Streamlit Secondary Background Color
 
-    fig = plt.figure(figsize=figsize, facecolor = SlBgC)
-    ax = fig.add_subplot(1, 1, 1)
+    fig = plt.figure(figsize=figsize, facecolor = slc_bg)
+    ax = fig.add_subplot(1, 1, 1, facecolor = slc_bg)
 
-    ax.spines['left'].set_color(SlTC)
-    ax.spines['bottom'].set_color(SlTC)
-    ax.tick_params(axis='x', colors=SlTC, which='both')
-    ax.tick_params(axis='y', colors=SlTC, which='both')
+    ax.spines['left'].set_color(slc_text)
+    ax.spines['bottom'].set_color(slc_text)
+    ax.tick_params(axis='x', colors=slc_text, which='both')
+    ax.tick_params(axis='y', colors=slc_text, which='both')
 
     return fig, ax
 
@@ -818,7 +818,7 @@ def createHeatMap(df, phenoList, title, normAxis = None):
 
     return fig
 
-def neighProfileDraw(spatial_umap, sel_clus, cmp_clus = None, cmp_style = None, hide_other = False, hide_no_cluster = False, figsize=(14, 16)):
+def neighProfileDraw(spatial_umap, ax, sel_clus, cmp_clus = None, cmp_style = None, hide_other = False, hide_no_cluster = False, figsize=(14, 16)):
     '''
     neighProfileDraw is the method that draws the neighborhood profile
     line plots
@@ -827,9 +827,6 @@ def neighProfileDraw(spatial_umap, sel_clus, cmp_clus = None, cmp_style = None, 
     slc_bg   = '#0E1117'  # Streamlit Background Color
     slc_text = '#FAFAFA'  # Streamlit Text Color
     slc_bg2  = '#262730'  # Streamlit Secondary Background Color
-
-    neipro_fig = plt.figure(figsize=figsize, facecolor = slc_bg)
-    ax = neipro_fig.add_subplot(1, 1, 1, facecolor = slc_bg)
 
     dens_df_mean_base = spatial_umap.dens_df_mean
     if hide_other:
@@ -882,7 +879,6 @@ def neighProfileDraw(spatial_umap, sel_clus, cmp_clus = None, cmp_style = None, 
                                         max_dens = ylim,
                                         leg_flag = 1)
 
-    return neipro_fig
 
 def preprocess_weighted_umap(w, df_umap):
     '''

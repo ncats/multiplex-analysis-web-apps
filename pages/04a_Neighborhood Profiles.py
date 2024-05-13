@@ -8,6 +8,7 @@ import streamlit as st
 import numpy as np
 import dill
 from streamlit_extras.add_vertical_space import add_vertical_space
+import matplotlib.pyplot as plt
 
 # Import relevant libraries
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
@@ -219,6 +220,12 @@ def save_neipro_struct():
     with open(f'{st.session_state.checkpoint_dir}/{file_name}', "wb") as dill_file:
         print(f'Pickling Neighborhood Profiles Checkpoint-{file_name}')
         dill.dump(st.session_state.spatial_umap, dill_file)
+
+def diff_density_analysis():
+    '''
+    Function to perform the density difference analysis
+    '''
+    pass
 
 def main():
     '''
@@ -484,12 +491,16 @@ def main():
 
             if st.session_state.cluster_completed:
                 # Draw the Neighborhood Profile
-                npf_fig = bpl.neighProfileDraw(st.session_state.spatial_umap,
-                                               sel_clus = sel_npf_fig,
-                                               cmp_clus = sel_npf_fig2,
-                                               cmp_style=st.session_state['compare_clusters_as'],
-                                               hide_other = st.session_state['toggle_hide_other'],
-                                               hide_no_cluster = st.session_state['toggle_hide_no_cluster'])
+
+                npf_fig, ax = bpl.draw_scatter_fig(figsize=(14, 16))
+
+                bpl.neighProfileDraw(st.session_state.spatial_umap,
+                                     ax = ax,
+                                     sel_clus = sel_npf_fig,
+                                     cmp_clus = sel_npf_fig2,
+                                     cmp_style=st.session_state['compare_clusters_as'],
+                                     hide_other = st.session_state['toggle_hide_other'],
+                                     hide_no_cluster = st.session_state['toggle_hide_no_cluster'])
                 st.pyplot(fig=npf_fig)
 
                 # Create widgets for exporting the Neighborhood Profile images
@@ -502,6 +513,26 @@ def main():
 
                         ndl.save_png(npf_fig, 'Neighborhood Profiles', st.session_state.neigh_prof_line_suffix)
                         st.toast(f'Added {st.session_state.neigh_prof_line_suffix} to export list')
+
+    if st.session_state.umap_completed and st.session_state['toggle_clust_diff']:
+
+
+        npf_fig_big = plt.figure(figsize=(16, 16), facecolor = '#0E1117')
+
+
+        for ii in range(4):
+            axii = npf_fig_big.add_subplot(2, 2, ii+1, facecolor = '#0E1117')
+
+            bpl.neighProfileDraw(st.session_state.spatial_umap,
+                                ax = axii,
+                                sel_clus = sel_npf_fig,
+                                cmp_clus = sel_npf_fig2,cmp_style=st.session_state['compare_clusters_as'],
+                                hide_other = st.session_state['toggle_hide_other'],
+                                hide_no_cluster = st.session_state['toggle_hide_no_cluster'])
+
+
+        st.pyplot(fig=npf_fig_big)
+
 
 if __name__ == '__main__':
 
