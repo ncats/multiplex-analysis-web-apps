@@ -5,10 +5,23 @@ import streamlit_dataframe_editor as sde
 import plotly.graph_objects as go
 import plotly.express as px
 import pandas as pd
+from itertools import cycle, islice
 
 
 # TODO:
 # Allow the user to customize the colors of the phenotypes
+
+
+def update_color_for_value(value_to_change_color):
+    st.session_state['rsp__color_dict'][value_to_change_color] = st.session_state['rsp__my_color']
+
+
+def reset_color_dict(ser_to_plot):
+    # Create a color sequence based on the frequency of the values to plot in the entire dataset
+    values_to_plot = ser_to_plot.value_counts().index
+    colors = list(islice(cycle(px.colors.qualitative.Plotly), len(values_to_plot)))
+    st.session_state['rsp__values_to_plot'] = values_to_plot
+    st.session_state['rsp__color_dict'] = dict(zip(values_to_plot, colors))  # map values to colors
 
 
 def go_to_previous_image(unique_images):
@@ -68,7 +81,7 @@ def main():
         data_to_plot = st.selectbox('Data to plot:', ['Input data', 'Phenotyped data'], key='rsp__data_to_plot')
 
         # If they want to plot phenotyped data, ensure they've performed phenotyping
-        if (data_to_plot == 'Phenotyped data') and ('df' not in st.session_state):
+        if (data_to_plot == 'Phenotyped data') and (len(st.session_state['df']) == 1):
             st.warning('If you\'d like to plot the phenotyped data, please perform phenotyping first.')
             return
         
@@ -172,12 +185,26 @@ def main():
             ymax_col = st.selectbox('Select a column for the maximum y-coordinate:', numeric_columns, key='rsp__y_max_coordinate_column', disabled=(not use_coordinate_mins_and_maxs))
         units = ('coordinate units' if use_coordinate_mins_and_maxs else 'microns')
 
-    # Create a color sequence based on the frequency of the values to plot in the entire dataset
-    values_to_plot = df[column_to_plot].value_counts().index
-    colors = px.colors.qualitative.Plotly[:len(values_to_plot)]  # get enough colors for all values
-    color_dict = dict(zip(values_to_plot, colors))  # map values to colors
+    # Define the colors for the values to plot
+    if rerun_settings:
+        if 'rsp__color_dict' not in st.session_state:
+            reset_color_dict(df[column_to_plot])
+    st.button('Reset plotting colors', on_click=reset_color_dict, args=(df[column_to_plot],))
+    values_to_plot = st.session_state['rsp__values_to_plot']
+    color_dict = st.session_state['rsp__color_dict']
+
+    if rerun_settings:
+        if 'rsp__value_to_change_color' not in st.session_state:
+            st.session_state['rsp__value_to_change_color'] = values_to_plot[0]
+    value_to_change_color = st.selectbox('Value whose color to change:', values_to_plot, key='rsp__value_to_change_color')
 
     st.write(color_dict)
+
+    st.write(color_dict[value_to_change_color], st.session_state['rsp__color_dict'][value_to_change_color])
+    st.session_state['rsp__my_color'] = color_dict[value_to_change_color]
+    color_dict[value_to_change_color] = st.color_picker("Pick A Color", key='rsp__my_color', on_change=update_color_for_value, args=(value_to_change_color,))
+    st.write(color_dict[value_to_change_color], st.session_state['rsp__color_dict'][value_to_change_color])
+
 
     # Draw a divider
     st.divider()
@@ -211,7 +238,7 @@ def main():
         for value_to_plot in values_to_plot:
 
             # If the value exists in the selected image...
-            if value_to_plot in selected_image_grouped_by_value.groups:
+            if (value_to_plot in selected_image_grouped_by_value.groups) and (len(selected_image_grouped_by_value.groups[value_to_plot]) > 0):
 
                 # Store the dataframe for the current value for the selected image
                 df_group = selected_image_grouped_by_value.get_group(value_to_plot)
