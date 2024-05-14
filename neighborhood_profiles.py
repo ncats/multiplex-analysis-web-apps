@@ -39,8 +39,8 @@ class NeighborhoodProfiles:
         self.bc = bc
 
         # Spectrogram Plotting Settings
-        self.n_bins = 200
-        self.n_pad = 40
+        self.n_bins = 100
+        self.n_pad = 0
         self.vlim = .97
         self.xx = 0
         self.yy = 0
@@ -500,13 +500,11 @@ class UMAPDensityProcessing():
                                     figsize = figsize,
                                     legendtype = legendtype)
 
-    def filter_density_matrix(self, cutoff_dec= 0.02):
+    def filter_density_matrix(self, cutoff= 0.01):
         '''
         filter the current matrix by a cutoff value
         '''
-
-        cutoff = self.minabs * cutoff_dec
-
+        
         dens_mat_shape = self.dens_mat.shape
 
         # Filtering and Masking
