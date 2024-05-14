@@ -8,12 +8,8 @@ import pandas as pd
 from itertools import cycle, islice
 
 
-# TODO:
-# Allow the user to customize the colors of the phenotypes
-
-
 def update_color_for_value(value_to_change_color):
-    st.session_state['rsp__color_dict'][value_to_change_color] = st.session_state['rsp__my_color']
+    st.session_state['rsp__color_dict'][value_to_change_color] = st.session_state['rsp__new_picked_color']
 
 
 def reset_color_dict(ser_to_plot):
@@ -78,7 +74,9 @@ def main():
         # Allow user to select the dataframe containing the data to plot
         if 'rsp__data_to_plot' not in st.session_state:
             st.session_state['rsp__data_to_plot'] = 'Input data'
-        data_to_plot = st.selectbox('Data to plot:', ['Input data', 'Phenotyped data'], key='rsp__data_to_plot')
+        data_to_plot = st.selectbox('Dataset containing plotting data:', ['Input data', 'Phenotyped data'], key='rsp__data_to_plot')
+        input_dataset_has_changed = ('rsp__data_to_plot_prev' not in st.session_state) or (st.session_state['rsp__data_to_plot_prev'] != data_to_plot)
+        st.session_state['rsp__data_to_plot_prev'] = data_to_plot
 
         # If they want to plot phenotyped data, ensure they've performed phenotyping
         if (data_to_plot == 'Phenotyped data') and (len(st.session_state['df']) == 1):
@@ -90,16 +88,28 @@ def main():
             df = st.session_state['input_dataset'].data
         else:
             df = st.session_state['df']
-        rerun_settings = ('rsp__data_to_plot_prev' not in st.session_state) or (st.session_state['rsp__data_to_plot_prev'] != data_to_plot)
-        st.session_state['rsp__data_to_plot_prev'] = data_to_plot
 
-        # Get the unique images in the dataset
-        unique_images = df['Slide ID'].unique()
+        # Store columns of certain types
+        if ('rsp__categorical_columns' not in st.session_state) or input_dataset_has_changed:
+            st.session_state['rsp__categorical_columns'] = df.select_dtypes(include=('category', 'object')).columns
+        if ('rsp__numeric_columns' not in st.session_state) or input_dataset_has_changed:
+            st.session_state['rsp__numeric_columns'] = df.select_dtypes(include='number').columns
+        categorical_columns = st.session_state['rsp__categorical_columns']
+        numeric_columns = st.session_state['rsp__numeric_columns']
 
-        # Definitely calculate and optionally show the number of objects in each image
-        ser_size_of_each_image = df['Slide ID'].value_counts()
-        # with st.expander('Size of each image:', expanded=False):
-        #     st.write(ser_size_of_each_image)
+        # Choose a column to plot
+        if ('rsp__column_to_plot' not in st.session_state) or input_dataset_has_changed:
+            st.session_state['rsp__column_to_plot'] = categorical_columns[0]
+        column_to_plot = st.selectbox('Select a column by which to color the points:', categorical_columns, key='rsp__column_to_plot')
+        column_to_plot_has_changed = ('rsp__column_to_plot_prev' not in st.session_state) or (st.session_state['rsp__column_to_plot_prev'] != column_to_plot) or input_dataset_has_changed
+        st.session_state['rsp__column_to_plot_prev'] = column_to_plot
+
+        # Get some information about the images in the input dataset
+        if input_dataset_has_changed:
+            st.session_state['rsp__unique_images'] = df['Slide ID'].unique()  # get the unique images in the dataset
+            st.session_state['rsp__ser_size_of_each_image'] = df['Slide ID'].value_counts()  # calculate the number of objects in each image
+        unique_images = st.session_state['rsp__unique_images']
+        ser_size_of_each_image = st.session_state['rsp__ser_size_of_each_image']
 
         # Create an image selection selectbox
         if 'rsp__image_to_view' not in st.session_state:
@@ -112,55 +122,12 @@ def main():
         # Optionally navigate through the images using Previous and Next buttons
         cols = st.columns(2)
         with cols[0]:
-            st.button('Previous', on_click=go_to_previous_image, args=(unique_images,), disabled=(image_to_view == unique_images[0]), use_container_width=True)
+            st.button('Previous image', on_click=go_to_previous_image, args=(unique_images,), disabled=(image_to_view == unique_images[0]), use_container_width=True)
         with cols[1]:
-            st.button('Next', on_click=go_to_next_image, args=(unique_images, ), disabled=(image_to_view == unique_images[-1]), use_container_width=True)
-
-        # Store columns of certain types
-        if rerun_settings:
-            if 'rsp__categorical_columns' not in st.session_state:
-                st.session_state['rsp__categorical_columns'] = df.select_dtypes(include=('category', 'object')).columns
-            if 'rsp__numeric_columns' not in st.session_state:
-                st.session_state['rsp__numeric_columns'] = df.select_dtypes(include='number').columns
-        categorical_columns = st.session_state['rsp__categorical_columns']
-        numeric_columns = st.session_state['rsp__numeric_columns']
-
-        # Choose a column to plot
-        if rerun_settings:
-            if 'rsp__column_to_plot' not in st.session_state:
-                st.session_state['rsp__column_to_plot'] = categorical_columns[0]
-        column_to_plot = st.selectbox('Select a column to plot:', categorical_columns, key='rsp__column_to_plot')
+            st.button('Next image', on_click=go_to_next_image, args=(unique_images, ), disabled=(image_to_view == unique_images[-1]), use_container_width=True)
 
     # In the second column...
     with settings_columns_main[1]:
-
-        # Optionally add another filter
-        if rerun_settings:
-            if 'rsp__add_another_filter' not in st.session_state:
-                st.session_state['rsp__add_another_filter'] = False
-            if 'rsp__column_to_filter_by' not in st.session_state:
-                st.session_state['rsp__column_to_filter_by'] = categorical_columns[0]
-            if 'rsp__values_to_filter_by' not in st.session_state:
-                st.session_state['rsp__values_to_filter_by'] = []
-        st.checkbox('Add another filter', key='rsp__add_another_filter')
-        st.selectbox('Select a column to filter by:', categorical_columns, key='rsp__column_to_filter_by', disabled=(not st.session_state['rsp__add_another_filter']))
-        st.multiselect('Select values to filter by:', df[st.session_state['rsp__column_to_filter_by']].unique(), key='rsp__values_to_filter_by', disabled=(not st.session_state['rsp__add_another_filter']))
-        add_another_filter = st.session_state['rsp__add_another_filter']
-        column_to_filter_by = st.session_state['rsp__column_to_filter_by']
-        values_to_filter_by = st.session_state['rsp__values_to_filter_by']
-
-        # Add an option to invert the y-axis
-        if 'rsp__invert_y_axis' not in st.session_state:
-            st.session_state['rsp__invert_y_axis'] = False
-        invert_y_axis = st.checkbox('Invert y-axis', key='rsp__invert_y_axis')
-
-    # In the third column...
-    with settings_columns_main[2]:
-        
-        # Choose the opacity of objects
-        if 'rsp__opacity' not in st.session_state:
-            st.session_state['rsp__opacity'] = 0.7
-        opacity = st.number_input('Opacity:', min_value=0.0, max_value=1.0, step=0.1, key='rsp__opacity')
 
         # Optionally plot minimum and maximum coordinate fields
         if 'rsp__use_coordinate_mins_and_maxs' not in st.session_state:
@@ -185,26 +152,51 @@ def main():
             ymax_col = st.selectbox('Select a column for the maximum y-coordinate:', numeric_columns, key='rsp__y_max_coordinate_column', disabled=(not use_coordinate_mins_and_maxs))
         units = ('coordinate units' if use_coordinate_mins_and_maxs else 'microns')
 
-    # Define the colors for the values to plot
-    if rerun_settings:
-        if 'rsp__color_dict' not in st.session_state:
+        # Optionally add another filter
+        if ('rsp__add_another_filter' not in st.session_state) or input_dataset_has_changed:
+            st.session_state['rsp__add_another_filter'] = False
+        if ('rsp__column_to_filter_by' not in st.session_state) or input_dataset_has_changed:
+            st.session_state['rsp__column_to_filter_by'] = categorical_columns[0]
+        if ('rsp__values_to_filter_by' not in st.session_state) or input_dataset_has_changed:
+            st.session_state['rsp__values_to_filter_by'] = []
+        st.checkbox('Add filter', key='rsp__add_another_filter')
+        st.selectbox('Select a column to filter by:', categorical_columns, key='rsp__column_to_filter_by', disabled=(not st.session_state['rsp__add_another_filter']))
+        st.multiselect('Select values to filter by:', df[st.session_state['rsp__column_to_filter_by']].unique(), key='rsp__values_to_filter_by', disabled=(not st.session_state['rsp__add_another_filter']))
+        add_another_filter = st.session_state['rsp__add_another_filter']
+        column_to_filter_by = st.session_state['rsp__column_to_filter_by']
+        values_to_filter_by = st.session_state['rsp__values_to_filter_by']
+
+    # In the third column...
+    with settings_columns_main[2]:
+
+        # Add an option to invert the y-axis
+        if 'rsp__invert_y_axis' not in st.session_state:
+            st.session_state['rsp__invert_y_axis'] = False
+        invert_y_axis = st.checkbox('Invert y-axis', key='rsp__invert_y_axis')
+
+        # Choose the opacity of objects
+        if 'rsp__opacity' not in st.session_state:
+            st.session_state['rsp__opacity'] = 0.7
+        opacity = st.number_input('Opacity:', min_value=0.0, max_value=1.0, step=0.1, key='rsp__opacity')
+
+        # Define the colors for the values to plot
+        if ('rsp__color_dict' not in st.session_state) or column_to_plot_has_changed:
             reset_color_dict(df[column_to_plot])
-    st.button('Reset plotting colors', on_click=reset_color_dict, args=(df[column_to_plot],))
-    values_to_plot = st.session_state['rsp__values_to_plot']
-    color_dict = st.session_state['rsp__color_dict']
+        values_to_plot = st.session_state['rsp__values_to_plot']
+        color_dict = st.session_state['rsp__color_dict']
 
-    if rerun_settings:
-        if 'rsp__value_to_change_color' not in st.session_state:
+        # Select a value whose color we want to modify
+        if ('rsp__value_to_change_color' not in st.session_state) or column_to_plot_has_changed:
             st.session_state['rsp__value_to_change_color'] = values_to_plot[0]
-    value_to_change_color = st.selectbox('Value whose color to change:', values_to_plot, key='rsp__value_to_change_color')
+        value_to_change_color = st.selectbox('Value whose color to change:', values_to_plot, key='rsp__value_to_change_color')
 
-    st.write(color_dict)
+        # Create a color picker widget for the selected value
+        st.session_state['rsp__new_picked_color'] = color_dict[value_to_change_color]
+        st.color_picker('Pick a new color:', key='rsp__new_picked_color', on_change=update_color_for_value, args=(value_to_change_color,))
 
-    st.write(color_dict[value_to_change_color], st.session_state['rsp__color_dict'][value_to_change_color])
-    st.session_state['rsp__my_color'] = color_dict[value_to_change_color]
-    color_dict[value_to_change_color] = st.color_picker("Pick A Color", key='rsp__my_color', on_change=update_color_for_value, args=(value_to_change_color,))
-    st.write(color_dict[value_to_change_color], st.session_state['rsp__color_dict'][value_to_change_color])
-
+        # Add a button to reset the colors to their default values
+        st.button('Reset plotting colors to defaults', on_click=reset_color_dict, args=(df[column_to_plot],))
+        color_dict = st.session_state['rsp__color_dict']
 
     # Draw a divider
     st.divider()
@@ -222,11 +214,6 @@ def main():
 
         # Filter the DataFrame to include only the selected image and filter
         df_selected_image_and_filter = df[(df['Slide ID'] == image_to_view) & filter_loc]
-
-        # # Create a color sequence based on the phenotype frequency in the entire dataset
-        # phenotypes = df[column_to_plot].value_counts().index
-        # colors = px.colors.qualitative.Plotly[:len(phenotypes)]  # get enough colors for all phenotypes
-        # color_dict = dict(zip(phenotypes, colors))  # map phenotypes to colors
 
         # Group the DataFrame for the selected image by unique value of the column to plot
         selected_image_grouped_by_value = df_selected_image_and_filter.groupby(column_to_plot)
@@ -294,7 +281,7 @@ def main():
 if __name__ == '__main__':
 
     # Set page settings
-    page_name = 'Scatter Plotter'
+    page_name = 'Coordinate Scatter Plotter'
     st.set_page_config(layout='wide', page_title=page_name)
     st.title(page_name)
 
