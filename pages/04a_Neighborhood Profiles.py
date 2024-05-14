@@ -535,24 +535,25 @@ def main():
 
         npf_fig_big = plt.figure(figsize=(16, 45), facecolor = '#0E1117')
 
-        list_figures = [['Average False_Cluster', None],
-                        ['Average True_Cluster', None],
-                        ['Average False_Cluster', 'Average True_Cluster'],
-                        ['False_Cluster1', None],
-                        ['False_Cluster2', None],
-                        ['False_Cluster3', None],
-                        ['True_Cluster1', None],
-                        ['True_Cluster2', None],
-                        ['False_Cluster1', 'True_Cluster1'],
-                        ['False_Cluster1', 'True_Cluster2'],
-                        ['False_Cluster2', 'True_Cluster1'],
-                        ['False_Cluster2', 'True_Cluster2'],
-                        ['False_Cluster3', 'True_Cluster1'],
-                        ['False_Cluster3', 'True_Cluster2'],
-                        ['False_Cluster1', 'Average True_Cluster'],
-                        ['False_Cluster2', 'Average True_Cluster'],
-                        ['False_Cluster3', 'Average True_Cluster'],
+        list_figures = [['Average False_Cluster', None, 'log', [1, 10000]],
+                        ['Average True_Cluster', None, 'log', [1, 10000]],
+                        ['Average False_Cluster', 'Average True_Cluster', 'linear', [0, 8]],
+                        ['False_Cluster1', None, 'log', [0.1, 10000]],
+                        ['False_Cluster2', None, 'log', [0.1, 10000]],
+                        ['False_Cluster3', None, 'log', [0.1, 10000]],
+                        ['True_Cluster1', None, 'log', [0.1, 10000]],
+                        ['True_Cluster2', None, 'log', [0.1, 10000]],
+                        ['False_Cluster1', 'True_Cluster1', 'log', [0.01, 100]],
+                        ['False_Cluster2', 'True_Cluster1', 'log', [0.01, 100]],
+                        ['False_Cluster3', 'True_Cluster1', 'log', [0.01, 100]],
+                        ['False_Cluster1', 'True_Cluster2', 'log', [0.01, 100]],
+                        ['False_Cluster2', 'True_Cluster2', 'log', [0.01, 100]],
+                        ['False_Cluster3', 'True_Cluster2', 'log', [0.01, 100]],
+                        ['False_Cluster1', 'Average True_Cluster', 'linear', [0, 10]],
+                        ['False_Cluster2', 'Average True_Cluster', 'linear', [0, 30]],
+                        ['False_Cluster3', 'Average True_Cluster', 'linear', [0, 2]],
                         ]
+
 
         num_figs = len(list_figures)
         num_cols = 3
@@ -569,17 +570,15 @@ def main():
                                 ax = axii,
                                 sel_clus = cluster[0],
                                 cmp_clus = cluster[1],
-                                cmp_style = st.session_state['compare_clusters_as'],
+                                cmp_style = 'Ratio',
                                 hide_other = st.session_state['toggle_hide_other'],
                                 hide_no_cluster = st.session_state['toggle_hide_no_cluster'],
                                 legend_flag = legend_flag)
 
-            axii.set_yscale('log')
-            if cluster[1] is not None:
-                axii.set_ylim([0.001 , 1000])
-            else:
-                axii.set_ylim([0.1, 10000])
+            if cluster[2] == 'log':
+                axii.set_yscale('log')
             
+            axii.set_ylim(cluster[3])            
 
         st.pyplot(fig=npf_fig_big)
 
