@@ -609,7 +609,7 @@ class SpatialUMAP:
         '''
 
         dens_umap_test = self.density[self.cells['umap_test'], :, :]
-        prop_umap_test = self.density[self.cells['umap_test'], :, :]
+        prop_umap_test = self.proportion[self.cells['umap_test'], :, :]
 
         self.dens_df = pd.DataFrame()
         self.prop_df = pd.DataFrame()
