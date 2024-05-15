@@ -192,6 +192,7 @@ def reset_neigh_profile_settings(session_state):
 
     # Neighborhood Profiles Line Plot Settings
     session_state.compare_clusters_as = 'Difference'
+    session_state.palette_dict = 'bwr'
 
     return session_state
 

@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import seaborn as sns
 from sklearn.cluster import KMeans # K-Means
 import umap
 from SpatialUMAP import SpatialUMAP
@@ -448,6 +449,8 @@ class UMAPDensityProcessing():
 
         # Feature Label
         self.feat_label = None
+        self.cluster_dict = None
+        self.palette_dict = None
 
         if xx is not None:
             self.xx = xx
@@ -504,7 +507,7 @@ class UMAPDensityProcessing():
         '''
         filter the current matrix by a cutoff value
         '''
-        
+
         dens_mat_shape = self.dens_mat.shape
 
         # Filtering and Masking
@@ -523,6 +526,7 @@ class UMAPDensityProcessing():
         Sets up clustering
         '''
 
+        print(f'Performing Clustering with {num_clus_0} clusters for Negative Condition and {num_clus_1} clusters for Positive Condition')
         # Perform k-menas clustering for the Negative Condition
         kmeans_obj_cond0 = KMeans(n_clusters = num_clus_0,
                                   init ='k-means++',
@@ -538,27 +542,38 @@ class UMAPDensityProcessing():
                                   random_state = 42)
 
         # Identify the indices of the negative condition
-        cond0_ind = np.nonzero(dens_mat_cmp == -1)
+        cond0_ind = np.nonzero(dens_mat_cmp == 1)
         cells_cond0 = np.vstack(cond0_ind).T
         # Fit the negative condition to the negative kmeans object
         kmeans_obj_cond0.fit(cells_cond0)
 
         # Identify the indices of the positive condition
-        cond1_ind = np.nonzero(dens_mat_cmp == 1)
+        cond1_ind = np.nonzero(dens_mat_cmp == -1)
         cells_cond1 = np.vstack(cond1_ind).T
         # Fit the positive condition to the positive kmeans object
         kmeans_obj_cond1.fit(cells_cond1)
 
         # Replace the labels in the density matrix with the cluster labels
-        self.dens_mat[cond0_ind] = -kmeans_obj_cond0.labels_ -1
-        self.dens_mat[cond1_ind] = kmeans_obj_cond1.labels_ + 1
+        self.dens_mat[cond0_ind] = kmeans_obj_cond0.labels_ + 1
+        self.dens_mat[cond1_ind] = -kmeans_obj_cond1.labels_ - 1
 
         self.cluster_dict = dict()
         self.cluster_dict[0] = 'No Cluster'
         for i in range(num_clus_0):
-            self.cluster_dict[-i-1] = f'False_Cluster{i+1}'
+            self.cluster_dict[i+1] = f'False_Cluster{i+1}'
         for i in range(num_clus_1):
-            self.cluster_dict[i+1] = f'True_Cluster{i+1}'
+            self.cluster_dict[-i-1] = f'True_Cluster{i+1}'
+
+        set_blues = sns.color_palette('Blues_r', 10)
+        set_reds = sns.color_palette('Reds_r', 10)
+
+        self.palette_dict = dict()
+        self.palette_dict['No Cluster'] = 'white'
+        for i in range(num_clus_0):
+            self.palette_dict[f'False_Cluster{i+1}'] = set_reds[i]
+        for i in range(num_clus_1):
+            self.palette_dict[f'True_Cluster{i+1}'] = set_blues[i]
+
 
     # def perform_clustering(self, n_clusters, cond):
     #     '''
