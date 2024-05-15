@@ -469,7 +469,7 @@ def main():
                     # Assign Masking and plot
                     udp_mask = copy(udp_diff)
                     udp_mask.filter_density_matrix(st.session_state.dens_diff_cutoff, st.session_state.udp_full.empty_bin_ind)
-                    udp_mask.set_feature_label(st.session_state.dens_diff_feat_sel, f'Difference- Masked, cutoff = {st.session_state.dens_diff_cutoff}')
+                    udp_mask.set_feature_label(st.session_state.dens_diff_feat_sel, f'Difference- Masked, \ncutoff = {st.session_state.dens_diff_cutoff}')
                     st.session_state.UMAPFig_mask = udp_mask.UMAPdraw_density(diff=True)
 
                     # Perform Clustering

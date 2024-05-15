@@ -965,9 +965,9 @@ def UMAPdraw_density(d, bins, w, n_pad, vlim, feat = None, diff = False, legendt
 
     if feat is not None:
         if cmap == cmap_bwr:
-            ax.text(x_lim[0], 0.93*y_lim[1], feat, c = 'black', fontsize = 30)
+            ax.text(x_lim[0], 0.90*y_lim[1], feat, c = 'black', fontsize = 30)
         else:
-            ax.text(x_lim[0], 0.93*y_lim[1], feat, c = slc_text, fontsize = 30)
+            ax.text(x_lim[0], 0.90*y_lim[1], feat, c = slc_text, fontsize = 30)
 
     return umap_fig
 
