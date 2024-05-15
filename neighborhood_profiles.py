@@ -531,15 +531,13 @@ class UMAPDensityProcessing():
         kmeans_obj_cond0 = KMeans(n_clusters = num_clus_0,
                                   init ='k-means++',
                                   max_iter = 300,
-                                  n_init = 10,
-                                  random_state = 42)
+                                  n_init = 10)
         
         # Perform k-menas clustering for the Positive Condition
         kmeans_obj_cond1 = KMeans(n_clusters = num_clus_1,
                                   init ='k-means++',
                                   max_iter = 300,
-                                  n_init = 10,
-                                  random_state = 42)
+                                  n_init = 10)
 
         # Identify the indices of the negative condition
         cond0_ind = np.nonzero(dens_mat_cmp == 1)
