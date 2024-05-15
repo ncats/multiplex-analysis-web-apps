@@ -875,7 +875,6 @@ def neighProfileDraw(spatial_umap, ax, sel_clus, cmp_clus = None, cmp_style = No
                                         max_dens = ylim,
                                         leg_flag = legend_flag)
 
-
 def preprocess_weighted_umap(w, df_umap):
     '''
     Perform perprocessing on UMAP data and weights

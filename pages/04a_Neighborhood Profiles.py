@@ -405,7 +405,7 @@ def main():
                 set_clusters()
         if st.session_state['toggle_clust_diff'] and st.session_state.umap_completed:
             st.selectbox('Feature', options = st.session_state.spatial_umap.outcomes, key = 'dens_diff_feat_sel')
-            st.number_input('Cutoff Percentage', min_value = 0.01, max_value = 0.99, value = 0.1, step = 0.01, key = 'dens_diff_cutoff')
+            st.number_input('Cutoff Percentage', min_value = 0.01, max_value = 0.99, value = 0.01, step = 0.01, key = 'dens_diff_cutoff')
 
     # UMAP Density Difference Analysis
     with npf_cols[2]:
