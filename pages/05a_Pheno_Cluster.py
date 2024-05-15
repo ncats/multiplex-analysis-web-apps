@@ -456,7 +456,7 @@ def main():
 if __name__ == '__main__':
 
     # Set page settings
-    page_name = 'Phenotype Clustering Andrei'
+    page_name = 'Unsupervised Phenotype Clustering'
     st.set_page_config(layout='wide', page_title=page_name)
     st.title(page_name)
 
