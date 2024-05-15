@@ -32,9 +32,9 @@ def init_spatial_umap():
                                                                st.session_state.marker_multi_sel,
                                                                st.session_state.phenoOrder)
 
-        st.session_state.spatial_umap = bpl.perform_density_calc(st.session_state.spatial_umap,
-                                                                 st.session_state.bc,
-                                                                 st.session_state.cpu_pool_size)
+        # st.session_state.spatial_umap = bpl.perform_density_calc(st.session_state.spatial_umap,
+        #                                                          st.session_state.bc,
+        #                                                          st.session_state.cpu_pool_size)
     st.write('Done Calculating Cell Counts and Areas')
 
     # Record time elapsed
@@ -79,6 +79,11 @@ def apply_umap(umap_style):
     st.session_state.inciOutcomes.extend(st.session_state.outcomes)
 
     st.session_state.spatial_umap.prepare_df_umap_plotting(st.session_state.outcomes)
+
+    st.session_state.spatial_umap.df_umap = st.session_state.spatial_umap.cells.copy()
+    st.session_state.spatial_umap.df_umap['X'] = st.session_state.spatial_umap.cells['UMAP_1_20230327_152849'].values
+    st.session_state.spatial_umap.df_umap['Y'] = st.session_state.spatial_umap.cells['UMAP_2_20230327_152849'].values
+    st.session_state.spatial_umap.cells['umap_test'] = True
 
     # Perform possible cluster variations with the completed UMAP
     # st.session_state.bc.startTimer()
@@ -239,7 +244,123 @@ def diff_density_analysis():
     '''
     Function to perform the density difference analysis
     '''
-    pass
+    
+    # If clustering is to be performed on the UMAP density difference
+    if st.session_state['toggle_clust_diff']:
+        
+        # Idenfify the column type that is splitting the UMAP
+        col_type = ndl.identify_col_type(st.session_state.spatial_umap.df_umap[st.session_state.dens_diff_feat_sel])
+
+        if col_type == 'not_bool' or col_type == 'bool':
+            st.session_state.feature_appro_message = None
+
+            if col_type == 'not_bool':
+                # Identify UMAP by Condition
+                median = np.round(st.session_state.spatial_umap.df_umap[st.session_state.dens_diff_feat_sel].median(), 2)
+                st.session_state.df_umap_fals = st.session_state.spatial_umap.df_umap.loc[st.session_state.spatial_umap.df_umap[st.session_state.dens_diff_feat_sel] <= median, :]
+                st.session_state.df_umap_true = st.session_state.spatial_umap.df_umap.loc[st.session_state.spatial_umap.df_umap[st.session_state.dens_diff_feat_sel] > median, :]
+                fals_msg = f'<= {median}'
+                true_msg = f'> {median}'
+            elif col_type == 'bool':
+                # Identify UMAP by Condition
+                values = st.session_state.spatial_umap.df_umap[st.session_state.dens_diff_feat_sel].unique()
+                st.session_state.df_umap_fals = st.session_state.spatial_umap.df_umap.loc[st.session_state.spatial_umap.df_umap[st.session_state.dens_diff_feat_sel] == values[0], :]
+                st.session_state.df_umap_true = st.session_state.spatial_umap.df_umap.loc[st.session_state.spatial_umap.df_umap[st.session_state.dens_diff_feat_sel] == values[1], :]
+                fals_msg = f'= {values[0]}'
+                true_msg = f'= {values[1]}'
+
+            # Perform Density Calculations for each Condition
+            st.session_state.udp_fals = UMAPDensityProcessing(st.session_state.npf, st.session_state.df_umap_fals, xx=st.session_state.udp_full.xx, yy=st.session_state.udp_full.yy)
+            st.session_state.udp_true = UMAPDensityProcessing(st.session_state.npf, st.session_state.df_umap_true, xx=st.session_state.udp_full.xx, yy=st.session_state.udp_full.yy)
+
+            ## Copy over
+            st.session_state.udp_diff = copy(st.session_state.udp_fals)
+            ## Perform difference calculation
+            st.session_state.udp_diff.dens_mat = np.log10(st.session_state.udp_fals.dens_mat) - np.log10(st.session_state.udp_true.dens_mat)
+            ## Rerun the min/max calcs
+            st.session_state.udp_diff.umap_summary_stats()
+            ## Set Feature Labels
+            st.session_state.udp_fals.set_feature_label(st.session_state.dens_diff_feat_sel, fals_msg)
+            st.session_state.udp_true.set_feature_label(st.session_state.dens_diff_feat_sel, true_msg)
+            st.session_state.udp_diff.set_feature_label(st.session_state.dens_diff_feat_sel, 'Difference')
+
+            # Draw UMAPS
+            st.session_state.UMAPFig_fals = st.session_state.udp_fals.UMAPdraw_density()
+            st.session_state.UMAPFig_true = st.session_state.udp_true.UMAPdraw_density()
+            st.session_state.UMAPFig_diff = st.session_state.udp_diff.UMAPdraw_density(diff=True)
+
+            # Assign Masking and plot
+            st.session_state.udp_mask = copy(st.session_state.udp_diff)
+            st.session_state.udp_mask.filter_density_matrix(st.session_state.dens_diff_cutoff)
+            st.session_state.udp_mask.set_feature_label(st.session_state.dens_diff_feat_sel, f'Difference- Masked, cutoff = {st.session_state.dens_diff_cutoff}')
+            st.session_state.UMAPFig_mask = st.session_state.udp_mask.UMAPdraw_density(diff=True)
+
+            diff_density_apply_masking()
+        else:
+            st.session_state.feature_appro_message = 'Feature must be boolean or numeric to perform density difference analysis'
+
+def diff_density_apply_masking():
+    '''
+    Function to apply masking to the density difference analysis
+    '''
+    # Assign Masking and plot
+    st.session_state.udp_mask = copy(st.session_state.udp_diff)
+    st.session_state.udp_mask.filter_density_matrix(st.session_state.dens_diff_cutoff)
+    st.session_state.udp_mask.set_feature_label(st.session_state.dens_diff_feat_sel, f'Difference- Masked, cutoff = {st.session_state.dens_diff_cutoff}')
+    st.session_state.UMAPFig_mask = st.session_state.udp_mask.UMAPdraw_density(diff=True)
+
+    # Perform Clustering
+    diff_density_perform_clustering()
+    
+def diff_density_perform_clustering():
+    '''
+    Function to set the clusters for the density difference analysis
+    '''
+    # Perform Clustering
+    st.session_state.udp_clus = copy(st.session_state.udp_mask)
+    st.session_state.udp_clus.perform_clustering(dens_mat_cmp=st.session_state.udp_mask.dens_mat,
+                                                    num_clus_0=st.session_state.num_clus_0,
+                                                    num_clus_1=st.session_state.num_clus_1)
+    st.session_state.udp_clus.set_feature_label(st.session_state.dens_diff_feat_sel, f'Clusters, False-{st.session_state.num_clus_0}, True-{st.session_state.num_clus_1}')
+    st.session_state.UMAPFig_clus = st.session_state.udp_clus.UMAPdraw_density(diff=True, legendtype='legend')
+    st.session_state.cluster_dict = st.session_state.udp_clus.cluster_dict
+
+    # Add cluster label column to cells dataframe
+    st.session_state.spatial_umap.df_umap.loc[:, 'clust_label'] = 'No Cluster'
+    st.session_state.spatial_umap.df_umap.loc[:, 'cluster'] = 'No Cluster'
+    st.session_state.spatial_umap.df_umap.loc[:, 'Cluster'] = 'No Cluster'
+
+    for key, val in st.session_state.cluster_dict.items():
+        if key != 0:
+            bin_clust = np.argwhere(st.session_state.udp_clus.dens_mat == key)
+            bin_clust = bin_clust[:, [1, 0]] # Swapping columns to by y, x
+            bin_clust = [tuple(x) for x in bin_clust]
+
+            significant_groups = st.session_state.udp_full.bin_indices_df_group[st.session_state.udp_full.bin_indices_df_group.set_index(['indx', 'indy']).index.isin(bin_clust)]
+
+            umap_ind = significant_groups.index.values
+            st.session_state.spatial_umap.df_umap.loc[umap_ind, 'clust_label'] = val
+            st.session_state.spatial_umap.df_umap.loc[umap_ind, 'cluster'] = val
+            st.session_state.spatial_umap.df_umap.loc[umap_ind, 'Cluster'] = val
+
+    # After assigning cluster labels, perform mean calculations
+    # print(st.session_state.spatial_umap.df_umap['clust_label'].value_counts())
+    st.session_state.spatial_umap.mean_measures()
+
+    # Organize the mean density data
+    dens_df_fals = st.session_state.spatial_umap.dens_df_mean.loc[st.session_state.spatial_umap.dens_df_mean['clust_label'].str.contains('False'), :]
+    dens_df_true = st.session_state.spatial_umap.dens_df_mean.loc[st.session_state.spatial_umap.dens_df_mean['clust_label'].str.contains('True'), :]
+
+    dens_df_fals['clust_label'] = 'Average False_Cluster'
+    dens_df_mean_fals = dens_df_fals.groupby(['clust_label', 'phenotype', 'dist_bin'], as_index=False).mean()
+
+    dens_df_true['clust_label'] = 'Average True_Cluster'
+    dens_df_mean_true = dens_df_true.groupby(['clust_label', 'phenotype', 'dist_bin'], as_index=False).mean()
+
+    st.session_state.spatial_umap.dens_df_mean = pd.concat([st.session_state.spatial_umap.dens_df_mean, dens_df_mean_fals, dens_df_mean_true], axis=0)
+
+    # Create the Cluster Scatterplot
+    filter_and_plot()
 
 def main():
     '''
@@ -402,7 +523,6 @@ def main():
                     diff_clust_Fig = bpl.scatter_plot(st.session_state.spatial_umap.df_umap, diff_clust_Fig, diff_clust_ax, 'Clusters',
                                               xVar = 'X', yVar = 'Y', hueVar='clust_label',
                                               hueOrder=st.session_state.cluster_dict.values(), palette= st.session_state.palette_dict)
-
 
                     # Create the Cluster Scatterplot
                     filter_and_plot()
