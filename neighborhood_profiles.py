@@ -466,10 +466,10 @@ class UMAPDensityProcessing():
         create the density matrix from the UMAP data
         '''
 
-        self.dens_mat, self.bin_indices_df_group = umPT.plot_2d_density(x, y,
-                                                                        bins = [self.xx, self.yy],
-                                                                        w = w,
-                                                                        return_matrix = True)
+        self.dens_mat, \
+        self.bin_indices_df_group,\
+        self.empty_bin_ind = umPT.plot_2d_density(x, y, bins = [self.xx, self.yy],
+                                                w = w, return_matrix = True)
 
         self.umap_summary_stats()
 
@@ -503,7 +503,7 @@ class UMAPDensityProcessing():
                                     figsize = figsize,
                                     legendtype = legendtype)
 
-    def filter_density_matrix(self, cutoff= 0.01):
+    def filter_density_matrix(self, cutoff= 0.01, empty_bin_ind = None):
         '''
         filter the current matrix by a cutoff value
         '''
@@ -513,13 +513,13 @@ class UMAPDensityProcessing():
         # Filtering and Masking
         for x_bin in range(dens_mat_shape[0]):
             for y_bin in range(dens_mat_shape[1]):
-
-                if self.dens_mat[x_bin, y_bin] > cutoff:
-                    self.dens_mat[x_bin, y_bin] = 1
-                elif self.dens_mat[x_bin, y_bin] < -cutoff:
-                    self.dens_mat[x_bin, y_bin] = -1
-                else:
+                if tuple([x_bin, y_bin]) in empty_bin_ind:
                     self.dens_mat[x_bin, y_bin] = 0
+                else:
+                    if self.dens_mat[x_bin, y_bin] > cutoff:
+                        self.dens_mat[x_bin, y_bin] = 1
+                    elif self.dens_mat[x_bin, y_bin] < -cutoff:
+                        self.dens_mat[x_bin, y_bin] = -1
 
     def perform_clustering(self, dens_mat_cmp, num_clus_0, num_clus_1):
         '''
@@ -531,13 +531,13 @@ class UMAPDensityProcessing():
         kmeans_obj_cond0 = KMeans(n_clusters = num_clus_0,
                                   init ='k-means++',
                                   max_iter = 300,
-                                  n_init = 10)
+                                  n_init = 50)
         
         # Perform k-menas clustering for the Positive Condition
         kmeans_obj_cond1 = KMeans(n_clusters = num_clus_1,
                                   init ='k-means++',
                                   max_iter = 300,
-                                  n_init = 10)
+                                  n_init = 50)
 
         # Identify the indices of the negative condition
         cond0_ind = np.nonzero(dens_mat_cmp == 1)
