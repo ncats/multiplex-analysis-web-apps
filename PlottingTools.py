@@ -53,6 +53,9 @@ def plot_2d_density(X, Y=None, bins=200, n_pad=40, w=None, ax=None, gaussian_sig
             d = ndi.gaussian_filter(d, sigma=gaussian_sigma)
         else:
             d, xedges, yedges = np.histogram2d(X, Y, bins=bins)
+
+            empty_bin_ind = np.argwhere(d = 0)
+
             d = d + 1 # to avoid division by zero
             d /= np.sum(d)
             d = d*100
@@ -75,7 +78,7 @@ def plot_2d_density(X, Y=None, bins=200, n_pad=40, w=None, ax=None, gaussian_sig
                                               'indy': y_bin_indices.flatten(),
                                               'valx': X,
                                               'valy': Y})
-        return d, bin_indices_df
+        return d, bin_indices_df, empty_bin_ind
     else:
         if d[d > 0].shape == (0,):
             vmin = 0
