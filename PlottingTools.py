@@ -54,7 +54,7 @@ def plot_2d_density(X, Y=None, bins=200, n_pad=40, w=None, ax=None, gaussian_sig
         else:
             d, xedges, yedges = np.histogram2d(X, Y, bins=bins)
 
-            empty_bin_ind = np.argwhere(d = 0)
+            empty_bin_ind = np.argwhere(d == 0)
 
             d = d + 1 # to avoid division by zero
             d /= np.sum(d)

@@ -688,16 +688,16 @@ def main():
                         ['False_Cluster3', None, 'log', [0.1, 10000]],
                         ['True_Cluster1', None, 'log', [0.1, 10000]],
                         ['True_Cluster2', None, 'log', [0.1, 10000]],
-                        ['False_Cluster3', None, 'log', [0.1, 10000]],
+                        ['False_Cluster3', None, 'linear', [0, 2000]],
                         ['False_Cluster1', 'True_Cluster1', 'log', [0.01, 100]],
                         ['False_Cluster2', 'True_Cluster1', 'log', [0.01, 100]],
                         ['False_Cluster3', 'True_Cluster1', 'log', [0.01, 100]],
                         ['False_Cluster1', 'True_Cluster2', 'log', [0.01, 100]],
                         ['False_Cluster2', 'True_Cluster2', 'log', [0.01, 100]],
                         ['False_Cluster3', 'True_Cluster2', 'log', [0.01, 100]],
-                        ['False_Cluster1', 'Average True_Cluster', 'linear', [0, 10]],
-                        ['False_Cluster2', 'Average True_Cluster', 'linear', [0, 30]],
-                        ['False_Cluster3', 'Average True_Cluster', 'linear', [0, 2]],
+                        ['False_Cluster1', 'Average True_Cluster', 'linear', [0, 2]],
+                        ['False_Cluster2', 'Average True_Cluster', 'linear', [0, 2]],
+                        ['False_Cluster3', 'Average True_Cluster', 'linear', [0, 15]],
                         ]
 
         num_figs = len(list_figures)
