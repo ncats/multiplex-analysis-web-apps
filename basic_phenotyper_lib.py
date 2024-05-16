@@ -524,7 +524,7 @@ def setup_Spatial_UMAP(df, marker_names, pheno_order, cpu_pool_size = 1):
     spatial_umap.cells['Lineage'] = spatial_umap.cells['phenotype']
     spatial_umap.cells['Lineage'] = spatial_umap.cells['Lineage'].astype("category")
     spatial_umap.cells['Lineage'] = spatial_umap.cells['Lineage'].cat.set_categories(pheno_order)
-    spatial_umap.cells = spatial_umap.cells.sort_values(["Lineage"])
+    # spatial_umap.cells = spatial_umap.cells.sort_values(["Lineage"])
 
     # Assign pheno_order
     spatial_umap.phenoLabel = pheno_order
