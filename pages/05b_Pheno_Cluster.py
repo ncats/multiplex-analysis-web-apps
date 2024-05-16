@@ -234,14 +234,14 @@ def main():
         phenocluster__plotly_umaps_b(st.session_state['phenocluster__clustering_adata'], 
             st.session_state['phenocluster__umap_cur_col'], 
             st.session_state['phenocluster__umap_cur_groups'],
-            st.session_state['phenocluster__umap_color_col'],
+            st.session_state['phenocluster__umap_color_col_2'],
             phenocluster__col8b
             )
     # make spatial plots
         spatial_plots_cust_2b(st.session_state['phenocluster__clustering_adata'], 
             st.session_state['phenocluster__umap_cur_col'], 
             st.session_state['phenocluster__umap_cur_groups'],
-            st.session_state['phenocluster__umap_color_col'],
+            st.session_state['phenocluster__umap_color_col_2'],
             phenocluster__col9b
             )
     with phenocluster__col7b:
@@ -252,7 +252,7 @@ def main():
             else:
                 st.session_state['phenocluster__umap_color_col_index'] = st.session_state['phenocluster__umeta_columns'].index(st.session_state['phenocluster__umap_color_col'])
                 
-            st.session_state['phenocluster__umap_color_col'] = st.selectbox('Select column for UMAP coloring:', 
+            st.session_state['phenocluster__umap_color_col_2'] = st.selectbox('Select column for UMAP coloring:', 
                                                                     st.session_state['phenocluster__umeta_columns'],
                                                                     index=st.session_state['phenocluster__umap_color_col_index']
                                                                     )

@@ -113,7 +113,7 @@ def run_utag_clust(adata, n_neighbors, resolutions, clustering_method, max_dist,
         clustering_method = clustering_method, 
         resolutions = resolutions,
         leiden_kwargs={"n_iterations": -1, "random_state": 42},
-        pca_kwargs = {"n_components": n_principal_components}
+        pca_kwargs = {"n_comps": n_principal_components}
     )
 
                                 
@@ -126,13 +126,15 @@ def run_utag_clust(adata, n_neighbors, resolutions, clustering_method, max_dist,
     adata.obs['Cluster'] = utag_results.obs[curClusterCol]
     return utag_results
 
-# plot umaps
-def phenocluster__plotly_umaps(adata, umap_cur_col, umap_cur_groups, umap_color_col, 
-                               n_principal_components, n_neighbors, metric):
+def phenocluster__scanpy_umap(adata, n_neighbors, metric, n_principal_components):
     if n_principal_components > 0:
         sc.pp.pca(adata, n_comps=n_principal_components)
     sc.pp.neighbors(adata, n_neighbors=n_neighbors, metric=metric, n_pcs=n_principal_components)
     sc.tl.umap(adata)
+    st.session_state['phenocluster__clustering_adata'] = adata
+
+# plot umaps
+def phenocluster__plotly_umaps(adata, umap_cur_col, umap_cur_groups, umap_color_col):
     with phenocluster__col2:
         subcol1, subcol2 = st.columns(2)
         for i, umap_cur_group in enumerate(umap_cur_groups):
@@ -462,7 +464,7 @@ def main():
             # umap
         if 'phenocluster__clustering_adata' in st.session_state:
             #st.write(pd.unique(st.session_state['phenocluster__clustering_adata'].obs["Cluster"]))
-            
+
             st.session_state['phenocluster__umeta_columns'] = list(st.session_state['phenocluster__clustering_adata'].obs.columns)
             st.session_state['phenocluster__umap_color_col_index'] = st.session_state['phenocluster__umeta_columns'].index(st.session_state['phenocluster__umap_color_col'])
             #st.write(st.session_state['phenocluster__umap_color_col_index'])
@@ -489,17 +491,21 @@ def main():
             st.session_state['phenocluster__umap_cur_groups'],
             st.session_state['phenocluster__umap_color_col']
             ]
-            )
+                      )
             
-            st.button('Make UMAPs' , on_click=phenocluster__plotly_umaps, args = [st.session_state['phenocluster__clustering_adata'], 
+            st.button("Compute UMAPs", on_click=phenocluster__scanpy_umap, args = [st.session_state['phenocluster__clustering_adata'],
+                                                                                   st.session_state['phenocluster__n_neighbors_state'],
+                                                                                   st.session_state['phenocluster__metric'],
+                                                                                   st.session_state['phenocluster__n_principal_components']
+                                                                                   ]
+                      )
+            
+            st.button('Plot UMAPs' , on_click=phenocluster__plotly_umaps, args = [st.session_state['phenocluster__clustering_adata'], 
             st.session_state['phenocluster__umap_cur_col'], 
             st.session_state['phenocluster__umap_cur_groups'],
             st.session_state['phenocluster__umap_color_col'],
-            st.session_state['phenocluster__n_principal_components'],
-            st.session_state['phenocluster__n_neighbors_state'],
-            st.session_state['phenocluster__metric']
             ]
-            )
+                      )
         
             
             
