@@ -179,7 +179,7 @@ class SpatialUMAP:
         image_column_name     = 'Slide ID'
         image_names = df[image_column_name].unique()
         num_ranges = len(radii) - 1
-        range_strings = [f'{radii[iradius]}, {radii[iradius + 1]})' for iradius in range(num_ranges)]
+        range_strings = [f'({radii[iradius]}, {radii[iradius + 1]}]' for iradius in range(num_ranges)]
 
         # Initialize keyword arguments
         kwargs_list = []
@@ -193,14 +193,11 @@ class SpatialUMAP:
             kwargs_list.append(
                 (
                     df[df[image_column_name] == image][[phenotype_column_name] + coord_column_names].copy(),
-                    phenotypes,
-                    phenotype_column_name,
                     image,
                     coord_column_names,
+                    phenotypes,
                     radii,
-                    range_strings,
-                    debug_output,
-                    swap_inequalities
+                    phenotype_column_name
                 )
             )
 
@@ -212,14 +209,14 @@ class SpatialUMAP:
 
             # Apply the calculate_density_matrix_for_image function to each set of keyword arguments in kwargs_list
             # A single call would be something like: calculate_density_matrix_for_image(**kwargs_list[4])
-            results = pool.starmap(self.calculate_density_matrix_for_image, kwargs_list)
+            results = pool.starmap(utils.fast_neighbors_counts_for_block, kwargs_list)
 
         print(f'All images took {(time.time() - start_time) / 60:.2f} minutes to complete')
 
         df_density_matrix = pd.concat(results)
         full_array = None
         for ii, phenotype in enumerate(phenotypes):
-            cols2Use = [f'{phenotype} in range {x}' for x in range_strings]
+            cols2Use = [f'{phenotype} in {x}' for x in range_strings]
             array_set = df_density_matrix.loc[:, cols2Use].to_numpy()
             if full_array is None:
                 full_array = array_set
@@ -441,7 +438,7 @@ class SpatialUMAP:
 
             # set results
             self.areas[idx] = areas
-            self.cells.loc[idx, 'area_filter'] = filt
+            self.cells.loc[idx, 'area_filter'] = True
 
             if plots_directory is not None:
                 plt.ioff()
@@ -609,40 +606,26 @@ class SpatialUMAP:
         '''
 
         dens_umap_test = self.density[self.cells['umap_test'], :, :]
-        prop_umap_test = self.density[self.cells['umap_test'], :, :]
 
         self.dens_df = pd.DataFrame()
-        self.prop_df = pd.DataFrame()
         for clust_label, group in self.df_umap.groupby('clust_label'):
 
             clust_ind = group.index
 
             smalldf_D = pd.DataFrame()
-            smalldf_P = pd.DataFrame()
             theseDen = dens_umap_test[clust_ind]
-            thesePro = prop_umap_test[clust_ind]
             for i, pheno in enumerate(self.phenoLabel):
 
                 theseDen_pheno = theseDen[:,:,i]
                 r, c = theseDen_pheno.shape
                 theseDen_flat = theseDen_pheno.reshape(-1)
 
-                thesePro_pheno = thesePro[:,:,i]
-                r, c = thesePro_pheno.shape
-                thesePro_flat = thesePro_pheno.reshape(-1)
-
                 smalldf_D['dist_bin'] = np.tile(self.dist_bin_um, r)
                 smalldf_D['density'] = theseDen_flat
                 smalldf_D['phenotype'] = pheno
                 smalldf_D['clust_label'] = clust_label
 
-                smalldf_P['dist_bin'] = np.tile(self.dist_bin_um, r)
-                smalldf_P['density'] = thesePro_flat
-                smalldf_P['phenotype'] = pheno
-                smalldf_P['clust_label'] = clust_label
-
                 self.dens_df = pd.concat([self.dens_df, smalldf_D], axis = 0).reset_index(drop=True)
-                self.prop_df = pd.concat([self.prop_df, smalldf_P], axis = 0).reset_index(drop=True)
 
         # Perform Groupby and Mean calculations
         self.dens_df_mean = self.dens_df.groupby(['clust_label', 'phenotype', 'dist_bin'], as_index=False).mean()
