@@ -38,7 +38,7 @@ def main():
     elif st.session_state.lineageDisplayToggle_clus == 'Markers':
         st.session_state.cluslineages = st.session_state.umapMarks
 
-    if st.session_state.umapCompleted:
+    if st.session_state.umap_completed:
         st.session_state = ndl.setFigureObjs_UMAPDifferences(st.session_state)
     else:
         st.warning('No spatial UMAP analysis detected. Please complete Neighborhood Profiles')
@@ -53,7 +53,7 @@ def main():
                  options = ['No Norm', 'Norm within Clusters', 'Norm within Phenotypes'],
                  key = 'NormHeatRadio',
                  horizontal = True)
-        if st.session_state.umapCompleted:
+        if st.session_state.umap_completed:
             st.pyplot(st.session_state.heatmapfig)
 
     ### INCIDENCE PLOT ###
@@ -75,7 +75,7 @@ def main():
         st.radio('Display As:', options = ('Count Differences', 'Percentages', 'Ratios'), 
                  key = 'Inci_Value_display', horizontal=True, disabled = inci_radio_disabled)
 
-        if st.session_state.umapCompleted:
+        if st.session_state.umap_completed:
             st.pyplot(st.session_state.inciFig)
 
     # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
