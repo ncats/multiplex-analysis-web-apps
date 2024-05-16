@@ -30,3 +30,7 @@ dependencies:
     - dill
     - pympler
     - objsize
+    - PhenoGraph
+    - parc
+    - parmap
+
