@@ -179,7 +179,7 @@ class SpatialUMAP:
         image_column_name     = 'Slide ID'
         image_names = df[image_column_name].unique()
         num_ranges = len(radii) - 1
-        range_strings = [f'{radii[iradius]}, {radii[iradius + 1]})' for iradius in range(num_ranges)]
+        range_strings = [f'({radii[iradius]}, {radii[iradius + 1]}]' for iradius in range(num_ranges)]
 
         # Initialize keyword arguments
         kwargs_list = []
@@ -193,14 +193,11 @@ class SpatialUMAP:
             kwargs_list.append(
                 (
                     df[df[image_column_name] == image][[phenotype_column_name] + coord_column_names].copy(),
-                    phenotypes,
-                    phenotype_column_name,
                     image,
                     coord_column_names,
+                    phenotypes,
                     radii,
-                    range_strings,
-                    debug_output,
-                    swap_inequalities
+                    phenotype_column_name
                 )
             )
 
@@ -212,14 +209,14 @@ class SpatialUMAP:
 
             # Apply the calculate_density_matrix_for_image function to each set of keyword arguments in kwargs_list
             # A single call would be something like: calculate_density_matrix_for_image(**kwargs_list[4])
-            results = pool.starmap(self.calculate_density_matrix_for_image, kwargs_list)
+            results = pool.starmap(utils.fast_neighbors_counts_for_block, kwargs_list)
 
         print(f'All images took {(time.time() - start_time) / 60:.2f} minutes to complete')
 
         df_density_matrix = pd.concat(results)
         full_array = None
         for ii, phenotype in enumerate(phenotypes):
-            cols2Use = [f'{phenotype} in range {x}' for x in range_strings]
+            cols2Use = [f'{phenotype} in {x}' for x in range_strings]
             array_set = df_density_matrix.loc[:, cols2Use].to_numpy()
             if full_array is None:
                 full_array = array_set
