@@ -372,17 +372,17 @@ def draw_scatter_fig(figsize=(12, 12)):
     Setup Scatter plot figure and axes
     '''
 
-    SlBgC  = '#0E1117'  # Streamlit Background Color
-    SlTC   = '#FAFAFA'  # Streamlit Text Color
-    Sl2BgC = '#262730'  # Streamlit Secondary Background Color
+    slc_bg   = '#0E1117'  # Streamlit Background Color
+    slc_text = '#FAFAFA'  # Streamlit Text Color
+    slc_bg2  = '#262730'  # Streamlit Secondary Background Color
 
-    fig = plt.figure(figsize=figsize, facecolor = SlBgC)
-    ax = fig.add_subplot(1, 1, 1)
+    fig = plt.figure(figsize=figsize, facecolor = slc_bg)
+    ax = fig.add_subplot(1, 1, 1, facecolor = slc_bg)
 
-    ax.spines['left'].set_color(SlTC)
-    ax.spines['bottom'].set_color(SlTC)
-    ax.tick_params(axis='x', colors=SlTC, which='both')
-    ax.tick_params(axis='y', colors=SlTC, which='both')
+    ax.spines['left'].set_color(slc_text)
+    ax.spines['bottom'].set_color(slc_text)
+    ax.tick_params(axis='x', colors=slc_text, which='both')
+    ax.tick_params(axis='y', colors=slc_text, which='both')
 
     return fig, ax
 
@@ -524,7 +524,7 @@ def setup_Spatial_UMAP(df, marker_names, pheno_order, cpu_pool_size = 1):
     spatial_umap.cells['Lineage'] = spatial_umap.cells['phenotype']
     spatial_umap.cells['Lineage'] = spatial_umap.cells['Lineage'].astype("category")
     spatial_umap.cells['Lineage'] = spatial_umap.cells['Lineage'].cat.set_categories(pheno_order)
-    spatial_umap.cells = spatial_umap.cells.sort_values(["Lineage"])
+    # spatial_umap.cells = spatial_umap.cells.sort_values(["Lineage"])
 
     # Assign pheno_order
     spatial_umap.phenoLabel = pheno_order
@@ -553,6 +553,12 @@ def setup_Spatial_UMAP(df, marker_names, pheno_order, cpu_pool_size = 1):
     spatial_umap.region_ids = spatial_umap.cells.TMA_core_id.unique()
     # default cluster values
     spatial_umap.cells['clust_label'] = 'No Cluster'
+
+    # sets flags for analysis processing
+    spatial_umap.phenotyping_completed = True
+    spatial_umap.density_completed     = False
+    spatial_umap.umap_completed        = False
+    spatial_umap.cluster_completed     = False
 
     return spatial_umap
 
@@ -595,6 +601,8 @@ def perform_density_calc(spatial_umap, bc, cpu_pool_size = 1):
     # calculate proportions based on species counts/# cells within an arc
     spatial_umap.calc_proportions(area_threshold)
 
+    spatial_umap.density_completed = True
+
     return spatial_umap
 
 def perform_spatialUMAP(spatial_umap, bc, UMAPStyle):
@@ -625,6 +633,8 @@ def perform_spatialUMAP(spatial_umap, bc, UMAPStyle):
     print('Transforming Data')
     spatial_umap.umap_test = spatial_umap.umap_fit.transform(spatial_umap.density[spatial_umap.cells['umap_test'].values].reshape((spatial_umap.cells['umap_test'].sum(), -1)))
     bc.printElapsedTime(f'      Transforming {np.sum(spatial_umap.cells["umap_test"] == 1)} points with the model')
+
+    spatial_umap.umap_completed = True
 
     return spatial_umap
 
@@ -808,18 +818,11 @@ def createHeatMap(df, phenoList, title, normAxis = None):
 
     return fig
 
-def neighProfileDraw(spatial_umap, sel_clus, cmp_clus = None, cmp_style = None, hide_other = False, hide_no_cluster = False, figsize=(14, 16)):
+def neighProfileDraw(spatial_umap, ax, sel_clus, cmp_clus = None, cmp_style = None, hide_other = False, hide_no_cluster = False, legend_flag = True):
     '''
     neighProfileDraw is the method that draws the neighborhood profile
     line plots
     '''
-
-    slc_bg   = '#0E1117'  # Streamlit Background Color
-    slc_text = '#FAFAFA'  # Streamlit Text Color
-    slc_bg2  = '#262730'  # Streamlit Secondary Background Color
-
-    neipro_fig = plt.figure(figsize=figsize, facecolor = slc_bg)
-    ax = neipro_fig.add_subplot(1, 1, 1, facecolor = slc_bg)
 
     dens_df_mean_base = spatial_umap.dens_df_mean
     if hide_other:
@@ -831,7 +834,7 @@ def neighProfileDraw(spatial_umap, sel_clus, cmp_clus = None, cmp_style = None, 
     dens_df_mean_sel = dens_df_mean_base.loc[dens_df_mean_base['clust_label'] == sel_clus, :].reset_index(drop=True)
     ylim = [0, maxdens_df]
     dens_df_mean = dens_df_mean_sel.copy()
-    cluster_title = f'Cluster {sel_clus}'
+    cluster_title = f'{sel_clus}'
 
     if cmp_clus is not None:
         dens_df_mean_cmp = dens_df_mean_base.loc[dens_df_mean_base['clust_label'] == cmp_clus, :].reset_index(drop=True)
@@ -870,9 +873,7 @@ def neighProfileDraw(spatial_umap, sel_clus, cmp_clus = None, cmp_style = None, 
                                         cluster_title = cluster_title,
                                         cmp_style = cmp_style,
                                         max_dens = ylim,
-                                        leg_flag = 1)
-
-    return neipro_fig
+                                        leg_flag = legend_flag)
 
 def preprocess_weighted_umap(w, df_umap):
     '''
@@ -963,9 +964,9 @@ def UMAPdraw_density(d, bins, w, n_pad, vlim, feat = None, diff = False, legendt
 
     if feat is not None:
         if cmap == cmap_bwr:
-            ax.text(x_lim[0], 0.93*y_lim[1], feat, c = 'black', fontsize = 30)
+            ax.text(x_lim[0], 0.90*y_lim[1], feat, c = 'black', fontsize = 30)
         else:
-            ax.text(x_lim[0], 0.93*y_lim[1], feat, c = slc_text, fontsize = 30)
+            ax.text(x_lim[0], 0.90*y_lim[1], feat, c = slc_text, fontsize = 30)
 
     return umap_fig
 

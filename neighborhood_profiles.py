@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import seaborn as sns
 from sklearn.cluster import KMeans # K-Means
 import umap
 from SpatialUMAP import SpatialUMAP
@@ -39,8 +40,8 @@ class NeighborhoodProfiles:
         self.bc = bc
 
         # Spectrogram Plotting Settings
-        self.n_bins = 200
-        self.n_pad = 40
+        self.n_bins = 100
+        self.n_pad = 0
         self.vlim = .97
         self.xx = 0
         self.yy = 0
@@ -448,6 +449,8 @@ class UMAPDensityProcessing():
 
         # Feature Label
         self.feat_label = None
+        self.cluster_dict = None
+        self.palette_dict = None
 
         if xx is not None:
             self.xx = xx
@@ -463,10 +466,10 @@ class UMAPDensityProcessing():
         create the density matrix from the UMAP data
         '''
 
-        self.dens_mat, self.bin_indices_df_group = umPT.plot_2d_density(x, y,
-                                                                        bins = [self.xx, self.yy],
-                                                                        w = w,
-                                                                        return_matrix = True)
+        self.dens_mat, \
+        self.bin_indices_df_group,\
+        self.empty_bin_ind = umPT.plot_2d_density(x, y, bins = [self.xx, self.yy],
+                                                w = w, return_matrix = True)
 
         self.umap_summary_stats()
 
@@ -500,59 +503,75 @@ class UMAPDensityProcessing():
                                     figsize = figsize,
                                     legendtype = legendtype)
 
-    def filter_density_matrix(self, cutoff_dec= 0.02):
+    def filter_density_matrix(self, cutoff= 0.01, empty_bin_ind = None):
         '''
         filter the current matrix by a cutoff value
         '''
-
-        cutoff = self.minabs * cutoff_dec
 
         dens_mat_shape = self.dens_mat.shape
 
         # Filtering and Masking
         for x_bin in range(dens_mat_shape[0]):
             for y_bin in range(dens_mat_shape[1]):
-
-                if self.dens_mat[x_bin, y_bin] > cutoff:
-                    self.dens_mat[x_bin, y_bin] = 1
-                elif self.dens_mat[x_bin, y_bin] < -cutoff:
-                    self.dens_mat[x_bin, y_bin] = -1
-                else:
+                if tuple([x_bin, y_bin]) in empty_bin_ind:
                     self.dens_mat[x_bin, y_bin] = 0
+                else:
+                    if self.dens_mat[x_bin, y_bin] > cutoff:
+                        self.dens_mat[x_bin, y_bin] = 1
+                    elif self.dens_mat[x_bin, y_bin] < -cutoff:
+                        self.dens_mat[x_bin, y_bin] = -1
 
     def perform_clustering(self, dens_mat_cmp, num_clus_0, num_clus_1):
         '''
         Sets up clustering
         '''
 
+        print(f'Performing Clustering with {num_clus_0} clusters for Negative Condition and {num_clus_1} clusters for Positive Condition')
+        # Perform k-menas clustering for the Negative Condition
         kmeans_obj_cond0 = KMeans(n_clusters = num_clus_0,
-                            init ='k-means++',
-                            max_iter = 300,
-                            n_init = 10,
-                            random_state = 42)
+                                  init ='k-means++',
+                                  max_iter = 300,
+                                  n_init = 50)
+        
+        # Perform k-menas clustering for the Positive Condition
         kmeans_obj_cond1 = KMeans(n_clusters = num_clus_1,
-                            init ='k-means++',
-                            max_iter = 300,
-                            n_init = 10,
-                            random_state = 42)
+                                  init ='k-means++',
+                                  max_iter = 300,
+                                  n_init = 50)
 
-        cond0_ind = np.nonzero(dens_mat_cmp == -1)
+        # Identify the indices of the negative condition
+        cond0_ind = np.nonzero(dens_mat_cmp == 1)
         cells_cond0 = np.vstack(cond0_ind).T
+        # Fit the negative condition to the negative kmeans object
         kmeans_obj_cond0.fit(cells_cond0)
 
-        cond1_ind = np.nonzero(dens_mat_cmp == 1)
+        # Identify the indices of the positive condition
+        cond1_ind = np.nonzero(dens_mat_cmp == -1)
         cells_cond1 = np.vstack(cond1_ind).T
+        # Fit the positive condition to the positive kmeans object
         kmeans_obj_cond1.fit(cells_cond1)
 
-        self.dens_mat[cond0_ind] = -kmeans_obj_cond0.labels_ -1
-        self.dens_mat[cond1_ind] = kmeans_obj_cond1.labels_ + 1
+        # Replace the labels in the density matrix with the cluster labels
+        self.dens_mat[cond0_ind] = kmeans_obj_cond0.labels_ + 1
+        self.dens_mat[cond1_ind] = -kmeans_obj_cond1.labels_ - 1
 
         self.cluster_dict = dict()
         self.cluster_dict[0] = 'No Cluster'
         for i in range(num_clus_0):
-            self.cluster_dict[-i-1] = f'False_Cluster{i+1}'
+            self.cluster_dict[i+1] = f'False_Cluster{i+1}'
         for i in range(num_clus_1):
-            self.cluster_dict[i+1] = f'True_Clust{i+1}'
+            self.cluster_dict[-i-1] = f'True_Cluster{i+1}'
+
+        set_blues = sns.color_palette('Blues_r', 10)
+        set_reds = sns.color_palette('Reds_r', 10)
+
+        self.palette_dict = dict()
+        self.palette_dict['No Cluster'] = 'white'
+        for i in range(num_clus_0):
+            self.palette_dict[f'False_Cluster{i+1}'] = set_reds[i]
+        for i in range(num_clus_1):
+            self.palette_dict[f'True_Cluster{i+1}'] = set_blues[i]
+
 
     # def perform_clustering(self, n_clusters, cond):
     #     '''
