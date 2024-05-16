@@ -53,8 +53,15 @@ def plot_2d_density(X, Y=None, bins=200, n_pad=40, w=None, ax=None, gaussian_sig
             d = ndi.gaussian_filter(d, sigma=gaussian_sigma)
         else:
             d, xedges, yedges = np.histogram2d(X, Y, bins=bins)
+
+            empty_bin_ind = np.argwhere(d == 0)
+            empty_bin_ind = empty_bin_ind[:, [1, 0]] # Swapping columns to by y, x
+            empty_bin_ind = [tuple(x) for x in empty_bin_ind]
+
+            d = d + 1 # to avoid division by zero
             d /= np.sum(d)
-            d = ndi.gaussian_filter(d.T, sigma=gaussian_sigma)
+            d = d*100
+            d = d.T # ndi.gaussian_filter(d.T, sigma=gaussian_sigma)
     else:
         d = X
 
@@ -73,7 +80,7 @@ def plot_2d_density(X, Y=None, bins=200, n_pad=40, w=None, ax=None, gaussian_sig
                                               'indy': y_bin_indices.flatten(),
                                               'valx': X,
                                               'valy': Y})
-        return d, bin_indices_df
+        return d, bin_indices_df, empty_bin_ind
     else:
         if d[d > 0].shape == (0,):
             vmin = 0
@@ -115,8 +122,12 @@ def plot_2d_density(X, Y=None, bins=200, n_pad=40, w=None, ax=None, gaussian_sig
         # Create the color bar
         if legendtype == 'colorbar':
             cax = ax.inset_axes([0.95, 0.1, 0.01, 0.85])
-            cmap_lim = None # [np.min(d), np.max(d)]
-            plt_cmap(ax=cax, cmap=cmap, extend=extend, width=0.01, lim = cmap_lim)
+            cmap_lim = np.around([np.min(d), np.max(d)], 3)
+            if circle_type == 'arch':
+                label_color = 'black'
+            else:
+                label_color = 'white'
+            plt_cmap(ax=cax, cmap=cmap, extend=extend, width=0.01, lim = cmap_lim, label_color= label_color)
         elif legendtype == 'legend':
             cax = ax.inset_axes([0.925, 0.1, 0.01, 0.85])
 
@@ -134,7 +145,7 @@ def plot_2d_density(X, Y=None, bins=200, n_pad=40, w=None, ax=None, gaussian_sig
             ax.set(xticks=[], yticks=[])
 
 
-def plt_cmap(ax, cmap, extend, width, lim = None, ylabel = None):
+def plt_cmap(ax, cmap, extend, width, lim = None, ylabel = None, label_color = 'white'):
     '''
     plt_cmap(ax, cmap, extend, width, ylabel) draws a colorbar 
     for the current colormap at the correct
@@ -152,7 +163,9 @@ def plt_cmap(ax, cmap, extend, width, lim = None, ylabel = None):
     Returns:
         None
     '''
-    cb = mpl.colorbar.Colorbar(ax=ax, cmap=cmap, extend=extend)
+    cb = mpl.colorbar.Colorbar(ax=ax, cmap=cmap, extend=extend, location='left')
+    cb.ax.yaxis.set_tick_params(color=label_color, labelcolor = label_color)  # Change the color of x tick labels to white
+    cb.set_label('Density Percentage (%)', color=label_color, fontsize=16, labelpad=-65)
     cb.set_ticks([])
     pos = ax.get_position().bounds
     ax.set_position([pos[0], pos[1], width, pos[3]])
@@ -230,9 +243,9 @@ def plot_neighborhood_profile(ax, cell_label, dist_bin, cell_density, phenoSet, 
 
     if legF:
         ax.legend(plotaxes, plotLabels,
-                bbox_to_anchor=(-0.05, -0.1), 
-                loc='upper left', 
-                borderaxespad=0, 
+                bbox_to_anchor=(-0.05, -0.1),
+                loc='upper left',
+                borderaxespad=0,
                 ncols = 4,
                 facecolor = Sl2BgC,
                 edgecolor = Sl2BgC,
@@ -312,7 +325,7 @@ def plot_mean_neighborhood_profile(ax, dist_bin, pheno_order, npf_dens_mean, clu
     ax.set_xticks(dist_bin)
     ax.set_xlim([0, 225])
     ax.set_ylim(max_dens)
-    ax.set_title(cluster_title, fontsize = 20, color = slc_text)
+    ax.set_title(cluster_title, fontsize = 14, color = slc_text)
     ax.set_xlabel('Spatial Bound (\u03BCm)', fontsize = 14, color = slc_text)
     ax.set_ylabel(ylabel, fontsize = 14, color = slc_text)
 
