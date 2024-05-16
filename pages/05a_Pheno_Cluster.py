@@ -470,19 +470,19 @@ def main():
             #st.write(st.session_state['phenocluster__umap_color_col_index'])
             
             # select column for umap coloring
-            st.session_state['phenocluster__umap_color_col'] = st.selectbox('Select column for UMAP coloring:', 
+            st.session_state['phenocluster__umap_color_col'] = st.selectbox('Select column for groups coloring:', 
                                                                     st.session_state['phenocluster__umeta_columns'],
                                                                     index=st.session_state['phenocluster__umap_color_col_index']
                                                                     )
             
             # select column for umap subsetting
-            st.session_state['phenocluster__umap_cur_col'] = st.selectbox('Select column for UMAP subsetting:', 
+            st.session_state['phenocluster__umap_cur_col'] = st.selectbox('Select column to subset plots:', 
                                                                     st.session_state['phenocluster__umeta_columns'], key='phenocluster__umap_col_dropdown_subset'
                                                                     )
             
             # list of available subsetting options
             umap_cur_groups=  ["All"] + list(pd.unique(st.session_state['phenocluster__clustering_adata'].obs[st.session_state['phenocluster__umap_cur_col']]))
-            umap_sel_groups = st.multiselect('Select groups to be plotted on UMAP',
+            umap_sel_groups = st.multiselect('Select groups to be plotted',
                                                                             options = umap_cur_groups)
             st.session_state['phenocluster__umap_cur_groups'] = umap_sel_groups
             
