@@ -32,9 +32,9 @@ def init_spatial_umap():
                                                                st.session_state.marker_multi_sel,
                                                                st.session_state.phenoOrder)
 
-        # st.session_state.spatial_umap = bpl.perform_density_calc(st.session_state.spatial_umap,
-        #                                                          st.session_state.bc,
-        #                                                          st.session_state.cpu_pool_size)
+        st.session_state.spatial_umap = bpl.perform_density_calc(st.session_state.spatial_umap,
+                                                                 st.session_state.bc,
+                                                                 st.session_state.cpu_pool_size)
     st.write('Done Calculating Cell Counts and Areas')
 
     # Record time elapsed
