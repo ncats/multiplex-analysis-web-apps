@@ -276,6 +276,12 @@ def main():
         # Plot the plotly chart in Streamlit
         st.plotly_chart(fig, use_container_width=True)
 
+    if 'rsp__get_percent_frequencies' not in st.session_state:
+        st.session_state['rsp__get_percent_frequencies'] = False
+    if st.toggle('Get percent frequencies of coloring column', key='rsp__get_percent_frequencies'):
+        vc = df[column_to_plot].value_counts()
+        st.dataframe((df[column_to_plot].value_counts() / vc.sum() * 100).astype(int).reset_index())
+
         
 # Run the main function
 if __name__ == '__main__':

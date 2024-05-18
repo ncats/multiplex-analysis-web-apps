@@ -14,7 +14,7 @@ import time
 
 # For each custom class, add a key-value pair where the class is the key and the value is a list of picklable attributes of that class. Only do this if the size of that attribute can be larger than 1 MB, which you can assess by using this app. See possible classes (at least as of 5/1/24) in the get_object_class function below, which is not used right now
 picklable_attributes_per_class = {
-    'dataset_formats.Standardized': ['data'],
+    'dataset_formats.Standardized': ['data', 'input_datafile'],
     'SpatialUMAP.SpatialUMAP': ['arcs_masks', 'cells', 'cell_positions', 'cell_labels', 'region_ids', 'umap_test', 'patients', 'dens_df', 'prop_df', 'dens_df_mean', 'dens_df_se', 'maxdens_df', 'df_umap', 'counts', 'areas', 'density', 'proportion'],
     'SpatialUMAP.FitEllipse': ['img_ellipse', 'w', 'h', 'img_ellipse']
     }

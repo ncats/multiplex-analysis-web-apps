@@ -1237,7 +1237,9 @@ class Standardized(Native):
         # I.e., go from a df with columns like 'Phenotype_(standardized) AA' to one with both that column and another one with the same data but named 'Phenotype AA'
         transformation = dict(zip(['Phenotype_(standardized) {}'.format(x.strip()) for x in phenotype_columns], ['Phenotype {}'.format(x.strip()) for x in phenotype_columns]))
         df_phenotype_cols = df[[column for column in df.columns if column.startswith('Phenotype_(standardized) ')]]  # this creates a copy of the "Phenotype_(standardized) " columns as a new dataframe
-        self.data = pd.concat([df, df_phenotype_cols.rename(columns=transformation)], axis='columns')  # this concatenates the original dataframe with the phenotype columns named like 'Phenotype AA' and assigns it back to the original dataframe
+        if transformation:
+            self.data = pd.concat([df, df_phenotype_cols.rename(columns=transformation)], axis='columns')  # this concatenates the original dataframe with the phenotype columns named like 'Phenotype AA' and assigns it back to the original dataframe
+
         df = self.data  # we must do it in two steps because Pandas doesn't want to overwrite the originally referenced data (i.e., self.data) in the assignment in the previous line, in order to prevent unexpected side effects. I suppose this makes sense, i.e., df = df_stored; df = df_new should not replace df_stored with df_new
 
         # In each new "Phenotype " (not "Phenotype_(standardized) ") column, convert to -'s and +'s
