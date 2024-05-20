@@ -560,48 +560,6 @@ def main():
                     image_loc_group_2 = df['Slide ID'].isin(st.session_state['mg__images_in_plotting_group_2']) & filter_loc
                     if st.session_state['mg__selected_column_type'] == 'numeric':
                         curr_df_group_1, curr_df_group_2 = calculate_kdes_on_same_grid(df_batch_normalized.loc[image_loc_group_1, column_for_filtering], df_batch_normalized.loc[image_loc_group_2, column_for_filtering], st.session_state['mg__kde_grid_size'])
-                        # ------------------------------------------------------
-                        if 'mg__plot_box_and_whisker' not in st.session_state:
-                            st.session_state['mg__plot_box_and_whisker'] = False
-                        if st.toggle('Plot box and whisker', key='mg__plot_box_and_whisker'):
-                            # TODO: Fix two issues here: (1) Plotting is really slow and doesn't seem to generate at all (check my numbers/dataframes), and (2) The plot is only shown up when st.session_state['mg__kdes_or_hists_to_plot'].loc[image_for_filtering, column_for_filtering] is np.nan, so I need to move this part of the code outside of here in order to continue to plot it
-                            if st.session_state['mg__extra_settings'] and True:  # temporarily disable this part of the code
-                                st.write('here1')
-                                ser_for_z_score = df_batch_normalized.loc[image_loc_group_1, column_for_filtering]
-                                thresholds = ser_for_z_score.mean() + np.arange(2, 11) * ser_for_z_score.std()
-                                group_1_holder = []
-                                group_2_holder = []
-                                for threshold in thresholds:
-                                    positive_loc = df_batch_normalized[column_for_filtering] >= threshold
-                                    ser_group_1_pos_perc = df_batch_normalized.loc[image_loc_group_1 & positive_loc, 'Slide ID'].value_counts() / df_batch_normalized.loc[image_loc_group_1, 'Slide ID'].value_counts() * 100
-                                    ser_group_2_pos_perc = df_batch_normalized.loc[image_loc_group_2 & positive_loc, 'Slide ID'].value_counts() / df_batch_normalized.loc[image_loc_group_2, 'Slide ID'].value_counts() * 100
-                                    ser_group_1_pos_perc.name = threshold
-                                    ser_group_2_pos_perc.name = threshold
-                                    group_1_holder.append(ser_group_1_pos_perc)
-                                    group_2_holder.append(ser_group_2_pos_perc)
-                                df_group_1_pos_perc = pd.concat(group_1_holder, axis='columns')
-                                df_group_2_pos_perc = pd.concat(group_2_holder, axis='columns')
-                                # Get box and whisker from the above later. For now, in plotly, just plot the average of each column vs. the column name, using df_group_1_pos_perc for one trace and df_group_2_pos_perc for the other
-                                fig = go.Figure()
-
-                                # Calculate the average of each column for group 1 and group 2
-                                avg_group_1 = df_group_1_pos_perc.mean()
-                                avg_group_2 = df_group_2_pos_perc.mean()
-
-                                # Plot average of each column vs. column name for group 1
-                                fig.add_trace(go.Scatter(x=avg_group_1.index, y=avg_group_1.values, mode='lines', name='Group 1'))
-
-                                # Plot average of each column vs. column name for group 2
-                                fig.add_trace(go.Scatter(x=avg_group_2.index, y=avg_group_2.values, mode='lines', name='Group 2'))
-
-                                fig.update_layout(title='Average of Each Column vs. Column Name',
-                                                xaxis_title='Column Name',
-                                                yaxis_title='Average',
-                                                legend_title='Group')
-
-                                fig.show()
-                                st.write('here2')
-                        # ------------------------------------------------------
                     else:
                         curr_df_group_1 = calculate_histogram(df.loc[image_loc_group_1, column_for_filtering])
                         curr_df_group_2 = calculate_histogram(df.loc[image_loc_group_2, column_for_filtering])
@@ -742,6 +700,73 @@ def main():
 
             # Create a toggle for extra options
             extra_settings = st.toggle('Extra settings', key='mg__extra_settings')
+
+            if extra_settings and use_groups_for_plotting and (st.session_state['mg__selected_column_type'] == 'numeric'):
+                # curr_df_group_1, curr_df_group_2 = kde_or_hist_to_plot_full
+                if 'mg__plot_box_and_whisker' not in st.session_state:
+                    st.session_state['mg__plot_box_and_whisker'] = False
+                if st.toggle('Plot box and whisker', key='mg__plot_box_and_whisker'):
+                    # TODO: Plotting is really slow and doesn't seem to generate at all (check my numbers/dataframes)
+                    plot_box_and_whisker(apply_another_filter, df_batch_normalized, column_for_filtering)
+
+
+def plot_box_and_whisker(apply_another_filter, df, column_for_filtering):
+
+    # If we're ready to apply a filter, then create it
+    if not apply_another_filter:
+        filter_loc = pd.Series(True, index=df.index)
+    else:
+        filter_loc = df[st.session_state['mg__another_filter_column']].isin(st.session_state['mg__values_on_which_to_filter'])
+
+    # Get the locations of the images in each group, including the optional filter just created
+    image_loc_group_1 = df['Slide ID'].isin(st.session_state['mg__images_in_plotting_group_1']) & filter_loc
+    image_loc_group_2 = df['Slide ID'].isin(st.session_state['mg__images_in_plotting_group_2']) & filter_loc
+
+    # Get only the data for the column of interest for the first group of images with the filter applied
+    ser_for_z_score = df.loc[image_loc_group_1, column_for_filtering]
+
+    # From those data, get the values corresponding to 2 to 10 standard deviations above the mean
+    thresholds = ser_for_z_score.mean() + np.arange(2, 11) * ser_for_z_score.std()
+
+    # Initialize the positive percentages holders
+    group_1_holder = []
+    group_2_holder = []
+
+    # For each threshold...
+    for threshold in thresholds:
+
+        # Get the locations where the selected filtering column is at least the current threshold value
+        positive_loc = df[column_for_filtering] >= threshold
+
+        #### Pick up with commenting here
+        ser_group_1_pos_perc = df.loc[image_loc_group_1 & positive_loc, 'Slide ID'].value_counts() / df.loc[image_loc_group_1, 'Slide ID'].value_counts() * 100
+        ser_group_2_pos_perc = df.loc[image_loc_group_2 & positive_loc, 'Slide ID'].value_counts() / df.loc[image_loc_group_2, 'Slide ID'].value_counts() * 100
+        ser_group_1_pos_perc.name = threshold
+        ser_group_2_pos_perc.name = threshold
+        group_1_holder.append(ser_group_1_pos_perc)
+        group_2_holder.append(ser_group_2_pos_perc)
+    df_group_1_pos_perc = pd.concat(group_1_holder, axis='columns')
+    df_group_2_pos_perc = pd.concat(group_2_holder, axis='columns')
+    # Get box and whisker from the above later. For now, in plotly, just plot the average of each column vs. the column name, using df_group_1_pos_perc for one trace and df_group_2_pos_perc for the other
+    fig = go.Figure()
+
+    # Calculate the average of each column for group 1 and group 2
+    avg_group_1 = df_group_1_pos_perc.mean()
+    avg_group_2 = df_group_2_pos_perc.mean()
+
+    # Plot average of each column vs. column name for group 1
+    fig.add_trace(go.Scatter(x=avg_group_1.index, y=avg_group_1.values, mode='lines', name='Group 1'))
+
+    # Plot average of each column vs. column name for group 2
+    fig.add_trace(go.Scatter(x=avg_group_2.index, y=avg_group_2.values, mode='lines', name='Group 2'))
+
+    fig.update_layout(title='Average of Each Column vs. Column Name',
+                    xaxis_title='Column Name',
+                    yaxis_title='Average',
+                    legend_title='Group')
+
+    st.plotly_chart(fig)
+
 
     # Current phenotype and phenotype assignments
     with main_columns[1]:
