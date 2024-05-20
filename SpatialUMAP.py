@@ -605,7 +605,7 @@ class SpatialUMAP:
         Setup density values for means
         '''
 
-        dens_umap_test = self.density[self.cells['umap_test'], :, :]
+        dens_umap_test = self.density[self.df_umap['umap_test'], :, :]
 
         self.dens_df = pd.DataFrame()
         for clust_label, group in self.df_umap.groupby('clust_label'):
