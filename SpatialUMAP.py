@@ -149,7 +149,7 @@ class SpatialUMAP:
 
         return idx_counts[np.newaxis, :]
 
-    def calculate_density_matrix_for_all_images(self, swap_inequalities = False, debug_output=False):
+    def calculate_density_matrix_for_all_images(self, cpu_pool_size = 8):
         """
         Calculate the density matrix for all images.
 
@@ -173,7 +173,6 @@ class SpatialUMAP:
         phenotypes  = self.species
         radii       = np.concatenate([[0], self.dist_bin_px])
 
-        num_cpus_to_use = int(mp.cpu_count() / 2)
         coord_column_names = ['Cell X Position', 'Cell Y Position']
         phenotype_column_name = 'Lineage'
         image_column_name     = 'Slide ID'
@@ -184,8 +183,6 @@ class SpatialUMAP:
         # Initialize keyword arguments
         kwargs_list = []
 
-        # Initialize the start time
-        start_time = time.time()
         # Loop through the images
         for image in image_names:
 
@@ -201,14 +198,9 @@ class SpatialUMAP:
                 )
             )
 
-        # Get the number of CPUs to use
-        print(f'Using {num_cpus_to_use} CPUs')
-
         # Create a pool of worker processes
-        with mp.Pool(processes=num_cpus_to_use) as pool:
+        with mp.Pool(processes=cpu_pool_size) as pool:
             results = pool.starmap(utils.fast_neighbors_counts_for_block, kwargs_list)
-
-        print(f'All images took {(time.time() - start_time) / 60:.2f} minutes to complete')
 
         df_density_matrix = pd.concat(results)
         full_array = None
@@ -405,11 +397,11 @@ class SpatialUMAP:
 
         return results
 
-    def get_counts_And(self):
+    def get_counts_And(self, cpu_pool_size = 8):
         '''
         Andrew's method for getting counts
         '''
-        self.counts = self.calculate_density_matrix_for_all_images(debug_output=False, swap_inequalities=True)
+        self.counts = self.calculate_density_matrix_for_all_images(cpu_pool_size)
 
     def get_areas(self, area_threshold, pool_size=2, save_file=None, plots_directory=None):
         '''
