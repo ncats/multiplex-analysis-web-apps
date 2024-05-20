@@ -438,7 +438,7 @@ class SpatialUMAP:
 
             # set results
             self.areas[idx] = areas
-            self.cells.loc[idx, 'area_filter'] = True
+            self.cells.loc[idx, 'area_filter'] = filt
 
             if plots_directory is not None:
                 plt.ioff()
