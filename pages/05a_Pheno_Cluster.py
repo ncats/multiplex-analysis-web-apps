@@ -26,18 +26,16 @@ def phenocluster__make_adata(df):
     object_index = colNames.index("Object")
     area_index = colNames.index("area")
     extracted_elements = colNames[object_index + 1 : area_index]
-    #start_index = colNames.index("area") - 1 
-    #end_index = len(colNames)
+    start_index = colNames.index("area") - 1 
+    end_index = len(colNames)
     end_index = colNames.index("Image")
     metaCols =  colNames[0 : end_index]
     mat = df[extracted_elements]
     meta = df[metaCols]
-    #st.write(list(meta))
-    #st.write(list(mat))
     adata = ad.AnnData(mat)
     adata.obs = meta
     adata.layers["counts"] = adata.X.copy()
-    #adata.write("input/clust_dat.h5ad")
+    adata.write("input/clust_dat.h5ad")
     return adata
 
 
@@ -46,7 +44,7 @@ def RunNeighbClust(adata, n_neighbors, metric, resolution, random_state, n_princ
     if n_principal_components > 0:
         sc.pp.pca(adata, n_comps=n_principal_components)
     sc.pp.neighbors(adata, n_neighbors=n_neighbors, metric=metric, n_pcs=n_principal_components)
-    sc.tl.leiden(adata,resolution=resolution, random_state=random_state, n_iterations=-1, flavor="igraph")
+    sc.tl.leiden(adata,resolution=resolution, random_state=random_state, n_iterations=5, flavor="igraph")
     adata.obs['Cluster'] = adata.obs['leiden']
     #sc.tl.umap(adata)
     adata.obsm['spatial'] = np.array(adata.obs[["Centroid X (µm)_(standardized)", "Centroid Y (µm)_(standardized)"]])
@@ -60,13 +58,13 @@ def RunPhenographClust(adata, n_neighbors, clustering_algo, min_cluster_size,
         communities, graph, Q = phenograph.cluster(adata.X, clustering_algo=clustering_algo, k=n_neighbors, 
                                                 min_cluster_size=min_cluster_size, primary_metric=primary_metric, 
                                                 resolution_parameter=resolution_parameter, nn_method=nn_method,
-                                                seed=random_seed, n_iterations=-1)
+                                                seed=random_seed, n_iterations=5)
     else:
         sc.pp.pca(adata, n_comps=n_principal_components)
         communities, graph, Q = phenograph.cluster(adata.obsm['X_pca'], clustering_algo=clustering_algo, k=n_neighbors, 
                                                 min_cluster_size=min_cluster_size, primary_metric=primary_metric, 
                                                 resolution_parameter=resolution_parameter, nn_method=nn_method,
-                                                seed=random_seed, n_iterations=-1)
+                                                seed=random_seed, n_iterations=5)
     adata.obs['Cluster'] = communities
     adata.obs['Cluster'] = adata.obs['Cluster'].astype(str)
     #sc.tl.umap(adata)
@@ -83,7 +81,7 @@ def run_parc_clust(adata, n_neighbors, dist_std_local, jac_std_global, small_pop
                                 resolution_parameter=resolution_parameter, 
                                 hnsw_param_ef_construction=hnsw_param_ef_construction,
                                 partition_type="RBConfigurationVP",
-                                n_iter_leiden=-1)
+                                n_iter_leiden=5)
     else:
         sc.pp.pca(adata, n_comps=n_principal_components)
         parc_results = parc.PARC(adata.obsm['X_pca'], dist_std_local=dist_std_local, jac_std_global=jac_std_global, 
@@ -91,7 +89,7 @@ def run_parc_clust(adata, n_neighbors, dist_std_local, jac_std_global, small_pop
                                 resolution_parameter=resolution_parameter, 
                                 hnsw_param_ef_construction=hnsw_param_ef_construction,
                                 partition_type="RBConfigurationVP",
-                                n_iter_leiden=-1)
+                                n_iter_leiden=5)
     parc_results.run_PARC()
     adata.obs['Cluster'] = parc_results.labels
     adata.obs['Cluster'] = adata.obs['Cluster'].astype(str)
@@ -112,7 +110,7 @@ def run_utag_clust(adata, n_neighbors, resolutions, clustering_method, max_dist,
         apply_clustering=True,
         clustering_method = clustering_method, 
         resolutions = resolutions,
-        leiden_kwargs={"n_iterations": -1, "random_state": 42},
+        leiden_kwargs={"n_iterations": 5, "random_state": 42},
         pca_kwargs = {"n_comps": n_principal_components}
     )
 
@@ -252,7 +250,7 @@ def phenocluster__default_session_state():
         st.session_state['phenocluster__phenograph_k'] = 30
     
     if 'phenocluster__phenograph_clustering_algo' not in st.session_state:
-        st.session_state['phenocluster__phenograph_clustering_algo'] = 'leiden'
+        st.session_state['phenocluster__phenograph_clustering_algo'] = 'louvain'
     
     if 'phenocluster__phenograph_min_cluster_size' not in st.session_state:
         st.session_state['phenocluster__phenograph_min_cluster_size'] = 10
