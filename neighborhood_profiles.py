@@ -555,23 +555,30 @@ class UMAPDensityProcessing():
         self.dens_mat[cond0_ind] = kmeans_obj_cond0.labels_ + 1
         self.dens_mat[cond1_ind] = -kmeans_obj_cond1.labels_ - 1
 
+        unique_fals, counts_fals = np.unique(self.dens_mat[cond0_ind], return_counts=True)
+        unique_true, counts_true = np.unique(self.dens_mat[cond1_ind], return_counts=True)
+
+        unique_set_fals = pd.DataFrame(data = {'vals': unique_fals, 'counts': counts_fals}).sort_values('counts', ascending = False, ignore_index = True).astype(int)
+        unique_set_true = pd.DataFrame(data = {'vals': unique_true, 'counts': counts_true}).sort_values('counts', ascending = False, ignore_index = True).astype(int)
+
+        # Set up the cluster dictionary
         self.cluster_dict = dict()
         self.cluster_dict[0] = 'No Cluster'
-        for i in range(num_clus_0):
-            self.cluster_dict[i+1] = f'False_Cluster{i+1}'
-        for i in range(num_clus_1):
-            self.cluster_dict[-i-1] = f'True_Cluster{i+1}'
+        for i in unique_set_fals.index:
+            self.cluster_dict[unique_set_fals.vals[i]] = f'D{i+1}'
+        for i in unique_set_true.index:
+            self.cluster_dict[unique_set_true.vals[i]] = f'A{i+1}'
 
         set_blues = sns.color_palette('Blues_r', 10)
         set_reds = sns.color_palette('Reds_r', 10)
 
+        # Set Palette Dictionary
         self.palette_dict = dict()
         self.palette_dict['No Cluster'] = 'white'
-        for i in range(num_clus_0):
-            self.palette_dict[f'False_Cluster{i+1}'] = set_reds[i]
-        for i in range(num_clus_1):
-            self.palette_dict[f'True_Cluster{i+1}'] = set_blues[i]
-
+        for i in unique_set_fals.index:
+            self.palette_dict[f'D{i+1}'] = set_reds[i]
+        for i in unique_set_true.index:
+            self.palette_dict[f'A{i+1}'] = set_blues[i]
 
     # def perform_clustering(self, n_clusters, cond):
     #     '''
