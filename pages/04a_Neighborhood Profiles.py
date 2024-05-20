@@ -83,7 +83,9 @@ def apply_umap(umap_style):
     st.session_state.spatial_umap.df_umap = st.session_state.spatial_umap.cells.copy()
     st.session_state.spatial_umap.df_umap['X'] = st.session_state.spatial_umap.cells['UMAP_1_20230327_152849'].values
     st.session_state.spatial_umap.df_umap['Y'] = st.session_state.spatial_umap.cells['UMAP_2_20230327_152849'].values
-    st.session_state.spatial_umap.cells['umap_test'] = True
+    # st.session_state.spatial_umap.df_umap = st.session_state.spatial_umap.df_umap[st.session_state.spatial_umap.cells['umap_test']].reset_index(drop=True)
+
+    st.session_state.spatial_umap.df_umap['umap_test'] = True
 
     # Perform possible cluster variations with the completed UMAP
     # st.session_state.bc.startTimer()
@@ -351,10 +353,10 @@ def diff_density_perform_clustering():
     dens_df_fals = st.session_state.spatial_umap.dens_df_mean.loc[st.session_state.spatial_umap.dens_df_mean['clust_label'].str.contains('False'), :]
     dens_df_true = st.session_state.spatial_umap.dens_df_mean.loc[st.session_state.spatial_umap.dens_df_mean['clust_label'].str.contains('True'), :]
 
-    dens_df_fals['clust_label'] = 'Average False_Cluster'
+    dens_df_fals['clust_label'] = 'Average Deceased'
     dens_df_mean_fals = dens_df_fals.groupby(['clust_label', 'phenotype', 'dist_bin'], as_index=False).mean()
 
-    dens_df_true['clust_label'] = 'Average True_Cluster'
+    dens_df_true['clust_label'] = 'Average Alive'
     dens_df_mean_true = dens_df_true.groupby(['clust_label', 'phenotype', 'dist_bin'], as_index=False).mean()
 
     st.session_state.spatial_umap.dens_df_mean = pd.concat([st.session_state.spatial_umap.dens_df_mean, dens_df_mean_fals, dens_df_mean_true], axis=0)
@@ -502,19 +504,19 @@ def main():
                             st.session_state.spatial_umap.df_umap.loc[umap_ind, 'Cluster'] = val
 
                     st.session_state.bc.printElapsedTime('Untangling bin indicies with UMAP indicies')
-                    
+
                     # After assigning cluster labels, perform mean calculations
                     st.session_state.bc.startTimer()
                     st.session_state.spatial_umap.mean_measures()
                     st.session_state.bc.printElapsedTime('Performing Mean Measures')
 
-                    dens_df_fals = st.session_state.spatial_umap.dens_df_mean.loc[st.session_state.spatial_umap.dens_df_mean['clust_label'].str.contains('False'), :]
-                    dens_df_true = st.session_state.spatial_umap.dens_df_mean.loc[st.session_state.spatial_umap.dens_df_mean['clust_label'].str.contains('True'), :]
+                    dens_df_fals = st.session_state.spatial_umap.dens_df_mean.loc[st.session_state.spatial_umap.dens_df_mean['clust_label'].str.contains('D'), :]
+                    dens_df_true = st.session_state.spatial_umap.dens_df_mean.loc[st.session_state.spatial_umap.dens_df_mean['clust_label'].str.contains('A'), :]
 
-                    dens_df_fals['clust_label'] = 'Average False_Cluster'
+                    dens_df_fals['clust_label'] = 'Average Deceased'
                     dens_df_mean_fals = dens_df_fals.groupby(['clust_label', 'phenotype', 'dist_bin'], as_index=False).mean()
 
-                    dens_df_true['clust_label'] = 'Average True_Cluster'
+                    dens_df_true['clust_label'] = 'Average Alive'
                     dens_df_mean_true = dens_df_true.groupby(['clust_label', 'phenotype', 'dist_bin'], as_index=False).mean()
 
                     st.session_state.spatial_umap.dens_df_mean = pd.concat([st.session_state.spatial_umap.dens_df_mean, dens_df_mean_fals, dens_df_mean_true], axis=0)
@@ -680,24 +682,24 @@ def main():
 
         npf_fig_big = plt.figure(figsize=(16, 45), facecolor = '#0E1117')
 
-        list_figures = [['Average False_Cluster', None, 'log', [1, 10000]],
-                        ['Average True_Cluster', None, 'log', [1, 10000]],
-                        ['Average False_Cluster', 'Average True_Cluster', 'linear', [0, 4]],
-                        ['False_Cluster1', None, 'log', [0.1, 10000]],
-                        ['False_Cluster2', None, 'log', [0.1, 10000]],
-                        ['False_Cluster3', None, 'log', [0.1, 10000]],
-                        ['True_Cluster1', None, 'log', [0.1, 10000]],
-                        ['True_Cluster2', None, 'log', [0.1, 10000]],
-                        ['False_Cluster3', None, 'linear', [0, 2000]],
-                        ['False_Cluster1', 'True_Cluster1', 'log', [0.01, 100]],
-                        ['False_Cluster2', 'True_Cluster1', 'log', [0.01, 100]],
-                        ['False_Cluster3', 'True_Cluster1', 'log', [0.01, 100]],
-                        ['False_Cluster1', 'True_Cluster2', 'log', [0.01, 100]],
-                        ['False_Cluster2', 'True_Cluster2', 'log', [0.01, 100]],
-                        ['False_Cluster3', 'True_Cluster2', 'log', [0.01, 100]],
-                        ['False_Cluster1', 'Average True_Cluster', 'linear', [0, 2]],
-                        ['False_Cluster2', 'Average True_Cluster', 'linear', [0, 2]],
-                        ['False_Cluster3', 'Average True_Cluster', 'linear', [0, 15]],
+        list_figures = [['Average Deceased', None, 'log', [1, 10000]],
+                        ['Average Alive', None, 'log', [1, 10000]],
+                        ['Average Deceased', 'Average Alive', 'linear', [0, 4]],
+                        ['D1', None, 'log', [0.1, 10000]],
+                        ['D2', None, 'log', [0.1, 10000]],
+                        ['D3', None, 'log', [0.1, 10000]],
+                        ['A1', None, 'log', [0.1, 10000]],
+                        ['A2', None, 'log', [0.1, 10000]],
+                        ['D3', None, 'linear', [0, 2000]],
+                        ['D1', 'A1', 'log', [0.01, 100]],
+                        ['D2', 'A1', 'log', [0.01, 100]],
+                        ['D3', 'A1', 'log', [0.01, 100]],
+                        ['D1', 'A2', 'log', [0.01, 100]],
+                        ['D2', 'A2', 'log', [0.01, 100]],
+                        ['D3', 'A2', 'log', [0.01, 100]],
+                        ['D1', 'Average Alive', 'linear', [0, 15]],
+                        ['D2', 'Average Alive', 'linear', [0, 15]],
+                        ['D3', 'Average Alive', 'linear', [0, 15]],
                         ]
 
         num_figs = len(list_figures)
