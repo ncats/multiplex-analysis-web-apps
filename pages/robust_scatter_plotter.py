@@ -278,7 +278,7 @@ def main():
 
     if 'rsp__get_percent_frequencies' not in st.session_state:
         st.session_state['rsp__get_percent_frequencies'] = False
-    if st.toggle('Get percent frequencies of coloring column', key='rsp__get_percent_frequencies'):
+    if st.toggle('Get percent frequencies of coloring column for entire dataset', key='rsp__get_percent_frequencies'):
         vc = df[column_to_plot].value_counts()
         st.dataframe((df[column_to_plot].value_counts() / vc.sum() * 100).astype(int).reset_index())
 
