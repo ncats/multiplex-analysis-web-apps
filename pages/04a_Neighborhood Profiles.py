@@ -236,12 +236,6 @@ def save_neipro_struct():
         print(f'Pickling Neighborhood Profiles Checkpoint-{file_name}')
         dill.dump(st.session_state.spatial_umap, dill_file)
 
-    file_name = 'density'
-    # Save the Neighborhood Profile structure
-    with open(f'{st.session_state.checkpoint_dir}/{file_name}', "wb") as dill_file:
-        print(f'Pickling Neighborhood Profiles Checkpoint-{file_name}')
-        dill.dump(st.session_state.spatial_umap.density, dill_file)
-
 def diff_density_analysis():
     '''
     Function to perform the density difference analysis
@@ -526,6 +520,7 @@ def main():
                                               xVar = 'X', yVar = 'Y', hueVar='clust_label',
                                               hueOrder=st.session_state.cluster_dict.values(), palette= st.session_state.palette_dict)
 
+                    # st.session_state.spatial_umap.dens_df_mean.to_csv(f'{st.session_state.checkpoint_dir}/dens_df_mean2.csv', index=False)
                     # Create the Cluster Scatterplot
                     filter_and_plot()
 
