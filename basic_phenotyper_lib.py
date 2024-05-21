@@ -594,7 +594,7 @@ def perform_density_calc(spatial_umap, bc, cpu_pool_size = 1, area_threshold = 0
     bc.printElapsedTime(f'Calculating Counts for {len(spatial_umap.cells)} cells')
 
     # get the areas of cells and save to pickle file
-    print('\nStarting Cell Areas process')
+    print(f'\nStarting Cell Areas process with area threshold of {area_threshold}')
     bc.startTimer()
     spatial_umap.get_areas(area_threshold, pool_size=cpu_pool_size)
     bc.printElapsedTime(f'Calculating Areas for {len(spatial_umap.cells)} cells')
@@ -623,7 +623,7 @@ def perform_spatialUMAP(spatial_umap, bc, umap_subset_toggle, umap_subset_per):
 
     min_image_size = spatial_umap.smallest_image_size
     n = int(min_image_size*umap_subset_per/100)
-    
+
     # set training and "test" cells for umap training and embedding, respectively
     print('Setting Train/Test Split')
     spatial_umap.set_train_test(n=n, groupby_label = 'TMA_core_id', seed=54321)

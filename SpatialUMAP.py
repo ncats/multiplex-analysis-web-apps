@@ -253,7 +253,10 @@ class SpatialUMAP:
         # Mean Densities
         self.dens_df = pd.DataFrame()
         self.prop_df = pd.DataFrame()
-        self.dens_df_mean = pd.DataFrame()
+        self.dens_df_mean = pd.DataFrame(data = {'clust_label': ['No Cluster'], 
+                                                 'phenotype': ['Other'], 
+                                                 'dist_bin': [25], 
+                                                 'density_mean': [0]})
         self.dens_df_se = pd.DataFrame()
         self.maxdens_df = pd.DataFrame()
 
@@ -467,6 +470,10 @@ class SpatialUMAP:
 
         # identify the indices of cells that are pass our filter
         filtIdx = (self.cells['area_filter'] == True)
+
+        # Report the number of cells that pass the filter
+        print(f'{np.sum(filtIdx)} cells pass the area filter out of {self.cells.shape[0]}')
+
         # calculate density (count/area) for filtered cells
         self.density[filtIdx] = self.counts[filtIdx] / self.areas[filtIdx][..., np.newaxis]
 

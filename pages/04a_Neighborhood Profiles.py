@@ -26,6 +26,12 @@ def init_spatial_umap():
     # Reset the settings required for Neighborhood Analysis
     st.session_state = ndl.reset_neigh_profile_settings(st.session_state)
 
+    # Programattic Control over area_threshold
+    if st.session_state['area_filter_toggle'] is False:
+        area_threshold = -1
+    elif st.session_state['area_filter_toggle'] is True:
+        area_threshold = st.session_state['area_filter_per']
+
     st.session_state.bc.startTimer()
     with st.spinner('Calculating Cell Counts and Areas'):
         st.session_state.spatial_umap = bpl.setup_Spatial_UMAP(st.session_state.df,
@@ -35,7 +41,8 @@ def init_spatial_umap():
 
         st.session_state.spatial_umap = bpl.perform_density_calc(st.session_state.spatial_umap,
                                                                  st.session_state.bc,
-                                                                 st.session_state.cpu_pool_size)
+                                                                 st.session_state.cpu_pool_size,
+                                                                 area_threshold)
     st.write('Done Calculating Cell Counts and Areas')
 
     # Record time elapsed
@@ -85,7 +92,7 @@ def apply_umap(umap_style):
     # st.session_state.spatial_umap.df_umap = st.session_state.spatial_umap.cells.copy()
     # st.session_state.spatial_umap.df_umap['X'] = st.session_state.spatial_umap.cells['UMAP_1_20230327_152849'].values
     # st.session_state.spatial_umap.df_umap['Y'] = st.session_state.spatial_umap.cells['UMAP_2_20230327_152849'].values
-    # # st.session_state.spatial_umap.df_umap = st.session_state.spatial_umap.df_umap[st.session_state.spatial_umap.cells['umap_test']].reset_index(drop=True)
+    # st.session_state.spatial_umap.df_umap = st.session_state.spatial_umap.df_umap[st.session_state.spatial_umap.cells['umap_test']].reset_index(drop=True)
 
     # Perform possible cluster variations with the completed UMAP
     # st.session_state.bc.startTimer()
