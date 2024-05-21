@@ -2,8 +2,8 @@
 import pandas as pd
 import streamlit as st
 import plotly.graph_objects as go
-import os
 import plotly.express as px
+import os
 import numpy as np
 import utils
 from scipy.stats import gaussian_kde
@@ -11,7 +11,7 @@ import app_top_of_page as top
 import streamlit_dataframe_editor as sde
 
 
-def plot_box_and_whisker(apply_another_filter, df, column_for_filtering, another_filter_column, values_on_which_to_filter, images_in_plotting_group_1, images_in_plotting_group_2):
+def plot_box_and_whisker(apply_another_filter, df, column_for_filtering, another_filter_column, values_on_which_to_filter, images_in_plotting_group_1, images_in_plotting_group_2, all_cells=True):
 
     # If we're ready to apply a filter, then create it
     if not apply_another_filter:
@@ -27,12 +27,13 @@ def plot_box_and_whisker(apply_another_filter, df, column_for_filtering, another
     ser_for_z_score = df.loc[image_loc_group_1, column_for_filtering]
 
     # From those data, get the values corresponding to 2 to 10 standard deviations above the mean
-    std_devs = np.arange(2, 11)
-    thresholds = ser_for_z_score.mean() + std_devs * ser_for_z_score.std()
+    z_scores = np.arange(-1, 11)
+    thresholds = ser_for_z_score.mean() + z_scores * ser_for_z_score.std()
 
     # Initialize the positive percentages holders
     group_1_holder = []
     group_2_holder = []
+    data_for_box_plot_holder = []
 
     # For each threshold...
     for threshold in thresholds:
@@ -40,50 +41,89 @@ def plot_box_and_whisker(apply_another_filter, df, column_for_filtering, another
         # Get the locations where the selected filtering column is at least the current threshold value
         positive_loc = df[column_for_filtering] >= threshold
 
-        # Get the positive percentage using the current threshold for each of the groups, for the entire dataset (not on a per-image basis)
-        group_1_holder.append((image_loc_group_1 & positive_loc).sum() / image_loc_group_1.sum() * 100)
-        group_2_holder.append((image_loc_group_2 & positive_loc).sum() / image_loc_group_2.sum() * 100)
+        # If we want the positive percentage of all the cells in each group...
+        if all_cells:
 
-    #     #### Pick up with commenting here
-    #     ser_group_1_pos_perc = df.loc[image_loc_group_1 & positive_loc, 'Slide ID'].value_counts() / df.loc[image_loc_group_1, 'Slide ID'].value_counts() * 100
-    #     ser_group_2_pos_perc = df.loc[image_loc_group_2 & positive_loc, 'Slide ID'].value_counts() / df.loc[image_loc_group_2, 'Slide ID'].value_counts() * 100
-    #     ser_group_1_pos_perc.name = threshold
-    #     ser_group_2_pos_perc.name = threshold
-    #     group_1_holder.append(ser_group_1_pos_perc)
-    #     group_2_holder.append(ser_group_2_pos_perc)
-    # df_group_1_pos_perc = pd.concat(group_1_holder, axis='columns')
-    # df_group_2_pos_perc = pd.concat(group_2_holder, axis='columns')
+            # Get the positive percentage using the current threshold for each of the groups, for the entire dataset (not on a per-image basis)
+            group_1_holder.append((image_loc_group_1 & positive_loc).sum() / image_loc_group_1.sum() * 100)
+            group_2_holder.append((image_loc_group_2 & positive_loc).sum() / image_loc_group_2.sum() * 100)
 
-    # Get box and whisker from the above later. For now, in plotly, just plot the average of each column vs. the column name, using df_group_1_pos_perc for one trace and df_group_2_pos_perc for the other
-    fig = go.Figure()
+        # If we want the positive percentage of the cells in each image, in each group...
+        else:
 
-    # # Calculate the average of each column for group 1 and group 2
-    # avg_group_1 = df_group_1_pos_perc.mean()
-    # avg_group_2 = df_group_2_pos_perc.mean()
+            # Get the positive percentage using the current threshold for each the grooups, for each image
+            # Each of these is a series with the image names as the index and the positive percentage as the values
+            ser_group_1_pos_perc = df.loc[image_loc_group_1 & positive_loc, 'Slide ID'].value_counts() / df.loc[image_loc_group_1, 'Slide ID'].value_counts() * 100
+            ser_group_2_pos_perc = df.loc[image_loc_group_2 & positive_loc, 'Slide ID'].value_counts() / df.loc[image_loc_group_2, 'Slide ID'].value_counts() * 100
 
-    # # Plot average of each column vs. column name for group 1
-    # fig.add_trace(go.Scatter(x=avg_group_1.index, y=avg_group_1.values, mode='lines', name='Group 1'))
+            # Create two dataframes holding all the data in columns as will ultimately desired, adding them in turn to the box plot data holder
+            df_group_1_pos_perc = ser_group_1_pos_perc.to_frame()
+            df_group_1_pos_perc.columns = ['Positive %']
+            df_group_2_pos_perc = ser_group_2_pos_perc.to_frame()
+            df_group_2_pos_perc.columns = ['Positive %']
+            df_group_1_pos_perc['Threshold'] = threshold
+            df_group_2_pos_perc['Threshold'] = threshold
+            df_group_1_pos_perc['Group'] = 'Baseline'
+            df_group_2_pos_perc['Group'] = 'Signal'
+            data_for_box_plot_holder.append(df_group_1_pos_perc)
+            data_for_box_plot_holder.append(df_group_2_pos_perc)
 
-    # # Plot average of each column vs. column name for group 2
-    # fig.add_trace(go.Scatter(x=avg_group_2.index, y=avg_group_2.values, mode='lines', name='Group 2'))
+            # Name each series the value of the current threshold
+            ser_group_1_pos_perc.name = threshold
+            ser_group_2_pos_perc.name = threshold
 
-    # fig.update_layout(title='Average of Each Column vs. Column Name',
-    #                 xaxis_title='Column Name',
-    #                 yaxis_title='Average',
-    #                 legend_title='Group')
+            # Append the series to the holders
+            group_1_holder.append(ser_group_1_pos_perc)
+            group_2_holder.append(ser_group_2_pos_perc)
 
-    # Plot positive percentage in whole dataset vs. threshold for group 1
-    fig.add_trace(go.Scatter(x=std_devs, y=group_1_holder, mode='lines', name='Group 1'))
+    # If we want the positive percentage of all the cells in each group...
+    if all_cells:
+    
+        # Create a plotly figure
+        fig = go.Figure()
 
-    # Plot positive percentage in whole dataset vs. threshold for group 2
-    fig.add_trace(go.Scatter(x=std_devs, y=group_2_holder, mode='lines', name='Group 2'))
+        # Plot positive percentage in whole dataset vs. threshold for group 1
+        fig.add_trace(go.Scatter(x=thresholds, y=group_1_holder, mode='lines+markers', name='Baseline'))
 
-    fig.update_layout(title='Positive percentage in whole dataset vs. group 1 Z score threshold',
-                    xaxis_title='Threshold (group 1 Z score)',
-                    yaxis_title='Positive percentage in whole dataset',
+        # Plot positive percentage in whole dataset vs. threshold for group 2
+        fig.add_trace(go.Scatter(x=thresholds, y=group_2_holder, mode='lines+markers', name='Signal'))
+
+        # Create the summary dataframe
+        df_summary = pd.DataFrame({'Z score': z_scores, 'Threshold': thresholds, 'Positive percentage (all cells) for group 1': group_1_holder, 'Positive percentage (all cells) for group 2': group_2_holder})
+
+    # If we want the positive percentage of the cells in each image, in each group...
+    else:
+
+        # Create the dataframe holding all the data for the desired box plot
+        df_box_plot = pd.concat(data_for_box_plot_holder, axis='rows')
+
+        # Create a dataframe from the positive percentages for each image in each group
+        df_group_1_pos_perc = pd.concat(group_1_holder, axis='columns')
+        df_group_2_pos_perc = pd.concat(group_2_holder, axis='columns')
+
+        # Calculate the average of each column for group 1 and group 2
+        avg_group_1 = df_group_1_pos_perc.mean()
+        avg_group_2 = df_group_2_pos_perc.mean()
+
+        # Plot the positive percentage in each image vs. threshold for both groups
+        # fig = go.Figure()
+        # fig.add_trace(go.Scatter(x=avg_group_1.index, y=avg_group_1.values, mode='lines+markers', name='Baseline'))
+        # fig.add_trace(go.Scatter(x=avg_group_2.index, y=avg_group_2.values, mode='lines+markers', name='Signal'))
+
+        # Create the desired box plot
+        fig = px.box(df_box_plot, x='Threshold', y='Positive %', color='Group', points='all')
+
+        # Create the summary dataframe
+        df_summary = pd.DataFrame({'Z score': z_scores, 'Threshold': thresholds, 'Positive % (avg. over images) for group 1': avg_group_1.values, 'Positive % (avg. over images) for group 2': avg_group_2.values})
+
+    # Update the layout of the plot
+    fig.update_layout(title='Positive percentage vs. threshold',
+                    xaxis_title='Threshold (based on baseline z score)',
+                    yaxis_title='Positive percentage',
                     legend_title='Group')
 
-    return fig
+    # Return the plot, the Z scores, and the thresholds
+    return fig, df_summary
 
 
 def reset_values_on_which_to_filter_another_column():
@@ -458,6 +498,11 @@ def main():
         with data_butt_cols[0]:
             MaG_load_hit = st.button('Load data', use_container_width=True, on_click=clear_session_state, kwargs={'keep_keys': ['mg__do_batch_norm', 'mg__df']})
 
+        # Initialize the extra settings toggle to off
+        if 'mg__extra_settings' not in st.session_state:
+            st.session_state['mg__extra_settings'] = False
+        extra_settings = st.checkbox('Show advanced settings', key='mg__extra_settings')
+
         # In the second column, create the data loading spinner
         with data_butt_cols[1]:
             if MaG_load_hit:
@@ -510,10 +555,6 @@ def main():
     # Data column filter
     with main_columns[0]:
 
-        # Initialize the extra settings toggle to off
-        if 'mg__extra_settings' not in st.session_state:
-            st.session_state['mg__extra_settings'] = False
-
         # Column header
         st.header(':one: Column filter')
 
@@ -556,8 +597,8 @@ def main():
 
             # If extra settings are to be displayed, create widgets for selecting particular images to define two groups
             if st.session_state['mg__extra_settings']:
-                st.multiselect('Images in plotting group 1:', options=df['Slide ID'].unique().tolist(), key='mg__images_in_plotting_group_1')
-                st.multiselect('Images in plotting group 2:', options=df['Slide ID'].unique().tolist(), key='mg__images_in_plotting_group_2')
+                st.multiselect('Images in baseline group:', options=df['Slide ID'].unique().tolist(), key='mg__images_in_plotting_group_1')
+                st.multiselect('Images in signal group:', options=df['Slide ID'].unique().tolist(), key='mg__images_in_plotting_group_2')
                 if 'mg__filter_on_another_column' not in st.session_state:
                     st.session_state['mg__filter_on_another_column'] = False
                 st.checkbox('Filter on another column', key='mg__filter_on_another_column')
@@ -715,10 +756,10 @@ def main():
                     fig.update_layout(hovermode='x unified', xaxis_title='Column value', yaxis_title='Density')
                     fig.update_layout(legend=dict(yanchor="top", y=1.2, xanchor="left", x=0.01, orientation="h"))
                 else:
-                    fig.add_trace(go.Scatter(x=kde_or_hist_to_plot_full[0]['Value'], y=kde_or_hist_to_plot_full[0]['Density'], fill='tozeroy', mode='none', fillcolor='rgba(0, 255, 255, 0.25)', name='Group 1', hovertemplate=' '))
-                    fig.add_trace(go.Scatter(x=df_to_plot_selected[0]['Value'], y=df_to_plot_selected[0]['Density'], fill='tozeroy', mode='none', fillcolor='rgba(0, 255, 255, 0.5)', name='Group 1 selection', hoverinfo='skip'))
-                    fig.add_trace(go.Scatter(x=kde_or_hist_to_plot_full[1]['Value'], y=kde_or_hist_to_plot_full[1]['Density'], fill='tozeroy', mode='none', fillcolor='rgba(255, 0, 0, 0.25)', name='Group 2', hovertemplate=' '))
-                    fig.add_trace(go.Scatter(x=df_to_plot_selected[1]['Value'], y=df_to_plot_selected[1]['Density'], fill='tozeroy', mode='none', fillcolor='rgba(255, 0, 0, 0.5)', name='Group 2 selection', hoverinfo='skip'))
+                    fig.add_trace(go.Scatter(x=kde_or_hist_to_plot_full[0]['Value'], y=kde_or_hist_to_plot_full[0]['Density'], fill='tozeroy', mode='none', fillcolor='rgba(0, 255, 255, 0.25)', name='Baseline group', hovertemplate=' '))
+                    fig.add_trace(go.Scatter(x=df_to_plot_selected[0]['Value'], y=df_to_plot_selected[0]['Density'], fill='tozeroy', mode='none', fillcolor='rgba(0, 255, 255, 0.5)', name='Baseline selection', hoverinfo='skip'))
+                    fig.add_trace(go.Scatter(x=kde_or_hist_to_plot_full[1]['Value'], y=kde_or_hist_to_plot_full[1]['Density'], fill='tozeroy', mode='none', fillcolor='rgba(255, 0, 0, 0.25)', name='Signal group', hovertemplate=' '))
+                    fig.add_trace(go.Scatter(x=df_to_plot_selected[1]['Value'], y=df_to_plot_selected[1]['Density'], fill='tozeroy', mode='none', fillcolor='rgba(255, 0, 0, 0.5)', name='Signal selection', hoverinfo='skip'))
                     if intensity_cutoff is not None:
                         fig.add_vline(x=intensity_cutoff, line_color='green', line_width=3, line_dash="dash", annotation_text="Previous threshold: ~{}".format((intensity_cutoff)), annotation_font_size=18, annotation_font_color="green")
                     fig.update_layout(hovermode='x unified', xaxis_title='Column value', yaxis_title='Density')
@@ -753,8 +794,8 @@ def main():
                     else:
                         bar_colors_group_1 = ['rgba(0, 255, 255, 0.5)' if value in selected_items else 'rgba(0, 255, 255, 0.25)' for value in kde_or_hist_to_plot_full[0]['Values']]  # define bar colors
                         bar_colors_group_2 = ['rgba(255, 0, 0, 0.5)' if value in selected_items else 'rgba(255, 0, 0, 0.25)' for value in kde_or_hist_to_plot_full[1]['Values']]
-                        fig.add_trace(go.Bar(x=kde_or_hist_to_plot_full[0]['Values'], y=kde_or_hist_to_plot_full[0]['Counts'], marker_color=bar_colors_group_1, name='Group 1'))  # create bar chart
-                        fig.add_trace(go.Bar(x=kde_or_hist_to_plot_full[1]['Values'], y=kde_or_hist_to_plot_full[1]['Counts'], marker_color=bar_colors_group_2, name='Group 2'))
+                        fig.add_trace(go.Bar(x=kde_or_hist_to_plot_full[0]['Values'], y=kde_or_hist_to_plot_full[0]['Counts'], marker_color=bar_colors_group_1, name='Baseline group'))  # create bar chart
+                        fig.add_trace(go.Bar(x=kde_or_hist_to_plot_full[1]['Values'], y=kde_or_hist_to_plot_full[1]['Counts'], marker_color=bar_colors_group_2, name='Signal group'))
                         fig.update_layout(xaxis_title='Value', yaxis_title='Count', title_text='Counts of values of column {}'.format(column_for_filtering))  # set labels and title
                         st.plotly_chart(fig)  # display plot
 
@@ -770,17 +811,19 @@ def main():
                     selection_dict = dict()
                     add_column_button_disabled = True
 
-            # Add the current column filter to the current phenotype assignment
-            st.button(':star2: Add column filter to current phenotype :star2:', use_container_width=True, on_click=update_dependencies_of_button_for_adding_column_filter_to_current_phenotype, kwargs=selection_dict, disabled=add_column_button_disabled)
-
-            # Create a toggle for extra options
-            extra_settings = st.toggle('Extra settings', key='mg__extra_settings')
-
             if extra_settings and use_groups_for_plotting and (st.session_state['mg__selected_column_type'] == 'numeric'):
                 if 'mg__plot_box_and_whisker' not in st.session_state:
                     st.session_state['mg__plot_box_and_whisker'] = False
                 if st.toggle('Plot box and whisker', key='mg__plot_box_and_whisker'):
-                    st.plotly_chart(plot_box_and_whisker(apply_another_filter, df_batch_normalized, column_for_filtering, st.session_state['mg__another_filter_column'], st.session_state['mg__values_on_which_to_filter'], st.session_state['mg__images_in_plotting_group_1'], st.session_state['mg__images_in_plotting_group_2']))
+                    if 'mg__positive_percentage_per_image' not in st.session_state:
+                        st.session_state['mg__positive_percentage_per_image'] = False
+                    st.checkbox('Calculate positive percentages separately for each image', key='mg__positive_percentage_per_image')
+                    fig, df_summary = plot_box_and_whisker(apply_another_filter, df_batch_normalized, column_for_filtering, st.session_state['mg__another_filter_column'], st.session_state['mg__values_on_which_to_filter'], st.session_state['mg__images_in_plotting_group_1'], st.session_state['mg__images_in_plotting_group_2'], all_cells=(not st.session_state['mg__positive_percentage_per_image']))
+                    st.plotly_chart(fig)
+                    st.dataframe(df_summary, hide_index=True)
+
+            # Add the current column filter to the current phenotype assignment
+            st.button(':star2: Add column filter to current phenotype :star2:', use_container_width=True, on_click=update_dependencies_of_button_for_adding_column_filter_to_current_phenotype, kwargs=selection_dict, disabled=add_column_button_disabled)
 
     # Current phenotype and phenotype assignments
     with main_columns[1]:
