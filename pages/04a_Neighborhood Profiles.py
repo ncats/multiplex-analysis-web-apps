@@ -28,7 +28,7 @@ def init_spatial_umap():
 
     # Programattic Control over area_threshold
     if st.session_state['area_filter_toggle'] is False:
-        area_threshold = -1
+        area_threshold = 0
     elif st.session_state['area_filter_toggle'] is True:
         area_threshold = st.session_state['area_filter_per']
 
