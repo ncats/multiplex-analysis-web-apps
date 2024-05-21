@@ -498,7 +498,7 @@ def wrapTitleText(title):
 
     return wrap_title
 
-def setup_Spatial_UMAP(df, marker_names, pheno_order):
+def setup_Spatial_UMAP(df, marker_names, pheno_order, smallest_image_size):
     '''
     Setup the requirements for running spatial UMAP
 
@@ -553,6 +553,8 @@ def setup_Spatial_UMAP(df, marker_names, pheno_order):
     # default cluster values
     spatial_umap.cells['clust_label'] = 'No Cluster'
 
+    spatial_umap.smallest_image_size = smallest_image_size
+
     # sets flags for analysis processing
     spatial_umap.phenotyping_completed = True
     spatial_umap.density_completed     = False
@@ -606,7 +608,7 @@ def perform_density_calc(spatial_umap, bc, cpu_pool_size = 1, area_threshold = 0
 
     return spatial_umap
 
-def perform_spatialUMAP(spatial_umap, bc, UMAPStyle):
+def perform_spatialUMAP(spatial_umap, bc, umap_subset_toggle, umap_subset_per):
     '''
     Perform the spatial UMAP analysis
 
@@ -619,9 +621,12 @@ def perform_spatialUMAP(spatial_umap, bc, UMAPStyle):
         spatial_umap: spatial_umap object with the UMAP analysis performed
     '''
 
+    min_image_size = spatial_umap.smallest_image_size
+    n = int(min_image_size*umap_subset_per/100)
+    
     # set training and "test" cells for umap training and embedding, respectively
     print('Setting Train/Test Split')
-    spatial_umap.set_train_test(n=2500, groupby_label = 'TMA_core_id', seed=54321)
+    spatial_umap.set_train_test(n=n, groupby_label = 'TMA_core_id', seed=54321)
 
     # fit umap on training cells
     bc.startTimer()

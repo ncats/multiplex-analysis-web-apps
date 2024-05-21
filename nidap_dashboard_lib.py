@@ -131,7 +131,7 @@ def init_session_state(session_state):
 
     # General Neighborhood Profile Page Settings
     session_state.cpu_pool_size = 7
-    session_state.umap_subset = False
+    session_state.umap_subset_toggle = False
     session_state.umap_subset_per = 20
     session_state.area_filter_toggle = False
     session_state.area_filter_per = 0.001

@@ -30,7 +30,8 @@ def init_spatial_umap():
     with st.spinner('Calculating Cell Counts and Areas'):
         st.session_state.spatial_umap = bpl.setup_Spatial_UMAP(st.session_state.df,
                                                                st.session_state.marker_multi_sel,
-                                                               st.session_state.phenoOrder)
+                                                               st.session_state.phenoOrder,
+                                                               st.session_state.datafile_min_img_size)
 
         st.session_state.spatial_umap = bpl.perform_density_calc(st.session_state.spatial_umap,
                                                                  st.session_state.bc,
@@ -49,12 +50,13 @@ def apply_umap(umap_style):
     '''
     Call back function for applying the UMAP functions
     '''
-    clust_minmax = [1, 40]
+
     st.session_state.bc.startTimer()
     with st.spinner('Calculating UMAP'):
         st.session_state.spatial_umap = bpl.perform_spatialUMAP(st.session_state.spatial_umap,
                                                                 st.session_state.bc,
-                                                                umap_style)
+                                                                st.session_state.umap_subset_toggle,
+                                                                st.session_state.umap_subset_per)
     st.write('Done Calculating Spatial UMAP')
 
     # Record time elapsed
@@ -80,12 +82,10 @@ def apply_umap(umap_style):
 
     st.session_state.spatial_umap.prepare_df_umap_plotting(st.session_state.outcomes)
 
-    st.session_state.spatial_umap.df_umap = st.session_state.spatial_umap.cells.copy()
-    st.session_state.spatial_umap.df_umap['X'] = st.session_state.spatial_umap.cells['UMAP_1_20230327_152849'].values
-    st.session_state.spatial_umap.df_umap['Y'] = st.session_state.spatial_umap.cells['UMAP_2_20230327_152849'].values
-    # st.session_state.spatial_umap.df_umap = st.session_state.spatial_umap.df_umap[st.session_state.spatial_umap.cells['umap_test']].reset_index(drop=True)
-
-    st.session_state.spatial_umap.df_umap['umap_test'] = True
+    # st.session_state.spatial_umap.df_umap = st.session_state.spatial_umap.cells.copy()
+    # st.session_state.spatial_umap.df_umap['X'] = st.session_state.spatial_umap.cells['UMAP_1_20230327_152849'].values
+    # st.session_state.spatial_umap.df_umap['Y'] = st.session_state.spatial_umap.cells['UMAP_2_20230327_152849'].values
+    # # st.session_state.spatial_umap.df_umap = st.session_state.spatial_umap.df_umap[st.session_state.spatial_umap.cells['umap_test']].reset_index(drop=True)
 
     # Perform possible cluster variations with the completed UMAP
     # st.session_state.bc.startTimer()
@@ -366,25 +366,28 @@ def main():
     with st.expander('Neighborhood Profiles Settings', expanded = False):
         neipro_settings = st.columns([1, 2, 1])
         with neipro_settings[0]:
-            st.number_input('Number of CPUs', min_value = 1, max_value= 8, step = 1, key = 'cpu_pool_size',
+            st.number_input('Number of CPUs', min_value = 1, max_value= 8, step = 1,
+                            key = 'cpu_pool_size',
                             help = '''Number of CPUs to use for parallel processing.
                             This effects the speed of the Cell Density Analysis''')
         with neipro_settings[1]:
-            st.toggle('Subset data transformed by UMAP', value = False, key = 'umap_subset',
+            st.toggle('Subset data transformed by UMAP', value = False, key = 'umap_subset_toggle',
                       help = '''The UMAP model is always trained on 20% of the data included in the smallest image.
                        You can choose to transform the entire dataset using this trained model, or only transform
                         a percentage of the data. This can be useful for large datasets.
                         If a percentage is chosen for transformation, it is always a different sample
                         than what the model was trained on.''')
             st.write(f'Smallest image in dataset is {st.session_state.datafile_min_img_size} cells')
-            st.number_input('Percentage of cells to Subset', min_value = 20, max_value = 99, step = 1, key = 'umap_subset_per', disabled = not st.session_state.umap_subset)
+            st.number_input('Percentage of cells to Subset', min_value = 20, max_value = 99, step = 1,
+                            key = 'umap_subset_per', disabled = not st.session_state.umap_subset_toggle)
         with neipro_settings[2]:
             st.toggle('Filter Non-ideal Areas', value = False, key = 'area_filter_toggle',
                       help = '''Not all cells in an image have large populations of neighbors.
                       This toggle can help to filter out cells that are not ideal for neighborhood analysis.
                       ''')
-            st.number_input('Area Filter Percentage', min_value = 0.001, max_value = 1.0, step = 0.001, format="%.3f",
-                            key = 'area_filter_per', disabled=not st.session_state.area_filter_toggle)
+            st.number_input('Area Filter Percentage', min_value = 0.001, max_value = 1.0, step = 0.001,
+                            format="%.3f", key = 'area_filter_per',
+                            disabled=not st.session_state.area_filter_toggle)
     clust_minmax = [1, 40]
 
     npf_cols = st.columns([1, 1, 2])

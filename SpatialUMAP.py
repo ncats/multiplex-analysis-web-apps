@@ -437,15 +437,11 @@ class SpatialUMAP:
             None
         '''
         # region_ids is a proxy for the collection of images
-        region_ids = self.cells['TMA_core_id'].unique()
-        min_cells_images = min([sum(self.cells['TMA_core_id'] == reg) for reg in region_ids])
-        percent_min = 0.2
-        cells_for_fitting = int(min_cells_images * percent_min)
         self.cells[['umap_train', 'umap_test']] = False
 
         for region_id, group in self.cells.groupby(groupby_label):
-            if group['area_filter'].sum() >= (cells_for_fitting * 2):
-                idx_train, idx_test, _ = np.split(np.random.default_rng(seed).permutation(group['area_filter'].sum()), [cells_for_fitting, cells_for_fitting * 2])
+            if group['area_filter'].sum() >= (n * 2):
+                idx_train, idx_test, _ = np.split(np.random.default_rng(seed).permutation(group['area_filter'].sum()), [n, n * 2])
                 self.cells.loc[group.index[group.area_filter][idx_train], 'umap_train'] = True
                 self.cells.loc[group.index[group.area_filter][idx_test], 'umap_test'] = True
         
