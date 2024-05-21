@@ -56,11 +56,11 @@ def top_of_page_reqs(session_state):
     session_state = check_for_platform(session_state)
 
     tooltip_style = """
-    <style>
-    div[data-baseweb="tooltip"] {
-    width: 250px;
-    }
-    </style>
+        <style>
+        div[data-baseweb="tooltip"] {
+        width: 250px;
+        }
+        </style>
     """
     st.markdown(tooltip_style,unsafe_allow_html=True)
 
