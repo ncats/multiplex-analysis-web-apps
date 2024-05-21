@@ -478,7 +478,7 @@ class SpatialUMAP:
         # instantiate our proportion output matrix
         self.proportion = np.empty(self.counts.shape)
         # identify those cells that do not have enough other cells around them. Any that
-        # do not meet this criteria will be filtered out. 
+        # do not meet this criteria will be filtered out.
         self.cells['area_filter'] = ((self.areas / self.arcs_masks.sum(axis=(0, 1))[np.newaxis, ...]) > area_threshold).all(axis=1)
 
         # identify the indices of cells that are pass our filter
@@ -491,7 +491,7 @@ class SpatialUMAP:
         Setup density values for means
         '''
 
-        dens_umap_test = self.density[self.df_umap['umap_test'], :, :]
+        dens_umap_test = self.density[self.cells['umap_test'], :, :]
 
         self.dens_df = pd.DataFrame()
         for clust_label, group in self.df_umap.groupby('clust_label'):
