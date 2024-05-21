@@ -130,9 +130,11 @@ def init_session_state(session_state):
     session_state = reset_neigh_profile_settings(session_state)
 
     # General Neighborhood Profile Page Settings
-    session_state.cpu_pool_size = 8
+    session_state.cpu_pool_size = 7
     session_state.umap_subset = False
     session_state.umap_subset_per = 20
+    session_state.area_filter_toggle = False
+    session_state.area_filter_per = 0.001
 
     # Set data_loaded = False.
     # This needs to happen at the end to counteract the 'loadDataButton' action

@@ -363,12 +363,35 @@ def main():
     Main function for running the page
     '''
 
+    with st.expander('Neighborhood Profiles Settings', expanded = False):
+        neipro_settings = st.columns([1, 2, 1])
+        with neipro_settings[0]:
+            st.number_input('Number of CPUs', min_value = 1, max_value= 8, step = 1, key = 'cpu_pool_size',
+                            help = '''Number of CPUs to use for parallel processing.
+                            This effects the speed of the Cell Density Analysis''')
+        with neipro_settings[1]:
+            st.toggle('Subset data transformed by UMAP', value = False, key = 'umap_subset',
+                      help = '''The UMAP model is always trained on 20% of the data included in the smallest image.
+                       You can choose to transform the entire dataset using this trained model, or only transform
+                        a percentage of the data. This can be useful for large datasets.
+                        If a percentage is chosen for transformation, it is always a different sample
+                        than what the model was trained on.''')
+            st.write(f'Smallest image in dataset is {st.session_state.datafile_min_img_size} cells')
+            st.number_input('Percentage of cells to Subset', min_value = 20, max_value = 99, step = 1, key = 'umap_subset_per', disabled = not st.session_state.umap_subset)
+        with neipro_settings[2]:
+            st.toggle('Filter Non-ideal Areas', value = False, key = 'area_filter_toggle',
+                      help = '''Not all cells in an image have large populations of neighbors.
+                      This toggle can help to filter out cells that are not ideal for neighborhood analysis.
+                      ''')
+            st.number_input('Area Filter Percentage', min_value = 0.001, max_value = 1.0, step = 0.001, format="%.3f",
+                            key = 'area_filter_per', disabled=not st.session_state.area_filter_toggle)
     clust_minmax = [1, 40]
+
     npf_cols = st.columns([1, 1, 2])
     with npf_cols[0]:
         nei_pro_tabs = st.tabs(['Analyze from Phenotyping', 'Load Previous Analysis'])
         with nei_pro_tabs[0]:
-            dens_butt = st.button('Perform Cell Counts/Areas Analysis')
+            dens_butt = st.button('Perform Cell Density Analysis')
             umap_butt = st.button('Perform UMAP Analysis')
             st.toggle('Perform Clustering on UMAP Density Difference', value = False, key = 'toggle_clust_diff')
             if st.session_state['toggle_clust_diff'] is False: # Run Clustering Normally
