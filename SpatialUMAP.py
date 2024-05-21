@@ -421,7 +421,7 @@ class SpatialUMAP:
         if save_file is not None:
             pd.DataFrame(self.areas, columns=self.dist_bin_um).to_csv(save_file, index=False)
 
-    def set_train_test(self, n, groupby_label = 'TMA_core_id', seed=None):
+    def set_train_test(self, n_fit, n_tra, groupby_label = 'TMA_core_id', seed=None, umap_subset_toggle = False):
         '''
         set_test_train() is almost an unecessary method. Ultimately,
         when performing UMAP, we will intend to transform the whole dataset
@@ -443,10 +443,14 @@ class SpatialUMAP:
         self.cells[['umap_train', 'umap_test']] = False
 
         for region_id, group in self.cells.groupby(groupby_label):
-            if group['area_filter'].sum() >= (n * 2):
-                idx_train, idx_test, _ = np.split(np.random.default_rng(seed).permutation(group['area_filter'].sum()), [n, n * 2])
+            if group['area_filter'].sum() >= (n_fit * 2):
+                idx_train, idx_test, _ = np.split(np.random.default_rng(seed).permutation(group['area_filter'].sum()), [n_fit, n_tra])
+                
                 self.cells.loc[group.index[group.area_filter][idx_train], 'umap_train'] = True
-                self.cells.loc[group.index[group.area_filter][idx_test], 'umap_test'] = True
+                if umap_subset_toggle is False:
+                    self.cells.loc[group.index[group.area_filter], 'umap_test'] = True
+                else:
+                    self.cells.loc[group.index[group.area_filter][idx_test], 'umap_test'] = True
         
         print(f'{np.sum(self.cells["umap_train"] == 1)} elements assigned to training data. ~{np.round(100*np.sum(self.cells["umap_train"] == 1)/self.cells.shape[0])}%')
         print(f'{np.sum(self.cells["umap_test"] == 1)} elements assigned to testing data. ~{np.round(100*np.sum(self.cells["umap_test"] == 1)/self.cells.shape[0])}%')

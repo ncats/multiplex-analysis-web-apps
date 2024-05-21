@@ -385,7 +385,7 @@ def main():
                         If a percentage is chosen for transformation, it is always a different sample
                         than what the model was trained on.''')
             st.write(f'Smallest image in dataset is {st.session_state.datafile_min_img_size} cells')
-            st.number_input('Percentage of cells to Subset', min_value = 20, max_value = 99, step = 1,
+            st.number_input('Percentage of cells to Subset', min_value = 20, max_value = 80, step = 10,
                             key = 'umap_subset_per', disabled = not st.session_state.umap_subset_toggle)
         with neipro_settings[2]:
             st.toggle('Filter Non-ideal Areas', value = False, key = 'area_filter_toggle',

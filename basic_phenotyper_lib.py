@@ -622,11 +622,12 @@ def perform_spatialUMAP(spatial_umap, bc, umap_subset_toggle, umap_subset_per):
     '''
 
     min_image_size = spatial_umap.smallest_image_size
-    n = int(min_image_size*umap_subset_per/100)
+    n_fit = int(min_image_size*20/100)
+    n_tra = n_fit + int(min_image_size*umap_subset_per/100)
 
     # set training and "test" cells for umap training and embedding, respectively
     print('Setting Train/Test Split')
-    spatial_umap.set_train_test(n=n, groupby_label = 'TMA_core_id', seed=54321)
+    spatial_umap.set_train_test(n_fit=n_fit, n_tra = n_tra, groupby_label = 'TMA_core_id', seed=54321, umap_subset_toggle = umap_subset_toggle)
 
     # fit umap on training cells
     bc.startTimer()
