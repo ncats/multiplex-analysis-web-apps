@@ -26,15 +26,23 @@ def init_spatial_umap():
     # Reset the settings required for Neighborhood Analysis
     st.session_state = ndl.reset_neigh_profile_settings(st.session_state)
 
+    # Programattic Control over area_threshold
+    if st.session_state['area_filter_toggle'] is False:
+        area_threshold = -1
+    elif st.session_state['area_filter_toggle'] is True:
+        area_threshold = st.session_state['area_filter_per']
+
     st.session_state.bc.startTimer()
     with st.spinner('Calculating Cell Counts and Areas'):
         st.session_state.spatial_umap = bpl.setup_Spatial_UMAP(st.session_state.df,
                                                                st.session_state.marker_multi_sel,
-                                                               st.session_state.phenoOrder)
+                                                               st.session_state.phenoOrder,
+                                                               st.session_state.datafile_min_img_size)
 
         st.session_state.spatial_umap = bpl.perform_density_calc(st.session_state.spatial_umap,
                                                                  st.session_state.bc,
-                                                                 st.session_state.cpu_pool_size)
+                                                                 st.session_state.cpu_pool_size,
+                                                                 area_threshold)
     st.write('Done Calculating Cell Counts and Areas')
 
     # Record time elapsed
@@ -49,12 +57,13 @@ def apply_umap(umap_style):
     '''
     Call back function for applying the UMAP functions
     '''
-    clust_minmax = [1, 40]
+
     st.session_state.bc.startTimer()
     with st.spinner('Calculating UMAP'):
         st.session_state.spatial_umap = bpl.perform_spatialUMAP(st.session_state.spatial_umap,
                                                                 st.session_state.bc,
-                                                                umap_style)
+                                                                st.session_state.umap_subset_toggle,
+                                                                st.session_state.umap_subset_per)
     st.write('Done Calculating Spatial UMAP')
 
     # Record time elapsed
@@ -80,10 +89,10 @@ def apply_umap(umap_style):
 
     st.session_state.spatial_umap.prepare_df_umap_plotting(st.session_state.outcomes)
 
-    st.session_state.spatial_umap.df_umap = st.session_state.spatial_umap.cells.copy()
-    st.session_state.spatial_umap.df_umap['X'] = st.session_state.spatial_umap.cells['UMAP_1_20230327_152849'].values
-    st.session_state.spatial_umap.df_umap['Y'] = st.session_state.spatial_umap.cells['UMAP_2_20230327_152849'].values
-    st.session_state.spatial_umap.cells['umap_test'] = True
+    # st.session_state.spatial_umap.df_umap = st.session_state.spatial_umap.cells.copy()
+    # st.session_state.spatial_umap.df_umap['X'] = st.session_state.spatial_umap.cells['UMAP_1_20230327_152849'].values
+    # st.session_state.spatial_umap.df_umap['Y'] = st.session_state.spatial_umap.cells['UMAP_2_20230327_152849'].values
+    # st.session_state.spatial_umap.df_umap = st.session_state.spatial_umap.df_umap[st.session_state.spatial_umap.cells['umap_test']].reset_index(drop=True)
 
     # Perform possible cluster variations with the completed UMAP
     # st.session_state.bc.startTimer()
@@ -234,12 +243,6 @@ def save_neipro_struct():
         print(f'Pickling Neighborhood Profiles Checkpoint-{file_name}')
         dill.dump(st.session_state.spatial_umap, dill_file)
 
-    file_name = 'density'
-    # Save the Neighborhood Profile structure
-    with open(f'{st.session_state.checkpoint_dir}/{file_name}', "wb") as dill_file:
-        print(f'Pickling Neighborhood Profiles Checkpoint-{file_name}')
-        dill.dump(st.session_state.spatial_umap.density, dill_file)
-
 def diff_density_analysis():
     '''
     Function to perform the density difference analysis
@@ -351,10 +354,10 @@ def diff_density_perform_clustering():
     dens_df_fals = st.session_state.spatial_umap.dens_df_mean.loc[st.session_state.spatial_umap.dens_df_mean['clust_label'].str.contains('False'), :]
     dens_df_true = st.session_state.spatial_umap.dens_df_mean.loc[st.session_state.spatial_umap.dens_df_mean['clust_label'].str.contains('True'), :]
 
-    dens_df_fals['clust_label'] = 'Average False_Cluster'
+    dens_df_fals['clust_label'] = 'Average Deceased'
     dens_df_mean_fals = dens_df_fals.groupby(['clust_label', 'phenotype', 'dist_bin'], as_index=False).mean()
 
-    dens_df_true['clust_label'] = 'Average True_Cluster'
+    dens_df_true['clust_label'] = 'Average Alive'
     dens_df_mean_true = dens_df_true.groupby(['clust_label', 'phenotype', 'dist_bin'], as_index=False).mean()
 
     st.session_state.spatial_umap.dens_df_mean = pd.concat([st.session_state.spatial_umap.dens_df_mean, dens_df_mean_fals, dens_df_mean_true], axis=0)
@@ -367,12 +370,38 @@ def main():
     Main function for running the page
     '''
 
+    with st.expander('Neighborhood Profiles Settings', expanded = False):
+        neipro_settings = st.columns([1, 2, 1])
+        with neipro_settings[0]:
+            st.number_input('Number of CPUs', min_value = 1, max_value= 8, step = 1,
+                            key = 'cpu_pool_size',
+                            help = '''Number of CPUs to use for parallel processing.
+                            This effects the speed of the Cell Density Analysis''')
+        with neipro_settings[1]:
+            st.toggle('Subset data transformed by UMAP', value = False, key = 'umap_subset_toggle',
+                      help = '''The UMAP model is always trained on 20% of the data included in the smallest image.
+                       You can choose to transform the entire dataset using this trained model, or only transform
+                        a percentage of the data. This can be useful for large datasets.
+                        If a percentage is chosen for transformation, it is always a different sample
+                        than what the model was trained on.''')
+            st.write(f'Smallest image in dataset is {st.session_state.datafile_min_img_size} cells')
+            st.number_input('Percentage of cells to Subset', min_value = 20, max_value = 80, step = 10,
+                            key = 'umap_subset_per', disabled = not st.session_state.umap_subset_toggle)
+        with neipro_settings[2]:
+            st.toggle('Filter Non-ideal Areas', value = False, key = 'area_filter_toggle',
+                      help = '''Not all cells in an image have large populations of neighbors.
+                      This toggle can help to filter out cells that are not ideal for neighborhood analysis.
+                      ''')
+            st.number_input('Area Filter Percentage', min_value = 0.001, max_value = 1.0, step = 0.001,
+                            format="%.3f", key = 'area_filter_per',
+                            disabled=not st.session_state.area_filter_toggle)
     clust_minmax = [1, 40]
+
     npf_cols = st.columns([1, 1, 2])
     with npf_cols[0]:
         nei_pro_tabs = st.tabs(['Analyze from Phenotyping', 'Load Previous Analysis'])
         with nei_pro_tabs[0]:
-            dens_butt = st.button('Perform Cell Counts/Areas Analysis')
+            dens_butt = st.button('Perform Cell Density Analysis')
             umap_butt = st.button('Perform UMAP Analysis')
             st.toggle('Perform Clustering on UMAP Density Difference', value = False, key = 'toggle_clust_diff')
             if st.session_state['toggle_clust_diff'] is False: # Run Clustering Normally
@@ -502,19 +531,19 @@ def main():
                             st.session_state.spatial_umap.df_umap.loc[umap_ind, 'Cluster'] = val
 
                     st.session_state.bc.printElapsedTime('Untangling bin indicies with UMAP indicies')
-                    
+
                     # After assigning cluster labels, perform mean calculations
                     st.session_state.bc.startTimer()
                     st.session_state.spatial_umap.mean_measures()
                     st.session_state.bc.printElapsedTime('Performing Mean Measures')
 
-                    dens_df_fals = st.session_state.spatial_umap.dens_df_mean.loc[st.session_state.spatial_umap.dens_df_mean['clust_label'].str.contains('False'), :]
-                    dens_df_true = st.session_state.spatial_umap.dens_df_mean.loc[st.session_state.spatial_umap.dens_df_mean['clust_label'].str.contains('True'), :]
+                    dens_df_fals = st.session_state.spatial_umap.dens_df_mean.loc[st.session_state.spatial_umap.dens_df_mean['clust_label'].str.contains('D'), :]
+                    dens_df_true = st.session_state.spatial_umap.dens_df_mean.loc[st.session_state.spatial_umap.dens_df_mean['clust_label'].str.contains('A'), :]
 
-                    dens_df_fals['clust_label'] = 'Average False_Cluster'
+                    dens_df_fals['clust_label'] = 'Average Deceased'
                     dens_df_mean_fals = dens_df_fals.groupby(['clust_label', 'phenotype', 'dist_bin'], as_index=False).mean()
 
-                    dens_df_true['clust_label'] = 'Average True_Cluster'
+                    dens_df_true['clust_label'] = 'Average Alive'
                     dens_df_mean_true = dens_df_true.groupby(['clust_label', 'phenotype', 'dist_bin'], as_index=False).mean()
 
                     st.session_state.spatial_umap.dens_df_mean = pd.concat([st.session_state.spatial_umap.dens_df_mean, dens_df_mean_fals, dens_df_mean_true], axis=0)
@@ -524,6 +553,7 @@ def main():
                                               xVar = 'X', yVar = 'Y', hueVar='clust_label',
                                               hueOrder=st.session_state.cluster_dict.values(), palette= st.session_state.palette_dict)
 
+                    # st.session_state.spatial_umap.dens_df_mean.to_csv(f'{st.session_state.checkpoint_dir}/dens_df_mean2.csv', index=False)
                     # Create the Cluster Scatterplot
                     filter_and_plot()
 
@@ -680,24 +710,24 @@ def main():
 
         npf_fig_big = plt.figure(figsize=(16, 45), facecolor = '#0E1117')
 
-        list_figures = [['Average False_Cluster', None, 'log', [1, 10000]],
-                        ['Average True_Cluster', None, 'log', [1, 10000]],
-                        ['Average False_Cluster', 'Average True_Cluster', 'linear', [0, 4]],
-                        ['False_Cluster1', None, 'log', [0.1, 10000]],
-                        ['False_Cluster2', None, 'log', [0.1, 10000]],
-                        ['False_Cluster3', None, 'log', [0.1, 10000]],
-                        ['True_Cluster1', None, 'log', [0.1, 10000]],
-                        ['True_Cluster2', None, 'log', [0.1, 10000]],
-                        ['False_Cluster3', None, 'linear', [0, 2000]],
-                        ['False_Cluster1', 'True_Cluster1', 'log', [0.01, 100]],
-                        ['False_Cluster2', 'True_Cluster1', 'log', [0.01, 100]],
-                        ['False_Cluster3', 'True_Cluster1', 'log', [0.01, 100]],
-                        ['False_Cluster1', 'True_Cluster2', 'log', [0.01, 100]],
-                        ['False_Cluster2', 'True_Cluster2', 'log', [0.01, 100]],
-                        ['False_Cluster3', 'True_Cluster2', 'log', [0.01, 100]],
-                        ['False_Cluster1', 'Average True_Cluster', 'linear', [0, 2]],
-                        ['False_Cluster2', 'Average True_Cluster', 'linear', [0, 2]],
-                        ['False_Cluster3', 'Average True_Cluster', 'linear', [0, 15]],
+        list_figures = [['Average Deceased', None, 'log', [1, 10000]],
+                        ['Average Alive', None, 'log', [1, 10000]],
+                        ['Average Deceased', 'Average Alive', 'linear', [0, 4]],
+                        ['D1', None, 'log', [0.1, 10000]],
+                        ['D2', None, 'log', [0.1, 10000]],
+                        ['D3', None, 'log', [0.1, 10000]],
+                        ['A1', None, 'log', [0.1, 10000]],
+                        ['A2', None, 'log', [0.1, 10000]],
+                        ['D3', None, 'linear', [0, 2000]],
+                        ['D1', 'A1', 'log', [0.01, 100]],
+                        ['D2', 'A1', 'log', [0.01, 100]],
+                        ['D3', 'A1', 'log', [0.01, 100]],
+                        ['D1', 'A2', 'log', [0.01, 100]],
+                        ['D2', 'A2', 'log', [0.01, 100]],
+                        ['D3', 'A2', 'log', [0.01, 100]],
+                        ['D1', 'Average Alive', 'linear', [0, 15]],
+                        ['D2', 'Average Alive', 'linear', [0, 15]],
+                        ['D3', 'Average Alive', 'linear', [0, 15]],
                         ]
 
         num_figs = len(list_figures)
