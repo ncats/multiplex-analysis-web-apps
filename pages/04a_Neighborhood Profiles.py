@@ -26,12 +26,6 @@ def init_spatial_umap():
     # Reset the settings required for Neighborhood Analysis
     st.session_state = ndl.reset_neigh_profile_settings(st.session_state)
 
-    # Programattic Control over area_threshold
-    if st.session_state['area_filter_toggle'] is False:
-        area_threshold = 0
-    elif st.session_state['area_filter_toggle'] is True:
-        area_threshold = st.session_state['area_filter_per']
-
     st.session_state.bc.startTimer()
     with st.spinner('Calculating Cell Counts and Areas'):
         st.session_state.spatial_umap = bpl.setup_Spatial_UMAP(st.session_state.df,
@@ -42,7 +36,7 @@ def init_spatial_umap():
         st.session_state.spatial_umap = bpl.perform_density_calc(st.session_state.spatial_umap,
                                                                  st.session_state.bc,
                                                                  st.session_state.cpu_pool_size,
-                                                                 area_threshold)
+                                                                 st.session_state['area_filter_per'])
     st.write('Done Calculating Cell Counts and Areas')
 
     # Record time elapsed
@@ -62,6 +56,7 @@ def apply_umap(umap_style):
     with st.spinner('Calculating UMAP'):
         st.session_state.spatial_umap = bpl.perform_spatialUMAP(st.session_state.spatial_umap,
                                                                 st.session_state.bc,
+                                                                st.session_state.umap_subset_per_fit,
                                                                 st.session_state.umap_subset_toggle,
                                                                 st.session_state.umap_subset_per)
     st.write('Done Calculating Spatial UMAP')
@@ -89,11 +84,9 @@ def apply_umap(umap_style):
 
     st.session_state.spatial_umap.prepare_df_umap_plotting(st.session_state.outcomes)
 
-    # st.session_state.spatial_umap.df_umap = st.session_state.spatial_umap.cells.copy()
-    # st.session_state.spatial_umap.df_umap['X'] = st.session_state.spatial_umap.cells['UMAP_1_20230327_152849'].values
-    # st.session_state.spatial_umap.df_umap['Y'] = st.session_state.spatial_umap.cells['UMAP_2_20230327_152849'].values
-    # st.session_state.spatial_umap.df_umap = st.session_state.spatial_umap.df_umap[st.session_state.spatial_umap.cells['umap_test']].reset_index(drop=True)
-
+    if st.session_state['load_generated_umap_toggle']:
+        st.session_state.spatial_umap.df_umap['X'] = st.session_state.spatial_umap.cells['UMAP_1_20230327_152849'].values[st.session_state.spatial_umap.cells['umap_test']]
+        st.session_state.spatial_umap.df_umap['Y'] = st.session_state.spatial_umap.cells['UMAP_2_20230327_152849'].values[st.session_state.spatial_umap.cells['umap_test']]
     # Perform possible cluster variations with the completed UMAP
     # st.session_state.bc.startTimer()
     # with st.spinner('Calculating Possible Clusters'):
@@ -371,30 +364,38 @@ def main():
     '''
 
     with st.expander('Neighborhood Profiles Settings', expanded = False):
-        neipro_settings = st.columns([1, 2, 1])
+        neipro_settings = st.columns([1, 1, 1, 1])
         with neipro_settings[0]:
             st.number_input('Number of CPUs', min_value = 1, max_value= 8, step = 1,
                             key = 'cpu_pool_size',
                             help = '''Number of CPUs to use for parallel processing.
                             This effects the speed of the Cell Density Analysis''')
+            st.number_input('Area Filter Ratio', min_value = 0.001, max_value = 1.0, step = 0.001,
+                            format="%.3f", key = 'area_filter_per',
+                            help = '''The area filter ratio identifies how much of an area surrounding
+                            a cell can be to be considered large enough to be included in the density calculations.
+                            Small values of the ratio (close to 0) include more cells, and large values
+                            of the ratio (close to 1) include fewer cells. This can be useful for removing
+                            cells that are on the edge of the image.''')
         with neipro_settings[1]:
+            st.markdown(f'''Smallest image in dataset is {st.session_state.datafile_min_img_size} cells.
+                        What percentage from each image should be used for the UMAP fitting step?''')
+            st.number_input('Percentage of cells to Subset for Fitting Step', min_value = 20, max_value = 80, step = 10,
+                            key = 'umap_subset_per_fit')
+
+        with neipro_settings[2]:
             st.toggle('Subset data transformed by UMAP', value = False, key = 'umap_subset_toggle',
-                      help = '''The UMAP model is always trained on 20% of the data included in the smallest image.
+                      help = '''The UMAP model is always trained on a percentate of data specified included in the smallest image.
                        You can choose to transform the entire dataset using this trained model, or only transform
                         a percentage of the data. This can be useful for large datasets.
                         If a percentage is chosen for transformation, it is always a different sample
                         than what the model was trained on.''')
-            st.write(f'Smallest image in dataset is {st.session_state.datafile_min_img_size} cells')
-            st.number_input('Percentage of cells to Subset', min_value = 20, max_value = 80, step = 10,
+            add_vertical_space(2)
+            st.number_input('Percentage of cells to Subset for Transforming Step', min_value = 20, max_value = 80, step = 10,
                             key = 'umap_subset_per', disabled = not st.session_state.umap_subset_toggle)
-        with neipro_settings[2]:
-            st.toggle('Filter Non-ideal Areas', value = False, key = 'area_filter_toggle',
-                      help = '''Not all cells in an image have large populations of neighbors.
-                      This toggle can help to filter out cells that are not ideal for neighborhood analysis.
-                      ''')
-            st.number_input('Area Filter Percentage', min_value = 0.001, max_value = 1.0, step = 0.001,
-                            format="%.3f", key = 'area_filter_per',
-                            disabled=not st.session_state.area_filter_toggle)
+
+        with neipro_settings[3]:
+            st.toggle('Load pre-generated UMAP', value = False, key = 'load_generated_umap_toggle',)
     clust_minmax = [1, 40]
 
     npf_cols = st.columns([1, 1, 2])

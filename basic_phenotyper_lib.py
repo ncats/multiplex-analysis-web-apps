@@ -608,7 +608,7 @@ def perform_density_calc(spatial_umap, bc, cpu_pool_size = 1, area_threshold = 0
 
     return spatial_umap
 
-def perform_spatialUMAP(spatial_umap, bc, umap_subset_toggle, umap_subset_per):
+def perform_spatialUMAP(spatial_umap, bc, umap_subset_per_fit, umap_subset_toggle, umap_subset_per):
     '''
     Perform the spatial UMAP analysis
 
@@ -622,7 +622,7 @@ def perform_spatialUMAP(spatial_umap, bc, umap_subset_toggle, umap_subset_per):
     '''
 
     min_image_size = spatial_umap.smallest_image_size
-    n_fit = int(min_image_size*20/100)
+    n_fit = int(min_image_size*umap_subset_per_fit/100)
     n_tra = n_fit + int(min_image_size*umap_subset_per/100)
 
     # set training and "test" cells for umap training and embedding, respectively
