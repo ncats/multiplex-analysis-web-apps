@@ -20,24 +20,6 @@ import plotly.express as px
 import time
 from utag.segmentation import utag
 
-# make adata from unifier table
-# hard coded column names, nned to think about a better way
-# def phenocluster__make_adata(df):
-#     colNames = list(df)
-#     object_index = colNames.index("Object")
-#     area_index = colNames.index("area")
-#     extracted_elements = colNames[object_index + 1 : area_index]
-#     start_index = colNames.index("area") - 1 
-#     end_index = len(colNames)
-#     end_index = colNames.index("Image")
-#     metaCols =  colNames[0 : end_index]
-#     mat = df[extracted_elements]
-#     meta = df[metaCols]
-#     adata = ad.AnnData(mat)
-#     adata.obs = meta
-#     adata.layers["counts"] = adata.X.copy()
-#     adata.write("input/clust_dat.h5ad")
-#     return adata
 
 def phenocluster__make_adata(df, x_cols, meta_cols):
     mat = df[x_cols]
@@ -496,6 +478,7 @@ def main():
                 
                 # umap
             if 'Cluster' in st.session_state['phenocluster__clustering_adata'].obs.columns:
+                st.session_state['input_dataset'].data["Phenotype_Cluster"] = st.session_state['phenocluster__clustering_adata'].obs["Cluster"]
                 #st.write(pd.unique(st.session_state['phenocluster__clustering_adata'].obs["Cluster"]))
 
                 st.session_state['phenocluster__umeta_columns'] = list(st.session_state['phenocluster__clustering_adata'].obs.columns)

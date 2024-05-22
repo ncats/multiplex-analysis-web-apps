@@ -230,20 +230,20 @@ def main():
                                                                                             ])
     phenocluster__col7b, phenocluster__col8b, phenocluster__col9b = st.columns([1, 3, 3])
     def make_all_plots_2():
-    # make umaps
-        phenocluster__plotly_umaps_b(st.session_state['phenocluster__clustering_adata'], 
-            st.session_state['phenocluster__umap_cur_col'], 
-            st.session_state['phenocluster__umap_cur_groups'],
-            st.session_state['phenocluster__umap_color_col_2'],
-            phenocluster__col8b
-            )
-    # make spatial plots
         spatial_plots_cust_2b(st.session_state['phenocluster__clustering_adata'], 
-            st.session_state['phenocluster__umap_cur_col'], 
-            st.session_state['phenocluster__umap_cur_groups'],
-            st.session_state['phenocluster__umap_color_col_2'],
-            phenocluster__col9b
-            )
+                              st.session_state['phenocluster__umap_cur_col'], 
+                              st.session_state['phenocluster__umap_cur_groups'],
+                              st.session_state['phenocluster__umap_color_col_2'],
+                              phenocluster__col9b
+                              )
+    # make umaps plots
+        if 'X_umap' in st.session_state['phenocluster__clustering_adata'].obsm.keys():
+            phenocluster__plotly_umaps_b(st.session_state['phenocluster__clustering_adata'], 
+                                            st.session_state['phenocluster__umap_cur_col'], 
+                                            st.session_state['phenocluster__umap_cur_groups'],
+                                            st.session_state['phenocluster__umap_color_col_2'],
+                                            phenocluster__col8b
+                                            )
     with phenocluster__col7b:
             # select column for umap coloring
             st.session_state['phenocluster__umeta_columns'] = list(st.session_state['phenocluster__clustering_adata'].obs.columns)
