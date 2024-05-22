@@ -371,6 +371,13 @@ def main():
                             key = 'cpu_pool_size',
                             help = '''Number of CPUs to use for parallel processing.
                             This effects the speed of the Cell Density Analysis''')
+            st.number_input('Area Filter Ratio', min_value = 0.001, max_value = 1.0, step = 0.001,
+                            format="%.3f", key = 'area_filter_per',
+                            help = '''The area filter ratio identifies how much of an area surrounding
+                            a cell can be to be considered large enough to be included in the density calculations.
+                            Small values of the ratio (close to 0) include more cells, and large values
+                            of the ratio (close to 1) include fewer cells. This can be useful for removing
+                            cells that are on the edge of the image.''')
         with neipro_settings[1]:
             st.toggle('Subset data transformed by UMAP', value = False, key = 'umap_subset_toggle',
                       help = '''The UMAP model is always trained on 20% of the data included in the smallest image.
@@ -381,9 +388,6 @@ def main():
             st.write(f'Smallest image in dataset is {st.session_state.datafile_min_img_size} cells')
             st.number_input('Percentage of cells to Subset', min_value = 20, max_value = 80, step = 10,
                             key = 'umap_subset_per', disabled = not st.session_state.umap_subset_toggle)
-        with neipro_settings[2]:
-            st.number_input('Area Filter Percentage', min_value = 0.001, max_value = 1.0, step = 0.001,
-                            format="%.3f", key = 'area_filter_per')
     clust_minmax = [1, 40]
 
     npf_cols = st.columns([1, 1, 2])
