@@ -149,7 +149,7 @@ class SpatialUMAP:
 
         return idx_counts[np.newaxis, :]
 
-    def calculate_density_matrix_for_all_images(self, swap_inequalities = False, debug_output=False):
+    def calculate_density_matrix_for_all_images(self, cpu_pool_size = 8):
         """
         Calculate the density matrix for all images.
 
@@ -173,7 +173,6 @@ class SpatialUMAP:
         phenotypes  = self.species
         radii       = np.concatenate([[0], self.dist_bin_px])
 
-        num_cpus_to_use = int(mp.cpu_count() / 2)
         coord_column_names = ['Cell X Position', 'Cell Y Position']
         phenotype_column_name = 'Lineage'
         image_column_name     = 'Slide ID'
@@ -184,8 +183,6 @@ class SpatialUMAP:
         # Initialize keyword arguments
         kwargs_list = []
 
-        # Initialize the start time
-        start_time = time.time()
         # Loop through the images
         for image in image_names:
 
@@ -201,17 +198,9 @@ class SpatialUMAP:
                 )
             )
 
-        # Get the number of CPUs to use
-        print(f'Using {num_cpus_to_use} CPUs')
-
         # Create a pool of worker processes
-        with mp.Pool(processes=num_cpus_to_use) as pool:
-
-            # Apply the calculate_density_matrix_for_image function to each set of keyword arguments in kwargs_list
-            # A single call would be something like: calculate_density_matrix_for_image(**kwargs_list[4])
+        with mp.Pool(processes=cpu_pool_size) as pool:
             results = pool.starmap(utils.fast_neighbors_counts_for_block, kwargs_list)
-
-        print(f'All images took {(time.time() - start_time) / 60:.2f} minutes to complete')
 
         df_density_matrix = pd.concat(results)
         full_array = None
@@ -228,104 +217,6 @@ class SpatialUMAP:
 
         # Concatenate the results into a single dataframe
         return full_array
-
-    @staticmethod
-    def calculate_density_matrix_for_image(df_image, phenotypes, phenotype_column_name, image, coord_column_names, radii, range_strings, debug_output=False, swap_inequalities=False):
-        """
-        Calculate the density matrix for a single image.
-
-        Args:
-            df_image (pandas.DataFrame): The dataframe containing the data for the current image.
-            phenotypes (numpy.ndarray): The array of phenotypes.
-            phenotype_column_name (str): The name of the column containing the phenotype information.
-            image (str): The name of the current image.
-            coord_column_names (list): The list of column names containing the coordinate information.
-            radii (numpy.ndarray): The array of radii.
-            range_strings (list): The list of range strings.
-            debug_output (bool, optional): Whether to print debug output.
-
-        Returns:
-            pandas.DataFrame: The dataframe containing the density matrix for the current image.
-        """
-
-        # Initialize the start time
-        start_time = time.time()
-
-        # Get the number of range segments
-        num_ranges = len(radii) - 1
-
-        # Initialize the dataframe to store the number of neighbors for the current image
-        df_num_neighbors_image = pd.DataFrame(index=df_image.index)
-
-        # Loop through the phenotypes as center phenotypes
-        for center_phenotype in phenotypes:
-
-            # Get the locations of the current image and center phenotype in the dataframe
-            center_loc_for_image = df_image[phenotype_column_name] == center_phenotype
-
-            # Get the total number of centers of the current type in the current image
-            num_centers_in_image = center_loc_for_image.sum()
-
-            # If there are no centers of the current type in the current image, print a message
-            if num_centers_in_image == 0:
-                if debug_output:
-                    pass
-                    # print(f'No centers found for image {image} and phenotype {center_phenotype}')
-
-            # Otherwise, calculate the number of neighbors of each type in the current image, for all neighbor phenotypes and all radii
-            else:
-
-                # Get the coordinates of the centers of the current type in the current image as a numpy array
-                arr_image_center_phenotype = df_image[center_loc_for_image][coord_column_names].to_numpy()
-
-                # Loop through the phenotypes as neighbor phenotypes
-                for neighbor_phenotype in phenotypes:
-
-                    # Get the locations of the current image and neighbor phenotype in the dataframe
-                    neighbor_loc_for_image = df_image[phenotype_column_name] == neighbor_phenotype
-
-                    # Get the total number of neighbors of the current type in the current image
-                    num_neighbors_in_image = neighbor_loc_for_image.sum()
-
-                    # If there are no neighbors of the current type in the current image, print a message
-                    if num_neighbors_in_image == 0:
-                        if debug_output:
-                            pass
-                            # print(f'No neighbors found for image {image} and phenotype {neighbor_phenotype}')
-
-                    # Otherwise, calculate the number of neighbors of the current type in the current image, for all radii
-                    else:
-
-                        # Print the number of centers and neighbors found for the current image and phenotypes
-                        if debug_output:
-                            pass
-                            # print(f'Number of centers found for image {image} and phenotype {center_phenotype}: {num_centers_in_image}')
-                            # print(f'Number of neighbors found for image {image} and phenotype {neighbor_phenotype}: {num_neighbors_in_image}')
-
-                        # Get the coordinates of the neighbors of the current type in the current image as a numpy array
-                        arr_image_neighbor_phenotype = df_image[neighbor_loc_for_image][coord_column_names].to_numpy()
-
-                        # Calculate the number of neighbors around the centers of the current types in the current image, in each radii range
-                        nneighbors = utils.calculate_neighbor_counts_with_possible_chunking(center_coords = arr_image_center_phenotype,
-                                                                                            neighbor_coords = arr_image_neighbor_phenotype,
-                                                                                            radii = radii,
-                                                                                            single_dist_mat_cutoff_in_mb = 200,
-                                                                                            test = False,
-                                                                                            verbose = False,
-                                                                                            swap_inequalities = swap_inequalities)  # (num_centers, num_ranges)
-
-                        # Add the number of neighbors to the dataframe
-                        for irange in range(num_ranges):
-                            range_string = range_strings[irange]
-                            # note that since we are adding columns dynamically that the order of these columns may not be logical because sometimes there are no centers or no neighbors
-                            df_num_neighbors_image.loc[center_loc_for_image, f'{neighbor_phenotype} in range {range_string}'] = nneighbors[:, irange]
-
-        # Print the time taken to calculate the number of neighbors for the current image
-        if debug_output:
-            print(f'Time to calculate neighbors for image {image} ({len(df_image)} rows) on a single CPU: {(time.time() - start_time) / 60:.2f} minutes')
-
-        # Return the dataframe with the number of neighbors for the current image
-        return df_num_neighbors_image
 
     def __init__(self, dist_bin_um, um_per_px, area_downsample):
         # microns per pixel
@@ -362,7 +253,10 @@ class SpatialUMAP:
         # Mean Densities
         self.dens_df = pd.DataFrame()
         self.prop_df = pd.DataFrame()
-        self.dens_df_mean = pd.DataFrame()
+        self.dens_df_mean = pd.DataFrame(data = {'clust_label': ['No Cluster'], 
+                                                 'phenotype': ['Other'], 
+                                                 'dist_bin': [25], 
+                                                 'density_mean': [0]})
         self.dens_df_se = pd.DataFrame()
         self.maxdens_df = pd.DataFrame()
 
@@ -438,7 +332,7 @@ class SpatialUMAP:
 
             # set results
             self.areas[idx] = areas
-            self.cells.loc[idx, 'area_filter'] = True
+            self.cells.loc[idx, 'area_filter'] = filt
 
             if plots_directory is not None:
                 plt.ioff()
@@ -506,12 +400,11 @@ class SpatialUMAP:
 
         return results
 
-    def get_counts_And(self):
+    def get_counts_And(self, cpu_pool_size = 8):
         '''
         Andrew's method for getting counts
         '''
-        print('Performing Counts using Andrews Method')
-        self.counts = self.calculate_density_matrix_for_all_images(debug_output=False, swap_inequalities=True)
+        self.counts = self.calculate_density_matrix_for_all_images(cpu_pool_size)
 
     def get_areas(self, area_threshold, pool_size=2, save_file=None, plots_directory=None):
         '''
@@ -528,7 +421,7 @@ class SpatialUMAP:
         if save_file is not None:
             pd.DataFrame(self.areas, columns=self.dist_bin_um).to_csv(save_file, index=False)
 
-    def set_train_test(self, n, groupby_label = 'TMA_core_id', seed=None):
+    def set_train_test(self, n_fit, n_tra, groupby_label = 'TMA_core_id', seed=None, umap_subset_toggle = False):
         '''
         set_test_train() is almost an unecessary method. Ultimately,
         when performing UMAP, we will intend to transform the whole dataset
@@ -547,17 +440,17 @@ class SpatialUMAP:
             None
         '''
         # region_ids is a proxy for the collection of images
-        region_ids = self.cells['TMA_core_id'].unique()
-        min_cells_images = min([sum(self.cells['TMA_core_id'] == reg) for reg in region_ids])
-        percent_min = 0.2
-        cells_for_fitting = int(min_cells_images * percent_min)
         self.cells[['umap_train', 'umap_test']] = False
 
         for region_id, group in self.cells.groupby(groupby_label):
-            if group['area_filter'].sum() >= (cells_for_fitting * 2):
-                idx_train, idx_test, _ = np.split(np.random.default_rng(seed).permutation(group['area_filter'].sum()), [cells_for_fitting, cells_for_fitting * 2])
+            if group['area_filter'].sum() >= (n_fit * 2):
+                idx_train, idx_test, _ = np.split(np.random.default_rng(seed).permutation(group['area_filter'].sum()), [n_fit, n_tra])
+                
                 self.cells.loc[group.index[group.area_filter][idx_train], 'umap_train'] = True
-                self.cells.loc[group.index[group.area_filter][idx_test], 'umap_test'] = True
+                if umap_subset_toggle is False:
+                    self.cells.loc[group.index[group.area_filter], 'umap_test'] = True
+                else:
+                    self.cells.loc[group.index[group.area_filter][idx_test], 'umap_test'] = True
         
         print(f'{np.sum(self.cells["umap_train"] == 1)} elements assigned to training data. ~{np.round(100*np.sum(self.cells["umap_train"] == 1)/self.cells.shape[0])}%')
         print(f'{np.sum(self.cells["umap_test"] == 1)} elements assigned to testing data. ~{np.round(100*np.sum(self.cells["umap_test"] == 1)/self.cells.shape[0])}%')
@@ -581,6 +474,10 @@ class SpatialUMAP:
 
         # identify the indices of cells that are pass our filter
         filtIdx = (self.cells['area_filter'] == True)
+
+        # Report the number of cells that pass the filter
+        print(f'{np.sum(filtIdx)} cells pass the area filter out of {self.cells.shape[0]}')
+
         # calculate density (count/area) for filtered cells
         self.density[filtIdx] = self.counts[filtIdx] / self.areas[filtIdx][..., np.newaxis]
 
@@ -592,7 +489,7 @@ class SpatialUMAP:
         # instantiate our proportion output matrix
         self.proportion = np.empty(self.counts.shape)
         # identify those cells that do not have enough other cells around them. Any that
-        # do not meet this criteria will be filtered out. 
+        # do not meet this criteria will be filtered out.
         self.cells['area_filter'] = ((self.areas / self.arcs_masks.sum(axis=(0, 1))[np.newaxis, ...]) > area_threshold).all(axis=1)
 
         # identify the indices of cells that are pass our filter

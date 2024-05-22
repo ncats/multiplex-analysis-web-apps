@@ -498,7 +498,7 @@ def wrapTitleText(title):
 
     return wrap_title
 
-def setup_Spatial_UMAP(df, marker_names, pheno_order, cpu_pool_size = 1):
+def setup_Spatial_UMAP(df, marker_names, pheno_order, smallest_image_size):
     '''
     Setup the requirements for running spatial UMAP
 
@@ -506,7 +506,6 @@ def setup_Spatial_UMAP(df, marker_names, pheno_order, cpu_pool_size = 1):
         df (Pandas dataframe): Dataframe containing the data
         marker_names (list): List of marker names
         pheno_order (list): List of phenotype order
-        cpu_pool_size (int): Number of CPUs to use for parallel processing
     
     Returns:
         SpatialUMAP: SpatialUMAP object
@@ -554,6 +553,8 @@ def setup_Spatial_UMAP(df, marker_names, pheno_order, cpu_pool_size = 1):
     # default cluster values
     spatial_umap.cells['clust_label'] = 'No Cluster'
 
+    spatial_umap.smallest_image_size = smallest_image_size
+
     # sets flags for analysis processing
     spatial_umap.phenotyping_completed = True
     spatial_umap.density_completed     = False
@@ -562,7 +563,7 @@ def setup_Spatial_UMAP(df, marker_names, pheno_order, cpu_pool_size = 1):
 
     return spatial_umap
 
-def perform_density_calc(spatial_umap, bc, cpu_pool_size = 1):
+def perform_density_calc(spatial_umap, bc, cpu_pool_size = 1, area_threshold = 0.001):
     '''
     Calculate the cell counts, cell areas,
     perform the cell densities and cell proportions analyses.
@@ -573,6 +574,7 @@ def perform_density_calc(spatial_umap, bc, cpu_pool_size = 1):
         spatial_umap (SpatialUMAP): SpatialUMAP object
         bc (benchmark_collector): Benchmark Collector object
         cpu_pool_size (int): Number of CPUs to use for parallel processing
+        area_threshold (float): Area threshold to use for cell areas
 
     Returns:
         SpatialUMAP: SpatialUMAP object with the cell counts, cell areas, 
@@ -588,13 +590,14 @@ def perform_density_calc(spatial_umap, bc, cpu_pool_size = 1):
     # get the counts per cell and save to pickle file
     print('Starting Cell Counts process')
     bc.startTimer()
-    spatial_umap.get_counts_And()
+    spatial_umap.get_counts_And(cpu_pool_size=cpu_pool_size)
     bc.printElapsedTime(f'Calculating Counts for {len(spatial_umap.cells)} cells')
 
     # get the areas of cells and save to pickle file
-    area_threshold = 0.001
-    print('\nStarting Cell Areas process')
+    print(f'\nStarting Cell Areas process with area threshold of {area_threshold}')
+    bc.startTimer()
     spatial_umap.get_areas(area_threshold, pool_size=cpu_pool_size)
+    bc.printElapsedTime(f'Calculating Areas for {len(spatial_umap.cells)} cells')
 
     # calculate density based on counts of cells / area of each arc examine
     spatial_umap.calc_densities(area_threshold)
@@ -605,7 +608,7 @@ def perform_density_calc(spatial_umap, bc, cpu_pool_size = 1):
 
     return spatial_umap
 
-def perform_spatialUMAP(spatial_umap, bc, UMAPStyle):
+def perform_spatialUMAP(spatial_umap, bc, umap_subset_toggle, umap_subset_per):
     '''
     Perform the spatial UMAP analysis
 
@@ -618,9 +621,13 @@ def perform_spatialUMAP(spatial_umap, bc, UMAPStyle):
         spatial_umap: spatial_umap object with the UMAP analysis performed
     '''
 
+    min_image_size = spatial_umap.smallest_image_size
+    n_fit = int(min_image_size*20/100)
+    n_tra = n_fit + int(min_image_size*umap_subset_per/100)
+
     # set training and "test" cells for umap training and embedding, respectively
     print('Setting Train/Test Split')
-    spatial_umap.set_train_test(n=2500, groupby_label = 'TMA_core_id', seed=54321)
+    spatial_umap.set_train_test(n_fit=n_fit, n_tra = n_tra, groupby_label = 'TMA_core_id', seed=54321, umap_subset_toggle = umap_subset_toggle)
 
     # fit umap on training cells
     bc.startTimer()
