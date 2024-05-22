@@ -26,12 +26,6 @@ def init_spatial_umap():
     # Reset the settings required for Neighborhood Analysis
     st.session_state = ndl.reset_neigh_profile_settings(st.session_state)
 
-    # Programattic Control over area_threshold
-    if st.session_state['area_filter_toggle'] is False:
-        area_threshold = 0
-    elif st.session_state['area_filter_toggle'] is True:
-        area_threshold = st.session_state['area_filter_per']
-
     st.session_state.bc.startTimer()
     with st.spinner('Calculating Cell Counts and Areas'):
         st.session_state.spatial_umap = bpl.setup_Spatial_UMAP(st.session_state.df,
@@ -42,7 +36,7 @@ def init_spatial_umap():
         st.session_state.spatial_umap = bpl.perform_density_calc(st.session_state.spatial_umap,
                                                                  st.session_state.bc,
                                                                  st.session_state.cpu_pool_size,
-                                                                 area_threshold)
+                                                                 st.session_state['area_filter_per'])
     st.write('Done Calculating Cell Counts and Areas')
 
     # Record time elapsed
@@ -388,13 +382,8 @@ def main():
             st.number_input('Percentage of cells to Subset', min_value = 20, max_value = 80, step = 10,
                             key = 'umap_subset_per', disabled = not st.session_state.umap_subset_toggle)
         with neipro_settings[2]:
-            st.toggle('Filter Non-ideal Areas', value = False, key = 'area_filter_toggle',
-                      help = '''Not all cells in an image have large populations of neighbors.
-                      This toggle can help to filter out cells that are not ideal for neighborhood analysis.
-                      ''')
             st.number_input('Area Filter Percentage', min_value = 0.001, max_value = 1.0, step = 0.001,
-                            format="%.3f", key = 'area_filter_per',
-                            disabled=not st.session_state.area_filter_toggle)
+                            format="%.3f", key = 'area_filter_per')
     clust_minmax = [1, 40]
 
     npf_cols = st.columns([1, 1, 2])
