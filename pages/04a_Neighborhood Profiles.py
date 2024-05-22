@@ -56,6 +56,7 @@ def apply_umap(umap_style):
     with st.spinner('Calculating UMAP'):
         st.session_state.spatial_umap = bpl.perform_spatialUMAP(st.session_state.spatial_umap,
                                                                 st.session_state.bc,
+                                                                st.session_state.umap_subset_per_fit,
                                                                 st.session_state.umap_subset_toggle,
                                                                 st.session_state.umap_subset_per)
     st.write('Done Calculating Spatial UMAP')
@@ -384,7 +385,7 @@ def main():
 
         with neipro_settings[2]:
             st.toggle('Subset data transformed by UMAP', value = False, key = 'umap_subset_toggle',
-                      help = '''The UMAP model is always trained on 20% of the data included in the smallest image.
+                      help = '''The UMAP model is always trained on a percentate of data specified included in the smallest image.
                        You can choose to transform the entire dataset using this trained model, or only transform
                         a percentage of the data. This can be useful for large datasets.
                         If a percentage is chosen for transformation, it is always a different sample
