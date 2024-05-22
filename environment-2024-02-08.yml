@@ -6,11 +6,9 @@ dependencies:
   - python
   - pip
   - pygeos
-  - gcc_linux-64
-  - gxx_linux-64
   - pip:
     - anndata
-    - matplotlib
+    - matplotlib==3.8.4
     - natsort
     - numpy
     - palantir-sdk
