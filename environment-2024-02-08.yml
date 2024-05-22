@@ -6,6 +6,8 @@ dependencies:
   - python
   - pip
   - pygeos
+  - gcc_linux-64
+  - gxx_linux-64
   - pip:
     - anndata
     - matplotlib
@@ -33,4 +35,5 @@ dependencies:
     - PhenoGraph
     - parc
     - parmap
+    - setuptools-scm
 
