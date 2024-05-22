@@ -112,3 +112,13 @@ is_section = true
 path = "pages/memory_analyzer.py"
 name = "Memory Analyzer"
 icon = ""
+
+# [[pages]]
+# name = "In Development"
+# icon = ""
+# is_section = true
+
+# [[pages]]
+# path = "pages/macro_radial_density.py"
+# name = "Macro Radial Density"
+# icon = ""
