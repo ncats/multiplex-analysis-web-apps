@@ -83,11 +83,9 @@ def apply_umap(umap_style):
 
     st.session_state.spatial_umap.prepare_df_umap_plotting(st.session_state.outcomes)
 
-    # st.session_state.spatial_umap.df_umap = st.session_state.spatial_umap.cells.copy()
-    # st.session_state.spatial_umap.df_umap['X'] = st.session_state.spatial_umap.cells['UMAP_1_20230327_152849'].values
-    # st.session_state.spatial_umap.df_umap['Y'] = st.session_state.spatial_umap.cells['UMAP_2_20230327_152849'].values
-    # st.session_state.spatial_umap.df_umap = st.session_state.spatial_umap.df_umap[st.session_state.spatial_umap.cells['umap_test']].reset_index(drop=True)
-
+    if st.session_state['load_generated_umap_toggle']:
+        st.session_state.spatial_umap.df_umap['X'] = st.session_state.spatial_umap.cells['UMAP_1_20230327_152849'].values[st.session_state.spatial_umap.cells['umap_test']]
+        st.session_state.spatial_umap.df_umap['Y'] = st.session_state.spatial_umap.cells['UMAP_2_20230327_152849'].values[st.session_state.spatial_umap.cells['umap_test']]
     # Perform possible cluster variations with the completed UMAP
     # st.session_state.bc.startTimer()
     # with st.spinner('Calculating Possible Clusters'):
@@ -388,6 +386,8 @@ def main():
             st.write(f'Smallest image in dataset is {st.session_state.datafile_min_img_size} cells')
             st.number_input('Percentage of cells to Subset', min_value = 20, max_value = 80, step = 10,
                             key = 'umap_subset_per', disabled = not st.session_state.umap_subset_toggle)
+        with neipro_settings[2]:
+            st.toggle('Load pre-generated UMAP', value = False, key = 'load_generated_umap_toggle',)
     clust_minmax = [1, 40]
 
     npf_cols = st.columns([1, 1, 2])
