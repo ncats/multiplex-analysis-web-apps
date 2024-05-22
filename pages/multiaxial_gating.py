@@ -11,7 +11,7 @@ import app_top_of_page as top
 import streamlit_dataframe_editor as sde
 
 
-def plot_box_and_whisker(apply_another_filter, df, column_for_filtering, another_filter_column, values_on_which_to_filter, images_in_plotting_group_1, images_in_plotting_group_2, all_cells=True):
+def generate_box_and_whisker(apply_another_filter, df, column_for_filtering, another_filter_column, values_on_which_to_filter, images_in_plotting_group_1, images_in_plotting_group_2, all_cells=True):
 
     # If we're ready to apply a filter, then create it
     if not apply_another_filter:
@@ -26,7 +26,7 @@ def plot_box_and_whisker(apply_another_filter, df, column_for_filtering, another
     # Get only the data for the column of interest for the first group of images with the filter applied
     ser_for_z_score = df.loc[image_loc_group_1, column_for_filtering]
 
-    # From those data, get the values corresponding to 2 to 10 standard deviations above the mean
+    # From those data, get the values corresponding to -1 to 10 standard deviations above the mean
     z_scores = np.arange(-1, 11)
     thresholds = ser_for_z_score.mean() + z_scores * ser_for_z_score.std()
 
@@ -36,7 +36,7 @@ def plot_box_and_whisker(apply_another_filter, df, column_for_filtering, another
     data_for_box_plot_holder = []
 
     # For each threshold...
-    for threshold in thresholds:
+    for threshold, z_score in zip(thresholds, z_scores):
 
         # Get the locations where the selected filtering column is at least the current threshold value
         positive_loc = df[column_for_filtering] >= threshold
@@ -57,12 +57,15 @@ def plot_box_and_whisker(apply_another_filter, df, column_for_filtering, another
             ser_group_2_pos_perc = df.loc[image_loc_group_2 & positive_loc, 'Slide ID'].value_counts() / df.loc[image_loc_group_2, 'Slide ID'].value_counts() * 100
 
             # Create two dataframes holding all the data in columns as will ultimately desired, adding them in turn to the box plot data holder
+            # Doing it in this format for simple subsequent box plotting with plotly express
             df_group_1_pos_perc = ser_group_1_pos_perc.to_frame()
             df_group_1_pos_perc.columns = ['Positive %']
             df_group_2_pos_perc = ser_group_2_pos_perc.to_frame()
             df_group_2_pos_perc.columns = ['Positive %']
             df_group_1_pos_perc['Threshold'] = threshold
             df_group_2_pos_perc['Threshold'] = threshold
+            df_group_1_pos_perc['Z score'] = z_score
+            df_group_2_pos_perc['Z score'] = z_score
             df_group_1_pos_perc['Group'] = 'Baseline'
             df_group_2_pos_perc['Group'] = 'Signal'
             data_for_box_plot_holder.append(df_group_1_pos_perc)
@@ -83,13 +86,13 @@ def plot_box_and_whisker(apply_another_filter, df, column_for_filtering, another
         fig = go.Figure()
 
         # Plot positive percentage in whole dataset vs. threshold for group 1
-        fig.add_trace(go.Scatter(x=thresholds, y=group_1_holder, mode='lines+markers', name='Baseline'))
+        fig.add_trace(go.Scatter(x=z_scores, y=group_1_holder, mode='lines+markers', name='Baseline'))
 
         # Plot positive percentage in whole dataset vs. threshold for group 2
-        fig.add_trace(go.Scatter(x=thresholds, y=group_2_holder, mode='lines+markers', name='Signal'))
+        fig.add_trace(go.Scatter(x=z_scores, y=group_2_holder, mode='lines+markers', name='Signal'))
 
         # Create the summary dataframe
-        df_summary = pd.DataFrame({'Z score': z_scores, 'Threshold': thresholds, 'Positive percentage (all cells) for group 1': group_1_holder, 'Positive percentage (all cells) for group 2': group_2_holder})
+        df_summary = pd.DataFrame({'Z score': z_scores, 'Threshold': thresholds, 'Positive percentage (all cells) for baseline group': group_1_holder, 'Positive percentage (all cells) for signal group': group_2_holder})
 
     # If we want the positive percentage of the cells in each image, in each group...
     else:
@@ -111,14 +114,14 @@ def plot_box_and_whisker(apply_another_filter, df, column_for_filtering, another
         # fig.add_trace(go.Scatter(x=avg_group_2.index, y=avg_group_2.values, mode='lines+markers', name='Signal'))
 
         # Create the desired box plot
-        fig = px.box(df_box_plot, x='Threshold', y='Positive %', color='Group', points='all')
+        fig = px.box(df_box_plot, x='Z score', y='Positive %', color='Group', points='all')
 
         # Create the summary dataframe
-        df_summary = pd.DataFrame({'Z score': z_scores, 'Threshold': thresholds, 'Positive % (avg. over images) for group 1': avg_group_1.values, 'Positive % (avg. over images) for group 2': avg_group_2.values})
+        df_summary = pd.DataFrame({'Z score': z_scores, 'Threshold': thresholds, 'Positive % (avg. over images) for baseline group': avg_group_1.values, 'Positive % (avg. over images) for signal group': avg_group_2.values})
 
     # Update the layout of the plot
-    fig.update_layout(title='Positive percentage vs. threshold',
-                    xaxis_title='Threshold (based on baseline z score)',
+    fig.update_layout(title='Positive percentage vs. baseline Z score',
+                    xaxis_title='Baseline Z score',
                     yaxis_title='Positive percentage',
                     legend_title='Group')
 
@@ -198,6 +201,7 @@ def update_dependencies_of_filtering_widgets():
         st.session_state['mg__selected_column_type'] = 'numeric'
         st.session_state['mg__curr_column_range'] = (curr_series.min(), curr_series.max())
         st.session_state['mg__selected_value_range'] = st.session_state['mg__curr_column_range']  # initialize the selected range to the entire range
+        st.session_state['mg__min_selection_value'] = st.session_state['mg__curr_column_range'][0]  # initialize the minimum selection value to the minimum of the range
     else:
         st.session_state['mg__selected_column_type'] = 'categorical'
         st.session_state['mg__curr_column_unique_values'] = curr_series.unique()
@@ -645,13 +649,12 @@ def main():
             st.session_state['mg__all_another_filter_data_previous'] = all_another_filter_data
 
             # If no KDE or histogram has been calculated for the current image(s) and column for filtering, then calculate it. Otherwise, skip for efficiency since at this point there's no need to recalculate them (per the reset_kdes_and_hists(df) line above)
-            # kde_or_hist_to_plot_full = st.session_state['mg__kdes_or_hists_to_plot'].loc[image_for_filtering, column_for_filtering]  # first save a shortcut
             if st.session_state['mg__kdes_or_hists_to_plot'].loc[image_for_filtering, column_for_filtering] is np.nan:
 
                 # Initialize st.session_state['mg__kde_grid_size'] if the column of interest is numeric, since we're using it below
                 if st.session_state['mg__selected_column_type'] == 'numeric':
                     if 'mg__kde_grid_size' not in st.session_state:
-                        st.session_state['mg__kde_grid_size'] = 200
+                        st.session_state['mg__kde_grid_size'] = 500
 
                 # If we're ready to apply a filter, then create it
                 if not apply_another_filter:
@@ -811,14 +814,15 @@ def main():
                     selection_dict = dict()
                     add_column_button_disabled = True
 
+            # If applicable, allow the user to plot the desired box and whisker plot using the different thresholds
             if extra_settings and use_groups_for_plotting and (st.session_state['mg__selected_column_type'] == 'numeric'):
                 if 'mg__plot_box_and_whisker' not in st.session_state:
                     st.session_state['mg__plot_box_and_whisker'] = False
                 if st.toggle('Plot box and whisker', key='mg__plot_box_and_whisker'):
                     if 'mg__positive_percentage_per_image' not in st.session_state:
-                        st.session_state['mg__positive_percentage_per_image'] = False
+                        st.session_state['mg__positive_percentage_per_image'] = True
                     st.checkbox('Calculate positive percentages separately for each image', key='mg__positive_percentage_per_image')
-                    fig, df_summary = plot_box_and_whisker(apply_another_filter, df_batch_normalized, column_for_filtering, st.session_state['mg__another_filter_column'], st.session_state['mg__values_on_which_to_filter'], st.session_state['mg__images_in_plotting_group_1'], st.session_state['mg__images_in_plotting_group_2'], all_cells=(not st.session_state['mg__positive_percentage_per_image']))
+                    fig, df_summary = generate_box_and_whisker(apply_another_filter, df_batch_normalized, column_for_filtering, st.session_state['mg__another_filter_column'], st.session_state['mg__values_on_which_to_filter'], st.session_state['mg__images_in_plotting_group_1'], st.session_state['mg__images_in_plotting_group_2'], all_cells=(not st.session_state['mg__positive_percentage_per_image']))
                     st.plotly_chart(fig)
                     st.dataframe(df_summary, hide_index=True)
 
