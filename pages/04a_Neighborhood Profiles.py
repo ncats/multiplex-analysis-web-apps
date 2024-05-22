@@ -363,7 +363,7 @@ def main():
     '''
 
     with st.expander('Neighborhood Profiles Settings', expanded = False):
-        neipro_settings = st.columns([1, 2, 1])
+        neipro_settings = st.columns([1, 1, 1, 1])
         with neipro_settings[0]:
             st.number_input('Number of CPUs', min_value = 1, max_value= 8, step = 1,
                             key = 'cpu_pool_size',
@@ -377,16 +377,23 @@ def main():
                             of the ratio (close to 1) include fewer cells. This can be useful for removing
                             cells that are on the edge of the image.''')
         with neipro_settings[1]:
+            st.markdown(f'''Smallest image in dataset is {st.session_state.datafile_min_img_size} cells.
+                        What percentage from each image should be used for the UMAP fitting step?''')
+            st.number_input('Percentage of cells to Subset for Fitting Step', min_value = 20, max_value = 80, step = 10,
+                            key = 'umap_subset_per_fit')
+
+        with neipro_settings[2]:
             st.toggle('Subset data transformed by UMAP', value = False, key = 'umap_subset_toggle',
                       help = '''The UMAP model is always trained on 20% of the data included in the smallest image.
                        You can choose to transform the entire dataset using this trained model, or only transform
                         a percentage of the data. This can be useful for large datasets.
                         If a percentage is chosen for transformation, it is always a different sample
                         than what the model was trained on.''')
-            st.write(f'Smallest image in dataset is {st.session_state.datafile_min_img_size} cells')
-            st.number_input('Percentage of cells to Subset', min_value = 20, max_value = 80, step = 10,
+            add_vertical_space(2)
+            st.number_input('Percentage of cells to Subset for Transforming Step', min_value = 20, max_value = 80, step = 10,
                             key = 'umap_subset_per', disabled = not st.session_state.umap_subset_toggle)
-        with neipro_settings[2]:
+
+        with neipro_settings[3]:
             st.toggle('Load pre-generated UMAP', value = False, key = 'load_generated_umap_toggle',)
     clust_minmax = [1, 40]
 
