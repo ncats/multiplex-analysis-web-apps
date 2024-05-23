@@ -393,18 +393,17 @@ def main():
             with neipro_settings[3]:
                 st.toggle('Load pre-generated UMAP', value = False, key = 'load_generated_umap_toggle',)
     
-        clust_minmax = [1, 40]
-
-        
         npf_cols = st.columns([1, 1, 2])
         with npf_cols[0]:
-            
 
             dens_butt = st.button('Perform Cell Density Analysis')
             umap_butt = st.button('Perform UMAP Analysis')
             st.toggle('Perform Clustering on UMAP Density Difference', value = False, key = 'toggle_clust_diff')
             if st.session_state['toggle_clust_diff'] is False: # Run Clustering Normally
-                st.slider('Number of K-means clusters', min_value=clust_minmax[0], max_value=clust_minmax[1], key = 'slider_clus_val')
+                st.slider('Number of K-means clusters',
+                          min_value=st.session_state.clust_minmax[0],
+                          max_value=st.session_state.clust_minmax[1],
+                          key = 'slider_clus_val')
                 clust_butt_disabled = False
             else:
                 sep_clust_cols = st.columns(2)
