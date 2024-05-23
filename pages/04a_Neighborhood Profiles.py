@@ -417,9 +417,8 @@ def main():
                 clust_butt_disabled = True
             clust_butt = st.button('Perform Clustering Analysis', disabled=clust_butt_disabled)
         with nei_pro_tabs[1]:
-            neipro_checkpoint_files = os.listdir(st.session_state.checkpoint_dir)
-            st.selectbox('Select Previous UMAP Results', options = neipro_checkpoint_files, key = 'sel_prev_umap')
-            st.button('Load Selected UMAP Results', on_click=load_neipro_struct)
+            st.write('Checkpoint file: neighborhood_profiles_checkpoint.pkl')
+            st.button('Load checkpointed UMAP results', on_click=load_neipro_struct)
             add_vertical_space(12)
 
     # Button results and difference settings
