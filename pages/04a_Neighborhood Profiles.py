@@ -185,45 +185,38 @@ def load_neipro_struct():
     Function to load the neighborhood profile structure
     '''
 
-    # # Load the Neighborhood Profile structure
-    # with open(f'{st.session_state.checkpoint_dir}/neighborhood_profiles_checkpoint', "rb") as dill_file:
-    #     print(f'Loading Neighborhood Profiles Checkpoint-neighborhood_profiles_checkpoint')
-    #     st.session_state.spatial_umap = dill.load(dill_file)
-
     # Load the Neighborhood Profile structure
-    with open(f'{st.session_state.checkpoint_dir}/density', "rb") as dill_file:
-        print(f'Loading Neighborhood Profiles Checkpoint-density')
-        st.session_state.spatial_umap.density = dill.load(dill_file)
+    with open(f'{st.session_state.checkpoint_dir}/neighborhood_profiles_checkpoint', "rb") as dill_file:
+        print('Loading Neighborhood Profiles Checkpoint-neighborhood_profiles_checkpoint.pkl')
+        st.session_state.spatial_umap = dill.load(dill_file)
 
-    st.session_state.spatial_umap.cells['area_filter'] = True
+    st.session_state.phenotyping_completed = st.session_state.spatial_umap.phenotyping_completed
+    st.session_state.density_completed     = st.session_state.spatial_umap.density_completed
+    st.session_state.umap_completed        = st.session_state.spatial_umap.umap_completed
+    st.session_state.cluster_completed     = st.session_state.spatial_umap.cluster_completed
 
-    # st.session_state.phenotyping_completed = st.session_state.spatial_umap.phenotyping_completed
-    # st.session_state.density_completed     = st.session_state.spatial_umap.density_completed
-    # st.session_state.umap_completed        = st.session_state.spatial_umap.umap_completed
-    # st.session_state.cluster_completed     = st.session_state.spatial_umap.cluster_completed
+    # Slide ID Progression Initializeion
+    st.session_state['uniSlide ID'] = st.session_state.spatial_umap.df_umap['Slide ID'].unique()
+    st.session_state['selSlide ID'] = st.session_state['uniSlide ID'][0]
+    st.session_state['idxSlide ID'] = 0
+    st.session_state['numSlide ID'] = len(st.session_state['uniSlide ID'])
+    st.session_state['uniSlide ID_short'] = st.session_state['uniSlide ID']
+    st.session_state['selSlide ID_short'] = st.session_state['uniSlide ID_short'][0]
 
-    # # Slide ID Progression Initializeion
-    # st.session_state['uniSlide ID'] = st.session_state.spatial_umap.df_umap['Slide ID'].unique()
-    # st.session_state['selSlide ID'] = st.session_state['uniSlide ID'][0]
-    # st.session_state['idxSlide ID'] = 0
-    # st.session_state['numSlide ID'] = len(st.session_state['uniSlide ID'])
-    # st.session_state['uniSlide ID_short'] = st.session_state['uniSlide ID']
-    # st.session_state['selSlide ID_short'] = st.session_state['uniSlide ID_short'][0]
+    st.session_state.prog_left_disabeled = True
+    st.session_state.prog_right_disabeled = False
+    if st.session_state['numSlide ID'] == 1:
+        st.session_state.prog_right_disabeled = True
 
-    # st.session_state.prog_left_disabeled = True
-    # st.session_state.prog_right_disabeled = False
-    # if st.session_state['numSlide ID'] == 1:
-    #     st.session_state.prog_right_disabeled = True
+    if st.session_state.umap_completed:
+        # Create Neighborhood Profiles Object
+        st.session_state.npf = NeighborhoodProfiles(bc = st.session_state.bc)
 
-    # if st.session_state.umap_completed:
-    #     # Create Neighborhood Profiles Object
-    #     st.session_state.npf = NeighborhoodProfiles(bc = st.session_state.bc)
+        # Create Full UMAP example
+        st.session_state.udp_full = UMAPDensityProcessing(npf = st.session_state.npf, df = st.session_state.spatial_umap.df_umap)
+        st.session_state.UMAPFig = st.session_state.udp_full.UMAPdraw_density()
 
-    #     # Create Full UMAP example
-    #     st.session_state.udp_full = UMAPDensityProcessing(npf = st.session_state.npf, df = st.session_state.spatial_umap.df_umap)
-    #     st.session_state.UMAPFig = st.session_state.udp_full.UMAPdraw_density()
-
-    #     filter_and_plot()
+        filter_and_plot()
 
 def save_neipro_struct():
     '''
@@ -233,7 +226,7 @@ def save_neipro_struct():
     file_name = 'neighborhood_profiles_checkpoint'
     # Save the Neighborhood Profile structure
     with open(f'{st.session_state.checkpoint_dir}/{file_name}', "wb") as dill_file:
-        print(f'Pickling Neighborhood Profiles Checkpoint-{file_name}')
+        print(f'Pickling Neighborhood Profiles Checkpoint-{file_name}.pkl')
         dill.dump(st.session_state.spatial_umap, dill_file)
 
 def diff_density_analysis():
