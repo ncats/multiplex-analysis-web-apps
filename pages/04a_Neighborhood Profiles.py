@@ -356,45 +356,50 @@ def main():
     Main function for running the page
     '''
 
-    with st.expander('Neighborhood Profiles Settings', expanded = False):
-        neipro_settings = st.columns([1, 1, 1, 1])
-        with neipro_settings[0]:
-            st.number_input('Number of CPUs', min_value = 1, max_value= 8, step = 1,
-                            key = 'cpu_pool_size',
-                            help = '''Number of CPUs to use for parallel processing.
-                            This effects the speed of the Cell Density Analysis''')
-            st.number_input('Area Filter Ratio', min_value = 0.001, max_value = 1.0, step = 0.001,
-                            format="%.3f", key = 'area_filter_per',
-                            help = '''The area filter ratio identifies how much of an area surrounding
-                            a cell can be to be considered large enough to be included in the density calculations.
-                            Small values of the ratio (close to 0) include more cells, and large values
-                            of the ratio (close to 1) include fewer cells. This can be useful for removing
-                            cells that are on the edge of the image.''')
-        with neipro_settings[1]:
-            st.markdown(f'''Smallest image in dataset is {st.session_state.datafile_min_img_size} cells.
-                        What percentage from each image should be used for the UMAP fitting step?''')
-            st.number_input('Percentage of cells to Subset for Fitting Step', min_value = 20, max_value = 80, step = 10,
-                            key = 'umap_subset_per_fit')
+    nei_pro_tabs = st.tabs(['Analyze from Phenotyping', 'Load Previous Analysis'])
+    with nei_pro_tabs[0]:
 
-        with neipro_settings[2]:
-            st.toggle('Subset data transformed by UMAP', value = False, key = 'umap_subset_toggle',
-                      help = '''The UMAP model is always trained on a percentate of data specified included in the smallest image.
-                       You can choose to transform the entire dataset using this trained model, or only transform
-                        a percentage of the data. This can be useful for large datasets.
-                        If a percentage is chosen for transformation, it is always a different sample
-                        than what the model was trained on.''')
-            add_vertical_space(2)
-            st.number_input('Percentage of cells to Subset for Transforming Step', min_value = 20, max_value = 80, step = 10,
-                            key = 'umap_subset_per', disabled = not st.session_state.umap_subset_toggle)
+        with st.expander('Neighborhood Profiles Settings', expanded = False):
+            neipro_settings = st.columns([1, 1, 1, 1])
+            with neipro_settings[0]:
+                st.number_input('Number of CPUs', min_value = 1, max_value= 8, step = 1,
+                                key = 'cpu_pool_size',
+                                help = '''Number of CPUs to use for parallel processing.
+                                This effects the speed of the Cell Density Analysis''')
+                st.number_input('Area Filter Ratio', min_value = 0.001, max_value = 1.0, step = 0.001,
+                                format="%.3f", key = 'area_filter_per',
+                                help = '''The area filter ratio identifies how much of an area surrounding
+                                a cell can be to be considered large enough to be included in the density calculations.
+                                Small values of the ratio (close to 0) include more cells, and large values
+                                of the ratio (close to 1) include fewer cells. This can be useful for removing
+                                cells that are on the edge of the image.''')
+            with neipro_settings[1]:
+                st.markdown(f'''Smallest image in dataset is {st.session_state.datafile_min_img_size} cells.
+                            What percentage from each image should be used for the UMAP fitting step?''')
+                st.number_input('Percentage of cells to Subset for Fitting Step', min_value = 20, max_value = 80, step = 10,
+                                key = 'umap_subset_per_fit')
 
-        with neipro_settings[3]:
-            st.toggle('Load pre-generated UMAP', value = False, key = 'load_generated_umap_toggle',)
-    clust_minmax = [1, 40]
+            with neipro_settings[2]:
+                st.toggle('Subset data transformed by UMAP', value = False, key = 'umap_subset_toggle',
+                        help = '''The UMAP model is always trained on a percentate of data specified included in the smallest image.
+                        You can choose to transform the entire dataset using this trained model, or only transform
+                            a percentage of the data. This can be useful for large datasets.
+                            If a percentage is chosen for transformation, it is always a different sample
+                            than what the model was trained on.''')
+                add_vertical_space(2)
+                st.number_input('Percentage of cells to Subset for Transforming Step', min_value = 20, max_value = 80, step = 10,
+                                key = 'umap_subset_per', disabled = not st.session_state.umap_subset_toggle)
 
-    npf_cols = st.columns([1, 1, 2])
-    with npf_cols[0]:
-        nei_pro_tabs = st.tabs(['Analyze from Phenotyping', 'Load Previous Analysis'])
-        with nei_pro_tabs[0]:
+            with neipro_settings[3]:
+                st.toggle('Load pre-generated UMAP', value = False, key = 'load_generated_umap_toggle',)
+    
+        clust_minmax = [1, 40]
+
+        
+        npf_cols = st.columns([1, 1, 2])
+        with npf_cols[0]:
+            
+
             dens_butt = st.button('Perform Cell Density Analysis')
             umap_butt = st.button('Perform UMAP Analysis')
             st.toggle('Perform Clustering on UMAP Density Difference', value = False, key = 'toggle_clust_diff')
@@ -409,10 +414,10 @@ def main():
                     st.number_input('Number of Clusters for True Condition', min_value = 1, max_value = 10, value = 3, step = 1, key = 'num_clus_1')
                 clust_butt_disabled = True
             clust_butt = st.button('Perform Clustering Analysis', disabled=clust_butt_disabled)
-        with nei_pro_tabs[1]:
-            st.write('Checkpoint file: neighborhood_profiles_checkpoint.pkl')
-            st.button('Load checkpointed UMAP results', on_click=load_neipro_struct)
-            add_vertical_space(12)
+    with nei_pro_tabs[1]:
+        st.write('Checkpoint file: neighborhood_profiles_checkpoint.pkl')
+        st.button('Load checkpointed UMAP results', on_click=load_neipro_struct)
+        add_vertical_space(19)
 
     # Button results and difference settings
     with npf_cols[1]:
