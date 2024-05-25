@@ -68,7 +68,7 @@ class SpatialUMAP:
         return np.stack([arcs[:, :, 0]] + [arcs[:, :, i] != arcs[:, :, i - 1] for i in range(1, arcs.shape[2])], axis=2)
 
     @staticmethod
-    def process_cell_areas(i, region_id, cell_positions, cell_labels, dist_bin_px, img_mask, arcs):
+    def process_cell_areas(i, region_id, cell_positions, dist_bin_px, img_mask, arcs):
         '''Processing the cell_area information'''
 
         # Print the image name
@@ -335,14 +335,13 @@ class SpatialUMAP:
                 # partial for picklable fn for pool for process with data from this region
                 args = dict(region_id=region_id,
                             cell_positions=self.cell_positions[idx][:, [1, 0]] * self.area_downsample,
-                            cell_labels=self.cell_labels.values[idx],
                             dist_bin_px=self.arcs_radii,
                             img_mask=img_tissue_mask_dn,
                             arcs=self.arcs_masks)
                 pool_map_fn = partial(SpatialUMAP.process_cell_areas, **args)
                 # process
                 i, areas = list(map(lambda x: np.stack(x, axis=0), list(zip(*self.pool.map(pool_map_fn, range(len(idx)))))))
-                # adjust for indexing (just in case)
+
                 areas = areas[i]
 
                 # set results
