@@ -436,10 +436,10 @@ def main():
             if st.session_state.density_completed:
                 if umap_butt:
                     apply_umap(umap_style = 'Densities')
-                if st.session_state.umap_completed:
-                    st.write(':white_check_mark: UMAP Analysis Completed')
-                else:
+                if not st.session_state.umap_completed:
                     st.write(':x: Step 2: Perform UMAP')
+                else:
+                    st.write(':white_check_mark: UMAP Analysis Completed')
 
         if clust_butt:
             if st.session_state.umap_completed:
