@@ -68,7 +68,15 @@ class SpatialUMAP:
         return np.stack([arcs[:, :, 0]] + [arcs[:, :, i] != arcs[:, :, i - 1] for i in range(1, arcs.shape[2])], axis=2)
 
     @staticmethod
-    def process_cell_areas(i, cell_positions, cell_labels, dist_bin_px, img_mask, arcs):
+    def process_cell_areas(i, region_id, cell_positions, cell_labels, dist_bin_px, img_mask, arcs):
+        '''Processing the cell_area information'''
+
+        # Print the image name
+        print(f'Calculating neighborhood area for image {region_id} (cells)...')
+
+        # Record the start time
+        start_time = time.time()
+
         # true bounds to match arcs
         bounds = np.array([cell_positions[i].astype(int) - dist_bin_px[-1].astype(int), dist_bin_px[-1].astype(int) + 1 + cell_positions[i].astype(int)]).T
         # actual coordinate slices given tissue image
@@ -77,6 +85,10 @@ class SpatialUMAP:
         areas = np.pad(img_mask[tuple(map(lambda x: slice(*x), coords))], (bounds - coords) * np.array([-1, 1])[np.newaxis, :], mode='constant', constant_values=0)
         # area in square pixels
         areas = (areas[:, :, np.newaxis] & arcs).sum(axis=(0, 1))
+
+        # Print the time taken to calculate the neighbor counts for the current image
+        print(f'  ...finished calculating neighborhood areas for image {region_id} (cells) in {time.time() - start_time:.2f} seconds')
+
         # return i and areas
         return i, areas
 
@@ -307,7 +319,7 @@ class SpatialUMAP:
 
     def process_region_areas(self, pool_size, area_threshold, plots_directory=None):
 
-        for region_id in tqdm(self.region_ids):
+        for region_id in self.region_ids:
             # get indices of cells from this region
             idx = np.where(region_id == self.cells['TMA_core_id'])[0]
             # get counts if cells are in region
@@ -321,20 +333,20 @@ class SpatialUMAP:
                 img_tissue_mask_dn = sktran.rescale(img_tissue_mask, self.area_downsample).astype(bool)
 
                 # partial for picklable fn for pool for process with data from this region
-                args = dict(cell_positions=self.cell_positions[idx][:, [1, 0]] * self.area_downsample,
+                args = dict(region_id=region_id,
+                            cell_positions=self.cell_positions[idx][:, [1, 0]] * self.area_downsample,
                             cell_labels=self.cell_labels.values[idx],
-                            dist_bin_px=self.arcs_radii, img_mask=img_tissue_mask_dn, arcs=self.arcs_masks)
+                            dist_bin_px=self.arcs_radii,
+                            img_mask=img_tissue_mask_dn,
+                            arcs=self.arcs_masks)
                 pool_map_fn = partial(SpatialUMAP.process_cell_areas, **args)
                 # process
                 i, areas = list(map(lambda x: np.stack(x, axis=0), list(zip(*self.pool.map(pool_map_fn, range(len(idx)))))))
                 # adjust for indexing (just in case)
                 areas = areas[i]
-                # set filter for cells with adequate area coverage
-                filt = ((areas / self.arcs_masks.sum(axis=(0, 1))[np.newaxis, ...]) > area_threshold).all(axis=1)
 
                 # set results
                 self.areas[idx] = areas
-                self.cells.loc[idx, 'area_filter'] = filt
 
                 if plots_directory is not None:
                     plt.ioff()
