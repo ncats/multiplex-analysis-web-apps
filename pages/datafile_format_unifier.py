@@ -7,6 +7,29 @@ import streamlit_dataframe_editor as sde
 import re
 import utils
 
+
+def generate_guess_for_basename_of_mawa_unified_file(filenames):
+    # generate_guess_for_basename_of_mawa_unified_file(df_reconstructed.loc[selected_rows, 'Filename'])
+
+    # Convert the pandas Series to a list
+    filenames_list = filenames.tolist()
+
+    # Find the common prefix of the filenames
+    common_prefix = os.path.commonprefix(filenames_list)
+
+    # Find the common suffix of the filenames
+    common_suffix = os.path.commonprefix([filename[::-1] for filename in filenames_list])[::-1]
+
+    # Combine the common prefix and suffix
+    result = common_prefix + common_suffix
+
+    # Strip the extension from the result
+    result_without_extension = os.path.splitext(result)[0]
+
+    # Return it
+    st.session_state['unifier__custom_text_for_output_filename'] = result_without_extension
+
+
 def list_files(directory, extensions):
     """
     List files in a directory with given extension(s).
@@ -130,7 +153,7 @@ def main():
             else:
                 load_msg = 'Loading and Combining Files...'
             # Create a button to concatenate the selected files
-            if st.button(button_text, help=button_help_message, disabled=load_button_disabled):
+            if st.button(button_text, help=button_help_message, disabled=load_button_disabled, on_click=generate_guess_for_basename_of_mawa_unified_file, args=(df_reconstructed.loc[selected_rows, 'Filename'],)):
 
                 # Render a progress spinner while the files are being combined
                 with st.spinner(load_msg):
@@ -151,7 +174,14 @@ def main():
                     # If the columns are equal for all input files, concatenate all files into a single dataframe
                     if columns_equal:
                         sep = (',' if input_files[0].split('.')[-1] == 'csv' else '\t')
-                        st.session_state['unifier__df'] = utils.downcast_dataframe_dtypes(pd.concat([pd.read_csv(os.path.join(directory, input_file), sep=sep) for input_file in input_files], ignore_index=True))
+                        # st.session_state['unifier__df'] = utils.downcast_dataframe_dtypes(pd.concat([pd.read_csv(os.path.join(directory, input_file), sep=sep) for input_file in input_files], ignore_index=True))
+                        df_holder = []
+                        for input_file in input_files:
+                            curr_df = pd.read_csv(os.path.join(directory, input_file), sep=sep)
+                            assert 'input_filename' not in curr_df.columns, 'ERROR: "input_filename" is one of the columns but we want to overwrite it'
+                            curr_df['input_filename'] = input_file
+                            df_holder.append(curr_df)
+                        st.session_state['unifier__df'] = utils.downcast_dataframe_dtypes(pd.concat(df_holder, ignore_index=True))
 
                         # Save the setting used for this operation
                         st.session_state['unifier__input_files_actual'] = input_files
@@ -235,8 +265,19 @@ def main():
                 st.session_state['unifier__columns_to_combine_to_uniquely_define_slides'] = []
             st.multiselect('Select one or more columns to define unique multiplex images:', df.columns, key='unifier__columns_to_combine_to_uniquely_define_slides')  # removing .select_dtypes(include=['object', 'string']) from df
 
+            # Add a checkbox to determine whether we want to strip off the paths
+            if 'unifier__strip_path' not in st.session_state:
+                st.session_state['unifier__strip_path'] = True
+            st.checkbox('Strip off path', key='unifier__strip_path')
+
             # Create a button to assign images to the dataframe
             if st.button(':star2: Assign images :star2:'):
+
+                # If we want to strip off the path, set a function to strip off the path
+                if st.session_state['unifier__strip_path']:
+                    to_func = lambda y: re.split(r'[/\\]', y)[-1]
+                else:
+                    to_func = lambda y: y
 
                 # Render a progress spinner while the images are being assigned
                 with st.spinner('Assigning images...'):
@@ -245,7 +286,8 @@ def main():
                     subset_columns = st.session_state['unifier__columns_to_combine_to_uniquely_define_slides']
                     unique_rows = df[subset_columns].drop_duplicates()
                     df_from = unique_rows.apply(lambda x: '__'.join(x.apply(str)), axis='columns')
-                    df_to = unique_rows.apply(lambda x: '__'.join(x.apply(str).apply(lambda y: re.split(r'[/\\]', y)[-1])).replace(' ', '_').replace('.', '_'), axis='columns')
+                    # df_to = unique_rows.apply(lambda x: '__'.join(x.apply(str).apply(to_func)).replace(' ', '_').replace('.', '_'), axis='columns')
+                    df_to = unique_rows.apply(lambda x: '__'.join(x.apply(str).apply(to_func)), axis='columns')
                     transformation = dict(zip(df_from, df_to))
                     df_subset = df[subset_columns]
                     keys = df_subset.astype(str).apply('__'.join, axis='columns')
