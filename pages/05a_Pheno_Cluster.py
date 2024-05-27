@@ -1,4 +1,18 @@
 # Import relevant libraries
+import streamlit as st
+import subprocess
+
+try:
+    import parc
+    print("Successfully imported parc!")
+except ImportError:
+    print("Installing parc...")
+    subprocess.run("pip install parc", shell=True)
+    try:
+        import parc
+    except ImportError:
+       print("Failed to import parc.")
+        
 from ast import arg
 from pyparsing import col
 import streamlit as st
@@ -12,14 +26,12 @@ import seaborn as sns
 import os
 import matplotlib.pyplot as plt
 import phenograph
-import parc
 #from utag import utag
 import numpy as np
 import scanpy.external as sce
 import plotly.express as px
 import time
 from utag.segmentation import utag
-
 
 def phenocluster__make_adata(df, x_cols, meta_cols):
     mat = df[x_cols]
