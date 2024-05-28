@@ -21,7 +21,7 @@ def top_of_page_reqs(session_state):
     '''
 
     # Add Logo
-    add_logo('app_images/mawa_logo-width315.png', height=150)
+    add_logo('app_images/mawa_logo-width315.png', height=250)
 
     # Determine whether this is the first time the app has been run
     if 'app_has_been_run_at_least_once' not in session_state:
