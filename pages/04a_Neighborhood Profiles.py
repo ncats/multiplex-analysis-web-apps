@@ -420,20 +420,8 @@ def main():
         npf_cols = st.columns([1, 1, 2])
         with npf_cols[0]:
 
-            dens_butt = st.button('Perform Cell Density Analysis')
-            umap_butt = st.button('Perform UMAP Analysis')
-            st.toggle('Perform Clustering on UMAP Density Difference', value = False, key = 'toggle_clust_diff')
-            if st.session_state['toggle_clust_diff'] is False: # Run Clustering Normally
-                st.slider('Number of K-means clusters',
-                          min_value=st.session_state.clust_minmax[0],
-                          max_value=st.session_state.clust_minmax[1],
-                          key = 'slider_clus_val')
-            else:
-                sep_clust_cols = st.columns(2)
-                with sep_clust_cols[0]:
-                    st.number_input('Number of Clusters for False Condition', min_value = 1, max_value = 10, value = 3, step = 1, key = 'num_clus_0')
-                with sep_clust_cols[1]:
-                    st.number_input('Number of Clusters for True Condition', min_value = 1, max_value = 10, value = 3, step = 1, key = 'num_clus_1')
+            dens_butt  = st.button('Perform Cell Density Analysis')
+            umap_butt  = st.button('Perform UMAP Analysis')
             clust_butt = st.button('Perform Clustering Analysis')
 
         # Button results and difference settings
@@ -455,12 +443,29 @@ def main():
                     else:
                         st.write(':white_check_mark: UMAP Analysis Completed')
 
-            if clust_butt:
+            if st.session_state.phenotyping_completed:
                 if st.session_state.umap_completed:
+                    st.toggle('Perform Clustering on UMAP Density Difference', value = False, key = 'toggle_clust_diff')
+                    
+                    # Run Clustering Normally
+                    if st.session_state['toggle_clust_diff'] is False:
+                        st.slider('Number of K-means clusters',
+                                min_value=st.session_state.clust_minmax[0],
+                                max_value=st.session_state.clust_minmax[1],
+                                key = 'slider_clus_val')
+                    # Clustering on UMAP Density Difference
+                    else:
+                        st.selectbox('Feature', options = st.session_state.spatial_umap.outcomes, key = 'dens_diff_feat_sel')
+                        st.number_input('Cutoff Percentage', min_value = 0.01, max_value = 0.99, value = 0.01, step = 0.01, key = 'dens_diff_cutoff')
+
+                        sep_clust_cols = st.columns(2)
+                        with sep_clust_cols[0]:
+                            st.number_input('Number of Clusters for False Condition', min_value = 1, max_value = 10, value = 3, step = 1, key = 'num_clus_0')
+                        with sep_clust_cols[1]:
+                            st.number_input('Number of Clusters for True Condition', min_value = 1, max_value = 10, value = 3, step = 1, key = 'num_clus_1')
+                    
+                if clust_butt:
                     set_clusters()
-            if st.session_state['toggle_clust_diff'] and st.session_state.umap_completed:
-                st.selectbox('Feature', options = st.session_state.spatial_umap.outcomes, key = 'dens_diff_feat_sel')
-                st.number_input('Cutoff Percentage', min_value = 0.01, max_value = 0.99, value = 0.01, step = 0.01, key = 'dens_diff_cutoff')
 
         # UMAP Density Difference Analysis
         with npf_cols[2]:
