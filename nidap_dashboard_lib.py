@@ -135,6 +135,7 @@ def init_session_state(session_state):
     session_state.umap_subset_per = 20
     session_state.area_filter_per = 0.001
     session_state.clust_minmax = [1, 40]
+    session_state.toggle_clust_diff = False
 
     # Set data_loaded = False.
     # This needs to happen at the end to counteract the 'loadDataButton' action
