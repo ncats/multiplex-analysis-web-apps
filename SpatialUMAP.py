@@ -8,7 +8,6 @@ from functools import partial
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-import matplotlib.pyplot as plt
 from scipy import optimize
 from scipy import ndimage as ndi
 from scipy.spatial import ConvexHull
@@ -68,29 +67,33 @@ class SpatialUMAP:
         return np.stack([arcs[:, :, 0]] + [arcs[:, :, i] != arcs[:, :, i - 1] for i in range(1, arcs.shape[2])], axis=2)
 
     @staticmethod
-    def process_cell_areas(i, region_id, cell_positions, dist_bin_px, img_mask, arcs):
+    def process_cell_areas(idx, region_id, cell_positions, dist_bin_px, img_mask, arcs):
         '''Processing the cell_area information'''
 
         # Print the image name
-        print(f'Calculating neighborhood area for image {region_id} (cells)...')
+        print(f'Calculating neighborhood area for image {region_id} ({len(idx)} cells)...')
 
         # Record the start time
         start_time = time.time()
 
-        # true bounds to match arcs
-        bounds = np.array([cell_positions[i].astype(int) - dist_bin_px[-1].astype(int), dist_bin_px[-1].astype(int) + 1 + cell_positions[i].astype(int)]).T
-        # actual coordinate slices given tissue image
-        coords = np.stack([np.maximum(0, bounds[:, 0]), np.array([np.minimum(a, b) for a, b in zip(np.array(img_mask.shape) - 1, bounds[:, 1])])], axis=1)
-        # padded extract
-        areas = np.pad(img_mask[tuple(map(lambda x: slice(*x), coords))], (bounds - coords) * np.array([-1, 1])[np.newaxis, :], mode='constant', constant_values=0)
-        # area in square pixels
-        areas = (areas[:, :, np.newaxis] & arcs).sum(axis=(0, 1))
+        region_area_df = pd.DataFrame()
+        for i, idx_i in enumerate(idx):
+            # true bounds to match arcs
+            bounds = np.array([cell_positions[i].astype(int) - dist_bin_px[-1].astype(int), dist_bin_px[-1].astype(int) + 1 + cell_positions[i].astype(int)]).T
+            # actual coordinate slices given tissue image
+            coords = np.stack([np.maximum(0, bounds[:, 0]), np.array([np.minimum(a, b) for a, b in zip(np.array(img_mask.shape) - 1, bounds[:, 1])])], axis=1)
+            # padded extract
+            areas = np.pad(img_mask[tuple(map(lambda x: slice(*x), coords))], (bounds - coords) * np.array([-1, 1])[np.newaxis, :], mode='constant', constant_values=0)
+            # area in square pixels
+            areas = (areas[:, :, np.newaxis] & arcs).sum(axis=(0, 1))
+            # append to df
+            region_area_df = pd.concat([region_area_df, pd.DataFrame(data = {'idx': idx_i, 'area': areas})], axis=0)
 
         # Print the time taken to calculate the neighbor counts for the current image
-        print(f'  ...finished calculating neighborhood areas for image {region_id} (cells) in {time.time() - start_time:.2f} seconds')
+        print(f'  ...finished calculating neighborhood areas for image {region_id} ({len(idx)} cells) in {time.time() - start_time:.2f} seconds')
 
         # return i and areas
-        return i, areas
+        return region_area_df
 
     @staticmethod
     def process_cell_counts(i, cell_positions, cell_labels, dist_bin_px):
@@ -317,7 +320,10 @@ class SpatialUMAP:
                     # set results, adjust indexing (just in case)
                     self.counts[chunk] = counts
 
-    def process_region_areas(self, pool_size, area_threshold, plots_directory=None):
+    def process_region_areas(self, pool_size):
+
+        # Initialize keyword arguments
+        kwargs_list = []
 
         for region_id in self.region_ids:
             # get indices of cells from this region
@@ -332,36 +338,22 @@ class SpatialUMAP:
                 # down sample for area calculations
                 img_tissue_mask_dn = sktran.rescale(img_tissue_mask, self.area_downsample).astype(bool)
 
-                # partial for picklable fn for pool for process with data from this region
-                args = dict(region_id=region_id,
-                            cell_positions=self.cell_positions[idx][:, [1, 0]] * self.area_downsample,
-                            dist_bin_px=self.arcs_radii,
-                            img_mask=img_tissue_mask_dn,
-                            arcs=self.arcs_masks)
-                pool_map_fn = partial(SpatialUMAP.process_cell_areas, **args)
-                # process
-                i, areas = list(map(lambda x: np.stack(x, axis=0), list(zip(*self.pool.map(pool_map_fn, range(len(idx)))))))
+                # Create a dictionary for the variables
+                kwargs_list.append(
+                    (
+                        idx,
+                        region_id,
+                        self.cell_positions[idx][:, [1, 0]] * self.area_downsample,
+                        self.arcs_radii,
+                        img_tissue_mask_dn,
+                        self.arcs_masks
+                    )
+                )
 
-                areas = areas[i]
-
-                # set results
-                self.areas[idx] = areas
-
-                if plots_directory is not None:
-                    plt.ioff()
-                    f = plt.figure(figsize=(3, 3))
-                    plt.axes()
-                    f.axes[0].cla()
-                    f.axes[0].plot(*self.cell_positions[idx].T, 'k,')
-                    f.axes[0].plot(*self.cell_positions[idx][idx_fit].T, 'r.', markersize=3, alpha=0.5)
-                    f.axes[0].plot(*self.cell_positions[idx][filt].T, 'b.', markersize=3, alpha=0.5)
-                    f.axes[0].imshow(img_tissue_mask, alpha=0.5)
-                    f.axes[0].axis('off')
-                    plt.tight_layout(pad=0.1)
-                    f.savefig('%s/%s.png' % (plots_directory, region_id), format='png')
-                    plt.close(f)
-                    del f
-                    plt.ion()
+        # Create a pool of worker processes
+        with mp.Pool(processes=pool_size) as pool:
+            results = pool.starmap(self.process_cell_areas, kwargs_list)
+            print(results)
 
     def get_counts(self, pool_size=2, save_file=None):
         '''
@@ -426,10 +418,8 @@ class SpatialUMAP:
         '''
         self.clear_areas()
         self.cells['area_filter'] = False
-        self.start_pool(pool_size)
 
-        self.process_region_areas(pool_size, area_threshold=area_threshold, plots_directory=plots_directory)
-        self.close_pool()
+        self.process_region_areas(pool_size)
 
         if save_file is not None:
             pd.DataFrame(self.areas, columns=self.dist_bin_um).to_csv(save_file, index=False)
