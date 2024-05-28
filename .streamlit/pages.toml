@@ -113,12 +113,12 @@ path = "pages/memory_analyzer.py"
 name = "Memory Analyzer"
 icon = ""
 
-# [[pages]]
-# name = "In Development"
-# icon = ""
-# is_section = true
+[[pages]]
+name = "In Development"
+icon = ""
+is_section = true
 
-# [[pages]]
-# path = "pages/macro_radial_density.py"
-# name = "Macro Radial Density"
-# icon = ""
+[[pages]]
+path = "pages/macro_radial_density.py"
+name = "Macro Radial Density"
+icon = ""

@@ -233,6 +233,8 @@ def main():
                 # If value is a string, replace '(plus)' with '+' and '(dash)' with '-', since it could likely be a phenotype with those substitutions
                 if isinstance(value_to_plot, str):
                     value_str_cleaned = value_to_plot.replace('(plus)', '+').replace('(dash)', '-')
+                else:
+                    value_str_cleaned = value_to_plot
 
                 # Add the object index to the label
                 df_group['hover_label'] = 'Index: ' + df_group.index.astype(str)
