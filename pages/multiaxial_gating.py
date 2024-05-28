@@ -11,6 +11,34 @@ import app_top_of_page as top
 import streamlit_dataframe_editor as sde
 
 
+def plotly_chart_histogram_callback():
+    if 'mg__plotly_chart_histogram__do_not_persist' in st.session_state:
+        if st.session_state['mg__plotly_chart_histogram__do_not_persist']['selection']['box']:
+            x_range = sorted(st.session_state['mg__plotly_chart_histogram__do_not_persist']['selection']['box'][0]['x'])
+            st.session_state['mg__selected_value_range'] = tuple(x_range)
+            st.session_state['mg__min_selection_value'] = x_range[0]
+
+
+def plotly_chart_summary_callback():
+    if 'mg__plotly_chart_summary__do_not_persist' in st.session_state:
+        if st.session_state['mg__plotly_chart_summary__do_not_persist']['selection']['points']:
+            selected_z_score = st.session_state['mg__plotly_chart_summary__do_not_persist']['selection']['points'][0]['x']
+            df_summary_contents = st.session_state['mg__df_summary_contents'].set_index('Z score')
+            df_selected_threshold = df_summary_contents.loc[selected_z_score, 'Threshold']
+            selected_value_range = st.session_state['mg__selected_value_range']
+            st.session_state['mg__selected_value_range'] = (df_selected_threshold, selected_value_range[1])
+            st.session_state['mg__min_selection_value'] = df_selected_threshold
+
+
+def df_summary_callback():
+    if 'mg__df_summary__do_not_persist' in st.session_state:
+        if st.session_state['mg__df_summary__do_not_persist']['selection']['rows']:
+            df_selected_threshold = st.session_state['mg__df_summary_contents'].iloc[st.session_state['mg__df_summary__do_not_persist']['selection']['rows'][0]]['Threshold']
+            selected_value_range = st.session_state['mg__selected_value_range']
+            st.session_state['mg__selected_value_range'] = (df_selected_threshold, selected_value_range[1])
+            st.session_state['mg__min_selection_value'] = df_selected_threshold
+
+
 def generate_box_and_whisker(apply_another_filter, df, column_for_filtering, another_filter_column, values_on_which_to_filter, images_in_plotting_group_1, images_in_plotting_group_2, all_cells=True):
 
     # If we're ready to apply a filter, then create it
@@ -752,16 +780,16 @@ def main():
                 # Plot the Plotly figure in Streamlit
                 fig = go.Figure()
                 if not use_groups_for_plotting:
-                    fig.add_trace(go.Scatter(x=kde_or_hist_to_plot_full['Value'], y=kde_or_hist_to_plot_full['Density'], fill='tozeroy', mode='none', fillcolor='rgba(255, 0, 0, 0.25)', name='All selected images', hovertemplate=' '))
+                    fig.add_trace(go.Scatter(x=kde_or_hist_to_plot_full['Value'], y=kde_or_hist_to_plot_full['Density'], fill='tozeroy', mode='markers', marker=dict(color='rgba(255, 0, 0, 0.25)', size=1), fillcolor='rgba(255, 0, 0, 0.25)', name='All selected images', hovertemplate=' '))
                     fig.add_trace(go.Scatter(x=df_to_plot_selected['Value'], y=df_to_plot_selected['Density'], fill='tozeroy', mode='none', fillcolor='rgba(255, 0, 0, 0.5)', name='Selection', hoverinfo='skip'))
                     if intensity_cutoff is not None:
                         fig.add_vline(x=intensity_cutoff, line_color='green', line_width=3, line_dash="dash", annotation_text="Previous threshold: ~{}".format((intensity_cutoff)), annotation_font_size=18, annotation_font_color="green")
                     fig.update_layout(hovermode='x unified', xaxis_title='Column value', yaxis_title='Density')
                     fig.update_layout(legend=dict(yanchor="top", y=1.2, xanchor="left", x=0.01, orientation="h"))
                 else:
-                    fig.add_trace(go.Scatter(x=kde_or_hist_to_plot_full[0]['Value'], y=kde_or_hist_to_plot_full[0]['Density'], fill='tozeroy', mode='none', fillcolor='rgba(0, 255, 255, 0.25)', name='Baseline group', hovertemplate=' '))
+                    fig.add_trace(go.Scatter(x=kde_or_hist_to_plot_full[0]['Value'], y=kde_or_hist_to_plot_full[0]['Density'], fill='tozeroy', mode='markers', marker=dict(color='rgba(0, 255, 255, 0.25)', size=1), fillcolor='rgba(0, 255, 255, 0.25)', name='Baseline group', hovertemplate=' '))
                     fig.add_trace(go.Scatter(x=df_to_plot_selected[0]['Value'], y=df_to_plot_selected[0]['Density'], fill='tozeroy', mode='none', fillcolor='rgba(0, 255, 255, 0.5)', name='Baseline selection', hoverinfo='skip'))
-                    fig.add_trace(go.Scatter(x=kde_or_hist_to_plot_full[1]['Value'], y=kde_or_hist_to_plot_full[1]['Density'], fill='tozeroy', mode='none', fillcolor='rgba(255, 0, 0, 0.25)', name='Signal group', hovertemplate=' '))
+                    fig.add_trace(go.Scatter(x=kde_or_hist_to_plot_full[1]['Value'], y=kde_or_hist_to_plot_full[1]['Density'], fill='tozeroy', mode='markers', marker=dict(color='rgba(255, 0, 0, 0.25)', size=1), fillcolor='rgba(255, 0, 0, 0.25)', name='Signal group', hovertemplate=' '))
                     fig.add_trace(go.Scatter(x=df_to_plot_selected[1]['Value'], y=df_to_plot_selected[1]['Density'], fill='tozeroy', mode='none', fillcolor='rgba(255, 0, 0, 0.5)', name='Signal selection', hoverinfo='skip'))
                     if intensity_cutoff is not None:
                         fig.add_vline(x=intensity_cutoff, line_color='green', line_width=3, line_dash="dash", annotation_text="Previous threshold: ~{}".format((intensity_cutoff)), annotation_font_size=18, annotation_font_color="green")
@@ -769,7 +797,7 @@ def main():
                     fig.update_layout(legend=dict(yanchor="top", y=1.2, xanchor="left", x=0.01, orientation="h"))
 
                 # Set Plotly chart in streamlit
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, on_select=plotly_chart_histogram_callback, key='mg__plotly_chart_histogram__do_not_persist', selection_mode='box')
 
                 # Set the selection dictionary for the current filter to pass on to the current phenotype definition
                 selection_dict = {'column_for_filtering': column_for_filtering, 'selected_min_val': selected_min_val, 'selected_max_val': selected_max_val, 'selected_column_values': None}
@@ -823,8 +851,9 @@ def main():
                         st.session_state['mg__positive_percentage_per_image'] = True
                     st.checkbox('Calculate positive percentages separately for each image', key='mg__positive_percentage_per_image')
                     fig, df_summary = generate_box_and_whisker(apply_another_filter, df_batch_normalized, column_for_filtering, st.session_state['mg__another_filter_column'], st.session_state['mg__values_on_which_to_filter'], st.session_state['mg__images_in_plotting_group_1'], st.session_state['mg__images_in_plotting_group_2'], all_cells=(not st.session_state['mg__positive_percentage_per_image']))
-                    st.plotly_chart(fig)
-                    st.dataframe(df_summary, hide_index=True)
+                    st.session_state['mg__df_summary_contents'] = df_summary
+                    st.plotly_chart(fig, on_select=plotly_chart_summary_callback, key='mg__plotly_chart_summary__do_not_persist')
+                    st.dataframe(df_summary, hide_index=True, key="mg__df_summary__do_not_persist", on_select=df_summary_callback, selection_mode=["single-row"])
 
             # Add the current column filter to the current phenotype assignment
             st.button(':star2: Add column filter to current phenotype :star2:', use_container_width=True, on_click=update_dependencies_of_button_for_adding_column_filter_to_current_phenotype, kwargs=selection_dict, disabled=add_column_button_disabled)
