@@ -26,6 +26,11 @@ def init_spatial_umap():
     # Reset the settings required for Neighborhood Analysis
     st.session_state = ndl.reset_neigh_profile_settings(st.session_state)
 
+    if st.session_state['calc_unique_areas_toggle']:
+        area_filter = 0
+    else:
+        area_filter = st.session_state['area_filter_per']
+
     st.session_state.bc.startTimer()
     with st.spinner('Calculating Cell Counts and Areas'):
         st.session_state.spatial_umap = bpl.setup_Spatial_UMAP(st.session_state.df,
@@ -35,8 +40,9 @@ def init_spatial_umap():
 
         st.session_state.spatial_umap = bpl.perform_density_calc(st.session_state.spatial_umap,
                                                                  st.session_state.bc,
+                                                                 st.session_state.calc_unique_areas_toggle,
                                                                  st.session_state.cpu_pool_size,
-                                                                 st.session_state['area_filter_per'])
+                                                                 area_filter)
 
     # Record time elapsed
     st.session_state.bc.set_value_df('time_to_run_counts', st.session_state.bc.elapsedTime())
@@ -365,8 +371,21 @@ def main():
                                 key = 'cpu_pool_size',
                                 help = '''Number of CPUs to use for parallel processing.
                                 This effects the speed of the Cell Density Analysis''')
+                st.toggle('Calculate unique areas', key = 'calc_unique_areas_toggle',
+                          help = '''For Multiplex studies measuring the density of cells
+                          surrounding each cell, specific radii are drawn to measure how
+                          density changes over the distance from the cell. If the same radii
+                          is used for each cell, than the areas encompassed by the radii are
+                          also the same. However, the actual areas surrounding a given cell may
+                          be different due to edge effects of the tissue. When this toggle is
+                          false, all areas are assumed to be the same. When this toggle is true,
+                          the areas are calculated for each cell based on how the radii
+                          interact with the edges of the tissue. Turning this on will make 
+                          the density calculation run longer.
+                          ''')
                 st.number_input('Area Filter Ratio', min_value = 0.001, max_value = 1.0, step = 0.001,
                                 format="%.3f", key = 'area_filter_per',
+                                disabled=not st.session_state['calc_unique_areas_toggle'],
                                 help = '''The area filter ratio identifies how much of an area surrounding
                                 a cell can be to be considered large enough to be included in the density calculations.
                                 Small values of the ratio (close to 0) include more cells, and large values

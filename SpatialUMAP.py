@@ -72,7 +72,7 @@ class SpatialUMAP:
         '''Processing the cell_area information'''
 
         # Print the image name
-        print(f'Calculating neighborhood area for image {region_id} (cells)...')
+        # print(f'Calculating neighborhood area for image {region_id} (cells)...')
 
         # Record the start time
         start_time = time.time()
@@ -87,7 +87,7 @@ class SpatialUMAP:
         areas = (areas[:, :, np.newaxis] & arcs).sum(axis=(0, 1))
 
         # Print the time taken to calculate the neighbor counts for the current image
-        print(f'  ...finished calculating neighborhood areas for image {region_id} (cells) in {time.time() - start_time:.2f} seconds')
+        # print(f'  ...finished calculating neighborhood areas for image {region_id} (cells) in {time.time() - start_time:.2f} seconds')
 
         # return i and areas
         return i, areas
@@ -419,17 +419,21 @@ class SpatialUMAP:
         '''
         self.counts = self.calculate_density_matrix_for_all_images(cpu_pool_size)
 
-    def get_areas(self, area_threshold, pool_size=2, save_file=None, plots_directory=None):
+    def get_areas(self, calc_areas, area_threshold, pool_size=2, save_file=None, plots_directory=None):
         '''
         get_areas begins the process of identifying the
         cell areas surrounding each given cell in a dataset
         '''
         self.clear_areas()
         self.cells['area_filter'] = False
-        self.start_pool(pool_size)
 
-        self.process_region_areas(pool_size, area_threshold=area_threshold, plots_directory=plots_directory)
-        self.close_pool()
+        if calc_areas:
+            self.start_pool(pool_size)
+            self.process_region_areas(pool_size, area_threshold=area_threshold, plots_directory=plots_directory)
+            self.close_pool()
+        else:
+            areas = self.arcs_masks.sum(axis=(0, 1))[np.newaxis, ...]
+            self.areas = np.tile(areas, (self.cells.shape[0], 1))
 
         if save_file is not None:
             pd.DataFrame(self.areas, columns=self.dist_bin_um).to_csv(save_file, index=False)
