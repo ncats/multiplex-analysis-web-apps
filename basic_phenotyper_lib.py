@@ -563,7 +563,7 @@ def setup_Spatial_UMAP(df, marker_names, pheno_order, smallest_image_size):
 
     return spatial_umap
 
-def perform_density_calc(spatial_umap, bc, cpu_pool_size = 1, area_threshold = 0.001):
+def perform_density_calc(spatial_umap, bc, calc_areas, cpu_pool_size = 1, area_threshold = 0.001):
     '''
     Calculate the cell counts, cell areas,
     perform the cell densities and cell proportions analyses.
@@ -596,7 +596,7 @@ def perform_density_calc(spatial_umap, bc, cpu_pool_size = 1, area_threshold = 0
     # get the areas of cells and save to pickle file
     print(f'\nStarting Cell Areas process with area threshold of {area_threshold}')
     bc.startTimer()
-    spatial_umap.get_areas(area_threshold, pool_size=cpu_pool_size)
+    spatial_umap.get_areas(calc_areas, area_threshold, pool_size=cpu_pool_size)
     bc.printElapsedTime(f'Calculating Areas for {len(spatial_umap.cells)} cells')
 
     # calculate density based on counts of cells / area of each arc examine
