@@ -9,6 +9,24 @@ import utils
 from scipy.stats import gaussian_kde
 import app_top_of_page as top
 import streamlit_dataframe_editor as sde
+import random
+import string
+
+
+def generate_random_string(length=10):
+    # Define the characters that will be used
+    characters = string.ascii_letters + string.digits
+    # Generate a random string of the specified length
+    random_string = ''.join(random.choice(characters) for i in range(length))
+    return random_string
+
+
+def reset_x_axis_range(use_groups_for_plotting, kde_or_hist_to_plot_full):
+    if not use_groups_for_plotting:
+        st.session_state['mg__histogram_x_range'] = [kde_or_hist_to_plot_full['Value'].min(), kde_or_hist_to_plot_full['Value'].max()]
+    else:
+        st.session_state['mg__histogram_x_range'] = [min(kde_or_hist_to_plot_full[0]['Value'].min(), kde_or_hist_to_plot_full[1]['Value'].min()), max(kde_or_hist_to_plot_full[0]['Value'].max(), kde_or_hist_to_plot_full[1]['Value'].max())]
+    st.session_state['mg__random_string'] = generate_random_string()
 
 
 def plotly_chart_histogram_callback():
@@ -777,8 +795,11 @@ def main():
                         # Get the lowest-intensity "positive" intensity/marker
                         intensity_cutoff = srs_marker_column_values[positive_loc].index[0]
 
+                st.button('Reset x-axis range', on_click=reset_x_axis_range, args=(use_groups_for_plotting, kde_or_hist_to_plot_full))
+
                 # Plot the Plotly figure in Streamlit
                 fig = go.Figure()
+
                 if not use_groups_for_plotting:
                     fig.add_trace(go.Scatter(x=kde_or_hist_to_plot_full['Value'], y=kde_or_hist_to_plot_full['Density'], fill='tozeroy', mode='markers', marker=dict(color='rgba(255, 0, 0, 0.25)', size=1), fillcolor='rgba(255, 0, 0, 0.25)', name='All selected images', hovertemplate=' '))
                     fig.add_trace(go.Scatter(x=df_to_plot_selected['Value'], y=df_to_plot_selected['Density'], fill='tozeroy', mode='none', fillcolor='rgba(255, 0, 0, 0.5)', name='Selection', hoverinfo='skip'))
@@ -796,8 +817,13 @@ def main():
                     fig.update_layout(hovermode='x unified', xaxis_title='Column value', yaxis_title='Density')
                     fig.update_layout(legend=dict(yanchor="top", y=1.2, xanchor="left", x=0.01, orientation="h"))
 
+                if 'mg__histogram_x_range' not in st.session_state:
+                    reset_x_axis_range(use_groups_for_plotting, kde_or_hist_to_plot_full)
+
+                fig.update_xaxes(range=st.session_state['mg__histogram_x_range'])
+
                 # Set Plotly chart in streamlit
-                st.plotly_chart(fig, on_select=plotly_chart_histogram_callback, key='mg__plotly_chart_histogram__do_not_persist', selection_mode='box')
+                st.plotly_chart(fig, on_select=plotly_chart_histogram_callback, key=('mg__plotly_chart_histogram_' + st.session_state['mg__random_string'] + '__do_not_persist'), selection_mode='box')
 
                 # Set the selection dictionary for the current filter to pass on to the current phenotype definition
                 selection_dict = {'column_for_filtering': column_for_filtering, 'selected_min_val': selected_min_val, 'selected_max_val': selected_max_val, 'selected_column_values': None}
