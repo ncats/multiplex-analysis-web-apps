@@ -640,7 +640,7 @@ def main():
                 with st.columns(3)[1]:
                     st.pyplot(fig=st.session_state.UMAPFig)
 
-                if st.session_state['toggle_clust_diff']:
+                if st.session_state.cluster_completed and st.session_state['toggle_clust_diff']:
                     if st.session_state['appro_feat']:
                         diff_cols = st.columns(3)
                         with diff_cols[0]:
