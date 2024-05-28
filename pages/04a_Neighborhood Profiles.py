@@ -18,6 +18,47 @@ import app_top_of_page as top
 import streamlit_dataframe_editor as sde
 from neighborhood_profiles import NeighborhoodProfiles, UMAPDensityProcessing
 
+def get_spatialUMAP(spatial_umap, bc, umap_subset_per_fit, umap_subset_toggle, umap_subset_per):
+    '''
+    Extract precomputed UMAP from the file
+
+    Args:
+        spatial_umap (spatial_umap): spatial_umap object
+        bc (benchmark_collector): Benchmark Collector object
+        UMAPStyle (str): Style of UMAP to use
+    
+    Returns:
+        spatial_umap: spatial_umap object with the UMAP analysis performed
+    '''
+
+    min_image_size = spatial_umap.smallest_image_size
+    n_fit = int(min_image_size*umap_subset_per_fit/100)
+    n_tra = n_fit + int(min_image_size*umap_subset_per/100)
+
+    # set training and "test" cells for umap training and embedding, respectively
+    print('Setting Train/Test Split')
+    spatial_umap.set_train_test(n_fit=n_fit, n_tra = n_tra, groupby_label = 'TMA_core_id', seed=54321, umap_subset_toggle = umap_subset_toggle)
+
+    # fit umap on training cells
+    bc.startTimer()
+    print('Fitting Model')
+    spatial_umap.umap_fit = spatial_umap.cells.loc[spatial_umap.cells['umap_train'].values, ['UMAP_1_20230327_152849', 'UMAP_2_20230327_152849']].values.reshape((spatial_umap.cells['umap_train'].sum(), -1))
+    bc.printElapsedTime(f'      Fitting {np.sum(spatial_umap.cells["umap_train"] == 1)} points to a model')
+
+    # Transform test cells based on fitted model
+    bc.startTimer()
+    print('Transforming Data')
+    spatial_umap.umap_test = spatial_umap.cells.loc[spatial_umap.cells['umap_test'].values, ['UMAP_1_20230327_152849', 'UMAP_2_20230327_152849']].values.reshape((spatial_umap.cells['umap_test'].sum(), -1))
+    bc.printElapsedTime(f'      Transforming {np.sum(spatial_umap.cells["umap_test"] == 1)} points with the model')
+
+    spatial_umap.umap_completed = True
+    
+    # import pickle
+    # with open('../Edits/spatial_umap_original_precomp.pkl', 'wb') as f:
+    #     pickle.dump(spatial_umap, f)
+
+    return spatial_umap
+
 def init_spatial_umap():
     '''
     Initalizing the spatial_umap object
@@ -58,61 +99,69 @@ def apply_umap(umap_style):
     '''
 
     st.session_state.bc.startTimer()
-    with st.spinner('Calculating UMAP'):
-        st.session_state.spatial_umap = bpl.perform_spatialUMAP(st.session_state.spatial_umap,
+        # if togle for loading pre-generated UMAP is selected extract UMAP from file, works only with a specific dataset
+    if st.session_state['load_generated_umap_toggle']:
+        st.session_state.spatial_umap = get_spatialUMAP(st.session_state.spatial_umap,
                                                                 st.session_state.bc,
                                                                 st.session_state.umap_subset_per_fit,
                                                                 st.session_state.umap_subset_toggle,
                                                                 st.session_state.umap_subset_per)
+    else:
+        with st.spinner('Calculating UMAP'):
+            st.session_state.spatial_umap = bpl.perform_spatialUMAP(st.session_state.spatial_umap,
+                                                                    st.session_state.bc,
+                                                                    st.session_state.umap_subset_per_fit,
+                                                                    st.session_state.umap_subset_toggle,
+                                                                    st.session_state.umap_subset_per)
 
-        # Record time elapsed
-        st.session_state.bc.printElapsedTime(msg = 'Performing UMAP')
-        st.session_state.bc.set_value_df('time_to_run_UMAP', st.session_state.bc.elapsedTime())
+    # Record time elapsed
+    st.session_state.bc.printElapsedTime(msg = 'Performing UMAP')
+    st.session_state.bc.set_value_df('time_to_run_UMAP', st.session_state.bc.elapsedTime())
 
-        # List of possible UMAP Lineages as defined by the completed UMAP
-        st.session_state.umapPheno = [st.session_state.defLineageOpt]
-        st.session_state.umapPheno.extend(st.session_state.pheno_summ['phenotype'])
-        st.session_state.umapMarks = [st.session_state.defLineageOpt]
-        st.session_state.umapMarks.extend(st.session_state.spatial_umap.markers)
-        st.session_state.umapMarks.extend(['Other'])
+    # List of possible UMAP Lineages as defined by the completed UMAP
+    st.session_state.umapPheno = [st.session_state.defLineageOpt]
+    st.session_state.umapPheno.extend(st.session_state.pheno_summ['phenotype'])
+    st.session_state.umapMarks = [st.session_state.defLineageOpt]
+    st.session_state.umapMarks.extend(st.session_state.spatial_umap.markers)
+    st.session_state.umapMarks.extend(['Other'])
 
-        # Identify all of the features in the dataframe
-        st.session_state.outcomes = st.session_state.spatial_umap.cells.columns
-        st.session_state.spatial_umap.outcomes = st.session_state.spatial_umap.cells.columns
+    # Identify all of the features in the dataframe
+    st.session_state.outcomes = st.session_state.spatial_umap.cells.columns
+    st.session_state.spatial_umap.outcomes = st.session_state.spatial_umap.cells.columns
 
-        # List of possible outcome variables as defined by the config yaml files
-        st.session_state.umapOutcomes = [st.session_state.defumapOutcomes]
-        st.session_state.umapOutcomes.extend(st.session_state.outcomes)
-        st.session_state.inciOutcomes = [st.session_state.definciOutcomes]
-        st.session_state.inciOutcomes.extend(st.session_state.outcomes)
+    # List of possible outcome variables as defined by the config yaml files
+    st.session_state.umapOutcomes = [st.session_state.defumapOutcomes]
+    st.session_state.umapOutcomes.extend(st.session_state.outcomes)
+    st.session_state.inciOutcomes = [st.session_state.definciOutcomes]
+    st.session_state.inciOutcomes.extend(st.session_state.outcomes)
 
-        # creates the df_umap dataframe for plotting
-        st.session_state.spatial_umap.prepare_df_umap_plotting(st.session_state.outcomes)
+    # creates the df_umap dataframe for plotting
+    st.session_state.spatial_umap.prepare_df_umap_plotting(st.session_state.outcomes)
 
-        if st.session_state['load_generated_umap_toggle']:
-            st.session_state.spatial_umap.df_umap['X'] = st.session_state.spatial_umap.cells['UMAP_1_20230327_152849'].values[st.session_state.spatial_umap.cells['umap_test']]
-            st.session_state.spatial_umap.df_umap['Y'] = st.session_state.spatial_umap.cells['UMAP_2_20230327_152849'].values[st.session_state.spatial_umap.cells['umap_test']]
-        # Perform possible cluster variations with the completed UMAP
-        # st.session_state.bc.startTimer()
-        # with st.spinner('Calculating Possible Clusters'):
-        #     st.session_state.clust_range, st.session_state.wcss = bpl.measure_possible_clust(st.session_state.spatial_umap, clust_minmax)
-        # st.session_state.bc.printElapsedTime(msg = 'Calculating possible clusters')
+    if st.session_state['load_generated_umap_toggle']:
+        st.session_state.spatial_umap.df_umap['X'] = st.session_state.spatial_umap.cells['UMAP_1_20230327_152849'].values[st.session_state.spatial_umap.cells['umap_test']]
+        st.session_state.spatial_umap.df_umap['Y'] = st.session_state.spatial_umap.cells['UMAP_2_20230327_152849'].values[st.session_state.spatial_umap.cells['umap_test']]
+    # Perform possible cluster variations with the completed UMAP
+    # st.session_state.bc.startTimer()
+    # with st.spinner('Calculating Possible Clusters'):
+    #     st.session_state.clust_range, st.session_state.wcss = bpl.measure_possible_clust(st.session_state.spatial_umap, clust_minmax)
+    # st.session_state.bc.printElapsedTime(msg = 'Calculating possible clusters')
 
-        st.session_state.wcss_calc_completed = True
-        st.session_state.umap_completed = True
+    st.session_state.wcss_calc_completed = True
+    st.session_state.umap_completed = True
 
-        # Create Neighborhood Profiles Object
-        st.session_state.npf = NeighborhoodProfiles(bc = st.session_state.bc)
+    # Create Neighborhood Profiles Object
+    st.session_state.npf = NeighborhoodProfiles(bc = st.session_state.bc)
 
-        # Create Full UMAP example
-        st.session_state.udp_full = UMAPDensityProcessing(st.session_state.npf, st.session_state.spatial_umap.df_umap)
-        st.session_state.UMAPFig = st.session_state.udp_full.UMAPdraw_density()
+    # Create Full UMAP example
+    st.session_state.udp_full = UMAPDensityProcessing(st.session_state.npf, st.session_state.spatial_umap.df_umap)
+    st.session_state.UMAPFig = st.session_state.udp_full.UMAPdraw_density()
 
-        # Plot results
-        filter_and_plot()
+    # Plot results
+    filter_and_plot()
 
-        # Save checkpoint for Neighborhood Profile structure
-        save_neipro_struct()
+    # Save checkpoint for Neighborhood Profile structure
+    save_neipro_struct()
 
 def set_clusters():
     '''
