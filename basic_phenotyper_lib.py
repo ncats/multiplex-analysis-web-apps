@@ -754,7 +754,7 @@ def createHeatMap(df, phenoList, title, normAxis = None):
 
     for clust_label, group in df.groupby('clust_label'):
         clust_value_counts = group['Lineage'].value_counts()
-        clust_value_counts.name = f'Cluster {clust_label}'
+        clust_value_counts.name = f'{clust_label}'
 
         heatMapDf = pd.concat([heatMapDf, pd.DataFrame([clust_value_counts])])
 
