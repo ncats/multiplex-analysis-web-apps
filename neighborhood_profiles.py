@@ -565,9 +565,9 @@ class UMAPDensityProcessing():
         self.cluster_dict = dict()
         self.cluster_dict[0] = 'No Cluster'
         for i in unique_set_fals.index:
-            self.cluster_dict[unique_set_fals.vals[i]] = f'D{i+1}'
+            self.cluster_dict[unique_set_fals.vals[i]] = f'False Cluster {i+1}'
         for i in unique_set_true.index:
-            self.cluster_dict[unique_set_true.vals[i]] = f'A{i+1}'
+            self.cluster_dict[unique_set_true.vals[i]] = f'True Cluster {i+1}'
 
         set_blues = sns.color_palette('Blues_r', 10)
         set_reds = sns.color_palette('Reds_r', 10)
@@ -576,9 +576,9 @@ class UMAPDensityProcessing():
         self.palette_dict = dict()
         self.palette_dict['No Cluster'] = 'white'
         for i in unique_set_fals.index:
-            self.palette_dict[f'D{i+1}'] = set_reds[i]
+            self.palette_dict[f'False Cluster {i+1}'] = set_reds[i]
         for i in unique_set_true.index:
-            self.palette_dict[f'A{i+1}'] = set_blues[i]
+            self.palette_dict[f'True Cluster {i+1}'] = set_blues[i]
 
     # def perform_clustering(self, n_clusters, cond):
     #     '''
