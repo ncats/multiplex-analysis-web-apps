@@ -469,7 +469,7 @@ class UMAPDensityProcessing():
         self.dens_mat, \
         self.bin_indices_df_group,\
         self.empty_bin_ind = umPT.plot_2d_density(x, y, bins = [self.xx, self.yy],
-                                                w = w, return_matrix = True)
+                                                  w = w, return_matrix = True)
 
         self.umap_summary_stats()
 
@@ -481,6 +481,54 @@ class UMAPDensityProcessing():
         self.dens_min = np.min(self.dens_mat)
         self.dens_max = np.max(self.dens_mat)
         self.minabs   = np.min([np.abs(self.dens_min), np.abs(self.dens_max)])
+
+    def split_df_by_feature(self, feature):
+        '''
+        split_df_by_feature takes in a feature from a dataframe
+        and first identifies if the feature is boolean, if it contains 
+        float values, or neither. If its a boolean, it will split the
+        dataframe between values of 0 and 1 for the selected feature.
+        If the feature is a float, it will split the dataframe based on
+        the median value of the feature. If the feature is neither boolean
+        nor float, it will not split the dataframe. 
+
+        In all cases this function will return a dictionary of the outcome
+        of the split with the most importannt value being, appro_feat, 
+        which will be True if the feature is appropriate for splitting, and
+        False if not.
+
+        Args:
+            feature (str): Feature to split the dataframe by
+
+        Returns:
+            split_dict (dict): Dictionary of the outcomes of splitting
+             the dataframe
+        '''
+
+        split_dict = dict()
+        # Idenfify the column type that is splitting the UMAP
+        col_type = ndl.identify_col_type(self.df[feature])
+
+        if col_type == 'not_bool':
+            # Identify UMAP by Condition
+            median = np.round(self.df[feature].median(), 2)
+            split_dict['df_umap_fals'] = self.df.loc[self.df[feature] <= median, :]
+            split_dict['df_umap_true'] = self.df.loc[self.df[feature] > median, :]
+            split_dict['fals_msg']   = f'<= {median}'
+            split_dict['true_msg']   = f'> {median}'
+            split_dict['appro_feat'] = True
+        elif col_type == 'bool':
+            # Identify UMAP by Condition
+            values = self.df[feature].unique()
+            split_dict['df_umap_fals'] = self.df.loc[self.df[feature] == values[0], :]
+            split_dict['df_umap_true'] = self.df.loc[self.df[feature] == values[1], :]
+            split_dict['fals_msg']   = f'= {values[0]}'
+            split_dict['true_msg']   = f'= {values[1]}'
+            split_dict['appro_feat'] = True
+        else:
+            split_dict['appro_feat'] = False
+
+        return split_dict
 
     def set_feature_label(self, feature, feat_label):
         '''
@@ -505,7 +553,20 @@ class UMAPDensityProcessing():
 
     def filter_density_matrix(self, cutoff= 0.01, empty_bin_ind = None):
         '''
-        filter the current matrix by a cutoff value
+        Filter the density matrix based on the cutoff value
+        to create a binary mask of values that are above or below
+        the cutoff value. 
+
+        This takes a list of empty bin indices to filter out any
+        bins that are meant to be empty (0) no matter what the actual
+        value is in the bin.
+
+        Args:
+            cutoff (float): Cutoff value to use for filtering
+            empty_bin_ind (list): List of empty bin indices
+        
+        Returns:
+            None
         '''
 
         dens_mat_shape = self.dens_mat.shape
