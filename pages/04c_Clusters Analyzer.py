@@ -1,12 +1,18 @@
+'''
+This is script creates the Clusters Analyzer page for the NIDAP Dashboard.
+'''
+
 import streamlit as st
 
 # Import relevant libraries
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
-import basic_phenotyper_lib as bpl  # Useful functions for phenotyping collections of cells
 import app_top_of_page as top
 import streamlit_dataframe_editor as sde
 
 def reset_phenotype_selection():
+    '''
+    Quick function to reset the selections
+    '''
     st.session_state.inciPhenoSel = st.session_state.defLineageOpt
 
 def main():
@@ -26,13 +32,13 @@ def main():
         st.session_state.cluslineages = st.session_state.umapMarks
 
     if st.session_state.umap_completed:
-        st.session_state = ndl.setFigureObjs_UMAPDifferences(st.session_state)
+        st.session_state = ndl.set_figure_objs_clusters_analyzer(st.session_state)
     else:
         st.warning('No spatial UMAP analysis detected. Please complete Neighborhood Profiles')
 
     # Clustering Columns
     clusterfigs = st.columns(2)
-    
+
     ### HEATMAP ###
     with clusterfigs[0]:
         st.header('Phenotype/Cluster Heatmap')

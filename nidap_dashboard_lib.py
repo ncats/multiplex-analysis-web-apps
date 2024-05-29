@@ -724,8 +724,26 @@ def setFigureObjs_UMAPDifferences(session_state):
         session_state[eval('"UMAPFigDiff" + str(i) + "_Clus"')] = fig
         session_state[eval('"UMAPax" + str(i)')] = ax
 
+   
+    return session_state
+
+def set_figure_objs_clusters_analyzer(session_state):
+    '''
+    Sets the figures for the Cluster Analyzer Page
+
+    Args:
+        session_state: Streamlit data structure
+    
+    Returns:
+        session_state: Streamlit data structure
+    '''
+
+    title = [f'DATASET: {session_state.datafile}',
+             f'PHENO METHOD: {session_state.selected_phenoMeth}']
+
     ######## Heatmap/Incidence #########
     cellsUMAP = df_umap #session_state.spatial_umap.cells.loc[session_state.spatial_umap.cells['umap_test'] == True, :]
+    cellsUMAP = session_state.spatial_umap.df_umap
     list_clusters = list(session_state.cluster_dict.values())
     list_clusters.remove('No Cluster')
 
@@ -791,7 +809,6 @@ def setFigureObjs_UMAPDifferences(session_state):
     inci_title = ['Incidence by Cluster']
 
     # Draw Incidence Figure
-    print(inciDF.head(7))
     session_state.inciFig = bpl.drawIncidenceFigure(inciDF, inci_title,
                                                     phenotype  = session_state.inciPhenoSel,
                                                     feature    = session_state.inciOutcomeSel,
