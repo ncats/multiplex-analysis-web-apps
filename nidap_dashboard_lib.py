@@ -724,7 +724,6 @@ def setFigureObjs_UMAPDifferences(session_state):
         session_state[eval('"UMAPFigDiff" + str(i) + "_Clus"')] = fig
         session_state[eval('"UMAPax" + str(i)')] = ax
 
-   
     return session_state
 
 def set_figure_objs_clusters_analyzer(session_state):
@@ -742,74 +741,73 @@ def set_figure_objs_clusters_analyzer(session_state):
              f'PHENO METHOD: {session_state.selected_phenoMeth}']
 
     ######## Heatmap/Incidence #########
-    cellsUMAP = df_umap #session_state.spatial_umap.cells.loc[session_state.spatial_umap.cells['umap_test'] == True, :]
-    cellsUMAP = session_state.spatial_umap.df_umap
+    df_umap = session_state.spatial_umap.df_umap
     list_clusters = list(session_state.cluster_dict.values())
     list_clusters.remove('No Cluster')
 
     ### Cluster/Phenotype Heatmap ###
     if session_state.NormHeatRadio == 'Norm within Clusters':
-        normAxis = 0
+        norm_axis = 0
     elif session_state.NormHeatRadio == 'Norm within Phenotypes':
-        normAxis = 1
+        norm_axis = 1
     else:
-        normAxis = None
+        norm_axis = None
 
-    session_state.heatmapfig = bpl.createHeatMap(cellsUMAP, session_state.pheno_summ['phenotype'], title, normAxis)
+    session_state.heatmapfig = bpl.createHeatMap(df_umap, session_state.pheno_summ['phenotype'], title, norm_axis)
 
     ### Incidence Line Graph ###
     # Filter by the lineage
-    cellsUMAP = filterLineage4UMAP(cellsUMAP, session_state.lineageDisplayToggle_clus, session_state.defLineageOpt, session_state.inciPhenoSel)
-    
+    df_umap = filterLineage4UMAP(df_umap, session_state.lineageDisplayToggle_clus, session_state.defLineageOpt, session_state.inciPhenoSel)
+
     # Set up incidence dataframe
     comp_thresh = None
-    inciDF = pd.DataFrame()
-    inciDF.index = list_clusters
-    inciDF['counts'] = 0
-    inciDF['featureCount1'] = 0 # True Condition
-    inciDF['featureCount0'] = 0 # False Condition
+    inci_df = pd.DataFrame()
+    inci_df.index = list_clusters
+    inci_df['counts'] = 0
+    inci_df['featureCount1'] = 0 # True Condition
+    inci_df['featureCount0'] = 0 # False Condition
 
     # Not Cell Counts
     if session_state.inciOutcomeSel != session_state.definciOutcomes:
-        col = cellsUMAP[session_state.inciOutcomeSel]
+        col = df_umap[session_state.inciOutcomeSel]
         if identify_col_type(col) == 'not_bool':
             comp_thresh = 0
-            cellsUMAP['chosen_feature'] = cellsUMAP.apply(lambda row: 1 if row[session_state.inciOutcomeSel] >= comp_thresh else 0, axis = 1)
+            df_umap['chosen_feature'] = df_umap.apply(lambda row: 1 if row[session_state.inciOutcomeSel] >= comp_thresh else 0, axis = 1)
         elif identify_col_type(col) == 'bool':
-            cellsUMAP['chosen_feature'] = cellsUMAP[session_state.inciOutcomeSel]
+            df_umap['chosen_feature'] = df_umap[session_state.inciOutcomeSel]
         else:
-            cellsUMAP['chosen_feature'] = cellsUMAP[session_state.inciOutcomeSel]
+            df_umap['chosen_feature'] = df_umap[session_state.inciOutcomeSel]
 
         # Compute the Difference
-        for clust_label, group in cellsUMAP.groupby('clust_label'):
+        for clust_label, group in df_umap.groupby('clust_label'):
             if clust_label != 'No Cluster':
-                inciDF.loc[clust_label, 'counts'] = group['chosen_feature'].count()
-                inciDF.loc[clust_label, 'featureCount1'] = sum(group['chosen_feature'] == 1)
-                inciDF.loc[clust_label, 'featureCount0'] = sum(group['chosen_feature'] == 0)
-            
-        inciDF['Count Differences'] = inciDF['featureCount1'] - inciDF['featureCount0']
+                inci_df.loc[clust_label, 'counts'] = group['chosen_feature'].count()
+                inci_df.loc[clust_label, 'featureCount1'] = sum(group['chosen_feature'] == 1)
+                inci_df.loc[clust_label, 'featureCount0'] = sum(group['chosen_feature'] == 0)
 
-        sumf1 = sum(inciDF['featureCount1'])
-        sumf0 = sum(inciDF['featureCount0'])
+        inci_df['Count Differences'] = inci_df['featureCount1'] - inci_df['featureCount0']
 
-        inciDF['Percentages']  = 100*inciDF['featureCount1']/sumf1
-        inciDF['Percentages0'] = 100*inciDF['featureCount0']/sumf0
+        sumf1 = sum(inci_df['featureCount1'])
+        sumf0 = sum(inci_df['featureCount0'])
 
-        inciDF['Percentages1_adj'] = 100*(inciDF['featureCount1'] + 1)/(sumf1 + 1*session_state.selected_nClus)
-        inciDF['Percentages0_adj'] = 100*(inciDF['featureCount0'] + 1)/(sumf0 + 1*session_state.selected_nClus)
+        inci_df['Percentages']  = 100*inci_df['featureCount1']/sumf1
+        inci_df['Percentages0'] = 100*inci_df['featureCount0']/sumf0
 
-        inciDF['Ratios'] = np.log10(inciDF['Percentages1_adj']/inciDF['Percentages0_adj'])
+        inci_df['Percentages1_adj'] = 100*(inci_df['featureCount1'] + 1)/(sumf1 + 1*session_state.selected_nClus)
+        inci_df['Percentages0_adj'] = 100*(inci_df['featureCount0'] + 1)/(sumf0 + 1*session_state.selected_nClus)
+
+        inci_df['Ratios'] = np.log10(inci_df['Percentages1_adj']/inci_df['Percentages0_adj'])
     # Cell Counts
     else:
-        for clust_label, group in cellsUMAP.groupby('clust_label'):
+        for clust_label, group in df_umap.groupby('clust_label'):
             if clust_label != 'No Cluster':
-                inciDF.loc[clust_label, 'counts'] = group['Slide ID'].count()
+                inci_df.loc[clust_label, 'counts'] = group['Slide ID'].count()
 
     # Title
     inci_title = ['Incidence by Cluster']
 
     # Draw Incidence Figure
-    session_state.inciFig = bpl.drawIncidenceFigure(inciDF, inci_title,
+    session_state.inciFig = bpl.drawIncidenceFigure(inci_df, inci_title,
                                                     phenotype  = session_state.inciPhenoSel,
                                                     feature    = session_state.inciOutcomeSel,
                                                     displayas  = session_state.Inci_Value_display,

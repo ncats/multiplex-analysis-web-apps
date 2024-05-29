@@ -53,19 +53,20 @@ def main():
     with clusterfigs[1]:
         st.header('Incidence Lineplot')
 
-        inciSel1, inciSel2 = st.columns(2)
+        inci_sel_col = st.columns(2)
         # Feature Select Box
-        with inciSel1:
+        with inci_sel_col[0]:
             st.selectbox('Feature', options = st.session_state.inciOutcomes, key = 'inciOutcomeSel')
         # Phenotype Select Box
-        with inciSel2:
-            st.selectbox(st.session_state.lineageDisplayToggle_clus, options = st.session_state.cluslineages, key = 'inciPhenoSel')
+        with inci_sel_col[1]:
+            st.selectbox(st.session_state.lineageDisplayToggle_clus,
+                         options = st.session_state.cluslineages, key = 'inciPhenoSel')
 
         if st.session_state.inciOutcomeSel == st.session_state.definciOutcomes:
             inci_radio_disabled = True
         else:
             inci_radio_disabled = False
-        st.radio('Display As:', options = ('Count Differences', 'Percentages', 'Ratios'), 
+        st.radio('Display As:', options = ('Count Differences', 'Percentages', 'Ratios'),
                  key = 'Inci_Value_display', horizontal=True, disabled = inci_radio_disabled)
 
         if st.session_state.umap_completed:
