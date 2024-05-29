@@ -41,7 +41,7 @@ class NeighborhoodProfiles:
 
         # Spectrogram Plotting Settings
         self.n_bins = 100
-        self.n_pad = 0
+        self.n_pad  = 0
         self.vlim = .97
         self.xx = 0
         self.yy = 0
@@ -55,7 +55,7 @@ class NeighborhoodProfiles:
         self.umap_completed = False
 
         self.spatial_umap = None
-        self.outcomes = None
+        self.outcomes     = None
         self.df_umap      = pd.DataFrame()
         self.df_umap_filt = pd.DataFrame()
 

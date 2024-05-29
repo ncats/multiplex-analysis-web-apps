@@ -18,6 +18,47 @@ import app_top_of_page as top
 import streamlit_dataframe_editor as sde
 from neighborhood_profiles import NeighborhoodProfiles, UMAPDensityProcessing
 
+def get_spatialUMAP(spatial_umap, bc, umap_subset_per_fit, umap_subset_toggle, umap_subset_per):
+    '''
+    Extract precomputed UMAP from the file
+
+    Args:
+        spatial_umap (spatial_umap): spatial_umap object
+        bc (benchmark_collector): Benchmark Collector object
+        UMAPStyle (str): Style of UMAP to use
+    
+    Returns:
+        spatial_umap: spatial_umap object with the UMAP analysis performed
+    '''
+
+    min_image_size = spatial_umap.smallest_image_size
+    n_fit = int(min_image_size*umap_subset_per_fit/100)
+    n_tra = n_fit + int(min_image_size*umap_subset_per/100)
+
+    # set training and "test" cells for umap training and embedding, respectively
+    print('Setting Train/Test Split')
+    spatial_umap.set_train_test(n_fit=n_fit, n_tra = n_tra, groupby_label = 'TMA_core_id', seed=54321, umap_subset_toggle = umap_subset_toggle)
+
+    # fit umap on training cells
+    bc.startTimer()
+    print('Fitting Model')
+    spatial_umap.umap_fit = spatial_umap.cells.loc[spatial_umap.cells['umap_train'].values, ['UMAP_1_20230327_152849', 'UMAP_2_20230327_152849']].values.reshape((spatial_umap.cells['umap_train'].sum(), -1))
+    bc.printElapsedTime(f'      Fitting {np.sum(spatial_umap.cells["umap_train"] == 1)} points to a model')
+
+    # Transform test cells based on fitted model
+    bc.startTimer()
+    print('Transforming Data')
+    spatial_umap.umap_test = spatial_umap.cells.loc[spatial_umap.cells['umap_test'].values, ['UMAP_1_20230327_152849', 'UMAP_2_20230327_152849']].values.reshape((spatial_umap.cells['umap_test'].sum(), -1))
+    bc.printElapsedTime(f'      Transforming {np.sum(spatial_umap.cells["umap_test"] == 1)} points with the model')
+
+    spatial_umap.umap_completed = True
+    
+    # import pickle
+    # with open('../Edits/spatial_umap_original_precomp.pkl', 'wb') as f:
+    #     pickle.dump(spatial_umap, f)
+
+    return spatial_umap
+
 def init_spatial_umap():
     '''
     Initalizing the spatial_umap object
@@ -26,11 +67,10 @@ def init_spatial_umap():
     # Reset the settings required for Neighborhood Analysis
     st.session_state = ndl.reset_neigh_profile_settings(st.session_state)
 
-    # Programattic Control over area_threshold
-    if st.session_state['area_filter_toggle'] is False:
-        area_threshold = 0
-    elif st.session_state['area_filter_toggle'] is True:
-        area_threshold = st.session_state['area_filter_per']
+    if st.session_state['calc_unique_areas_toggle']:
+        area_filter = 0
+    else:
+        area_filter = st.session_state['area_filter_per']
 
     st.session_state.bc.startTimer()
     with st.spinner('Calculating Cell Counts and Areas'):
@@ -41,17 +81,17 @@ def init_spatial_umap():
 
         st.session_state.spatial_umap = bpl.perform_density_calc(st.session_state.spatial_umap,
                                                                  st.session_state.bc,
+                                                                 st.session_state.calc_unique_areas_toggle,
                                                                  st.session_state.cpu_pool_size,
-                                                                 area_threshold)
-    st.write('Done Calculating Cell Counts and Areas')
+                                                                 area_filter)
 
-    # Record time elapsed
-    st.session_state.bc.set_value_df('time_to_run_counts', st.session_state.bc.elapsedTime())
+        # Record time elapsed
+        st.session_state.bc.set_value_df('time_to_run_counts', st.session_state.bc.elapsedTime())
 
-    st.session_state.density_completed = True
+        st.session_state.density_completed = True
 
-    # Save checkpoint for Neighborhood Profile structure
-    save_neipro_struct()
+        # Save checkpoint for Neighborhood Profile structure
+        save_neipro_struct()
 
 def apply_umap(umap_style):
     '''
@@ -59,12 +99,20 @@ def apply_umap(umap_style):
     '''
 
     st.session_state.bc.startTimer()
-    with st.spinner('Calculating UMAP'):
-        st.session_state.spatial_umap = bpl.perform_spatialUMAP(st.session_state.spatial_umap,
+        # if togle for loading pre-generated UMAP is selected extract UMAP from file, works only with a specific dataset
+    if st.session_state['load_generated_umap_toggle']:
+        st.session_state.spatial_umap = get_spatialUMAP(st.session_state.spatial_umap,
                                                                 st.session_state.bc,
+                                                                st.session_state.umap_subset_per_fit,
                                                                 st.session_state.umap_subset_toggle,
                                                                 st.session_state.umap_subset_per)
-    st.write('Done Calculating Spatial UMAP')
+    else:
+        with st.spinner('Calculating UMAP'):
+            st.session_state.spatial_umap = bpl.perform_spatialUMAP(st.session_state.spatial_umap,
+                                                                    st.session_state.bc,
+                                                                    st.session_state.umap_subset_per_fit,
+                                                                    st.session_state.umap_subset_toggle,
+                                                                    st.session_state.umap_subset_per)
 
     # Record time elapsed
     st.session_state.bc.printElapsedTime(msg = 'Performing UMAP')
@@ -87,13 +135,12 @@ def apply_umap(umap_style):
     st.session_state.inciOutcomes = [st.session_state.definciOutcomes]
     st.session_state.inciOutcomes.extend(st.session_state.outcomes)
 
+    # creates the df_umap dataframe for plotting
     st.session_state.spatial_umap.prepare_df_umap_plotting(st.session_state.outcomes)
 
-    # st.session_state.spatial_umap.df_umap = st.session_state.spatial_umap.cells.copy()
-    # st.session_state.spatial_umap.df_umap['X'] = st.session_state.spatial_umap.cells['UMAP_1_20230327_152849'].values
-    # st.session_state.spatial_umap.df_umap['Y'] = st.session_state.spatial_umap.cells['UMAP_2_20230327_152849'].values
-    # st.session_state.spatial_umap.df_umap = st.session_state.spatial_umap.df_umap[st.session_state.spatial_umap.cells['umap_test']].reset_index(drop=True)
-
+    # if st.session_state['load_generated_umap_toggle']:
+    #     st.session_state.spatial_umap.df_umap['X'] = st.session_state.spatial_umap.cells['UMAP_1_20230327_152849'].values[st.session_state.spatial_umap.cells['umap_test']]
+    #     st.session_state.spatial_umap.df_umap['Y'] = st.session_state.spatial_umap.cells['UMAP_2_20230327_152849'].values[st.session_state.spatial_umap.cells['umap_test']]
     # Perform possible cluster variations with the completed UMAP
     # st.session_state.bc.startTimer()
     # with st.spinner('Calculating Possible Clusters'):
@@ -122,12 +169,117 @@ def set_clusters():
     and applying them to the UMAP/dataset
     '''
     st.session_state.bc.startTimer()
-    st.session_state.spatial_umap = bpl.perform_clusteringUMAP(st.session_state.spatial_umap,
-                                                               st.session_state.slider_clus_val)
-    st.session_state.selected_nClus = st.session_state.slider_clus_val
-    st.write('Done Calculating Clusters')
 
-    # Record time elapsed
+    with st.spinner('Calculating Clusters'):
+        # If clustering is to be performed on the UMAP density difference
+        if st.session_state['toggle_clust_diff']:
+
+            # Idenfify the column type that is splitting the UMAP
+            col_type = ndl.identify_col_type(st.session_state.spatial_umap.df_umap[st.session_state.dens_diff_feat_sel])
+
+            if col_type == 'not_bool':
+                # Identify UMAP by Condition
+                median = np.round(st.session_state.spatial_umap.df_umap[st.session_state.dens_diff_feat_sel].median(), 2)
+                st.session_state.df_umap_fals = st.session_state.spatial_umap.df_umap.loc[st.session_state.spatial_umap.df_umap[st.session_state.dens_diff_feat_sel] <= median, :]
+                st.session_state.df_umap_true = st.session_state.spatial_umap.df_umap.loc[st.session_state.spatial_umap.df_umap[st.session_state.dens_diff_feat_sel] > median, :]
+                fals_msg = f'<= {median}'
+                true_msg = f'> {median}'
+                st.session_state.appro_feat = True
+            elif col_type == 'bool':
+                # Identify UMAP by Condition
+                values = st.session_state.spatial_umap.df_umap[st.session_state.dens_diff_feat_sel].unique()
+                st.session_state.df_umap_fals = st.session_state.spatial_umap.df_umap.loc[st.session_state.spatial_umap.df_umap[st.session_state.dens_diff_feat_sel] == values[0], :]
+                st.session_state.df_umap_true = st.session_state.spatial_umap.df_umap.loc[st.session_state.spatial_umap.df_umap[st.session_state.dens_diff_feat_sel] == values[1], :]
+                fals_msg = f'= {values[0]}'
+                true_msg = f'= {values[1]}'
+                st.session_state.appro_feat = True
+            else:
+                st.session_state.appro_feat = False
+
+            # If the feature is appropriate, perform the density difference split/clustering
+            if st.session_state.appro_feat:
+
+                # Perform Density Calculations for each Condition
+                udp_fals = UMAPDensityProcessing(st.session_state.npf, st.session_state.df_umap_fals, xx=st.session_state.udp_full.xx, yy=st.session_state.udp_full.yy)
+                udp_true = UMAPDensityProcessing(st.session_state.npf, st.session_state.df_umap_true, xx=st.session_state.udp_full.xx, yy=st.session_state.udp_full.yy)
+
+                ## Copy over
+                udp_diff = copy(udp_fals)
+                ## Perform difference calculation
+                udp_diff.dens_mat = np.log10(udp_fals.dens_mat) - np.log10(udp_true.dens_mat)
+                ## Rerun the min/max calcs
+                udp_diff.umap_summary_stats()
+                ## Set Feature Labels
+                udp_fals.set_feature_label(st.session_state.dens_diff_feat_sel, fals_msg)
+                udp_true.set_feature_label(st.session_state.dens_diff_feat_sel, true_msg)
+                udp_diff.set_feature_label(st.session_state.dens_diff_feat_sel, 'Difference')
+
+                # Draw UMAPS
+                st.session_state.UMAPFig_fals = udp_fals.UMAPdraw_density()
+                st.session_state.UMAPFig_true = udp_true.UMAPdraw_density()
+                st.session_state.UMAPFig_diff = udp_diff.UMAPdraw_density(diff=True)
+
+                # Assign Masking and plot
+                udp_mask = copy(udp_diff)
+                udp_mask.filter_density_matrix(st.session_state.dens_diff_cutoff, st.session_state.udp_full.empty_bin_ind)
+                udp_mask.set_feature_label(st.session_state.dens_diff_feat_sel, f'Difference- Masked, \ncutoff = {st.session_state.dens_diff_cutoff}')
+                st.session_state.UMAPFig_mask = udp_mask.UMAPdraw_density(diff=True)
+
+                # Perform Clustering
+                udp_clus = copy(udp_mask)
+                udp_clus.perform_clustering(dens_mat_cmp=udp_mask.dens_mat,
+                                            num_clus_0=st.session_state.num_clus_0,
+                                            num_clus_1=st.session_state.num_clus_1)
+                udp_clus.set_feature_label(st.session_state.dens_diff_feat_sel, f'Clusters, False-{st.session_state.num_clus_0}, True-{st.session_state.num_clus_1}')
+                st.session_state.UMAPFig_clus = udp_clus.UMAPdraw_density(diff=True, legendtype='legend')
+                st.session_state.cluster_dict = udp_clus.cluster_dict
+                st.session_state.palette_dict = udp_clus.palette_dict
+
+                # Add cluster label column to cells dataframe
+                st.session_state.spatial_umap.df_umap.loc[:, 'clust_label'] = 'No Cluster'
+                st.session_state.spatial_umap.df_umap.loc[:, 'cluster'] = 'No Cluster'
+                st.session_state.spatial_umap.df_umap.loc[:, 'Cluster'] = 'No Cluster'
+
+                st.session_state.bc.startTimer()
+                for key, val in st.session_state.cluster_dict.items():
+                    if key != 0:
+                        bin_clust = np.argwhere(udp_clus.dens_mat == key)
+                        bin_clust = bin_clust[:, [1, 0]] # Swapping columns to by y, x
+                        bin_clust = [tuple(x) for x in bin_clust]
+
+                        significant_groups = st.session_state.udp_full.bin_indices_df_group[st.session_state.udp_full.bin_indices_df_group.set_index(['indx', 'indy']).index.isin(bin_clust)]
+
+                        umap_ind = significant_groups.index.values
+                        st.session_state.spatial_umap.df_umap.loc[umap_ind, 'clust_label'] = val
+                        st.session_state.spatial_umap.df_umap.loc[umap_ind, 'cluster'] = val
+                        st.session_state.spatial_umap.df_umap.loc[umap_ind, 'Cluster'] = val
+
+                st.session_state.bc.printElapsedTime('Untangling bin indicies with UMAP indicies')
+
+                # After assigning cluster labels, perform mean calculations
+                st.session_state.bc.startTimer()
+                st.session_state.spatial_umap.mean_measures()
+                st.session_state.bc.printElapsedTime('Performing Mean Measures')
+
+                dens_df_fals = st.session_state.spatial_umap.dens_df_mean.loc[st.session_state.spatial_umap.dens_df_mean['clust_label'].str.contains('D'), :]
+                dens_df_true = st.session_state.spatial_umap.dens_df_mean.loc[st.session_state.spatial_umap.dens_df_mean['clust_label'].str.contains('A'), :]
+
+                dens_df_fals['clust_label'] = 'Average Deceased'
+                dens_df_mean_fals = dens_df_fals.groupby(['clust_label', 'phenotype', 'dist_bin'], as_index=False).mean()
+
+                dens_df_true['clust_label'] = 'Average Alive'
+                dens_df_mean_true = dens_df_true.groupby(['clust_label', 'phenotype', 'dist_bin'], as_index=False).mean()
+
+                st.session_state.spatial_umap.dens_df_mean = pd.concat([st.session_state.spatial_umap.dens_df_mean, dens_df_mean_fals, dens_df_mean_true], axis=0)
+
+                st.session_state.diff_clust_Fig, diff_clust_ax = bpl.draw_scatter_fig()
+                st.session_state.diff_clust_Fig = bpl.scatter_plot(st.session_state.spatial_umap.df_umap, st.session_state.diff_clust_Fig, diff_clust_ax, 'Clusters',
+                                        xVar = 'X', yVar = 'Y', hueVar='clust_label',
+                                        hueOrder=st.session_state.cluster_dict.values(), palette= st.session_state.palette_dict)
+        else:
+            st.session_state.spatial_umap = bpl.perform_clusteringUMAP(st.session_state.spatial_umap,
+                                                                    st.session_state.slider_clus_val)
+            st.session_state.selected_nClus = st.session_state.slider_clus_val
     st.session_state.bc.printElapsedTime(msg = 'Setting Clusters')
     st.session_state.bc.set_value_df('time_to_run_cluster', st.session_state.bc.elapsedTime())
 
@@ -192,45 +344,38 @@ def load_neipro_struct():
     Function to load the neighborhood profile structure
     '''
 
-    # # Load the Neighborhood Profile structure
-    # with open(f'{st.session_state.checkpoint_dir}/neighborhood_profiles_checkpoint', "rb") as dill_file:
-    #     print(f'Loading Neighborhood Profiles Checkpoint-neighborhood_profiles_checkpoint')
-    #     st.session_state.spatial_umap = dill.load(dill_file)
-
     # Load the Neighborhood Profile structure
-    with open(f'{st.session_state.checkpoint_dir}/density', "rb") as dill_file:
-        print(f'Loading Neighborhood Profiles Checkpoint-density')
-        st.session_state.spatial_umap.density = dill.load(dill_file)
+    with open(f'{st.session_state.checkpoint_dir}/neighborhood_profiles_checkpoint', "rb") as dill_file:
+        print('Loading Neighborhood Profiles Checkpoint-neighborhood_profiles_checkpoint.pkl')
+        st.session_state.spatial_umap = dill.load(dill_file)
 
-    st.session_state.spatial_umap.cells['area_filter'] = True
+    st.session_state.phenotyping_completed = st.session_state.spatial_umap.phenotyping_completed
+    st.session_state.density_completed     = st.session_state.spatial_umap.density_completed
+    st.session_state.umap_completed        = st.session_state.spatial_umap.umap_completed
+    st.session_state.cluster_completed     = st.session_state.spatial_umap.cluster_completed
 
-    # st.session_state.phenotyping_completed = st.session_state.spatial_umap.phenotyping_completed
-    # st.session_state.density_completed     = st.session_state.spatial_umap.density_completed
-    # st.session_state.umap_completed        = st.session_state.spatial_umap.umap_completed
-    # st.session_state.cluster_completed     = st.session_state.spatial_umap.cluster_completed
+    # Slide ID Progression Initializeion
+    st.session_state['uniSlide ID'] = st.session_state.spatial_umap.df_umap['Slide ID'].unique()
+    st.session_state['selSlide ID'] = st.session_state['uniSlide ID'][0]
+    st.session_state['idxSlide ID'] = 0
+    st.session_state['numSlide ID'] = len(st.session_state['uniSlide ID'])
+    st.session_state['uniSlide ID_short'] = st.session_state['uniSlide ID']
+    st.session_state['selSlide ID_short'] = st.session_state['uniSlide ID_short'][0]
 
-    # # Slide ID Progression Initializeion
-    # st.session_state['uniSlide ID'] = st.session_state.spatial_umap.df_umap['Slide ID'].unique()
-    # st.session_state['selSlide ID'] = st.session_state['uniSlide ID'][0]
-    # st.session_state['idxSlide ID'] = 0
-    # st.session_state['numSlide ID'] = len(st.session_state['uniSlide ID'])
-    # st.session_state['uniSlide ID_short'] = st.session_state['uniSlide ID']
-    # st.session_state['selSlide ID_short'] = st.session_state['uniSlide ID_short'][0]
+    st.session_state.prog_left_disabeled = True
+    st.session_state.prog_right_disabeled = False
+    if st.session_state['numSlide ID'] == 1:
+        st.session_state.prog_right_disabeled = True
 
-    # st.session_state.prog_left_disabeled = True
-    # st.session_state.prog_right_disabeled = False
-    # if st.session_state['numSlide ID'] == 1:
-    #     st.session_state.prog_right_disabeled = True
+    if st.session_state.umap_completed:
+        # Create Neighborhood Profiles Object
+        st.session_state.npf = NeighborhoodProfiles(bc = st.session_state.bc)
 
-    # if st.session_state.umap_completed:
-    #     # Create Neighborhood Profiles Object
-    #     st.session_state.npf = NeighborhoodProfiles(bc = st.session_state.bc)
+        # Create Full UMAP example
+        st.session_state.udp_full = UMAPDensityProcessing(npf = st.session_state.npf, df = st.session_state.spatial_umap.df_umap)
+        st.session_state.UMAPFig = st.session_state.udp_full.UMAPdraw_density()
 
-    #     # Create Full UMAP example
-    #     st.session_state.udp_full = UMAPDensityProcessing(npf = st.session_state.npf, df = st.session_state.spatial_umap.df_umap)
-    #     st.session_state.UMAPFig = st.session_state.udp_full.UMAPdraw_density()
-
-    #     filter_and_plot()
+        filter_and_plot()
 
 def save_neipro_struct():
     '''
@@ -240,8 +385,10 @@ def save_neipro_struct():
     file_name = 'neighborhood_profiles_checkpoint'
     # Save the Neighborhood Profile structure
     with open(f'{st.session_state.checkpoint_dir}/{file_name}', "wb") as dill_file:
-        print(f'Pickling Neighborhood Profiles Checkpoint-{file_name}')
+        print(f'Pickling Neighborhood Profiles Checkpoint-{file_name}.pkl')
         dill.dump(st.session_state.spatial_umap, dill_file)
+    
+    st.toast('Neighborhood Profiles Analysis Checkpoint Saved')
 
 def diff_density_analysis():
     '''
@@ -370,221 +517,166 @@ def main():
     Main function for running the page
     '''
 
-    with st.expander('Neighborhood Profiles Settings', expanded = False):
-        neipro_settings = st.columns([1, 2, 1])
-        with neipro_settings[0]:
-            st.number_input('Number of CPUs', min_value = 1, max_value= 8, step = 1,
-                            key = 'cpu_pool_size',
-                            help = '''Number of CPUs to use for parallel processing.
-                            This effects the speed of the Cell Density Analysis''')
-        with neipro_settings[1]:
-            st.toggle('Subset data transformed by UMAP', value = False, key = 'umap_subset_toggle',
-                      help = '''The UMAP model is always trained on 20% of the data included in the smallest image.
-                       You can choose to transform the entire dataset using this trained model, or only transform
-                        a percentage of the data. This can be useful for large datasets.
-                        If a percentage is chosen for transformation, it is always a different sample
-                        than what the model was trained on.''')
-            st.write(f'Smallest image in dataset is {st.session_state.datafile_min_img_size} cells')
-            st.number_input('Percentage of cells to Subset', min_value = 20, max_value = 80, step = 10,
-                            key = 'umap_subset_per', disabled = not st.session_state.umap_subset_toggle)
-        with neipro_settings[2]:
-            st.toggle('Filter Non-ideal Areas', value = False, key = 'area_filter_toggle',
-                      help = '''Not all cells in an image have large populations of neighbors.
-                      This toggle can help to filter out cells that are not ideal for neighborhood analysis.
-                      ''')
-            st.number_input('Area Filter Percentage', min_value = 0.001, max_value = 1.0, step = 0.001,
-                            format="%.3f", key = 'area_filter_per',
-                            disabled=not st.session_state.area_filter_toggle)
-    clust_minmax = [1, 40]
+    nei_pro_tabs = st.tabs(['Analyze from Phenotyping', 'Load Previous Analysis'])
+    with nei_pro_tabs[0]:
 
-    npf_cols = st.columns([1, 1, 2])
-    with npf_cols[0]:
-        nei_pro_tabs = st.tabs(['Analyze from Phenotyping', 'Load Previous Analysis'])
-        with nei_pro_tabs[0]:
-            dens_butt = st.button('Perform Cell Density Analysis')
-            umap_butt = st.button('Perform UMAP Analysis')
-            st.toggle('Perform Clustering on UMAP Density Difference', value = False, key = 'toggle_clust_diff')
-            if st.session_state['toggle_clust_diff'] is False: # Run Clustering Normally
-                st.slider('Number of K-means clusters', min_value=clust_minmax[0], max_value=clust_minmax[1], key = 'slider_clus_val')
-                clust_butt_disabled = False
-            else:
-                sep_clust_cols = st.columns(2)
-                with sep_clust_cols[0]:
-                    st.number_input('Number of Clusters for False Condition', min_value = 1, max_value = 10, value = 3, step = 1, key = 'num_clus_0')
-                with sep_clust_cols[1]:
-                    st.number_input('Number of Clusters for True Condition', min_value = 1, max_value = 10, value = 3, step = 1, key = 'num_clus_1')
-                clust_butt_disabled = True
-            clust_butt = st.button('Perform Clustering Analysis', disabled=clust_butt_disabled)
-        with nei_pro_tabs[1]:
-            neipro_checkpoint_files = os.listdir(st.session_state.checkpoint_dir)
-            st.selectbox('Select Previous UMAP Results', options = neipro_checkpoint_files, key = 'sel_prev_umap')
-            st.button('Load Selected UMAP Results', on_click=load_neipro_struct)
-            add_vertical_space(12)
+        # Neighborhood Profiles Settings
+        with st.expander('Neighborhood Profiles Settings', expanded = False):
+            neipro_settings = st.columns([1, 1, 1, 1])
+            with neipro_settings[0]:
+                st.number_input('Number of CPUs', min_value = 1, max_value= 8, step = 1,
+                                key = 'cpu_pool_size',
+                                help = '''Number of CPUs to use for parallel processing.
+                                This effects the speed of the Cell Density Analysis''')
+                st.toggle('Calculate unique areas', key = 'calc_unique_areas_toggle',
+                          help = '''For Multiplex studies measuring the density of cells
+                          surrounding each cell, specific radii are drawn to measure how
+                          density changes over the distance from the cell. If the same radii
+                          is used for each cell, than the areas encompassed by the radii are
+                          also the same. However, the actual areas surrounding a given cell may
+                          be different due to edge effects of the tissue. When this toggle is
+                          false, all areas are assumed to be the same. When this toggle is true,
+                          the areas are calculated for each cell based on how the radii
+                          interact with the edges of the tissue. Turning this on will make 
+                          the density calculation run longer.
+                          ''')
+                st.number_input('Area Filter Ratio', min_value = 0.001, max_value = 1.0, step = 0.001,
+                                format="%.3f", key = 'area_filter_per',
+                                disabled=not st.session_state['calc_unique_areas_toggle'],
+                                help = '''The area filter ratio identifies how much of an area surrounding
+                                a cell can be to be considered large enough to be included in the density calculations.
+                                Small values of the ratio (close to 0) include more cells, and large values
+                                of the ratio (close to 1) include fewer cells. This can be useful for removing
+                                cells that are on the edge of the tissue. This affects the number of cells included
+                                in the Spatial UMAP processing and the speed of that step.''')
+            with neipro_settings[1]:
+                st.markdown(f'''Smallest image in dataset is {st.session_state.datafile_min_img_size} cells.
+                            What percentage from each image should be used for the UMAP fitting step?''')
+                st.number_input('Percentage of cells to Subset for Fitting Step',
+                                min_value = 20, max_value = 80, step = 10,
+                                key = 'umap_subset_per_fit')
 
-    # Button results and difference settings
-    with npf_cols[1]:
-        if dens_butt:
+            with neipro_settings[2]:
+                st.toggle('Subset data transformed by UMAP',
+                          value = False, key = 'umap_subset_toggle',
+                          help = '''The UMAP model is always trained on a percentage of data included
+                          in the smallest image.vYou can choose to transform the entire dataset using 
+                          this trained model, or only transformva percentage of the data. This can be 
+                          useful for large datasets. If a percentage is chosen for transformation, it 
+                          is always a different sample than what the model was trained on.''')
+                add_vertical_space(2)
+                st.number_input('Percentage of cells to Subset for Transforming Step',
+                                min_value = 20, max_value = 80, step = 10,
+                                key = 'umap_subset_per', disabled = not st.session_state.umap_subset_toggle)
+
+            with neipro_settings[3]:
+                st.toggle('Load pre-generated UMAP',
+                          value = False, key = 'load_generated_umap_toggle',)
+
+        npf_cols = st.columns([1, 1, 2])
+        with npf_cols[0]:
+
+            dens_butt  = st.button('Perform Cell Density Analysis')
+            umap_butt  = st.button('Perform UMAP Analysis')
+            clust_butt = st.button('Perform Clustering Analysis')
+
+        # Button results and difference settings
+        with npf_cols[1]:
             if st.session_state.phenotyping_completed:
-                init_spatial_umap()
-        if umap_butt:
-            if st.session_state.density_completed:
-                apply_umap(umap_style = 'Densities')
-        if clust_butt:
-            if st.session_state.umap_completed:
-                set_clusters()
-        if st.session_state['toggle_clust_diff'] and st.session_state.umap_completed:
-            st.selectbox('Feature', options = st.session_state.spatial_umap.outcomes, key = 'dens_diff_feat_sel')
-            st.number_input('Cutoff Percentage', min_value = 0.01, max_value = 0.99, value = 0.01, step = 0.01, key = 'dens_diff_cutoff')
-
-    # UMAP Density Difference Analysis
-    with npf_cols[2]:
-
-        # As long as the UMAP is completed, perform the density difference analysis
-        if st.session_state.umap_completed:
-
-            # Display visualization off the full UMAP
-            with st.columns(3)[1]:
-                st.pyplot(fig=st.session_state.UMAPFig)
-
-            # If clustering is to be performed on the UMAP density difference
-            if st.session_state['toggle_clust_diff']:
-
-                # Idenfify the column type that is splitting the UMAP
-                col_type = ndl.identify_col_type(st.session_state.spatial_umap.df_umap[st.session_state.dens_diff_feat_sel])
-
-                if col_type == 'not_bool':
-                    # Identify UMAP by Condition
-                    median = np.round(st.session_state.spatial_umap.df_umap[st.session_state.dens_diff_feat_sel].median(), 2)
-                    st.session_state.df_umap_fals = st.session_state.spatial_umap.df_umap.loc[st.session_state.spatial_umap.df_umap[st.session_state.dens_diff_feat_sel] <= median, :]
-                    st.session_state.df_umap_true = st.session_state.spatial_umap.df_umap.loc[st.session_state.spatial_umap.df_umap[st.session_state.dens_diff_feat_sel] > median, :]
-                    fals_msg = f'<= {median}'
-                    true_msg = f'> {median}'
-                    appro_feat = True
-                elif col_type == 'bool':
-                    # Identify UMAP by Condition
-                    values = st.session_state.spatial_umap.df_umap[st.session_state.dens_diff_feat_sel].unique()
-                    st.session_state.df_umap_fals = st.session_state.spatial_umap.df_umap.loc[st.session_state.spatial_umap.df_umap[st.session_state.dens_diff_feat_sel] == values[0], :]
-                    st.session_state.df_umap_true = st.session_state.spatial_umap.df_umap.loc[st.session_state.spatial_umap.df_umap[st.session_state.dens_diff_feat_sel] == values[1], :]
-                    fals_msg = f'= {values[0]}'
-                    true_msg = f'= {values[1]}'
-                    appro_feat = True
+                if dens_butt:
+                    init_spatial_umap()
+                if not st.session_state.density_completed:
+                    st.write(':x: Step 1: Perform Cell Density')
                 else:
-                    appro_feat = False
-                    st.write('Feature must be boolean or numeric to perform density difference analysis')
+                    st.write(':white_check_mark: Density Analysis Complete')
+                add_vertical_space(1)
+            
+            if st.session_state.phenotyping_completed:
+                if st.session_state.density_completed:
+                    if umap_butt:
+                        apply_umap(umap_style = 'Densities')
+                    if not st.session_state.umap_completed:
+                        st.write(':x: Step 2: Perform UMAP')
+                    else:
+                        st.write(':white_check_mark: UMAP Analysis Completed')
+                    add_vertical_space(1)
 
-                # If the feature is appropriate, perform the density difference split/clustering
-                if appro_feat:
+            if st.session_state.phenotyping_completed:
+                if st.session_state.umap_completed:
 
-                    # Perform Density Calculations for each Condition
-                    udp_fals = UMAPDensityProcessing(st.session_state.npf, st.session_state.df_umap_fals, xx=st.session_state.udp_full.xx, yy=st.session_state.udp_full.yy)
-                    udp_true = UMAPDensityProcessing(st.session_state.npf, st.session_state.df_umap_true, xx=st.session_state.udp_full.xx, yy=st.session_state.udp_full.yy)
+                    if clust_butt:
+                        set_clusters()
+                    if not st.session_state.cluster_completed:
+                        st.write(':x: Step 3: Perform Clustering')
+                    else:
+                        st.write(':white_check_mark: Clustering Analysis Completed')
 
-                    ## Copy over
-                    udp_diff = copy(udp_fals)
-                    ## Perform difference calculation
-                    udp_diff.dens_mat = np.log10(udp_fals.dens_mat) - np.log10(udp_true.dens_mat)
-                    ## Rerun the min/max calcs
-                    udp_diff.umap_summary_stats()
-                    ## Set Feature Labels
-                    udp_fals.set_feature_label(st.session_state.dens_diff_feat_sel, fals_msg)
-                    udp_true.set_feature_label(st.session_state.dens_diff_feat_sel, true_msg)
-                    udp_diff.set_feature_label(st.session_state.dens_diff_feat_sel, 'Difference')
+                    st.toggle('Perform Clustering on UMAP Density Difference', value = False, key = 'toggle_clust_diff')
+                    
+                    # Run Clustering Normally
+                    if st.session_state['toggle_clust_diff'] is False:
+                        st.slider('Number of K-means clusters',
+                                min_value=st.session_state.clust_minmax[0],
+                                max_value=st.session_state.clust_minmax[1],
+                                key = 'slider_clus_val')
+                    # Clustering on UMAP Density Difference
+                    else:
+                        st.selectbox('Feature', options = st.session_state.spatial_umap.outcomes, key = 'dens_diff_feat_sel')
+                        st.number_input('Cutoff Percentage', min_value = 0.01, max_value = 0.99, value = 0.01, step = 0.01, key = 'dens_diff_cutoff')
 
-                    # Draw UMAPS
-                    st.session_state.UMAPFig_fals = udp_fals.UMAPdraw_density()
-                    st.session_state.UMAPFig_true = udp_true.UMAPdraw_density()
-                    st.session_state.UMAPFig_diff = udp_diff.UMAPdraw_density(diff=True)
+                        sep_clust_cols = st.columns(2)
+                        with sep_clust_cols[0]:
+                            st.number_input('Number of Clusters for False Condition', min_value = 1, max_value = 10, value = 3, step = 1, key = 'num_clus_0')
+                        with sep_clust_cols[1]:
+                            st.number_input('Number of Clusters for True Condition', min_value = 1, max_value = 10, value = 3, step = 1, key = 'num_clus_1')
 
-                    # Assign Masking and plot
-                    udp_mask = copy(udp_diff)
-                    udp_mask.filter_density_matrix(st.session_state.dens_diff_cutoff, st.session_state.udp_full.empty_bin_ind)
-                    udp_mask.set_feature_label(st.session_state.dens_diff_feat_sel, f'Difference- Masked, \ncutoff = {st.session_state.dens_diff_cutoff}')
-                    st.session_state.UMAPFig_mask = udp_mask.UMAPdraw_density(diff=True)
+        # UMAP Density Difference Analysis
+        with npf_cols[2]:
 
-                    # Perform Clustering
-                    udp_clus = copy(udp_mask)
-                    udp_clus.perform_clustering(dens_mat_cmp=udp_mask.dens_mat,
-                                                num_clus_0=st.session_state.num_clus_0,
-                                                num_clus_1=st.session_state.num_clus_1)
-                    udp_clus.set_feature_label(st.session_state.dens_diff_feat_sel, f'Clusters, False-{st.session_state.num_clus_0}, True-{st.session_state.num_clus_1}')
-                    st.session_state.UMAPFig_clus = udp_clus.UMAPdraw_density(diff=True, legendtype='legend')
-                    st.session_state.cluster_dict = udp_clus.cluster_dict
-                    st.session_state.palette_dict = udp_clus.palette_dict
+            # As long as the UMAP is completed, perform the density difference analysis
+            if st.session_state.umap_completed:
 
-                    # Add cluster label column to cells dataframe
-                    st.session_state.spatial_umap.df_umap.loc[:, 'clust_label'] = 'No Cluster'
-                    st.session_state.spatial_umap.df_umap.loc[:, 'cluster'] = 'No Cluster'
-                    st.session_state.spatial_umap.df_umap.loc[:, 'Cluster'] = 'No Cluster'
+                # Display visualization off the full UMAP
+                with st.columns(3)[1]:
+                    st.pyplot(fig=st.session_state.UMAPFig)
 
-                    st.session_state.bc.startTimer()
-                    for key, val in st.session_state.cluster_dict.items():
-                        if key != 0:
-                            bin_clust = np.argwhere(udp_clus.dens_mat == key)
-                            bin_clust = bin_clust[:, [1, 0]] # Swapping columns to by y, x
-                            bin_clust = [tuple(x) for x in bin_clust]
+                if st.session_state.cluster_completed and st.session_state['toggle_clust_diff']:
+                    if st.session_state['appro_feat']:
+                        diff_cols = st.columns(3)
+                        with diff_cols[0]:
+                            st.pyplot(fig=st.session_state.UMAPFig_fals)
+                        with diff_cols[1]:
+                            st.pyplot(fig=st.session_state.UMAPFig_diff)
+                        with diff_cols[2]:
+                            st.pyplot(fig=st.session_state.UMAPFig_true)
+                        mor_cols = st.columns(2)
+                        with mor_cols[0]:
+                            st.pyplot(fig=st.session_state.UMAPFig_mask)
+                        with mor_cols[1]:
+                            st.pyplot(fig=st.session_state.diff_clust_Fig)
+                    else:
+                        st.write('Feature must be boolean or numeric to perform density difference analysis')
 
-                            significant_groups = st.session_state.udp_full.bin_indices_df_group[st.session_state.udp_full.bin_indices_df_group.set_index(['indx', 'indy']).index.isin(bin_clust)]
-
-                            umap_ind = significant_groups.index.values
-                            st.session_state.spatial_umap.df_umap.loc[umap_ind, 'clust_label'] = val
-                            st.session_state.spatial_umap.df_umap.loc[umap_ind, 'cluster'] = val
-                            st.session_state.spatial_umap.df_umap.loc[umap_ind, 'Cluster'] = val
-
-                    st.session_state.bc.printElapsedTime('Untangling bin indicies with UMAP indicies')
-
-                    # After assigning cluster labels, perform mean calculations
-                    st.session_state.bc.startTimer()
-                    st.session_state.spatial_umap.mean_measures()
-                    st.session_state.bc.printElapsedTime('Performing Mean Measures')
-
-                    dens_df_fals = st.session_state.spatial_umap.dens_df_mean.loc[st.session_state.spatial_umap.dens_df_mean['clust_label'].str.contains('D'), :]
-                    dens_df_true = st.session_state.spatial_umap.dens_df_mean.loc[st.session_state.spatial_umap.dens_df_mean['clust_label'].str.contains('A'), :]
-
-                    dens_df_fals['clust_label'] = 'Average Deceased'
-                    dens_df_mean_fals = dens_df_fals.groupby(['clust_label', 'phenotype', 'dist_bin'], as_index=False).mean()
-
-                    dens_df_true['clust_label'] = 'Average Alive'
-                    dens_df_mean_true = dens_df_true.groupby(['clust_label', 'phenotype', 'dist_bin'], as_index=False).mean()
-
-                    st.session_state.spatial_umap.dens_df_mean = pd.concat([st.session_state.spatial_umap.dens_df_mean, dens_df_mean_fals, dens_df_mean_true], axis=0)
-
-                    diff_clust_Fig, diff_clust_ax = bpl.draw_scatter_fig()
-                    diff_clust_Fig = bpl.scatter_plot(st.session_state.spatial_umap.df_umap, diff_clust_Fig, diff_clust_ax, 'Clusters',
-                                              xVar = 'X', yVar = 'Y', hueVar='clust_label',
-                                              hueOrder=st.session_state.cluster_dict.values(), palette= st.session_state.palette_dict)
-
-                    # st.session_state.spatial_umap.dens_df_mean.to_csv(f'{st.session_state.checkpoint_dir}/dens_df_mean2.csv', index=False)
-                    # Create the Cluster Scatterplot
-                    filter_and_plot()
-
-                    diff_cols = st.columns(3)
-                    with diff_cols[0]:
-                        st.pyplot(fig=st.session_state.UMAPFig_fals)
-                    with diff_cols[1]:
-                        st.pyplot(fig=st.session_state.UMAPFig_diff)
-                    with diff_cols[2]:
-                        st.pyplot(fig=st.session_state.UMAPFig_true)
-                    mor_cols = st.columns(2)
-                    with mor_cols[0]:
-                        st.pyplot(fig=st.session_state.UMAPFig_mask)
-                    with mor_cols[1]:
-                        st.pyplot(fig=diff_clust_Fig)
-                    st.session_state.cluster_completed = True
-
-                ### Clustering Meta Analysis and Description ###
-                # with st.expander('Cluster Meta-Analysis', ):
-                #     wcss_cols = st.columns(2)
-                #     with wcss_cols[0]:
-                #         st.markdown('''The within-cluster sum of squares (WCSS) is a measure of the
-                #                     variability of the observations within each cluster. In general,
-                #                     a cluster that has a small sum of squares is more compact than a
-                #                     cluster that has a large sum of squares. Clusters that have higher
-                #                     values exhibit greater variability of the observations within the
-                #                     cluster.''')
-                #     with wcss_cols[1]:
-                #         if st.session_state.umap_completed:
-                #             elbowFig = bpl.draw_wcss_elbow_plot(st.session_state.clust_range, st.session_state.wcss, st.session_state.selected_nClus)
-                #             st.pyplot(elbowFig)
+                    ### Clustering Meta Analysis and Description ###
+                    # with st.expander('Cluster Meta-Analysis', ):
+                    #     wcss_cols = st.columns(2)
+                    #     with wcss_cols[0]:
+                    #         st.markdown('''The within-cluster sum of squares (WCSS) is a measure of the
+                    #                     variability of the observations within each cluster. In general,
+                    #                     a cluster that has a small sum of squares is more compact than a
+                    #                     cluster that has a large sum of squares. Clusters that have higher
+                    #                     values exhibit greater variability of the observations within the
+                    #                     cluster.''')
+                    #     with wcss_cols[1]:
+                    #         if st.session_state.umap_completed:
+                    #             elbowFig = bpl.draw_wcss_elbow_plot(st.session_state.clust_range, st.session_state.wcss, st.session_state.selected_nClus)
+                    #             st.pyplot(elbowFig)
+    
+    # Tab for Loading Previous UMAP Results
+    with nei_pro_tabs[1]:
+        st.write('Checkpoint file: neighborhood_profiles_checkpoint.pkl')
+        st.button('Load checkpointed UMAP results', on_click=load_neipro_struct)
+        add_vertical_space(19)
 
     if not st.session_state.phenotyping_completed:
         st.warning('Step 0: Please complete phentoyping analysis (See Phenotyping Page)', icon="⚠️")
@@ -598,10 +690,10 @@ def main():
         add_vertical_space(2)
 
     ### Visualizations ###
-    uScatCol, uNeighPCol = st.columns(2)
+    viz_cols = st.columns(2)
 
     # Scatterplot Figure Column
-    with uScatCol:
+    with viz_cols[0]:
         # Print a column header
         st.header('Clusters Plot')
 
@@ -642,7 +734,7 @@ def main():
                     st.toast(f'Added {st.session_state.cluster_scatter_suffix} to export list')
 
     # Neighborhood Profiles Figure Column
-    with uNeighPCol:
+    with viz_cols[1]:
         st.header('Neighborhood Profiles')
         with st.expander('Neighborhood Profile Options'):
             nei_sett_col = st.columns([1, 2, 1])
