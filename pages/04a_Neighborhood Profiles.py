@@ -173,34 +173,15 @@ def set_clusters():
         # If clustering is to be performed on the UMAP density difference
         if st.session_state['toggle_clust_diff']:
 
-            # Idenfify the column type that is splitting the UMAP
-            col_type = ndl.identify_col_type(st.session_state.spatial_umap.df_umap[st.session_state.dens_diff_feat_sel])
-
-            if col_type == 'not_bool':
-                # Identify UMAP by Condition
-                median = np.round(st.session_state.spatial_umap.df_umap[st.session_state.dens_diff_feat_sel].median(), 2)
-                st.session_state.df_umap_fals = st.session_state.spatial_umap.df_umap.loc[st.session_state.spatial_umap.df_umap[st.session_state.dens_diff_feat_sel] <= median, :]
-                st.session_state.df_umap_true = st.session_state.spatial_umap.df_umap.loc[st.session_state.spatial_umap.df_umap[st.session_state.dens_diff_feat_sel] > median, :]
-                fals_msg = f'<= {median}'
-                true_msg = f'> {median}'
-                st.session_state.appro_feat = True
-            elif col_type == 'bool':
-                # Identify UMAP by Condition
-                values = st.session_state.spatial_umap.df_umap[st.session_state.dens_diff_feat_sel].unique()
-                st.session_state.df_umap_fals = st.session_state.spatial_umap.df_umap.loc[st.session_state.spatial_umap.df_umap[st.session_state.dens_diff_feat_sel] == values[0], :]
-                st.session_state.df_umap_true = st.session_state.spatial_umap.df_umap.loc[st.session_state.spatial_umap.df_umap[st.session_state.dens_diff_feat_sel] == values[1], :]
-                fals_msg = f'= {values[0]}'
-                true_msg = f'= {values[1]}'
-                st.session_state.appro_feat = True
-            else:
-                st.session_state.appro_feat = False
+            split_dict_full = st.session_state.udp_full.split_df_by_feature(st.session_state.dens_diff_feat_sel)
+            st.session_state.appro_feat = split_dict_full['appro_feat']
 
             # If the feature is appropriate, perform the density difference split/clustering
             if st.session_state.appro_feat:
 
                 # Perform Density Calculations for each Condition
-                udp_fals = UMAPDensityProcessing(st.session_state.npf, st.session_state.df_umap_fals, xx=st.session_state.udp_full.xx, yy=st.session_state.udp_full.yy)
-                udp_true = UMAPDensityProcessing(st.session_state.npf, st.session_state.df_umap_true, xx=st.session_state.udp_full.xx, yy=st.session_state.udp_full.yy)
+                udp_fals = UMAPDensityProcessing(st.session_state.npf, split_dict_full['df_umap_fals'], xx=st.session_state.udp_full.xx, yy=st.session_state.udp_full.yy)
+                udp_true = UMAPDensityProcessing(st.session_state.npf, split_dict_full['df_umap_true'], xx=st.session_state.udp_full.xx, yy=st.session_state.udp_full.yy)
 
                 ## Copy over
                 udp_diff = copy(udp_fals)
@@ -209,8 +190,8 @@ def set_clusters():
                 ## Rerun the min/max calcs
                 udp_diff.umap_summary_stats()
                 ## Set Feature Labels
-                udp_fals.set_feature_label(st.session_state.dens_diff_feat_sel, fals_msg)
-                udp_true.set_feature_label(st.session_state.dens_diff_feat_sel, true_msg)
+                udp_fals.set_feature_label(st.session_state.dens_diff_feat_sel, split_dict_full['fals_msg'])
+                udp_true.set_feature_label(st.session_state.dens_diff_feat_sel, split_dict_full['true_msg'])
                 udp_diff.set_feature_label(st.session_state.dens_diff_feat_sel, 'Difference')
 
                 # Draw UMAPS
