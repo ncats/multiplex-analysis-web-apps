@@ -443,6 +443,8 @@ class UMAPDensityProcessing():
         self.slc_bg2  = npf.slc_bg2  # Streamlit Color -Secondary Background
 
         # Preset Summary Stats
+        self.dfmin    = 0
+        self.dfmax    = 0
         self.dens_min = 0
         self.dens_max = 0
         self.minabs   = 0
@@ -477,6 +479,9 @@ class UMAPDensityProcessing():
         '''
         Identify the minimum and maximum values of the density matrix
         '''
+
+        self.dfmin  = self.df[['X', 'Y']].min()
+        self.dfmax  = self.df[['X', 'Y']].max()
 
         self.dens_min = np.min(self.dens_mat)
         self.dens_max = np.max(self.dens_mat)
@@ -550,6 +555,21 @@ class UMAPDensityProcessing():
                                     diff = diff,
                                     figsize = figsize,
                                     legendtype = legendtype)
+    
+    def umap_draw_clusters(self, figsize = (12, 12)):
+        '''
+        Draw the UMAP colored by clusters
+        '''
+
+        umap_clust_fig, ax = bpl.draw_scatter_fig(figsize = figsize)
+        umap_clust_fig = bpl.scatter_plot(self.df, umap_clust_fig, ax, 'Clusters',
+                                          xVar = 'X', yVar = 'Y', hueVar='clust_label',
+                                          xLim = [self.dfmin[0], self.dfmax[0]],
+                                          yLim = [self.dfmin[1], self.dfmax[1]],
+                                          hueOrder = self.cluster_dict.values(),
+                                          palette  = self.palette_dict)
+        
+        return umap_clust_fig
 
     def filter_density_matrix(self, cutoff= 0.01, empty_bin_ind = None):
         '''

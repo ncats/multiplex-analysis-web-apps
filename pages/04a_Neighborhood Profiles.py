@@ -252,10 +252,11 @@ def set_clusters():
 
                 st.session_state.spatial_umap.dens_df_mean = pd.concat([st.session_state.spatial_umap.dens_df_mean, dens_df_mean_fals, dens_df_mean_true], axis=0)
 
-                st.session_state.diff_clust_Fig, diff_clust_ax = bpl.draw_scatter_fig()
-                st.session_state.diff_clust_Fig = bpl.scatter_plot(st.session_state.spatial_umap.df_umap, st.session_state.diff_clust_Fig, diff_clust_ax, 'Clusters',
-                                        xVar = 'X', yVar = 'Y', hueVar='clust_label',
-                                        hueOrder=st.session_state.cluster_dict.values(), palette= st.session_state.palette_dict)
+                # Draw a UMAP colored by the clusters
+                st.session_state.udp_full.cluster_dict = st.session_state.cluster_dict
+                st.session_state.udp_full.palette_dict = st.session_state.palette_dict
+                st.session_state.diff_clust_Fig = st.session_state.udp_full.umap_draw_clusters()
+
         else:
             st.session_state.spatial_umap = bpl.perform_clusteringUMAP(st.session_state.spatial_umap,
                                                                     st.session_state.slider_clus_val)
