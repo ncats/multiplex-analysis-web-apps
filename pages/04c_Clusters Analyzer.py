@@ -13,25 +13,12 @@ def main():
     '''
     Main function for running the page
     '''
-    # Use the whole page width
-    st.set_page_config(
-        page_title="Clusters Analyzer",
-        layout="wide"
-    )
-
-    # Run streamlit-dataframe-editor library initialization tasks at the top of the page
-    st.session_state = sde.initialize_session_state(st.session_state)
-
-    # Run Top of Page (TOP) functions
-    st.session_state = top.top_of_page_reqs(st.session_state)
-
-    st.header('Clusters Analyzer\nNCATS-NCI-DMAP')
 
     st.radio("Filter by Phenotypes or Markers?",
-            ['Phenotypes', 'Markers'],
-            key = 'lineageDisplayToggle_clus',
-            horizontal = True,
-            on_change = reset_phenotype_selection)
+             ['Phenotypes', 'Markers'],
+             key = 'lineageDisplayToggle_clus',
+             horizontal = True,
+             on_change = reset_phenotype_selection)
 
     if st.session_state.lineageDisplayToggle_clus == 'Phenotypes':
         st.session_state.cluslineages = st.session_state.umapPheno
@@ -78,8 +65,21 @@ def main():
         if st.session_state.umap_completed:
             st.pyplot(st.session_state.inciFig)
 
+if __name__ == '__main__':
+
+    # Set a wide layout
+    st.set_page_config(page_title="Clusters Analyzer",
+                       layout="wide"
+    )
+    st.title('Clusters Analyzer')
+
+    # Run streamlit-dataframe-editor library initialization tasks at the top of the page
+    st.session_state = sde.initialize_session_state(st.session_state)
+
+    # Run Top of Page (TOP) functions
+    st.session_state = top.top_of_page_reqs(st.session_state)
+
+    main()
+
     # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
     st.session_state = sde.finalize_session_state(st.session_state)
-
-if __name__ == '__main__':
-    main()
