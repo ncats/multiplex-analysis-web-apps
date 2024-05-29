@@ -34,8 +34,12 @@ def plotly_chart_histogram_callback():
     if plotly_chart_key in st.session_state:
         if st.session_state[plotly_chart_key]['selection']['box']:
             x_range = sorted(st.session_state[plotly_chart_key]['selection']['box'][0]['x'])
-            st.session_state['mg__selected_value_range'] = tuple(x_range)
-            st.session_state['mg__min_selection_value'] = x_range[0]
+            if st.session_state['mg__histogram_box_selection_function'] == 'Positivity identification':
+                st.session_state['mg__selected_value_range'] = tuple(x_range)
+                st.session_state['mg__min_selection_value'] = x_range[0]
+            else:
+                st.session_state['mg__histogram_x_range'] = x_range
+                st.session_state['mg__random_string'] = generate_random_string()
 
 
 def plotly_chart_summary_callback():
@@ -796,7 +800,11 @@ def main():
                         # Get the lowest-intensity "positive" intensity/marker
                         intensity_cutoff = srs_marker_column_values[positive_loc].index[0]
 
-                st.button('Reset x-axis range', on_click=reset_x_axis_range, args=(use_groups_for_plotting, kde_or_hist_to_plot_full))
+                if 'mg__histogram_box_selection_function' not in st.session_state:
+                    st.session_state['mg__histogram_box_selection_function'] = 'Positivity identification'
+                st.radio('Histogram box selection function:', ['Positivity identification', 'Zoom'], key='mg__histogram_box_selection_function')
+
+                st.button('Reset x-axis zoom', on_click=reset_x_axis_range, args=(use_groups_for_plotting, kde_or_hist_to_plot_full))
 
                 # Plot the Plotly figure in Streamlit
                 fig = go.Figure()
