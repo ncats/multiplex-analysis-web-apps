@@ -580,17 +580,28 @@ class UMAPDensityProcessing():
         for i in unique_set_true.index:
             self.palette_dict[f'True Cluster {i+1}'] = set_blues[i]
 
-    # def perform_clustering(self, n_clusters, cond):
-    #     '''
+    def kmean_calc(self, dens_mat, n_clusters, cond):
+        '''
+        Perform clustering on the density matrix
 
-    #     '''
+        Args:
+            dens_mat (numpy array): Density matrix
+            n_clusters (int): Number of clusters to use
+            cond (int): Condition to use for clustering
+        
+        Returns:
+            kmeans_obj: KMeans object created from KMeans
+        '''
 
-    #     kmeans_obj = KMeans(n_clusters = n_clusters,
-    #                         init ='k-means++',
-    #                         max_iter = 300,
-    #                         n_init = 10,
-    #                         random_state = 42)
+        kmeans_obj = KMeans(n_clusters = n_clusters,
+                            init ='k-means++',
+                            max_iter = 300,
+                            n_init = 50)
 
-    #     cond_ind = np.nonzero(self.dens_mat == cond)
-    #     cells_cond = np.vstack(cond_ind).T
-    #     kmeans_obj.fit(cells_cond)
+        # Identify the indices of the target condition
+        cond_ind = np.nonzero(dens_mat == cond)
+        cells_cond = np.vstack(cond_ind).T
+        # Fit the condition to the kmeans object
+        kmeans_obj.fit(cells_cond)
+
+        return kmeans_obj
