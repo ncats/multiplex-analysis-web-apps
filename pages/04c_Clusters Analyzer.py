@@ -1,5 +1,5 @@
 '''
-This is script creates the Clusters Analyzer page for the NIDAP Dashboard.
+This is script which creates the Clusters Analyzer page (MAWA).
 '''
 
 import streamlit as st
@@ -76,8 +76,7 @@ if __name__ == '__main__':
 
     # Set a wide layout
     st.set_page_config(page_title="Clusters Analyzer",
-                       layout="wide"
-    )
+                       layout="wide")
     st.title('Clusters Analyzer')
 
     # Run streamlit-dataframe-editor library initialization tasks at the top of the page

@@ -1,5 +1,5 @@
 '''
-Streamlit page for showing UMAP difference figures
+This is script which creates the UMAP Differences Analyzer page (MAWA).
 '''
 import streamlit as st
 
@@ -19,19 +19,6 @@ def main():
     '''
     Main function for running the page
     '''
-    # Use the whole page width
-    st.set_page_config(
-        page_title="UMAP Differences Analyzer",
-        layout="wide"
-    )
-
-    # Run streamlit-dataframe-editor library initialization tasks at the top of the page
-    st.session_state = sde.initialize_session_state(st.session_state)
-
-    # Run Top of Page (TOP) functions
-    st.session_state = top.top_of_page_reqs(st.session_state)
-
-    st.header('UMAP Differences Analyzer\nNCATS-NCI-DMAP')
 
     # Toggles for different figures
     fig_toggle = st.columns([1, 1, 2])
@@ -104,8 +91,20 @@ def main():
         if st.session_state.umap_completed:
             st.pyplot(st.session_state.UMAPFigDiff2_Dens)
 
+if __name__ == '__main__':
+
+    #Set a wide layout
+    st.set_page_config(page_title="UMAP Differences Analyzer",
+                       layout="wide")
+    st.title('UMAP Differences Analyzer')
+
+    # Run streamlit-dataframe-editor library initialization tasks at the top of the page
+    st.session_state = sde.initialize_session_state(st.session_state)
+
+    # Run Top of Page (TOP) functions
+    st.session_state = top.top_of_page_reqs(st.session_state)
+
+    main()
+
     # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
     st.session_state = sde.finalize_session_state(st.session_state)
-
-if __name__ == '__main__':
-    main()
