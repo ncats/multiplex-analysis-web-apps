@@ -30,9 +30,10 @@ def reset_x_axis_range(use_groups_for_plotting, kde_or_hist_to_plot_full):
 
 
 def plotly_chart_histogram_callback():
-    if 'mg__plotly_chart_histogram__do_not_persist' in st.session_state:
-        if st.session_state['mg__plotly_chart_histogram__do_not_persist']['selection']['box']:
-            x_range = sorted(st.session_state['mg__plotly_chart_histogram__do_not_persist']['selection']['box'][0]['x'])
+    plotly_chart_key = ('mg__plotly_chart_histogram_' + st.session_state['mg__random_string'] + '__do_not_persist')
+    if plotly_chart_key in st.session_state:
+        if st.session_state[plotly_chart_key]['selection']['box']:
+            x_range = sorted(st.session_state[plotly_chart_key]['selection']['box'][0]['x'])
             st.session_state['mg__selected_value_range'] = tuple(x_range)
             st.session_state['mg__min_selection_value'] = x_range[0]
 
