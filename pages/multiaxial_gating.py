@@ -253,6 +253,8 @@ def update_dependencies_of_filtering_widgets():
         st.session_state['mg__curr_column_range'] = (curr_series.min(), curr_series.max())
         st.session_state['mg__selected_value_range'] = st.session_state['mg__curr_column_range']  # initialize the selected range to the entire range
         st.session_state['mg__min_selection_value'] = st.session_state['mg__curr_column_range'][0]  # initialize the minimum selection value to the minimum of the range
+        st.session_state['mg__histogram_x_range'] = list(st.session_state['mg__curr_column_range'])
+        st.session_state['mg__random_string'] = generate_random_string()
     else:
         st.session_state['mg__selected_column_type'] = 'categorical'
         st.session_state['mg__curr_column_unique_values'] = curr_series.unique()
