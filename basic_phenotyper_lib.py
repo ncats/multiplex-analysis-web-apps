@@ -672,28 +672,27 @@ def kmeans_calc(umap_data, n_clusters = 5):
 
     return kmeans_obj
 
-def perform_clusteringUMAP(spatial_umap, n_clusters, clust_minmax):
+def umap_clustering(spatial_umap, n_clusters, clust_minmax):
     '''
     perform clustering for the UMAP data using KMeans
 
     Args:
         spatial_umap (spatial_umap): spatial_umap object
         n_clusters (int): Number of clusters to use
+        clust_minmax (tuple): Tuple of min and max clusters to use
 
     Returns:
         spatial_umap: spatial_umap object with the clustering performed
     '''
     # Reset the cluster labels just in case
     spatial_umap.df_umap.loc[:, 'clust_label'] = -1
-    spatial_umap.df_umap.loc[:, 'cluster'] = -1
-    spatial_umap.df_umap.loc[:, 'Cluster'] = -1
 
     clust_range = range(clust_minmax[0], clust_minmax[1]+1)
     kmeans_list = []
-    wcss = [] # Within-Cluster Sum of Squares
-    for n_clusters in clust_range:
+    wcss        = [] # Within-Cluster Sum of Squares
+    for clust in clust_range:
         # Perform clustering for chosen
-        kmeans_obj = kmeans_calc(spatial_umap.umap_test, n_clusters)
+        kmeans_obj = kmeans_calc(spatial_umap.umap_test, clust)
         # Append Within-Cluster Sum of Squares measurement
         wcss.append(kmeans_obj.inertia_)
         kmeans_list.append(kmeans_obj)
@@ -706,8 +705,6 @@ def perform_clusteringUMAP(spatial_umap, n_clusters, clust_minmax):
 
     # Add cluster label column to cells dataframe
     spatial_umap.df_umap.loc[:, 'clust_label'] = kmeans_obj_targ.labels_
-    spatial_umap.df_umap.loc[:, 'cluster'] = kmeans_obj_targ.labels_
-    spatial_umap.df_umap.loc[:, 'Cluster'] = kmeans_obj_targ.labels_
 
     # After assigning cluster labels, perform mean calculations
     spatial_umap.mean_measures()
