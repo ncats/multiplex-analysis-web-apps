@@ -594,33 +594,33 @@ def setFigureObjs_UMAPDifferences(session_state):
     # Inspection UMAP properties
     session_state.umap_ins_msg = None
 
-    udp_insp = copy(udp_full)
-    udp_insp = filterLineage4UMAP(df_umapI, session_state.lineageDisplayToggle, session_state.defLineageOpt, session_state.umapInspect_Ver)
+    udp_ins_raw = copy(udp_full)
+    udp_ins_raw.filter_by_lineage(session_state.lineageDisplayToggle, session_state.umapInspect_Ver, session_state.defLineageOpt)
 
     # Filter by Feature for Inspection
     if session_state.umapInspect_Feat != session_state.defumapOutcomes:
 
-        split_dict_full_ins = udp_full.split_df_by_feature(session_state.umapInspect_Feat)
+        split_dict_full_ins = udp_ins_raw.split_df_by_feature(session_state.umapInspect_Feat)
         if split_dict_full_ins['appro_feat']:
             # Perform Density Calculations for each Condition
-            udp_fals = UMAPDensityProcessing(session_state.npf, split_dict_full_ins['df_umap_fals'], xx=udp_full.xx, yy=udp_full.yy)
-            udp_true = UMAPDensityProcessing(session_state.npf, split_dict_full_ins['df_umap_true'], xx=udp_full.xx, yy=udp_full.yy)
+            udp_fals = UMAPDensityProcessing(session_state.npf, split_dict_full_ins['df_umap_fals'], xx=udp_ins_raw.xx, yy=udp_ins_raw.yy)
+            udp_true = UMAPDensityProcessing(session_state.npf, split_dict_full_ins['df_umap_true'], xx=udp_ins_raw.xx, yy=udp_ins_raw.yy)
 
             ## Set Feature Labels
             udp_fals.set_feature_label(session_state.umapInspect_Feat, split_dict_full_ins['fals_msg'])
             udp_true.set_feature_label(session_state.umapInspect_Feat, split_dict_full_ins['true_msg'])
 
-            udp_fals.cluster_dict = udp_full.cluster_dict
-            udp_true.cluster_dict = udp_full.cluster_dict
-            udp_fals.palette_dict = udp_full.palette_dict
-            udp_true.palette_dict = udp_full.palette_dict
+            udp_fals.cluster_dict = udp_ins_raw.cluster_dict
+            udp_true.cluster_dict = udp_ins_raw.cluster_dict
+            udp_fals.palette_dict = udp_ins_raw.palette_dict
+            udp_true.palette_dict = udp_ins_raw.palette_dict
 
             udp_ins = udp_true
         else:
-            udp_ins = udp_full
+            udp_ins = udp_ins_raw
             session_state.umap_ins_msg = 'Please choose a boolean or numerical feature'
     else:
-        udp_ins = udp_full
+        udp_ins = udp_ins_raw
 
     # Full UMAP figures colored by Density
     if session_state.UMAPFigType == 'Density':
@@ -643,21 +643,24 @@ def setFigureObjs_UMAPDifferences(session_state):
     # Difference UMAP properties
     draw_diff = False
     session_state.umap_diff_msg = None
-    
+
+    udp_diff_raw = copy(udp_full)
+    udp_diff_raw.filter_by_lineage(session_state.lineageDisplayToggle, session_state.diffUMAPSel_Ver, session_state.defLineageOpt)
+
     # Filter by Feature for Inspection
     if session_state.diffUMAPSel_Feat != session_state.defumapOutcomes:
-        split_dict_full_diff = session_state.udp_full.split_df_by_feature(session_state.diffUMAPSel_Feat)
+        split_dict_full_diff = udp_diff_raw.split_df_by_feature(session_state.diffUMAPSel_Feat)
 
         if split_dict_full_diff['appro_feat']:
-            
-            # Perform Density Calculations for each Condition
-            udp_fals = UMAPDensityProcessing(session_state.npf, split_dict_full_diff['df_umap_fals'], xx=session_state.udp_full.xx, yy=session_state.udp_full.yy)
-            udp_true = UMAPDensityProcessing(session_state.npf, split_dict_full_diff['df_umap_true'], xx=session_state.udp_full.xx, yy=session_state.udp_full.yy)
 
-            udp_fals.cluster_dict = udp_full.cluster_dict
-            udp_true.cluster_dict = udp_full.cluster_dict
-            udp_fals.palette_dict = udp_full.palette_dict
-            udp_true.palette_dict = udp_full.palette_dict
+            # Perform Density Calculations for each Condition
+            udp_fals = UMAPDensityProcessing(session_state.npf, split_dict_full_diff['df_umap_fals'], xx=udp_diff_raw.xx, yy=udp_diff_raw.yy)
+            udp_true = UMAPDensityProcessing(session_state.npf, split_dict_full_diff['df_umap_true'], xx=udp_diff_raw.xx, yy=udp_diff_raw.yy)
+
+            udp_fals.cluster_dict = udp_diff_raw.cluster_dict
+            udp_true.cluster_dict = udp_diff_raw.cluster_dict
+            udp_fals.palette_dict = udp_diff_raw.palette_dict
+            udp_true.palette_dict = udp_diff_raw.palette_dict
 
             ## Copy over
             udp_diff = copy(udp_fals)
@@ -673,16 +676,16 @@ def setFigureObjs_UMAPDifferences(session_state):
 
             draw_diff = True
         else:
-            udp_fals = udp_full
-            udp_true = udp_full
-            udp_diff = udp_full
+            udp_fals = udp_diff_raw
+            udp_true = udp_diff_raw
+            udp_diff = udp_diff_raw
 
             session_state.umap_diff_msg = 'Please choose a boolean or numerical feature'
 
     else:
-        udp_fals = udp_full
-        udp_true = udp_full
-        udp_diff = udp_full
+        udp_fals = udp_diff_raw
+        udp_true = udp_diff_raw
+        udp_diff = udp_diff_raw
 
     session_state.UMAPFigDiff0_Dens = udp_fals.UMAPdraw_density()
     session_state.UMAPFigDiff1_Dens = udp_true.UMAPdraw_density()
