@@ -443,6 +443,8 @@ class UMAPDensityProcessing():
         self.slc_bg2  = npf.slc_bg2  # Streamlit Color -Secondary Background
 
         # Preset Summary Stats
+        self.dfmin    = 0
+        self.dfmax    = 0
         self.dens_min = 0
         self.dens_max = 0
         self.minabs   = 0
@@ -469,7 +471,7 @@ class UMAPDensityProcessing():
         self.dens_mat, \
         self.bin_indices_df_group,\
         self.empty_bin_ind = umPT.plot_2d_density(x, y, bins = [self.xx, self.yy],
-                                                w = w, return_matrix = True)
+                                                  w = w, return_matrix = True)
 
         self.umap_summary_stats()
 
@@ -478,9 +480,78 @@ class UMAPDensityProcessing():
         Identify the minimum and maximum values of the density matrix
         '''
 
+        self.dfmin  = self.df[['X', 'Y']].min()
+        self.dfmax  = self.df[['X', 'Y']].max()
+
         self.dens_min = np.min(self.dens_mat)
         self.dens_max = np.max(self.dens_mat)
         self.minabs   = np.min([np.abs(self.dens_min), np.abs(self.dens_max)])
+
+    def filter_by_lineage(self, display_toggle, drop_val, default_val):
+        '''
+        Function for filtering UMAP function based on Phenotypes or Markers
+
+        Args:
+            display_toggle (str): Toggle to display as Phenotypes or Markers
+            drop_val (str): Value selected from the drop value
+            default_val (str): Default Value of phenotyping or markers
+
+        Returns:
+            None
+        '''
+        if drop_val != default_val:
+            if display_toggle == 'Phenotypes':
+                self.df = self.df.loc[self.df['Lineage'] == drop_val, :]
+            elif display_toggle == 'Markers':
+                self.df = self.df.loc[self.df['species_name_short'].str.contains(drop_val), :]
+
+    def split_df_by_feature(self, feature):
+        '''
+        split_df_by_feature takes in a feature from a dataframe
+        and first identifies if the feature is boolean, if it contains 
+        float values, or neither. If its a boolean, it will split the
+        dataframe between values of 0 and 1 for the selected feature.
+        If the feature is a float, it will split the dataframe based on
+        the median value of the feature. If the feature is neither boolean
+        nor float, it will not split the dataframe. 
+
+        In all cases this function will return a dictionary of the outcome
+        of the split with the most importannt value being, appro_feat, 
+        which will be True if the feature is appropriate for splitting, and
+        False if not.
+
+        Args:
+            feature (str): Feature to split the dataframe by
+
+        Returns:
+            split_dict (dict): Dictionary of the outcomes of splitting
+             the dataframe
+        '''
+
+        split_dict = dict()
+        # Idenfify the column type that is splitting the UMAP
+        col_type = ndl.identify_col_type(self.df[feature])
+
+        if col_type == 'not_bool':
+            # Identify UMAP by Condition
+            median = np.round(self.df[feature].median(), 2)
+            split_dict['df_umap_fals'] = self.df.loc[self.df[feature] <= median, :]
+            split_dict['df_umap_true'] = self.df.loc[self.df[feature] > median, :]
+            split_dict['fals_msg']   = f'<= {median}'
+            split_dict['true_msg']   = f'> {median}'
+            split_dict['appro_feat'] = True
+        elif col_type == 'bool':
+            # Identify UMAP by Condition
+            values = self.df[feature].unique()
+            split_dict['df_umap_fals'] = self.df.loc[self.df[feature] == values[0], :]
+            split_dict['df_umap_true'] = self.df.loc[self.df[feature] == values[1], :]
+            split_dict['fals_msg']   = f'= {values[0]}'
+            split_dict['true_msg']   = f'= {values[1]}'
+            split_dict['appro_feat'] = True
+        else:
+            split_dict['appro_feat'] = False
+
+        return split_dict
 
     def set_feature_label(self, feature, feat_label):
         '''
@@ -502,10 +573,38 @@ class UMAPDensityProcessing():
                                     diff = diff,
                                     figsize = figsize,
                                     legendtype = legendtype)
+    
+    def umap_draw_clusters(self, figsize = (12, 12)):
+        '''
+        Draw the UMAP colored by clusters
+        '''
+
+        umap_clust_fig, ax = bpl.draw_scatter_fig(figsize = figsize)
+        umap_clust_fig = bpl.scatter_plot(self.df, umap_clust_fig, ax, 'Clusters',
+                                          xVar = 'X', yVar = 'Y', hueVar='clust_label',
+                                          xLim = [self.dfmin[0], self.dfmax[0]],
+                                          yLim = [self.dfmin[1], self.dfmax[1]],
+                                          hueOrder = self.cluster_dict.values(),
+                                          palette  = self.palette_dict)
+        
+        return umap_clust_fig
 
     def filter_density_matrix(self, cutoff= 0.01, empty_bin_ind = None):
         '''
-        filter the current matrix by a cutoff value
+        Filter the density matrix based on the cutoff value
+        to create a binary mask of values that are above or below
+        the cutoff value. 
+
+        This takes a list of empty bin indices to filter out any
+        bins that are meant to be empty (0) no matter what the actual
+        value is in the bin.
+
+        Args:
+            cutoff (float): Cutoff value to use for filtering
+            empty_bin_ind (list): List of empty bin indices
+        
+        Returns:
+            None
         '''
 
         dens_mat_shape = self.dens_mat.shape
@@ -565,9 +664,9 @@ class UMAPDensityProcessing():
         self.cluster_dict = dict()
         self.cluster_dict[0] = 'No Cluster'
         for i in unique_set_fals.index:
-            self.cluster_dict[unique_set_fals.vals[i]] = f'D{i+1}'
+            self.cluster_dict[unique_set_fals.vals[i]] = f'False Cluster {i+1}'
         for i in unique_set_true.index:
-            self.cluster_dict[unique_set_true.vals[i]] = f'A{i+1}'
+            self.cluster_dict[unique_set_true.vals[i]] = f'True Cluster {i+1}'
 
         set_blues = sns.color_palette('Blues_r', 10)
         set_reds = sns.color_palette('Reds_r', 10)
@@ -576,21 +675,32 @@ class UMAPDensityProcessing():
         self.palette_dict = dict()
         self.palette_dict['No Cluster'] = 'white'
         for i in unique_set_fals.index:
-            self.palette_dict[f'D{i+1}'] = set_reds[i]
+            self.palette_dict[f'False Cluster {i+1}'] = set_reds[i]
         for i in unique_set_true.index:
-            self.palette_dict[f'A{i+1}'] = set_blues[i]
+            self.palette_dict[f'True Cluster {i+1}'] = set_blues[i]
 
-    # def perform_clustering(self, n_clusters, cond):
-    #     '''
+    def kmean_calc(self, dens_mat, n_clusters, cond):
+        '''
+        Perform clustering on the density matrix
 
-    #     '''
+        Args:
+            dens_mat (numpy array): Density matrix
+            n_clusters (int): Number of clusters to use
+            cond (int): Condition to use for clustering
+        
+        Returns:
+            kmeans_obj: KMeans object created from KMeans
+        '''
 
-    #     kmeans_obj = KMeans(n_clusters = n_clusters,
-    #                         init ='k-means++',
-    #                         max_iter = 300,
-    #                         n_init = 10,
-    #                         random_state = 42)
+        kmeans_obj = KMeans(n_clusters = n_clusters,
+                            init ='k-means++',
+                            max_iter = 300,
+                            n_init = 50)
 
-    #     cond_ind = np.nonzero(self.dens_mat == cond)
-    #     cells_cond = np.vstack(cond_ind).T
-    #     kmeans_obj.fit(cells_cond)
+        # Identify the indices of the target condition
+        cond_ind = np.nonzero(dens_mat == cond)
+        cells_cond = np.vstack(cond_ind).T
+        # Fit the condition to the kmeans object
+        kmeans_obj.fit(cells_cond)
+
+        return kmeans_obj

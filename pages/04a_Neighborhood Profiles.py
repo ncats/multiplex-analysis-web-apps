@@ -1,8 +1,7 @@
 '''
 This is the python script which produces the NEIGHBORHOOD PROFILES PAGE
 '''
-import os
-import datetime
+
 from copy import copy
 import streamlit as st
 import numpy as np
@@ -174,34 +173,15 @@ def set_clusters():
         # If clustering is to be performed on the UMAP density difference
         if st.session_state['toggle_clust_diff']:
 
-            # Idenfify the column type that is splitting the UMAP
-            col_type = ndl.identify_col_type(st.session_state.spatial_umap.df_umap[st.session_state.dens_diff_feat_sel])
-
-            if col_type == 'not_bool':
-                # Identify UMAP by Condition
-                median = np.round(st.session_state.spatial_umap.df_umap[st.session_state.dens_diff_feat_sel].median(), 2)
-                st.session_state.df_umap_fals = st.session_state.spatial_umap.df_umap.loc[st.session_state.spatial_umap.df_umap[st.session_state.dens_diff_feat_sel] <= median, :]
-                st.session_state.df_umap_true = st.session_state.spatial_umap.df_umap.loc[st.session_state.spatial_umap.df_umap[st.session_state.dens_diff_feat_sel] > median, :]
-                fals_msg = f'<= {median}'
-                true_msg = f'> {median}'
-                st.session_state.appro_feat = True
-            elif col_type == 'bool':
-                # Identify UMAP by Condition
-                values = st.session_state.spatial_umap.df_umap[st.session_state.dens_diff_feat_sel].unique()
-                st.session_state.df_umap_fals = st.session_state.spatial_umap.df_umap.loc[st.session_state.spatial_umap.df_umap[st.session_state.dens_diff_feat_sel] == values[0], :]
-                st.session_state.df_umap_true = st.session_state.spatial_umap.df_umap.loc[st.session_state.spatial_umap.df_umap[st.session_state.dens_diff_feat_sel] == values[1], :]
-                fals_msg = f'= {values[0]}'
-                true_msg = f'= {values[1]}'
-                st.session_state.appro_feat = True
-            else:
-                st.session_state.appro_feat = False
+            split_dict_full = st.session_state.udp_full.split_df_by_feature(st.session_state.dens_diff_feat_sel)
+            st.session_state.appro_feat = split_dict_full['appro_feat']
 
             # If the feature is appropriate, perform the density difference split/clustering
             if st.session_state.appro_feat:
 
                 # Perform Density Calculations for each Condition
-                udp_fals = UMAPDensityProcessing(st.session_state.npf, st.session_state.df_umap_fals, xx=st.session_state.udp_full.xx, yy=st.session_state.udp_full.yy)
-                udp_true = UMAPDensityProcessing(st.session_state.npf, st.session_state.df_umap_true, xx=st.session_state.udp_full.xx, yy=st.session_state.udp_full.yy)
+                udp_fals = UMAPDensityProcessing(st.session_state.npf, split_dict_full['df_umap_fals'], xx=st.session_state.udp_full.xx, yy=st.session_state.udp_full.yy)
+                udp_true = UMAPDensityProcessing(st.session_state.npf, split_dict_full['df_umap_true'], xx=st.session_state.udp_full.xx, yy=st.session_state.udp_full.yy)
 
                 ## Copy over
                 udp_diff = copy(udp_fals)
@@ -210,8 +190,8 @@ def set_clusters():
                 ## Rerun the min/max calcs
                 udp_diff.umap_summary_stats()
                 ## Set Feature Labels
-                udp_fals.set_feature_label(st.session_state.dens_diff_feat_sel, fals_msg)
-                udp_true.set_feature_label(st.session_state.dens_diff_feat_sel, true_msg)
+                udp_fals.set_feature_label(st.session_state.dens_diff_feat_sel, split_dict_full['fals_msg'])
+                udp_true.set_feature_label(st.session_state.dens_diff_feat_sel, split_dict_full['true_msg'])
                 udp_diff.set_feature_label(st.session_state.dens_diff_feat_sel, 'Difference')
 
                 # Draw UMAPS
@@ -261,21 +241,22 @@ def set_clusters():
                 st.session_state.spatial_umap.mean_measures()
                 st.session_state.bc.printElapsedTime('Performing Mean Measures')
 
-                dens_df_fals = st.session_state.spatial_umap.dens_df_mean.loc[st.session_state.spatial_umap.dens_df_mean['clust_label'].str.contains('D'), :]
-                dens_df_true = st.session_state.spatial_umap.dens_df_mean.loc[st.session_state.spatial_umap.dens_df_mean['clust_label'].str.contains('A'), :]
+                dens_df_fals = st.session_state.spatial_umap.dens_df_mean.loc[st.session_state.spatial_umap.dens_df_mean['clust_label'].str.contains('False'), :]
+                dens_df_true = st.session_state.spatial_umap.dens_df_mean.loc[st.session_state.spatial_umap.dens_df_mean['clust_label'].str.contains('True'), :]
 
-                dens_df_fals['clust_label'] = 'Average Deceased'
+                dens_df_fals['clust_label'] = 'Average False'
                 dens_df_mean_fals = dens_df_fals.groupby(['clust_label', 'phenotype', 'dist_bin'], as_index=False).mean()
 
-                dens_df_true['clust_label'] = 'Average Alive'
+                dens_df_true['clust_label'] = 'Average True'
                 dens_df_mean_true = dens_df_true.groupby(['clust_label', 'phenotype', 'dist_bin'], as_index=False).mean()
 
                 st.session_state.spatial_umap.dens_df_mean = pd.concat([st.session_state.spatial_umap.dens_df_mean, dens_df_mean_fals, dens_df_mean_true], axis=0)
 
-                st.session_state.diff_clust_Fig, diff_clust_ax = bpl.draw_scatter_fig()
-                st.session_state.diff_clust_Fig = bpl.scatter_plot(st.session_state.spatial_umap.df_umap, st.session_state.diff_clust_Fig, diff_clust_ax, 'Clusters',
-                                        xVar = 'X', yVar = 'Y', hueVar='clust_label',
-                                        hueOrder=st.session_state.cluster_dict.values(), palette= st.session_state.palette_dict)
+                # Draw a UMAP colored by the clusters
+                st.session_state.udp_full.cluster_dict = st.session_state.cluster_dict
+                st.session_state.udp_full.palette_dict = st.session_state.palette_dict
+                st.session_state.diff_clust_Fig = st.session_state.udp_full.umap_draw_clusters()
+
         else:
             st.session_state.spatial_umap = bpl.perform_clusteringUMAP(st.session_state.spatial_umap,
                                                                     st.session_state.slider_clus_val)
@@ -642,6 +623,7 @@ def main():
 
                 if st.session_state.cluster_completed and st.session_state['toggle_clust_diff']:
                     if st.session_state['appro_feat']:
+                        
                         diff_cols = st.columns(3)
                         with diff_cols[0]:
                             st.pyplot(fig=st.session_state.UMAPFig_fals)
@@ -649,6 +631,7 @@ def main():
                             st.pyplot(fig=st.session_state.UMAPFig_diff)
                         with diff_cols[2]:
                             st.pyplot(fig=st.session_state.UMAPFig_true)
+                        
                         mor_cols = st.columns(2)
                         with mor_cols[0]:
                             st.pyplot(fig=st.session_state.UMAPFig_mask)
@@ -802,52 +785,53 @@ def main():
 
         npf_fig_big = plt.figure(figsize=(16, 45), facecolor = '#0E1117')
 
-        list_figures = [['Average Deceased', None, 'log', [1, 10000]],
-                        ['Average Alive', None, 'log', [1, 10000]],
-                        ['Average Deceased', 'Average Alive', 'linear', [0, 4]],
-                        ['D1', None, 'log', [0.1, 10000]],
-                        ['D2', None, 'log', [0.1, 10000]],
-                        ['D3', None, 'log', [0.1, 10000]],
-                        ['A1', None, 'log', [0.1, 10000]],
-                        ['A2', None, 'log', [0.1, 10000]],
-                        ['D3', None, 'linear', [0, 2000]],
-                        ['D1', 'A1', 'log', [0.01, 100]],
-                        ['D2', 'A1', 'log', [0.01, 100]],
-                        ['D3', 'A1', 'log', [0.01, 100]],
-                        ['D1', 'A2', 'log', [0.01, 100]],
-                        ['D2', 'A2', 'log', [0.01, 100]],
-                        ['D3', 'A2', 'log', [0.01, 100]],
-                        ['D1', 'Average Alive', 'linear', [0, 15]],
-                        ['D2', 'Average Alive', 'linear', [0, 15]],
-                        ['D3', 'Average Alive', 'linear', [0, 15]],
+        list_figures = [['Average False', None, 'log', [1, 10000]],
+                        ['Average True', None, 'log', [1, 10000]],
+                        ['Average False', 'Average True', 'linear', [0, 4]],
+                        ['False Cluster 1', None, 'log', [0.1, 10000]],
+                        ['False Cluster 2', None, 'log', [0.1, 10000]],
+                        ['False Cluster 3', None, 'log', [0.1, 10000]],
+                        ['True Cluster 1', None, 'log', [0.1, 10000]],
+                        ['True Cluster 2', None, 'log', [0.1, 10000]],
+                        ['False Cluster 3', None, 'linear', [0, 2000]],
+                        ['False Cluster 1', 'True Cluster 1', 'log', [0.01, 100]],
+                        ['False Cluster 2', 'True Cluster 1', 'log', [0.01, 100]],
+                        ['False Cluster 3', 'True Cluster 1', 'log', [0.01, 100]],
+                        ['False Cluster 1', 'True Cluster 2', 'log', [0.01, 100]],
+                        ['False Cluster 2', 'True Cluster 2', 'log', [0.01, 100]],
+                        ['False Cluster 3', 'True Cluster 2', 'log', [0.01, 100]],
+                        ['False Cluster 1', 'Average True', 'linear', [0, 15]],
+                        ['False Cluster 2', 'Average True', 'linear', [0, 15]],
+                        ['False Cluster 3', 'Average True', 'linear', [0, 15]],
                         ]
 
-        num_figs = len(list_figures)
-        num_cols = 3
-        num_rows = np.ceil(num_figs/3).astype(int)
-        for ii, cluster in enumerate(list_figures):
-            axii = npf_fig_big.add_subplot(num_rows, 3, ii+1, facecolor = '#0E1117')
+        if st.session_state.cluster_completed:
+            num_figs = len(list_figures)
+            num_cols = 3
+            num_rows = np.ceil(num_figs/3).astype(int)
+            for ii, cluster in enumerate(list_figures):
+                axii = npf_fig_big.add_subplot(num_rows, 3, ii+1, facecolor = '#0E1117')
 
-            if ii == ((num_rows*num_cols)-3):
-                legend_flag = True
-            else:
-                legend_flag = False
+                if ii == ((num_rows*num_cols)-3):
+                    legend_flag = True
+                else:
+                    legend_flag = False
 
-            bpl.neighProfileDraw(st.session_state.spatial_umap,
-                                ax = axii,
-                                sel_clus = cluster[0],
-                                cmp_clus = cluster[1],
-                                cmp_style = 'Ratio',
-                                hide_other = st.session_state['toggle_hide_other'],
-                                hide_no_cluster = st.session_state['toggle_hide_no_cluster'],
-                                legend_flag = legend_flag)
+                bpl.neighProfileDraw(st.session_state.spatial_umap,
+                                    ax = axii,
+                                    sel_clus = cluster[0],
+                                    cmp_clus = cluster[1],
+                                    cmp_style = 'Ratio',
+                                    hide_other = st.session_state['toggle_hide_other'],
+                                    hide_no_cluster = st.session_state['toggle_hide_no_cluster'],
+                                    legend_flag = legend_flag)
 
-            if cluster[2] == 'log':
-                axii.set_yscale('log')
+                if cluster[2] == 'log':
+                    axii.set_yscale('log')
 
-            axii.set_ylim(cluster[3])
+                axii.set_ylim(cluster[3])
 
-        st.pyplot(fig=npf_fig_big)
+            st.pyplot(fig=npf_fig_big)
 
 if __name__ == '__main__':
 
