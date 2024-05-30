@@ -645,12 +645,12 @@ def perform_spatialUMAP(spatial_umap, bc, umap_subset_per_fit, umap_subset_toggl
 
     return spatial_umap
 
-def KMeans_calc(umap_data, n_clusters = 5):
+def kmeans_calc(umap_data, n_clusters = 5):
     '''
     Perform KMeans clustering on the spatial UMAP data
 
     Args:
-        spatial_umap (spatial_umap): spatial_umap object
+        umap_data (): spatial_umap object
         nClus (int): Number of clusters to use
     
     Returns:
@@ -672,29 +672,7 @@ def KMeans_calc(umap_data, n_clusters = 5):
 
     return kmeans_obj
 
-def measure_possible_clust(spatial_umap, clust_minmax):
-    '''
-    method for measuring the within-cluster sum of squares for
-    a range of cluster values
-
-    Args:
-        spatial_umap (spatial_umap): spatial_umap object
-        clust_minmax (list): List of min and max cluster values to use
-
-    Returns:
-        clust_range (list): List of cluster values
-        wcss (list): List of within-cluster sum of squares
-    '''
-    clust_range = range(clust_minmax[0], clust_minmax[1]+1)
-    wcss = [] # Within-Cluster Sum of Squares
-    for n_clusters in clust_range:
-        # Perform clustering for chosen
-        kmeans_obj = KMeans_calc(spatial_umap.umap_test, n_clusters)
-        # Append Within-Cluster Sum of Squares measurement
-        wcss.append(kmeans_obj.inertia_)
-    return list(clust_range), wcss
-
-def perform_clusteringUMAP(spatial_umap, n_clusters):
+def perform_clusteringUMAP(spatial_umap, n_clusters, clust_minmax):
     '''
     perform clustering for the UMAP data using KMeans
 
@@ -710,13 +688,26 @@ def perform_clusteringUMAP(spatial_umap, n_clusters):
     spatial_umap.df_umap.loc[:, 'cluster'] = -1
     spatial_umap.df_umap.loc[:, 'Cluster'] = -1
 
-    # Perform clustering
-    kmeans_obj = KMeans_calc(spatial_umap.umap_test, n_clusters)
+    clust_range = range(clust_minmax[0], clust_minmax[1]+1)
+    kmeans_list = []
+    wcss = [] # Within-Cluster Sum of Squares
+    for n_clusters in clust_range:
+        # Perform clustering for chosen
+        kmeans_obj = kmeans_calc(spatial_umap.umap_test, n_clusters)
+        # Append Within-Cluster Sum of Squares measurement
+        wcss.append(kmeans_obj.inertia_)
+        kmeans_list.append(kmeans_obj)
+
+    # Create WCSS Elbow Plot
+    spatial_umap.elbow_fig = draw_wcss_elbow_plot(clust_range, wcss, n_clusters)
+
+    # Identify the kmeans obj that matches the selected cluster number
+    kmeans_obj_targ = kmeans_list[n_clusters-1]
 
     # Add cluster label column to cells dataframe
-    spatial_umap.df_umap.loc[:, 'clust_label'] = kmeans_obj.labels_
-    spatial_umap.df_umap.loc[:, 'cluster'] = kmeans_obj.labels_
-    spatial_umap.df_umap.loc[:, 'Cluster'] = kmeans_obj.labels_
+    spatial_umap.df_umap.loc[:, 'clust_label'] = kmeans_obj_targ.labels_
+    spatial_umap.df_umap.loc[:, 'cluster'] = kmeans_obj_targ.labels_
+    spatial_umap.df_umap.loc[:, 'Cluster'] = kmeans_obj_targ.labels_
 
     # After assigning cluster labels, perform mean calculations
     spatial_umap.mean_measures()

@@ -249,11 +249,9 @@ def set_clusters():
                 st.session_state.diff_clust_Fig = st.session_state.udp_full.umap_draw_clusters()
 
         else:
-            st.session_state.clust_range, st.session_state.wcss = bpl.measure_possible_clust(st.session_state.spatial_umap, st.session_state.clust_minmax)
-            st.session_state.elbow_fig = bpl.draw_wcss_elbow_plot(st.session_state.clust_range, st.session_state.wcss, st.session_state.selected_nClus)
-                                
             st.session_state.spatial_umap = bpl.perform_clusteringUMAP(st.session_state.spatial_umap,
-                                                                    st.session_state.slider_clus_val)
+                                                                       st.session_state.slider_clus_val,
+                                                                       st.session_state.clust_minmax)
             st.session_state.selected_nClus = st.session_state.slider_clus_val
     st.session_state.bc.printElapsedTime(msg = 'Setting Clusters')
     st.session_state.bc.set_value_df('time_to_run_cluster', st.session_state.bc.elapsedTime())
@@ -605,7 +603,7 @@ def main():
                                     max_value=st.session_state.clust_minmax[1],
                                     key = 'slider_clus_val')
                             if st.session_state.cluster_completed:
-                                st.pyplot(st.session_state.elbow_fig)
+                                st.pyplot(st.session_state.spatial_umap.elbow_fig)
 
                     with clust_exp_col[1]:
                         if st.session_state['toggle_clust_diff'] is True:
