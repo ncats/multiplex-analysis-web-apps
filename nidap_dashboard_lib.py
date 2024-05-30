@@ -6,6 +6,7 @@ NCI researchers with their data on NIDAP.
 
 import os
 import time
+from copy import copy
 import numpy as np
 import pandas as pd
 import altair as alt
@@ -18,6 +19,7 @@ alt.data_transformers.disable_max_rows()
 import basic_phenotyper_lib as bpl                  # Useful functions for cell phenotyping
 from foundry_IO_lib import foundry_IO_lib           # Foundry Input/Output Class
 from benchmark_collector import benchmark_collector # Benchmark Collector Class
+from neighborhood_profiles import NeighborhoodProfiles, UMAPDensityProcessing
 import PlottingTools as umPT
 
 def identify_col_type(col):
@@ -584,145 +586,103 @@ def setFigureObjs_UMAPDifferences(session_state):
     '''
 
     title = [f'DATASET: {session_state.datafile}',
-             f'PHENO METHOD: {session_state.selected_phenoMeth}',
-             f'SLIDE ID: {session_state["selSlide ID_short"]}']
+             f'PHENO METHOD: {session_state.selected_phenoMeth}']
 
     df_umap = session_state.spatial_umap.df_umap
     clust_order = sorted(df_umap['clust_label'].unique())
 
-    n_bins = 200
-    xx = np.linspace(np.min(df_umap['X']), np.max(df_umap['X']), n_bins + 1)
-    yy = np.linspace(np.min(df_umap['Y']), np.max(df_umap['Y']), n_bins + 1)
-    n_pad = 40
-
-    minXY = df_umap[['X', 'Y']].min()-1
-    maxXY = df_umap[['X', 'Y']].max()+1
-
-    df_umapI = df_umap.copy()
-    df_umapD = df_umap.copy()
-
-    # Perform Lineage filtering if selection is made
-    df_umapI = filterLineage4UMAP(df_umapI, session_state.lineageDisplayToggle, session_state.defLineageOpt, session_state.umapInspect_Ver)
-    df_umapD = filterLineage4UMAP(df_umapD, session_state.lineageDisplayToggle, session_state.defLineageOpt, session_state.diffUMAPSel_Ver)
-
-    vlim = .97
+    # Full UMAP
+    udp_full = session_state.udp_full
 
     # Inspection UMAP properties
+    session_state.umap_ins_msg = ''
+
     if session_state.umapInspect_Feat != session_state.defumapOutcomes:
-        w_Ins = df_umapI[session_state.umapInspect_Feat]
-        if identify_col_type(w_Ins) != 'object':
-            w_Ins, df_umapI = bpl.preprocess_weighted_umap(w_Ins, df_umapI)
+
+        split_dict_full_ins = session_state.udp_full.split_df_by_feature(session_state.umapInspect_Feat)
+        if split_dict_full_ins['appro_feat']:
+            # Perform Density Calculations for each Condition
+            udp_fals = UMAPDensityProcessing(session_state.npf, split_dict_full_ins['df_umap_fals'], xx=session_state.udp_full.xx, yy=session_state.udp_full.yy)
+            udp_true = UMAPDensityProcessing(session_state.npf, split_dict_full_ins['df_umap_true'], xx=session_state.udp_full.xx, yy=session_state.udp_full.yy)
+
+            ## Set Feature Labels
+            udp_fals.set_feature_label(session_state.umapInspect_Feat, split_dict_full_ins['fals_msg'])
+            udp_true.set_feature_label(session_state.umapInspect_Feat, split_dict_full_ins['true_msg'])
+
+            udp_fals.cluster_dict = udp_full.cluster_dict
+            udp_true.cluster_dict = udp_full.cluster_dict
+            udp_fals.palette_dict = udp_full.palette_dict
+            udp_true.palette_dict = udp_full.palette_dict
+
+            udp_ins = udp_true
         else:
-            w_Ins = None
+            udp_ins = udp_full
+            session_state.umap_ins_msg = 'Please choose a different feature'
     else:
-        w_Ins = None
-
-    # Difference UMAP properties
-    if session_state.diffUMAPSel_Feat != session_state.defumapOutcomes:
-        w = df_umapD[session_state.diffUMAPSel_Feat]
-        if identify_col_type(w) == 'not_bool':
-            comp_thresh = 0
-            w = np.array(w > comp_thresh).astype('int')
-
-            featComp1 = f'>= {comp_thresh}'
-            featComp2 = f'< {comp_thresh}'
-
-            df_umapD_A = df_umapD.loc[df_umapD[session_state.diffUMAPSel_Feat] >= comp_thresh, :]
-            df_umapD_B = df_umapD.loc[df_umapD[session_state.diffUMAPSel_Feat] < comp_thresh, :]
-            df_umapD_AB = df_umapD_B.copy()
-        elif identify_col_type(w) == 'bool':
-            featComp1 = '= 1'
-            featComp2 = '= 0'
-
-            df_umapD_A = df_umapD.loc[df_umapD[session_state.diffUMAPSel_Feat] == 1, :]
-            df_umapD_B = df_umapD.loc[df_umapD[session_state.diffUMAPSel_Feat] == 0, :]
-            df_umapD_AB = df_umapD_B.copy()
-        else:
-            featComp1 = 'try other column'
-            featComp2 = 'try other column'
-
-            df_umapD_A  = df_umapD.copy()
-            df_umapD_B  = df_umapD.copy()
-            df_umapD_AB = df_umapD.copy()
-
-        w, df_umapD = bpl.preprocess_weighted_umap(w, df_umapD)
-
-        w_DiffA = w
-        w_DiffB = max(w) - w
-        w_Diff  = w_DiffA - w_DiffB
-
-        feat_label0 = f'{session_state.diffUMAPSel_Feat} {featComp1} '
-        feat_label1 = f'{session_state.diffUMAPSel_Feat} {featComp2} '
-        feat_label2 = None
-
-    else:
-        w_DiffA = None
-        w_DiffB = None
-        w_Diff  = None
-
-        feat_label0 = None
-        feat_label1 = None
-        feat_label2 = None
-
-        df_umapD_A = df_umapD.copy()
-        df_umapD_B = df_umapD.copy()
-        df_umapD_AB = df_umapD.copy()
-
-    feat_labels = [feat_label0, feat_label1, feat_label2]
-    df_umapDs = [df_umapD_A, df_umapD_B, df_umapD_AB]
+        udp_ins = udp_full
 
     # UMAP colored by Density
     if session_state.UMAPFigType == 'Density':
-        w = None
 
         # All UMAP Figure
-        umap_dens_all, _      = umPT.plot_2d_density(df_umap['X'], df_umap['Y'],
-                                                     bins=[xx, yy], w=w, return_matrix=True)
-        session_state.UMAPFig = bpl.UMAPdraw_density(umap_dens_all,
-                                                     bins = [xx, yy], w=None, n_pad=n_pad, vlim=vlim)
+        session_state.UMAPFig = udp_full.UMAPdraw_density()
 
         # UMAP for Lineage/Outcome Inspection
-        umap_dens_insp, _         = umPT.plot_2d_density(df_umapI['X'], df_umapI['Y'],
-                                                         bins=[xx, yy], w=w, return_matrix=True)
-        session_state.UMAPFigInsp = bpl.UMAPdraw_density(umap_dens_insp, bins = [xx, yy], w=w_Ins, n_pad=n_pad, vlim=vlim)
+        session_state.UMAPFigInsp = udp_ins.UMAPdraw_density()
 
     # UMAP colored by clust_label
     elif session_state.UMAPFigType == 'Clusters':
-        # Make a new dataframe to send to the phenotyping library scatterplot function
 
         # All UMAP Figure
-        session_state.UMAPFig, session_state.UMAPax = bpl.draw_scatter_fig(figsize=session_state.figsize)
-        session_state.UMAPFig = bpl.scatter_plot(df_umap, session_state.UMAPFig, session_state.UMAPax, title,
-                                                 xVar = 'X', yVar = 'Y', hueVar = 'clust_label',
-                                                 hueOrder = clust_order,
-                                                 xLim = [minXY[0], maxXY[0]], yLim = [minXY[1], maxXY[1]], boxoff=True, clusters_label = True)
+        session_state.UMAPFig = udp_full.umap_draw_clusters()
 
         # UMAP for Lineage/Outcome Inspection
-        session_state.UMAPFigInsp, session_state.UMAPInspax = bpl.draw_scatter_fig(figsize=session_state.figsize)
-        session_state.UMAPFigInsp = bpl.scatter_plot(df_umapI, session_state.UMAPFigInsp, session_state.UMAPInspax, title,
-                                                 xVar = 'X', yVar = 'Y', hueVar = 'clust_label',
-                                                 hueOrder = clust_order,
-                                                 xLim = [minXY[0], maxXY[0]], yLim = [minXY[1], maxXY[1]], boxoff=True, clusters_label = True)
-
+        session_state.UMAPFigInsp = udp_ins.umap_draw_clusters()
+    
     # UMAP Difference Figures
-    umap_dens_diff, _ = umPT.plot_2d_density(df_umapD['X'], df_umapD['Y'],
-                                             bins=[xx, yy], w=w_Diff, return_matrix=True)
+    if session_state.diffUMAPSel_Feat != session_state.defumapOutcomes:
+        split_dict_full_diff = session_state.udp_full.split_df_by_feature(session_state.diffUMAPSel_Feat)
 
-    session_state.UMAPFigDiff0_Dens = bpl.UMAPdraw_density(umap_dens_diff, bins = [xx, yy], w=w_DiffA, n_pad=n_pad, vlim=vlim, feat = feat_label0)
-    session_state.UMAPFigDiff1_Dens = bpl.UMAPdraw_density(umap_dens_diff, bins = [xx, yy], w=w_DiffB, n_pad=n_pad, vlim=vlim, feat = feat_label1)
-    session_state.UMAPFigDiff2_Dens = bpl.UMAPdraw_density(umap_dens_diff, bins = [xx, yy], w=w_Diff, n_pad=n_pad, vlim=vlim, diff = True)
+        if split_dict_full_diff['appro_feat']:
+            
+            # Perform Density Calculations for each Condition
+            udp_fals = UMAPDensityProcessing(session_state.npf, split_dict_full_diff['df_umap_fals'], xx=session_state.udp_full.xx, yy=session_state.udp_full.yy)
+            udp_true = UMAPDensityProcessing(session_state.npf, split_dict_full_diff['df_umap_true'], xx=session_state.udp_full.xx, yy=session_state.udp_full.yy)
 
-    # UMAP Difference Figures
-    for i in range(3):
-        fig, ax = bpl.draw_scatter_fig()
-        fig = bpl.scatter_plot(df_umapDs[i], fig, ax, title,
-                                xVar = 'X', yVar = 'Y', hueVar = 'clust_label',
-                                hueOrder = clust_order, boxoff=True, 
-                                xLim = [minXY[0], maxXY[0]], yLim = [minXY[1], maxXY[1]],
-                                feat = feat_labels[i], small_ver = True, clusters_label = True)
+            udp_fals.cluster_dict = udp_full.cluster_dict
+            udp_true.cluster_dict = udp_full.cluster_dict
+            udp_fals.palette_dict = udp_full.palette_dict
+            udp_true.palette_dict = udp_full.palette_dict
 
-        session_state[eval('"UMAPFigDiff" + str(i) + "_Clus"')] = fig
-        session_state[eval('"UMAPax" + str(i)')] = ax
+            ## Copy over
+            udp_diff = copy(udp_fals)
+            ## Perform difference calculation
+            udp_diff.dens_mat = np.log10(udp_fals.dens_mat) - np.log10(udp_true.dens_mat)
+            ## Rerun the min/max calcs
+            udp_diff.umap_summary_stats()
+
+            ## Set Feature Labels
+            udp_fals.set_feature_label(session_state.diffUMAPSel_Feat, split_dict_full_diff['fals_msg'])
+            udp_true.set_feature_label(session_state.diffUMAPSel_Feat, split_dict_full_diff['true_msg'])
+            udp_diff.set_feature_label(session_state.diffUMAPSel_Feat, 'Difference')
+
+        else:
+            udp_fals = udp_full
+            udp_true = udp_full
+            udp_diff = udp_full
+
+    else:
+        udp_fals = udp_full
+        udp_true = udp_full
+        udp_diff = udp_full
+
+    session_state.UMAPFigDiff0_Dens = udp_fals.UMAPdraw_density()
+    session_state.UMAPFigDiff1_Dens = udp_true.UMAPdraw_density()
+    session_state.UMAPFigDiff2_Dens = udp_diff.UMAPdraw_density(diff=True)
+
+    session_state.UMAPFigDiff0_Clus = udp_fals.umap_draw_clusters()
+    session_state.UMAPFigDiff1_Clus = udp_true.umap_draw_clusters()
+    session_state.UMAPFigDiff2_Clus = udp_diff.umap_draw_clusters()
 
     return session_state
 
