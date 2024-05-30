@@ -251,7 +251,8 @@ def set_clusters():
         else:
             st.session_state.spatial_umap = bpl.umap_clustering(st.session_state.spatial_umap,
                                                                 st.session_state.slider_clus_val,
-                                                                st.session_state.clust_minmax)
+                                                                st.session_state.clust_minmax,
+                                                                st.session_state.cpu_pool_size)
             st.session_state.selected_nClus = st.session_state.slider_clus_val
     st.session_state.bc.printElapsedTime(msg = 'Setting Clusters')
     st.session_state.bc.set_value_df('time_to_run_cluster', st.session_state.bc.elapsedTime())

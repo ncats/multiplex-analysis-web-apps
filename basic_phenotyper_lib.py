@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import umap
 import warnings
+import multiprocessing as mp
 warnings.simplefilter(action='ignore', category= FutureWarning)
 warnings.filterwarnings("ignore", message=".*The 'nopython' keyword.*")
 pd.options.mode.chained_assignment = None  # default='warn'
@@ -656,6 +657,8 @@ def kmeans_calc(umap_data, n_clusters = 5):
     Returns:
         kmeans_obj: KMeans obj created from KMeans
     '''
+
+    print(f'Starting KMeans Calculation for {n_clusters} clusters')
     # Create KMeans object for a chosen cluster
     kmeans_obj = KMeans(n_clusters = n_clusters,
                         init ='k-means++',
@@ -670,9 +673,11 @@ def kmeans_calc(umap_data, n_clusters = 5):
     for i in range(n_clusters):
         cluster_dict[i+1] = f'Cluster{i+1}'
 
+    print(f'...Completed KMeans Calculation for {n_clusters} clusters')
+
     return kmeans_obj
 
-def umap_clustering(spatial_umap, n_clusters, clust_minmax):
+def umap_clustering(spatial_umap, n_clusters, clust_minmax, cpu_pool_size = 8):
     '''
     perform clustering for the UMAP data using KMeans
 
@@ -688,20 +693,27 @@ def umap_clustering(spatial_umap, n_clusters, clust_minmax):
     spatial_umap.df_umap.loc[:, 'clust_label'] = -1
 
     clust_range = range(clust_minmax[0], clust_minmax[1]+1)
-    kmeans_list = []
-    wcss        = [] # Within-Cluster Sum of Squares
+
+    kwargs_list = []
     for clust in clust_range:
-        # Perform clustering for chosen
-        kmeans_obj = kmeans_calc(spatial_umap.umap_test, clust)
-        # Append Within-Cluster Sum of Squares measurement
-        wcss.append(kmeans_obj.inertia_)
-        kmeans_list.append(kmeans_obj)
+        kwargs_list.append(
+            (
+                spatial_umap.umap_test,
+                clust
+            )
+        )
+
+    # Create a pool of worker processes
+    with mp.Pool(processes=cpu_pool_size) as pool:
+        results = pool.starmap(kmeans_calc, kwargs_list)
+
+    wcss = [x.inertia_ for x in results]
 
     # Create WCSS Elbow Plot
     spatial_umap.elbow_fig = draw_wcss_elbow_plot(clust_range, wcss, n_clusters)
 
     # Identify the kmeans obj that matches the selected cluster number
-    kmeans_obj_targ = kmeans_list[n_clusters-1]
+    kmeans_obj_targ = results[n_clusters-1]
 
     # Add cluster label column to cells dataframe
     spatial_umap.df_umap.loc[:, 'clust_label'] = kmeans_obj_targ.labels_
