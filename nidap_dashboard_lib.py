@@ -595,7 +595,7 @@ def setFigureObjs_UMAPDifferences(session_state):
     udp_full = session_state.udp_full
 
     # Inspection UMAP properties
-    session_state.umap_ins_msg = ''
+    session_state.umap_ins_msg = None
 
     if session_state.umapInspect_Feat != session_state.defumapOutcomes:
 
@@ -617,7 +617,7 @@ def setFigureObjs_UMAPDifferences(session_state):
             udp_ins = udp_true
         else:
             udp_ins = udp_full
-            session_state.umap_ins_msg = 'Please choose a different feature'
+            session_state.umap_ins_msg = 'Please choose a boolean or numerical feature'
     else:
         udp_ins = udp_full
 
@@ -638,6 +638,10 @@ def setFigureObjs_UMAPDifferences(session_state):
 
         # UMAP for Lineage/Outcome Inspection
         session_state.UMAPFigInsp = udp_ins.umap_draw_clusters()
+
+    # Inspection UMAP properties
+    draw_diff = False
+    session_state.umap_diff_msg = None
     
     # UMAP Difference Figures
     if session_state.diffUMAPSel_Feat != session_state.defumapOutcomes:
@@ -666,10 +670,13 @@ def setFigureObjs_UMAPDifferences(session_state):
             udp_true.set_feature_label(session_state.diffUMAPSel_Feat, split_dict_full_diff['true_msg'])
             udp_diff.set_feature_label(session_state.diffUMAPSel_Feat, 'Difference')
 
+            draw_diff = True
         else:
             udp_fals = udp_full
             udp_true = udp_full
             udp_diff = udp_full
+
+            session_state.umap_diff_msg = 'Please choose a boolean or numerical feature'
 
     else:
         udp_fals = udp_full
@@ -678,7 +685,7 @@ def setFigureObjs_UMAPDifferences(session_state):
 
     session_state.UMAPFigDiff0_Dens = udp_fals.UMAPdraw_density()
     session_state.UMAPFigDiff1_Dens = udp_true.UMAPdraw_density()
-    session_state.UMAPFigDiff2_Dens = udp_diff.UMAPdraw_density(diff=True)
+    session_state.UMAPFigDiff2_Dens = udp_diff.UMAPdraw_density(diff=draw_diff)
 
     session_state.UMAPFigDiff0_Clus = udp_fals.umap_draw_clusters()
     session_state.UMAPFigDiff1_Clus = udp_true.umap_draw_clusters()
