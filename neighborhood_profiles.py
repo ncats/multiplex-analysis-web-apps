@@ -622,7 +622,8 @@ class UMAPDensityProcessing():
 
     def perform_clustering(self, dens_mat_cmp, num_clus_0, num_clus_1):
         '''
-        Sets up clustering
+        perform_clustering takes in the density matrix for the UMAP data
+        and performs clustering on the data. The function will perform
         '''
 
         print(f'Performing Clustering with {num_clus_0} clusters for Negative Condition and {num_clus_1} clusters for Positive Condition')
@@ -679,28 +680,30 @@ class UMAPDensityProcessing():
         for i in unique_set_true.index:
             self.palette_dict[f'True Cluster {i+1}'] = set_blues[i]
 
-    def kmean_calc(self, dens_mat, n_clusters, cond):
+    @staticmethod
+    def kmeans_calc(clust_data, n_clusters = 5, random_state = None):
         '''
-        Perform clustering on the density matrix
+        Perform KMeans clustering on sets of 2D data
 
         Args:
-            dens_mat (numpy array): Density matrix
+            dens_mat (numpy array): Data to be clustered
             n_clusters (int): Number of clusters to use
-            cond (int): Condition to use for clustering
+            random_state (int): Random state to use for KMeans
         
         Returns:
             kmeans_obj: KMeans object created from KMeans
         '''
 
+        print(f'Starting KMeans Calculation for {n_clusters} clusters')
         kmeans_obj = KMeans(n_clusters = n_clusters,
                             init ='k-means++',
                             max_iter = 300,
-                            n_init = 50)
+                            n_init = 50,
+                            random_state = random_state)
 
-        # Identify the indices of the target condition
-        cond_ind = np.nonzero(dens_mat == cond)
-        cells_cond = np.vstack(cond_ind).T
-        # Fit the condition to the kmeans object
-        kmeans_obj.fit(cells_cond)
+        # Fit the data to the kmeans object
+        kmeans_obj.fit(clust_data)
+
+        print(f'...Completed KMeans Calculation for {n_clusters} clusters')
 
         return kmeans_obj

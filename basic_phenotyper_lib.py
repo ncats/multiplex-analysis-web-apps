@@ -646,13 +646,14 @@ def perform_spatialUMAP(spatial_umap, bc, umap_subset_per_fit, umap_subset_toggl
 
     return spatial_umap
 
-def kmeans_calc(umap_data, n_clusters = 5):
+def kmeans_calc(clust_data, n_clusters = 5, random_state = None):
     '''
-    Perform KMeans clustering on the spatial UMAP data
+    Perform KMeans clustering on sets of 2D data
 
     Args:
-        umap_data (): spatial_umap object
+        clust_data (numpy array): Data to be clustered
         nClus (int): Number of clusters to use
+        random_state (int): Random state to use
     
     Returns:
         kmeans_obj: KMeans obj created from KMeans
@@ -663,15 +664,11 @@ def kmeans_calc(umap_data, n_clusters = 5):
     kmeans_obj = KMeans(n_clusters = n_clusters,
                         init ='k-means++',
                         max_iter = 300,
-                        n_init = 10,
-                        random_state = 42)
-    # Fit the data to the KMeans object
-    kmeans_obj.fit(umap_data)
+                        n_init = 50,
+                        random_state = random_state)
 
-    cluster_dict = dict()
-    cluster_dict[0] = 'No Cluster'
-    for i in range(n_clusters):
-        cluster_dict[i+1] = f'Cluster{i+1}'
+    # Fit the data to the KMeans object
+    kmeans_obj.fit(clust_data)
 
     print(f'...Completed KMeans Calculation for {n_clusters} clusters')
 
