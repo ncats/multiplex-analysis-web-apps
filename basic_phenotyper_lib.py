@@ -685,7 +685,7 @@ def measure_possible_clust(spatial_umap, clust_minmax):
         clust_range (list): List of cluster values
         wcss (list): List of within-cluster sum of squares
     '''
-    clust_range = range(clust_minmax[0], clust_minmax[1])
+    clust_range = range(clust_minmax[0], clust_minmax[1]+1)
     wcss = [] # Within-Cluster Sum of Squares
     for n_clusters in clust_range:
         # Perform clustering for chosen
@@ -742,9 +742,11 @@ def draw_wcss_elbow_plot(clust_range, wcss, sel_clus):
     ax = fig.add_subplot(1,1,1, facecolor = slc_bg)
     ax.set_xlabel('Number of Clusters', fontsize = 10, color = slc_text)
     ax.set_ylabel('WCSS', fontsize = 10, color = slc_text)
-    # ax.set_xticks(np.linspace(0, 21, 22))
+    ax.set_xlim(0, clust_range[-1])
+    ax.set_xticks(np.linspace(0, clust_range[-1], clust_range[-1]+1))
+
     plt.plot(clust_range, wcss)
-    plt.axvline(sel_clus, linestyle='--', color='r')
+    # plt.axvline(sel_clus, linestyle='--', color='r')
 
     ax.spines['left'].set_color(slc_text)
     ax.spines['bottom'].set_color(slc_text)
