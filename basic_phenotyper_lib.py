@@ -723,26 +723,35 @@ def perform_clusteringUMAP(spatial_umap, n_clusters):
 
     return spatial_umap
 
-def draw_wcss_elbow_plot(clust_range, wcss, selClus):
+def draw_wcss_elbow_plot(clust_range, wcss, sel_clus):
+    '''
+    Calculate possible clusters and plot the elbow plot
 
-    SlBgC  = '#0E1117'  # Streamlit Background Color
-    SlTC   = '#FAFAFA'  # Streamlit Text Color
-    Sl2BgC = '#262730'  # Streamlit Secondary Background Color
+    Args:
+        clust_range (list): List of cluster values
+        wcss (list): List of within-cluster sum of squares
+        sel_clus (int): Selected cluster value
+    '''
 
-    fig = plt.figure(figsize = (5,5), facecolor = SlBgC)
-    ax = fig.add_subplot(1,1,1, facecolor = SlBgC)
-    ax.set_xlabel('Number of Clusters', fontsize = 10, color = SlTC)
-    ax.set_ylabel('WCSS', fontsize = 10, color = SlTC)
+    # Streamlit Theming
+    slc_bg   = '#0E1117'  # Streamlit Background Color
+    slc_text = '#FAFAFA'  # Streamlit Text Color
+    slc_bg2  = '#262730'  # Streamlit Secondary Background Color
+
+    fig = plt.figure(figsize = (5,5), facecolor = slc_bg)
+    ax = fig.add_subplot(1,1,1, facecolor = slc_bg)
+    ax.set_xlabel('Number of Clusters', fontsize = 10, color = slc_text)
+    ax.set_ylabel('WCSS', fontsize = 10, color = slc_text)
     # ax.set_xticks(np.linspace(0, 21, 22))
     plt.plot(clust_range, wcss)
-    plt.axvline(selClus, linestyle='--', color='r')
+    plt.axvline(sel_clus, linestyle='--', color='r')
 
-    ax.spines['left'].set_color(SlTC)
-    ax.spines['bottom'].set_color(SlTC)
-    ax.spines['top'].set_color(SlBgC)
-    ax.spines['right'].set_color(SlBgC)
-    ax.tick_params(axis='x', colors=SlTC, which='both')
-    ax.tick_params(axis='y', colors=SlTC, which='both')
+    ax.spines['left'].set_color(slc_text)
+    ax.spines['bottom'].set_color(slc_text)
+    ax.spines['top'].set_color(slc_bg)
+    ax.spines['right'].set_color(slc_bg)
+    ax.tick_params(axis='x', colors=slc_text, which='both')
+    ax.tick_params(axis='y', colors=slc_text, which='both')
     return fig
 
 def createHeatMap(df, phenoList, title, normAxis = None):

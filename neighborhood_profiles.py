@@ -573,7 +573,7 @@ class UMAPDensityProcessing():
                                     diff = diff,
                                     figsize = figsize,
                                     legendtype = legendtype)
-    
+
     def umap_draw_clusters(self, figsize = (12, 12)):
         '''
         Draw the UMAP colored by clusters
@@ -586,7 +586,7 @@ class UMAPDensityProcessing():
                                           yLim = [self.dfmin[1], self.dfmax[1]],
                                           hueOrder = self.cluster_dict.values(),
                                           palette  = self.palette_dict)
-        
+
         return umap_clust_fig
 
     def filter_density_matrix(self, cutoff= 0.01, empty_bin_ind = None):
