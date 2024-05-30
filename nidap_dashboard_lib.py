@@ -588,22 +588,23 @@ def setFigureObjs_UMAPDifferences(session_state):
     title = [f'DATASET: {session_state.datafile}',
              f'PHENO METHOD: {session_state.selected_phenoMeth}']
 
-    df_umap = session_state.spatial_umap.df_umap
-    clust_order = sorted(df_umap['clust_label'].unique())
-
     # Full UMAP
     udp_full = session_state.udp_full
 
     # Inspection UMAP properties
     session_state.umap_ins_msg = None
 
+    udp_insp = copy(udp_full)
+    udp_insp = filterLineage4UMAP(df_umapI, session_state.lineageDisplayToggle, session_state.defLineageOpt, session_state.umapInspect_Ver)
+
+    # Filter by Feature for Inspection
     if session_state.umapInspect_Feat != session_state.defumapOutcomes:
 
-        split_dict_full_ins = session_state.udp_full.split_df_by_feature(session_state.umapInspect_Feat)
+        split_dict_full_ins = udp_full.split_df_by_feature(session_state.umapInspect_Feat)
         if split_dict_full_ins['appro_feat']:
             # Perform Density Calculations for each Condition
-            udp_fals = UMAPDensityProcessing(session_state.npf, split_dict_full_ins['df_umap_fals'], xx=session_state.udp_full.xx, yy=session_state.udp_full.yy)
-            udp_true = UMAPDensityProcessing(session_state.npf, split_dict_full_ins['df_umap_true'], xx=session_state.udp_full.xx, yy=session_state.udp_full.yy)
+            udp_fals = UMAPDensityProcessing(session_state.npf, split_dict_full_ins['df_umap_fals'], xx=udp_full.xx, yy=udp_full.yy)
+            udp_true = UMAPDensityProcessing(session_state.npf, split_dict_full_ins['df_umap_true'], xx=udp_full.xx, yy=udp_full.yy)
 
             ## Set Feature Labels
             udp_fals.set_feature_label(session_state.umapInspect_Feat, split_dict_full_ins['fals_msg'])
@@ -621,7 +622,7 @@ def setFigureObjs_UMAPDifferences(session_state):
     else:
         udp_ins = udp_full
 
-    # UMAP colored by Density
+    # Full UMAP figures colored by Density
     if session_state.UMAPFigType == 'Density':
 
         # All UMAP Figure
@@ -630,7 +631,7 @@ def setFigureObjs_UMAPDifferences(session_state):
         # UMAP for Lineage/Outcome Inspection
         session_state.UMAPFigInsp = udp_ins.UMAPdraw_density()
 
-    # UMAP colored by clust_label
+    # Full UMAP figures colored by clust_label
     elif session_state.UMAPFigType == 'Clusters':
 
         # All UMAP Figure
@@ -639,11 +640,11 @@ def setFigureObjs_UMAPDifferences(session_state):
         # UMAP for Lineage/Outcome Inspection
         session_state.UMAPFigInsp = udp_ins.umap_draw_clusters()
 
-    # Inspection UMAP properties
+    # Difference UMAP properties
     draw_diff = False
     session_state.umap_diff_msg = None
     
-    # UMAP Difference Figures
+    # Filter by Feature for Inspection
     if session_state.diffUMAPSel_Feat != session_state.defumapOutcomes:
         split_dict_full_diff = session_state.udp_full.split_df_by_feature(session_state.diffUMAPSel_Feat)
 

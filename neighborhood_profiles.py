@@ -487,6 +487,24 @@ class UMAPDensityProcessing():
         self.dens_max = np.max(self.dens_mat)
         self.minabs   = np.min([np.abs(self.dens_min), np.abs(self.dens_max)])
 
+    def filter_by_lineage(self, display_toggle, drop_val, default_val):
+        '''
+        Function for filtering UMAP function based on Phenotypes or Markers
+
+        Args:
+            display_toggle (str): Toggle to display as Phenotypes or Markers
+            drop_val (str): Value selected from the drop value
+            default_val (str): Default Value of phenotyping or markers
+
+        Returns:
+            None
+        '''
+        if drop_val != default_val:
+            if display_toggle == 'Phenotypes':
+                self.df = self.df.loc[self.df['Lineage'] == drop_val, :]
+            elif display_toggle == 'Markers':
+                self.df = self.df.loc[self.df['species_name_short'].str.contains(drop_val), :]
+
     def split_df_by_feature(self, feature):
         '''
         split_df_by_feature takes in a feature from a dataframe
