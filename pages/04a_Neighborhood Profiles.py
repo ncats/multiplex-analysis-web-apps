@@ -66,7 +66,7 @@ def init_spatial_umap():
     # Reset the settings required for Neighborhood Analysis
     st.session_state = ndl.reset_neigh_profile_settings(st.session_state)
 
-    if st.session_state['calc_unique_areas_toggle']:
+    if not st.session_state['calc_unique_areas_toggle']:
         area_filter = 0
     else:
         area_filter = st.session_state['area_filter_per']
