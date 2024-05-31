@@ -11,6 +11,7 @@ Class UMAPDensityProcessing:
 
 import numpy as np
 import pandas as pd
+import multiprocessing as mp
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -454,6 +455,10 @@ class UMAPDensityProcessing():
         self.cluster_dict = None
         self.palette_dict = None
 
+        # Clustering
+        self.elbow_fig_0 = None
+        self.elbow_fig_1 = None
+
         if xx is not None:
             self.xx = xx
             self.yy = yy
@@ -620,22 +625,57 @@ class UMAPDensityProcessing():
                     elif self.dens_mat[x_bin, y_bin] < -cutoff:
                         self.dens_mat[x_bin, y_bin] = -1
 
-    def perform_clustering(self, dens_mat_cmp, num_clus_0, num_clus_1):
+    def perform_clustering(self, dens_mat_cmp, num_clus_0, num_clus_1, clust_minmax, cpu_pool_size = 8):
         '''
         perform_clustering takes in the density matrix for the UMAP data
         and performs clustering on the data. The function will perform
         '''
 
         print(f'Performing Clustering with {num_clus_0} clusters for Negative Condition and {num_clus_1} clusters for Positive Condition')
+
+        clust_range = range(clust_minmax[0], clust_minmax[1]+1)
+
         # Identify the indices of the negative condition
         cond0_ind = np.nonzero(dens_mat_cmp == 1)
         cells_cond0 = np.vstack(cond0_ind).T
-        kmeans_obj_cond0 = self.kmeans_calc(cells_cond0, n_clusters = num_clus_0)
 
         # Identify the indices of the positive condition
         cond1_ind = np.nonzero(dens_mat_cmp == -1)
         cells_cond1 = np.vstack(cond1_ind).T
-        kmeans_obj_cond1 = self.kmeans_calc(cells_cond1, n_clusters = num_clus_1)
+
+        kwargs_list_0 = []
+        kwargs_list_1 = []
+        for clust in clust_range:
+            kwargs_list_0.append(
+                (
+                    cells_cond0,
+                    clust
+                )
+            )
+            kwargs_list_1.append(
+                (
+                    cells_cond1,
+                    clust
+                )
+            )
+
+        # Create a pool of worker processes
+        with mp.Pool(processes=cpu_pool_size) as pool:
+            results_0 = pool.starmap(self.kmeans_calc, kwargs_list_0)
+
+        # Create a pool of worker processes
+        with mp.Pool(processes=cpu_pool_size) as pool:
+            results_1 = pool.starmap(self.kmeans_calc, kwargs_list_1)
+
+        wcss_0 = [x.inertia_ for x in results_0]
+        wcss_1 = [x.inertia_ for x in results_1]
+
+        # Create WCSS Elbow Plot
+        self.elbow_fig_0 = self.draw_wcss_elbow_plot(clust_range, wcss_0, num_clus_0)
+        self.elbow_fig_1 = self.draw_wcss_elbow_plot(clust_range, wcss_1, num_clus_1)
+
+        kmeans_obj_cond0 = results_0[num_clus_0 - 1]
+        kmeans_obj_cond1 = results_1[num_clus_1 - 1]
 
         # Replace the labels in the density matrix with the cluster labels
         self.dens_mat[cond0_ind] = kmeans_obj_cond0.labels_ + 1
@@ -693,3 +733,37 @@ class UMAPDensityProcessing():
         print(f'...Completed KMeans Calculation for {n_clusters} clusters')
 
         return kmeans_obj
+
+    @staticmethod
+    def draw_wcss_elbow_plot(clust_range, wcss, sel_clus):
+        '''
+        Calculate possible clusters and plot the elbow plot
+
+        Args:
+            clust_range (list): List of cluster values
+            wcss (list): List of within-cluster sum of squares
+            sel_clus (int): Selected cluster value
+        '''
+
+        # Streamlit Theming
+        slc_bg   = '#0E1117'  # Streamlit Background Color
+        slc_text = '#FAFAFA'  # Streamlit Text Color
+        slc_bg2  = '#262730'  # Streamlit Secondary Background Color
+
+        fig = plt.figure(figsize = (5,5), facecolor = slc_bg)
+        ax = fig.add_subplot(1,1,1, facecolor = slc_bg)
+        ax.set_xlabel('Number of Clusters', fontsize = 10, color = slc_text)
+        ax.set_ylabel('WCSS', fontsize = 10, color = slc_text)
+        ax.set_xlim(0, clust_range[-1])
+        ax.set_xticks(np.linspace(0, clust_range[-1], clust_range[-1]+1))
+
+        plt.plot(clust_range, wcss)
+        # plt.axvline(sel_clus, linestyle='--', color='r')
+
+        ax.spines['left'].set_color(slc_text)
+        ax.spines['bottom'].set_color(slc_text)
+        ax.spines['top'].set_color(slc_bg)
+        ax.spines['right'].set_color(slc_bg)
+        ax.tick_params(axis='x', colors=slc_text, which='both')
+        ax.tick_params(axis='y', colors=slc_text, which='both')
+        return fig

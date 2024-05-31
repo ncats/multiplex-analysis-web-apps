@@ -200,11 +200,15 @@ def set_clusters():
                 udp_clus = copy(udp_mask)
                 udp_clus.perform_clustering(dens_mat_cmp=udp_mask.dens_mat,
                                             num_clus_0=st.session_state.num_clus_0,
-                                            num_clus_1=st.session_state.num_clus_1)
+                                            num_clus_1=st.session_state.num_clus_1,
+                                            clust_minmax=st.session_state.clust_minmax,
+                                            cpu_pool_size=st.session_state.cpu_pool_size)
                 udp_clus.set_feature_label(st.session_state.dens_diff_feat_sel, f'Clusters, False-{st.session_state.num_clus_0}, True-{st.session_state.num_clus_1}')
                 st.session_state.UMAPFig_clus = udp_clus.UMAPdraw_density(diff=True, legendtype='legend')
                 st.session_state.cluster_dict = udp_clus.cluster_dict
                 st.session_state.palette_dict = udp_clus.palette_dict
+                st.session_state.elbow_fig_0 = udp_clus.elbow_fig_0
+                st.session_state.elbow_fig_1 = udp_clus.elbow_fig_1
 
                 # Add cluster label column to cells dataframe
                 st.session_state.spatial_umap.df_umap.loc[:, 'clust_label'] = 'No Cluster'
@@ -598,6 +602,7 @@ def main():
                         if st.session_state['toggle_clust_diff'] is True:
                             st.selectbox('Feature', options = st.session_state.spatial_umap.outcomes, key = 'dens_diff_feat_sel')
                             st.number_input('Number of Clusters for False Condition', min_value = 1, max_value = 10, value = 3, step = 1, key = 'num_clus_0')
+                            st.pyplot(st.session_state.elbow_fig_0)
                         else:
                             st.number_input('Number of K-means clusters',
                                     min_value=st.session_state.clust_minmax[0],
@@ -610,6 +615,7 @@ def main():
                         if st.session_state['toggle_clust_diff'] is True:
                                 st.number_input('Cutoff Percentage', min_value = 0.01, max_value = 0.99, value = 0.01, step = 0.01, key = 'dens_diff_cutoff')
                                 st.number_input('Number of Clusters for True Condition', min_value = 1, max_value = 10, value = 3, step = 1, key = 'num_clus_1')
+                                st.pyplot(st.session_state.elbow_fig_1)
                     if st.session_state.cluster_completed:
                         st.markdown('''The within-cluster sum of squares (WCSS) is a measure of the
                                         variability of the observations within each cluster. In general,
