@@ -151,3 +151,6 @@ input
 output
 archive/
 saved_streamlit_session_states/
+
+# Andrei
+.DS_Store

@@ -8,7 +8,7 @@ dependencies:
   - pygeos
   - pip:
     - anndata
-    - matplotlib
+    - matplotlib==3.8.4
     - natsort
     - numpy
     - palantir-sdk
@@ -30,3 +30,8 @@ dependencies:
     - dill
     - pympler
     - objsize
+    - PhenoGraph
+    - parc
+    - parmap
+    - setuptools-scm
+
