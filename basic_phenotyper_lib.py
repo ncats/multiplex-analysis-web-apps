@@ -554,6 +554,7 @@ def setup_Spatial_UMAP(df, marker_names, pheno_order, smallest_image_size):
     # default cluster values
     spatial_umap.cells['clust_label'] = 'No Cluster'
 
+    spatial_umap.elbow_fig = None
     spatial_umap.smallest_image_size = smallest_image_size
 
     # sets flags for analysis processing

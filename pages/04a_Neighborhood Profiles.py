@@ -602,20 +602,22 @@ def main():
                         if st.session_state['toggle_clust_diff'] is True:
                             st.selectbox('Feature', options = st.session_state.spatial_umap.outcomes, key = 'dens_diff_feat_sel')
                             st.number_input('Number of Clusters for False Condition', min_value = 1, max_value = 10, value = 3, step = 1, key = 'num_clus_0')
-                            st.pyplot(st.session_state.elbow_fig_0)
+                            if st.session_state.elbow_fig_0 is not None:
+                                st.pyplot(st.session_state.elbow_fig_0)
                         else:
                             st.number_input('Number of K-means clusters',
                                     min_value=st.session_state.clust_minmax[0],
                                     max_value=st.session_state.clust_minmax[1],
                                     key = 'slider_clus_val')
-                            if st.session_state.cluster_completed:
+                            if st.session_state.spatial_umap.elbow_fig is not None:
                                 st.pyplot(st.session_state.spatial_umap.elbow_fig)
 
                     with clust_exp_col[1]:
                         if st.session_state['toggle_clust_diff'] is True:
                                 st.number_input('Cutoff Percentage', min_value = 0.01, max_value = 0.99, value = 0.01, step = 0.01, key = 'dens_diff_cutoff')
                                 st.number_input('Number of Clusters for True Condition', min_value = 1, max_value = 10, value = 3, step = 1, key = 'num_clus_1')
-                                st.pyplot(st.session_state.elbow_fig_1)
+                                if st.session_state.elbow_fig_1 is not None:
+                                    st.pyplot(st.session_state.elbow_fig_1)
                     if st.session_state.cluster_completed:
                         st.markdown('''The within-cluster sum of squares (WCSS) is a measure of the
                                         variability of the observations within each cluster. In general,

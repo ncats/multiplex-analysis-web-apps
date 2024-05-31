@@ -203,6 +203,10 @@ def reset_neigh_profile_settings(session_state):
     session_state.compare_clusters_as = 'Difference'
     session_state.palette_dict = 'bwr'
 
+    # Clustering 
+    session_state.elbow_fig_0 = None
+    session_state.elbow_fig_1 = None
+
     return session_state
 
 def load_listofFiles(fiol, projectPath):
