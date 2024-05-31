@@ -136,14 +136,13 @@ def init_session_state(session_state):
     session_state.umap_subset_toggle = False
     session_state.umap_subset_per = 20
     session_state.area_filter_per = 0.001
-    session_state.clust_minmax = [1, 40]
+    session_state.clust_minmax = [1, 10]
     session_state.toggle_clust_diff = False
     session_state.appro_feat = False
 
     # Set data_loaded = False.
     # This needs to happen at the end to counteract the 'loadDataButton' action
     session_state.data_loaded = False
-
     return session_state
 
 def reset_neigh_profile_settings(session_state):
@@ -203,6 +202,10 @@ def reset_neigh_profile_settings(session_state):
     # Neighborhood Profiles Line Plot Settings
     session_state.compare_clusters_as = 'Difference'
     session_state.palette_dict = 'bwr'
+
+    # Clustering 
+    session_state.elbow_fig_0 = None
+    session_state.elbow_fig_1 = None
 
     return session_state
 

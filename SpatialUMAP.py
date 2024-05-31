@@ -102,7 +102,7 @@ class SpatialUMAP:
         counts = np.diff(np.matmul(counts.astype(int), cell_labels.astype(int)), axis=0)
         # return index and counts
         return counts
-    
+
     def per_image_cell_counts_euc(self, image, cell_positions, cell_labels, targ_labels, dist_bin_px):
         '''
         per_image_cell_counts_euc() returns the number of cells within a given image
@@ -113,7 +113,7 @@ class SpatialUMAP:
             targ_labels (np.array): labels of the cells to be counted
             dist_bin_px (np.array): distance bins in pixels
         '''
-        
+
         start_time = time.time()
         print(f'Starting analysis for image {image}')
         # calculate pairwise distances between all cells in the image

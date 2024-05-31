@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import umap
 import warnings
+import multiprocessing as mp
 warnings.simplefilter(action='ignore', category= FutureWarning)
 warnings.filterwarnings("ignore", message=".*The 'nopython' keyword.*")
 pd.options.mode.chained_assignment = None  # default='warn'
@@ -553,6 +554,7 @@ def setup_Spatial_UMAP(df, marker_names, pheno_order, smallest_image_size):
     # default cluster values
     spatial_umap.cells['clust_label'] = 'No Cluster'
 
+    spatial_umap.elbow_fig = None
     spatial_umap.smallest_image_size = smallest_image_size
 
     # sets flags for analysis processing
@@ -645,104 +647,111 @@ def perform_spatialUMAP(spatial_umap, bc, umap_subset_per_fit, umap_subset_toggl
 
     return spatial_umap
 
-def KMeans_calc(umap_data, n_clusters = 5):
+def kmeans_calc(clust_data, n_clusters = 5, random_state = None):
     '''
-    Perform KMeans clustering on the spatial UMAP data
+    Perform KMeans clustering on sets of 2D data
 
     Args:
-        spatial_umap (spatial_umap): spatial_umap object
+        clust_data (numpy array): Data to be clustered
         nClus (int): Number of clusters to use
+        random_state (int): Random state to use
     
     Returns:
         kmeans_obj: KMeans obj created from KMeans
     '''
+
+    print(f'Starting KMeans Calculation for {n_clusters} clusters')
     # Create KMeans object for a chosen cluster
     kmeans_obj = KMeans(n_clusters = n_clusters,
                         init ='k-means++',
                         max_iter = 300,
-                        n_init = 10,
-                        random_state = 42)
-    # Fit the data to the KMeans object
-    kmeans_obj.fit(umap_data)
+                        n_init = 50,
+                        random_state = random_state)
 
-    cluster_dict = dict()
-    cluster_dict[0] = 'No Cluster'
-    for i in range(n_clusters):
-        cluster_dict[i+1] = f'Cluster{i+1}'
+    # Fit the data to the KMeans object
+    kmeans_obj.fit(clust_data)
+
+    print(f'...Completed KMeans Calculation for {n_clusters} clusters')
 
     return kmeans_obj
 
-def measure_possible_clust(spatial_umap, clust_minmax):
-    '''
-    method for measuring the within-cluster sum of squares for
-    a range of cluster values
-
-    Args:
-        spatial_umap (spatial_umap): spatial_umap object
-        clust_minmax (list): List of min and max cluster values to use
-
-    Returns:
-        clust_range (list): List of cluster values
-        wcss (list): List of within-cluster sum of squares
-    '''
-    clust_range = range(clust_minmax[0], clust_minmax[1])
-    wcss = [] # Within-Cluster Sum of Squares
-    for n_clusters in clust_range:
-        # Perform clustering for chosen
-        kmeans_obj = KMeans_calc(spatial_umap.umap_test, n_clusters)
-        # Append Within-Cluster Sum of Squares measurement
-        wcss.append(kmeans_obj.inertia_)
-    return list(clust_range), wcss
-
-def perform_clusteringUMAP(spatial_umap, n_clusters):
+def umap_clustering(spatial_umap, n_clusters, clust_minmax, cpu_pool_size = 8):
     '''
     perform clustering for the UMAP data using KMeans
 
     Args:
         spatial_umap (spatial_umap): spatial_umap object
         n_clusters (int): Number of clusters to use
+        clust_minmax (tuple): Tuple of min and max clusters to use
 
     Returns:
         spatial_umap: spatial_umap object with the clustering performed
     '''
     # Reset the cluster labels just in case
     spatial_umap.df_umap.loc[:, 'clust_label'] = -1
-    spatial_umap.df_umap.loc[:, 'cluster'] = -1
-    spatial_umap.df_umap.loc[:, 'Cluster'] = -1
 
-    # Perform clustering
-    kmeans_obj = KMeans_calc(spatial_umap.umap_test, n_clusters)
+    clust_range = range(clust_minmax[0], clust_minmax[1]+1)
+
+    kwargs_list = []
+    for clust in clust_range:
+        kwargs_list.append(
+            (
+                spatial_umap.umap_test,
+                clust
+            )
+        )
+
+    # Create a pool of worker processes
+    with mp.Pool(processes=cpu_pool_size) as pool:
+        results = pool.starmap(kmeans_calc, kwargs_list)
+
+    wcss = [x.inertia_ for x in results]
+
+    # Create WCSS Elbow Plot
+    spatial_umap.elbow_fig = draw_wcss_elbow_plot(clust_range, wcss, n_clusters)
+
+    # Identify the kmeans obj that matches the selected cluster number
+    kmeans_obj_targ = results[n_clusters-1]
 
     # Add cluster label column to cells dataframe
-    spatial_umap.df_umap.loc[:, 'clust_label'] = kmeans_obj.labels_
-    spatial_umap.df_umap.loc[:, 'cluster'] = kmeans_obj.labels_
-    spatial_umap.df_umap.loc[:, 'Cluster'] = kmeans_obj.labels_
+    spatial_umap.df_umap.loc[:, 'clust_label'] = kmeans_obj_targ.labels_
 
     # After assigning cluster labels, perform mean calculations
     spatial_umap.mean_measures()
 
     return spatial_umap
 
-def draw_wcss_elbow_plot(clust_range, wcss, selClus):
+def draw_wcss_elbow_plot(clust_range, wcss, sel_clus):
+    '''
+    Calculate possible clusters and plot the elbow plot
 
-    SlBgC  = '#0E1117'  # Streamlit Background Color
-    SlTC   = '#FAFAFA'  # Streamlit Text Color
-    Sl2BgC = '#262730'  # Streamlit Secondary Background Color
+    Args:
+        clust_range (list): List of cluster values
+        wcss (list): List of within-cluster sum of squares
+        sel_clus (int): Selected cluster value
+    '''
 
-    fig = plt.figure(figsize = (5,5), facecolor = SlBgC)
-    ax = fig.add_subplot(1,1,1, facecolor = SlBgC)
-    ax.set_xlabel('Number of Clusters', fontsize = 10, color = SlTC)
-    ax.set_ylabel('WCSS', fontsize = 10, color = SlTC)
-    # ax.set_xticks(np.linspace(0, 21, 22))
+    # Streamlit Theming
+    slc_bg   = '#0E1117'  # Streamlit Background Color
+    slc_text = '#FAFAFA'  # Streamlit Text Color
+    slc_bg2  = '#262730'  # Streamlit Secondary Background Color
+
+    fig = plt.figure(figsize = (5,5), facecolor = slc_bg)
+    ax = fig.add_subplot(1,1,1, facecolor = slc_bg)
+    ax.set_xlabel('Number of Clusters', fontsize = 10, color = slc_text)
+    ax.set_ylabel('WCSS', fontsize = 10, color = slc_text)
+    ax.set_xlim(0, clust_range[-1])
+    ax.set_xticks(np.linspace(0, clust_range[-1], clust_range[-1]+1))
+
     plt.plot(clust_range, wcss)
-    plt.axvline(selClus, linestyle='--', color='r')
+    # plt.axvline(sel_clus, linestyle='--', color='r')
 
-    ax.spines['left'].set_color(SlTC)
-    ax.spines['bottom'].set_color(SlTC)
-    ax.spines['top'].set_color(SlBgC)
-    ax.spines['right'].set_color(SlBgC)
-    ax.tick_params(axis='x', colors=SlTC, which='both')
-    ax.tick_params(axis='y', colors=SlTC, which='both')
+    ax.spines['left'].set_color(slc_text)
+    ax.spines['bottom'].set_color(slc_text)
+    ax.spines['top'].set_color(slc_bg)
+    ax.spines['right'].set_color(slc_bg)
+    ax.tick_params(axis='x', colors=slc_text, which='both')
+    ax.tick_params(axis='y', colors=slc_text, which='both')
     return fig
 
 def createHeatMap(df, phenoList, title, normAxis = None):
