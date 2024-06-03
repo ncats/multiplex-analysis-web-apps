@@ -135,6 +135,7 @@ def apply_umap(umap_style):
     st.session_state.inciOutcomes.extend(st.session_state.outcomes)
 
     # creates the df_umap dataframe for plotting
+    # creates the df_umap dataframe for plotting
     st.session_state.spatial_umap.prepare_df_umap_plotting(st.session_state.outcomes)
 
     st.session_state.wcss_calc_completed = True
@@ -142,7 +143,7 @@ def apply_umap(umap_style):
 
     # Create Neighborhood Profiles Object
     st.session_state.npf = NeighborhoodProfiles(bc = st.session_state.bc)
-
+  
     # Create Full UMAP example
     st.session_state.udp_full = UMAPDensityProcessing(st.session_state.npf, st.session_state.spatial_umap.df_umap)
     st.session_state.UMAPFig = st.session_state.udp_full.UMAPdraw_density()
