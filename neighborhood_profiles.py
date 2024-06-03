@@ -11,6 +11,7 @@ Class UMAPDensityProcessing:
 
 import numpy as np
 import pandas as pd
+import multiprocessing as mp
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -443,6 +444,8 @@ class UMAPDensityProcessing():
         self.slc_bg2  = npf.slc_bg2  # Streamlit Color -Secondary Background
 
         # Preset Summary Stats
+        self.dfmin    = 0
+        self.dfmax    = 0
         self.dens_min = 0
         self.dens_max = 0
         self.minabs   = 0
@@ -451,6 +454,10 @@ class UMAPDensityProcessing():
         self.feat_label = None
         self.cluster_dict = None
         self.palette_dict = None
+
+        # Clustering
+        self.elbow_fig_0 = None
+        self.elbow_fig_1 = None
 
         if xx is not None:
             self.xx = xx
@@ -469,7 +476,7 @@ class UMAPDensityProcessing():
         self.dens_mat, \
         self.bin_indices_df_group,\
         self.empty_bin_ind = umPT.plot_2d_density(x, y, bins = [self.xx, self.yy],
-                                                w = w, return_matrix = True)
+                                                  w = w, return_matrix = True)
 
         self.umap_summary_stats()
 
@@ -478,9 +485,78 @@ class UMAPDensityProcessing():
         Identify the minimum and maximum values of the density matrix
         '''
 
+        self.dfmin  = self.df[['X', 'Y']].min()
+        self.dfmax  = self.df[['X', 'Y']].max()
+
         self.dens_min = np.min(self.dens_mat)
         self.dens_max = np.max(self.dens_mat)
         self.minabs   = np.min([np.abs(self.dens_min), np.abs(self.dens_max)])
+
+    def filter_by_lineage(self, display_toggle, drop_val, default_val):
+        '''
+        Function for filtering UMAP function based on Phenotypes or Markers
+
+        Args:
+            display_toggle (str): Toggle to display as Phenotypes or Markers
+            drop_val (str): Value selected from the drop value
+            default_val (str): Default Value of phenotyping or markers
+
+        Returns:
+            None
+        '''
+        if drop_val != default_val:
+            if display_toggle == 'Phenotypes':
+                self.df = self.df.loc[self.df['Lineage'] == drop_val, :]
+            elif display_toggle == 'Markers':
+                self.df = self.df.loc[self.df['species_name_short'].str.contains(drop_val), :]
+
+    def split_df_by_feature(self, feature):
+        '''
+        split_df_by_feature takes in a feature from a dataframe
+        and first identifies if the feature is boolean, if it contains 
+        float values, or neither. If its a boolean, it will split the
+        dataframe between values of 0 and 1 for the selected feature.
+        If the feature is a float, it will split the dataframe based on
+        the median value of the feature. If the feature is neither boolean
+        nor float, it will not split the dataframe. 
+
+        In all cases this function will return a dictionary of the outcome
+        of the split with the most importannt value being, appro_feat, 
+        which will be True if the feature is appropriate for splitting, and
+        False if not.
+
+        Args:
+            feature (str): Feature to split the dataframe by
+
+        Returns:
+            split_dict (dict): Dictionary of the outcomes of splitting
+             the dataframe
+        '''
+
+        split_dict = dict()
+        # Idenfify the column type that is splitting the UMAP
+        col_type = ndl.identify_col_type(self.df[feature])
+
+        if col_type == 'not_bool':
+            # Identify UMAP by Condition
+            median = np.round(self.df[feature].median(), 2)
+            split_dict['df_umap_fals'] = self.df.loc[self.df[feature] <= median, :]
+            split_dict['df_umap_true'] = self.df.loc[self.df[feature] > median, :]
+            split_dict['fals_msg']   = f'<= {median}'
+            split_dict['true_msg']   = f'> {median}'
+            split_dict['appro_feat'] = True
+        elif col_type == 'bool':
+            # Identify UMAP by Condition
+            values = self.df[feature].unique()
+            split_dict['df_umap_fals'] = self.df.loc[self.df[feature] == values[0], :]
+            split_dict['df_umap_true'] = self.df.loc[self.df[feature] == values[1], :]
+            split_dict['fals_msg']   = f'= {values[0]}'
+            split_dict['true_msg']   = f'= {values[1]}'
+            split_dict['appro_feat'] = True
+        else:
+            split_dict['appro_feat'] = False
+
+        return split_dict
 
     def set_feature_label(self, feature, feat_label):
         '''
@@ -503,9 +579,37 @@ class UMAPDensityProcessing():
                                     figsize = figsize,
                                     legendtype = legendtype)
 
+    def umap_draw_clusters(self, figsize = (12, 12)):
+        '''
+        Draw the UMAP colored by clusters
+        '''
+
+        umap_clust_fig, ax = bpl.draw_scatter_fig(figsize = figsize)
+        umap_clust_fig = bpl.scatter_plot(self.df, umap_clust_fig, ax, 'Clusters',
+                                          xVar = 'X', yVar = 'Y', hueVar='clust_label',
+                                          xLim = [self.dfmin[0], self.dfmax[0]],
+                                          yLim = [self.dfmin[1], self.dfmax[1]],
+                                          hueOrder = self.cluster_dict.values(),
+                                          palette  = self.palette_dict)
+
+        return umap_clust_fig
+
     def filter_density_matrix(self, cutoff= 0.01, empty_bin_ind = None):
         '''
-        filter the current matrix by a cutoff value
+        Filter the density matrix based on the cutoff value
+        to create a binary mask of values that are above or below
+        the cutoff value. 
+
+        This takes a list of empty bin indices to filter out any
+        bins that are meant to be empty (0) no matter what the actual
+        value is in the bin.
+
+        Args:
+            cutoff (float): Cutoff value to use for filtering
+            empty_bin_ind (list): List of empty bin indices
+        
+        Returns:
+            None
         '''
 
         dens_mat_shape = self.dens_mat.shape
@@ -521,35 +625,57 @@ class UMAPDensityProcessing():
                     elif self.dens_mat[x_bin, y_bin] < -cutoff:
                         self.dens_mat[x_bin, y_bin] = -1
 
-    def perform_clustering(self, dens_mat_cmp, num_clus_0, num_clus_1):
+    def perform_clustering(self, dens_mat_cmp, num_clus_0, num_clus_1, clust_minmax, cpu_pool_size = 8):
         '''
-        Sets up clustering
+        perform_clustering takes in the density matrix for the UMAP data
+        and performs clustering on the data. The function will perform
         '''
 
         print(f'Performing Clustering with {num_clus_0} clusters for Negative Condition and {num_clus_1} clusters for Positive Condition')
-        # Perform k-menas clustering for the Negative Condition
-        kmeans_obj_cond0 = KMeans(n_clusters = num_clus_0,
-                                  init ='k-means++',
-                                  max_iter = 300,
-                                  n_init = 50)
-        
-        # Perform k-menas clustering for the Positive Condition
-        kmeans_obj_cond1 = KMeans(n_clusters = num_clus_1,
-                                  init ='k-means++',
-                                  max_iter = 300,
-                                  n_init = 50)
+
+        clust_range = range(clust_minmax[0], clust_minmax[1]+1)
 
         # Identify the indices of the negative condition
         cond0_ind = np.nonzero(dens_mat_cmp == 1)
         cells_cond0 = np.vstack(cond0_ind).T
-        # Fit the negative condition to the negative kmeans object
-        kmeans_obj_cond0.fit(cells_cond0)
 
         # Identify the indices of the positive condition
         cond1_ind = np.nonzero(dens_mat_cmp == -1)
         cells_cond1 = np.vstack(cond1_ind).T
-        # Fit the positive condition to the positive kmeans object
-        kmeans_obj_cond1.fit(cells_cond1)
+
+        kwargs_list_0 = []
+        kwargs_list_1 = []
+        for clust in clust_range:
+            kwargs_list_0.append(
+                (
+                    cells_cond0,
+                    clust
+                )
+            )
+            kwargs_list_1.append(
+                (
+                    cells_cond1,
+                    clust
+                )
+            )
+
+        # Create a pool of worker processes
+        with mp.Pool(processes=cpu_pool_size) as pool:
+            results_0 = pool.starmap(self.kmeans_calc, kwargs_list_0)
+
+        # Create a pool of worker processes
+        with mp.Pool(processes=cpu_pool_size) as pool:
+            results_1 = pool.starmap(self.kmeans_calc, kwargs_list_1)
+
+        wcss_0 = [x.inertia_ for x in results_0]
+        wcss_1 = [x.inertia_ for x in results_1]
+
+        # Create WCSS Elbow Plot
+        self.elbow_fig_0 = self.draw_wcss_elbow_plot(clust_range, wcss_0, num_clus_0)
+        self.elbow_fig_1 = self.draw_wcss_elbow_plot(clust_range, wcss_1, num_clus_1)
+
+        kmeans_obj_cond0 = results_0[num_clus_0 - 1]
+        kmeans_obj_cond1 = results_1[num_clus_1 - 1]
 
         # Replace the labels in the density matrix with the cluster labels
         self.dens_mat[cond0_ind] = kmeans_obj_cond0.labels_ + 1
@@ -565,9 +691,9 @@ class UMAPDensityProcessing():
         self.cluster_dict = dict()
         self.cluster_dict[0] = 'No Cluster'
         for i in unique_set_fals.index:
-            self.cluster_dict[unique_set_fals.vals[i]] = f'D{i+1}'
+            self.cluster_dict[unique_set_fals.vals[i]] = f'False Cluster {i+1}'
         for i in unique_set_true.index:
-            self.cluster_dict[unique_set_true.vals[i]] = f'A{i+1}'
+            self.cluster_dict[unique_set_true.vals[i]] = f'True Cluster {i+1}'
 
         set_blues = sns.color_palette('Blues_r', 10)
         set_reds = sns.color_palette('Reds_r', 10)
@@ -576,21 +702,68 @@ class UMAPDensityProcessing():
         self.palette_dict = dict()
         self.palette_dict['No Cluster'] = 'white'
         for i in unique_set_fals.index:
-            self.palette_dict[f'D{i+1}'] = set_reds[i]
+            self.palette_dict[f'False Cluster {i+1}'] = set_reds[i]
         for i in unique_set_true.index:
-            self.palette_dict[f'A{i+1}'] = set_blues[i]
+            self.palette_dict[f'True Cluster {i+1}'] = set_blues[i]
 
-    # def perform_clustering(self, n_clusters, cond):
-    #     '''
+    @staticmethod
+    def kmeans_calc(clust_data, n_clusters = 5, random_state = None):
+        '''
+        Perform KMeans clustering on sets of 2D data
 
-    #     '''
+        Args:
+            dens_mat (numpy array): Data to be clustered
+            n_clusters (int): Number of clusters to use
+            random_state (int): Random state to use for KMeans
+        
+        Returns:
+            kmeans_obj: KMeans object created from KMeans
+        '''
 
-    #     kmeans_obj = KMeans(n_clusters = n_clusters,
-    #                         init ='k-means++',
-    #                         max_iter = 300,
-    #                         n_init = 10,
-    #                         random_state = 42)
+        print(f'Starting KMeans Calculation for {n_clusters} clusters')
+        kmeans_obj = KMeans(n_clusters = n_clusters,
+                            init ='k-means++',
+                            max_iter = 300,
+                            n_init = 50,
+                            random_state = random_state)
 
-    #     cond_ind = np.nonzero(self.dens_mat == cond)
-    #     cells_cond = np.vstack(cond_ind).T
-    #     kmeans_obj.fit(cells_cond)
+        # Fit the data to the kmeans object
+        kmeans_obj.fit(clust_data)
+
+        print(f'...Completed KMeans Calculation for {n_clusters} clusters')
+
+        return kmeans_obj
+
+    @staticmethod
+    def draw_wcss_elbow_plot(clust_range, wcss, sel_clus):
+        '''
+        Calculate possible clusters and plot the elbow plot
+
+        Args:
+            clust_range (list): List of cluster values
+            wcss (list): List of within-cluster sum of squares
+            sel_clus (int): Selected cluster value
+        '''
+
+        # Streamlit Theming
+        slc_bg   = '#0E1117'  # Streamlit Background Color
+        slc_text = '#FAFAFA'  # Streamlit Text Color
+        slc_bg2  = '#262730'  # Streamlit Secondary Background Color
+
+        fig = plt.figure(figsize = (5,5), facecolor = slc_bg)
+        ax = fig.add_subplot(1,1,1, facecolor = slc_bg)
+        ax.set_xlabel('Number of Clusters', fontsize = 10, color = slc_text)
+        ax.set_ylabel('WCSS', fontsize = 10, color = slc_text)
+        ax.set_xlim(0, clust_range[-1])
+        ax.set_xticks(np.linspace(0, clust_range[-1], clust_range[-1]+1))
+
+        plt.plot(clust_range, wcss)
+        # plt.axvline(sel_clus, linestyle='--', color='r')
+
+        ax.spines['left'].set_color(slc_text)
+        ax.spines['bottom'].set_color(slc_text)
+        ax.spines['top'].set_color(slc_bg)
+        ax.spines['right'].set_color(slc_bg)
+        ax.tick_params(axis='x', colors=slc_text, which='both')
+        ax.tick_params(axis='y', colors=slc_text, which='both')
+        return fig

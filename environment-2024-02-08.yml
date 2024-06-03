@@ -30,3 +30,8 @@ dependencies:
     - dill
     - pympler
     - objsize
+    - PhenoGraph
+    - parc
+    - parmap
+    - setuptools-scm
+
