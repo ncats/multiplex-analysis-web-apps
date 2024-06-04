@@ -332,6 +332,19 @@ def phenocluster__diff_expr(adata, phenocluster__de_col, phenocluster__de_sel_gr
     with phenocluster__col2:
         st.dataframe(phenocluster__de_results, use_container_width=True)
     
+def phenocluster__add_clusters_to_input_df():
+    if "phenocluster__phenotype_cluster_cols" in st.session_state:
+        cur_df = st.session_state['input_dataset'].data
+        cur_df = cur_df.drop(columns=st.session_state["phenocluster__phenotype_cluster_cols"])
+        st.session_state['input_dataset'].data = cur_df
+    
+    st.session_state['input_dataset'].data["Phenotype_Cluster"] = 'Phenotype ' + st.session_state['phenocluster__clustering_adata'].obs["Cluster"].astype(str)
+    dummies = pd.get_dummies(st.session_state['phenocluster__clustering_adata'].obs["Cluster"], prefix='Phenotype Cluster').astype(int)
+    cur_df = pd.concat([st.session_state['input_dataset'].data, dummies], axis=1)
+    st.session_state['input_dataset'].data = cur_df
+    new_cluster_cols = list(dummies.columns)
+    st.session_state["phenocluster__phenotype_cluster_cols"] = new_cluster_cols
+
 
 # main
 def main():
@@ -490,9 +503,7 @@ def main():
                 
                 # umap
             if 'Cluster' in st.session_state['phenocluster__clustering_adata'].obs.columns:
-                st.session_state['input_dataset'].data["Phenotype_Cluster"] = st.session_state['phenocluster__clustering_adata'].obs["Cluster"]
-                #st.write(pd.unique(st.session_state['phenocluster__clustering_adata'].obs["Cluster"]))
-
+                
                 st.session_state['phenocluster__umeta_columns'] = list(st.session_state['phenocluster__clustering_adata'].obs.columns)
                 st.session_state['phenocluster__umap_color_col_index'] = st.session_state['phenocluster__umeta_columns'].index(st.session_state['phenocluster__umap_color_col'])
                 #st.write(st.session_state['phenocluster__umap_color_col_index'])
@@ -521,7 +532,7 @@ def main():
                 ]
                         )
                 
-                st.button("Compute UMAPs", on_click=phenocluster__scanpy_umap, args = [st.session_state['phenocluster__clustering_adata'],
+                st.button("Compute UMAP", on_click=phenocluster__scanpy_umap, args = [st.session_state['phenocluster__clustering_adata'],
                                                                                     st.session_state['phenocluster__n_neighbors_state'],
                                                                                     st.session_state['phenocluster__metric'],
                                                                                     st.session_state['phenocluster__n_principal_components']
@@ -534,6 +545,8 @@ def main():
                 st.session_state['phenocluster__umap_color_col'],
                 ]
                         )
+                
+                st.button('Add Clusters to Input Data' , on_click=phenocluster__add_clusters_to_input_df)
             
                 
             
@@ -547,7 +560,7 @@ if __name__ == '__main__':
     st.set_page_config(layout='wide', page_title=page_name)
     st.title(page_name)
     phenocluster__col_0 = st.columns(1)
-    phenocluster__col1, phenocluster__col2 = st.columns([1, 6])
+    phenocluster__col1, phenocluster__col2 = st.columns([2, 6])
     
     # Run streamlit-dataframe-editor library initialization tasks at the top of the page
     st.session_state = sde.initialize_session_state(st.session_state)

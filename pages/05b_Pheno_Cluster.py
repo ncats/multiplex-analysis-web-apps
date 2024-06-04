@@ -173,6 +173,19 @@ def spatial_plots_cust_2b(adata, umap_cur_col, umap_cur_groups, umap_color_col, 
             else:
                 subcol4.plotly_chart(fig, use_container_width=True)
 
+def phenocluster__add_edit_clusters_to_input_df():
+    if "phenocluster__phenotype_cluster_cols" in st.session_state:
+        cur_df = st.session_state['input_dataset'].data
+        cur_df = cur_df.drop(columns=st.session_state["phenocluster__phenotype_cluster_cols"])
+        st.session_state['input_dataset'].data = cur_df
+    
+    st.session_state['input_dataset'].data["Phenotype_Cluster"] = 'Phenotype ' + st.session_state['phenocluster__clustering_adata'].obs['Edit_Cluster'].astype(str)
+    dummies = pd.get_dummies(st.session_state['phenocluster__clustering_adata'].obs['Edit_Cluster'], prefix='Phenotype Cluster').astype(int)
+    #dummies = dummies.replace({1: '+', 0: '-'})
+    cur_df = pd.concat([st.session_state['input_dataset'].data, dummies], axis=1)
+    st.session_state['input_dataset'].data = cur_df
+    new_cluster_cols = list(dummies.columns)
+    st.session_state["phenocluster__phenotype_cluster_cols"] = new_cluster_cols
 
 def main():
     phenocluster__col1b, phenocluster__col2b  = st.columns([1, 6])
@@ -267,6 +280,8 @@ def main():
             st.session_state['phenocluster__umap_cur_groups'] = umap_sel_groups
             
             st.button('Make Plots' , on_click=make_all_plots_2)
+            
+            st.button('Add Edited Clusters to Input Data', on_click=phenocluster__add_edit_clusters_to_input_df)
         
 
 # Run the main function
