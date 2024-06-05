@@ -212,7 +212,7 @@ class SpatialUMAP:
 
         # Create a pool of worker processes
         with mp.Pool(processes=cpu_pool_size) as pool:
-            results = pool.starmap(utils.fast_neighbors_counts_for_block, kwargs_list)
+            results = pool.starmap(utils.fast_neighbors_counts_for_block2, kwargs_list)
 
         df_density_matrix = pd.concat(results)
         full_array = None
