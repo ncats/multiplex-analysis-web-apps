@@ -155,7 +155,7 @@ def calculate_density_matrix_for_image(df_image, phenotypes, phenotype_column_na
 
 
 # Define a function to test the neighbors counting
-def test_neighbors_counts(num_cpus_to_use=None, method='kdtree', num_images_to_run=None):
+def test_neighbors_counts(num_cpus_to_use=None, method='kdtree', num_images_to_run=None, kdtree_method='new'):
     """
     This is a sample of how to calculate the density matrix for the entire dataset.
     """
@@ -201,7 +201,12 @@ def test_neighbors_counts(num_cpus_to_use=None, method='kdtree', num_images_to_r
         list_of_tuple_arguments = [(df[df[image_column_name] == image_name], image_name, coord_column_names, phenotypes, radii, phenotype_column_name) for image_name in image_names[:num_images_to_run]]
 
         # Fan out the function to num_cpus_to_use CPUs
-        df_counts_holder = utils.execute_data_parallelism_potentially(function=utils.fast_neighbors_counts_for_block, list_of_tuple_arguments=list_of_tuple_arguments, nworkers=num_cpus_to_use, task_description='calculation of the counts matrix for all images', do_benchmarking=True, mp_start_method=None, use_starmap=True)
+        assert kdtree_method in ['old', 'new']
+        if kdtree_method == 'old':
+            kdtree_method = utils.fast_neighbors_counts_for_block
+        elif kdtree_method == 'new':
+            kdtree_method = utils.fast_neighbors_counts_for_block2
+        df_counts_holder = utils.execute_data_parallelism_potentially(function=kdtree_method, list_of_tuple_arguments=list_of_tuple_arguments, nworkers=num_cpus_to_use, task_description='calculation of the counts matrix for all images', do_benchmarking=True, mp_start_method=None, use_starmap=True)
 
         # Concatenate the results into a single dataframe
         df_counts_matrix = pd.concat(df_counts_holder, axis='index')
@@ -217,29 +222,33 @@ def test_neighbors_counts(num_cpus_to_use=None, method='kdtree', num_images_to_r
 
 
 def test_neighbors_counts_for_neighborhood_profiles(num_images_to_compare=1, num_cpus_to_use_for_kdtree=1, num_cpus_to_use_for_cdist=None):
+
+    # Can run this from a Jupyter notebook like:
+    #   import neighbors_counts_for_neighborhood_profiles_orig
+    #   df_counts_method1, df_counts_method2, method2_columns_orig = neighbors_counts_for_neighborhood_profiles_orig.test_neighbors_counts_for_neighborhood_profiles(num_images_to_compare=21, num_cpus_to_use_for_kdtree=4)
     
     # Get the neighbors counts using kdtree
-    df_counts_kdtree = test_neighbors_counts(num_cpus_to_use=num_cpus_to_use_for_kdtree, method='kdtree', num_images_to_run=num_images_to_compare)
+    df_counts_method1 = test_neighbors_counts(num_cpus_to_use=num_cpus_to_use_for_kdtree, method='kdtree', num_images_to_run=num_images_to_compare, kdtree_method='new')
 
     # Get the neighbors counts using cdist
-    df_counts_cdist = test_neighbors_counts(num_cpus_to_use=num_cpus_to_use_for_cdist, method='cdist', num_images_to_run=num_images_to_compare)
+    df_counts_method2 = test_neighbors_counts(num_cpus_to_use=num_cpus_to_use_for_kdtree, method='kdtree', num_images_to_run=num_images_to_compare, kdtree_method='old')
 
     # Just a sanity check to ensure the two dataframes are not referring to the same one, silly but makes me feel better
-    assert not df_counts_cdist.equals(df_counts_kdtree)
+    assert not (df_counts_method1 is df_counts_method2)
 
     # Make the format of the columns in cdist match that in kdtree
-    cdist_columns_orig = df_counts_cdist.columns.copy()
-    df_counts_cdist.columns = df_counts_cdist.columns.str.replace('Number of neighbors of type ', '').str.replace('range ', '')
+    method2_columns_orig = df_counts_method2.columns.copy()
+    df_counts_method2.columns = df_counts_method2.columns.str.replace('Number of neighbors of type ', '').str.replace('range ', '')
 
     # Check if the actual results are equal
-    results_are_equal = df_counts_kdtree[df_counts_cdist.columns].equals(df_counts_cdist.astype(np.int32))
+    results_are_equal = df_counts_method1[df_counts_method2.columns].equals(df_counts_method2.astype(np.int32))
     if results_are_equal:
         print('The results are equal!')
     else:
         print('The results are not equal')
 
     # Return the dataframes and original cdist columns that have since been renamed
-    return df_counts_kdtree, df_counts_cdist, cdist_columns_orig
+    return df_counts_method1, df_counts_method2, method2_columns_orig
 
 
 def main():

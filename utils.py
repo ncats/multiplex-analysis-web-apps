@@ -1094,7 +1094,7 @@ def fast_neighbors_counts_for_block(df_image, image_name, coord_column_names, ph
     # A block can be an image, ROI, etc. It's the entity over which it makes sense to calculate the neighbors of centers. Here, we're assuming it's an image, but in the SIT for e.g., we generally want it to refer to a ROI.
 
     # Print the image name
-    print(f'Calculating neighbor counts for image {image_name} ({len(df_image)} cells)...')
+    print(f'Calculating neighbor counts for image {image_name} ({len(df_image)} cells) using the original kdtree method...')
 
     # Record the start time
     start_time = time.time()
@@ -1160,7 +1160,7 @@ def fast_neighbors_counts_for_block2(df_image, image_name, coord_column_names, p
     # max_chunk_size_in_mb=5000, for a 100K-cell dataset, will yield about 6600-row chunks, which will yield about 15 chunks i.e. center KDTrees
 
     # Print the image name
-    print(f'Calculating neighbor counts for image {image_name} ({len(df_image)} cells)...')
+    print(f'Calculating neighbor counts for image {image_name} ({len(df_image)} cells) using the new kdtree method...')
 
     # Record the start time
     start_time = time.time()
