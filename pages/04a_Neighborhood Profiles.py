@@ -248,17 +248,21 @@ def set_clusters():
 
                 st.session_state.spatial_umap.dens_df_mean = pd.concat([st.session_state.spatial_umap.dens_df_mean, dens_df_mean_fals, dens_df_mean_true], axis=0)
 
-                # Draw a UMAP colored by the clusters
-                st.session_state.udp_full.cluster_dict = st.session_state.cluster_dict
-                st.session_state.udp_full.palette_dict = st.session_state.palette_dict
-                st.session_state.diff_clust_Fig = st.session_state.udp_full.umap_draw_clusters()
-
         else:
             st.session_state.spatial_umap = bpl.umap_clustering(st.session_state.spatial_umap,
                                                                 st.session_state.slider_clus_val,
                                                                 st.session_state.clust_minmax,
                                                                 st.session_state.cpu_pool_size)
+            
+            st.session_state.cluster_dict = st.session_state.spatial_umap.cluster_dict
+            st.session_state.palette_dict = st.session_state.spatial_umap.palette_dict
             st.session_state.selected_nClus = st.session_state.slider_clus_val
+
+        # Draw a UMAP colored by the clusters
+        st.session_state.udp_full.cluster_dict = st.session_state.cluster_dict
+        st.session_state.udp_full.palette_dict = st.session_state.palette_dict
+        st.session_state.diff_clust_Fig = st.session_state.udp_full.umap_draw_clusters()
+    
     st.session_state.bc.printElapsedTime(msg = 'Setting Clusters')
     st.session_state.bc.set_value_df('time_to_run_cluster', st.session_state.bc.elapsedTime())
 

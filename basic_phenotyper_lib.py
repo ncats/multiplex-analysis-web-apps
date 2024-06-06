@@ -716,6 +716,16 @@ def umap_clustering(spatial_umap, n_clusters, clust_minmax, cpu_pool_size = 8):
     # Add cluster label column to cells dataframe
     spatial_umap.df_umap.loc[:, 'clust_label'] = kmeans_obj_targ.labels_
 
+    spatial_umap.cluster_dict = dict()
+    spatial_umap.cluster_dict[0] = 'No Cluster'
+    for i in range(n_clusters):
+        spatial_umap.cluster_dict[i+1] = f'Cluster {i+1}'
+
+    spatial_umap.palette_dict = dict()
+    spatial_umap.palette_dict['No Cluster'] = 'white'
+    for i in range(n_clusters):
+        spatial_umap.palette_dict[f'Cluster {i+1}'] = sns.color_palette('tab20')[i]
+
     # After assigning cluster labels, perform mean calculations
     spatial_umap.mean_measures()
 
