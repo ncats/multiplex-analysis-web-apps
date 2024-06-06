@@ -598,7 +598,7 @@ def main():
 
                     clust_exp_col = st.columns(2)
                     with clust_exp_col[0]:
-                        
+
                         # Run Clustering Normally
                         if st.session_state['toggle_clust_diff'] is True:
                             st.selectbox('Feature', options = st.session_state.spatial_umap.outcomes, key = 'dens_diff_feat_sel')
@@ -615,10 +615,10 @@ def main():
 
                     with clust_exp_col[1]:
                         if st.session_state['toggle_clust_diff'] is True:
-                                st.number_input('Cutoff Percentage', min_value = 0.01, max_value = 0.99, value = 0.01, step = 0.01, key = 'dens_diff_cutoff')
-                                st.number_input('Number of Clusters for True Condition', min_value = 1, max_value = 10, value = 3, step = 1, key = 'num_clus_1')
-                                if st.session_state.elbow_fig_1 is not None:
-                                    st.pyplot(st.session_state.elbow_fig_1)
+                            st.number_input('Cutoff Percentage', min_value = 0.01, max_value = 0.99, value = 0.01, step = 0.01, key = 'dens_diff_cutoff')
+                            st.number_input('Number of Clusters for True Condition', min_value = 1, max_value = 10, value = 3, step = 1, key = 'num_clus_1')
+                            if st.session_state.elbow_fig_1 is not None:
+                                st.pyplot(st.session_state.elbow_fig_1)
                     if st.session_state.cluster_completed:
                         st.markdown('''The within-cluster sum of squares (WCSS) is a measure of the
                                         variability of the observations within each cluster. In general,
@@ -647,7 +647,7 @@ def main():
                             st.pyplot(fig=st.session_state.UMAPFig_diff)
                         with diff_cols[2]:
                             st.pyplot(fig=st.session_state.UMAPFig_true)
-                        
+
                         mor_cols = st.columns(2)
                         with mor_cols[0]:
                             st.pyplot(fig=st.session_state.UMAPFig_mask)
