@@ -55,15 +55,16 @@ def main():
         umap_insp_col = st.columns(2)
 
         with umap_insp_col[0]:
-            st.selectbox('Feature', options = st.session_state.umapOutcomes, key = 'umapInspect_Feat')
+            st.selectbox('Feature',
+                         options = st.session_state.umapOutcomes, key = 'umapInspect_Feat')
         with umap_insp_col[1]:
-            st.selectbox(st.session_state.lineageDisplayToggle, options = st.session_state.umaplineages, key = 'umapInspect_Ver')
+            st.selectbox(st.session_state.lineageDisplayToggle,
+                         options = st.session_state.umaplineages, key = 'umapInspect_Ver')
 
         if st.session_state.umap_ins_msg is not None:
             st.error(st.session_state.umap_ins_msg)
         else:
             add_vertical_space(2)
-
 
     # Large UMAP Columns
     umap_viz = st.columns(2)
@@ -85,9 +86,11 @@ def main():
     with umap_diff_sett_cols[0]:
         umap_diff_sett_subcols = st.columns(2)
         with umap_diff_sett_subcols[0]:
-            st.selectbox('Feature', options = st.session_state.umapOutcomes, key = 'diffUMAPSel_Feat')
+            st.selectbox('Feature',
+                         options = st.session_state.umapOutcomes, key = 'diffUMAPSel_Feat')
         with umap_diff_sett_subcols[1]:
-            st.selectbox(st.session_state.lineageDisplayToggle, options = st.session_state.umaplineages, key = 'diffUMAPSel_Ver')
+            st.selectbox(st.session_state.lineageDisplayToggle,
+                         options = st.session_state.umaplineages, key = 'diffUMAPSel_Ver')
 
         if st.session_state.umap_diff_msg is not None:
             st.error(st.session_state.umap_diff_msg)
