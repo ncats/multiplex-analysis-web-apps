@@ -108,14 +108,14 @@ class NeighborhoodProfiles:
         self.inciOutcomeSel = self.definciOutcomes
         self.Inci_Value_display = 'Count Differences'
 
-    def setup_spatial_umap(self, df, marker_names, pheno_order):
+    def setup_spatial_umap(self, df, marker_names, pheno_order, smallest_image_size):
         '''
         Silly I know. I will fix it later
         '''
 
-        self.spatial_umap = bpl.setup_Spatial_UMAP(df, marker_names, pheno_order)
+        self.spatial_umap = bpl.setup_Spatial_UMAP(df, marker_names, pheno_order, smallest_image_size)
 
-    def perform_density_calc(self, cpu_pool_size = 1):
+    def perform_density_calc(self, calc_areas, cpu_pool_size = 1, area_threshold = 0.001):
         '''
         Calculate the cell counts, cell areas,
         perform the cell densities and cell proportions analyses.
@@ -145,14 +145,17 @@ class NeighborhoodProfiles:
         self.bc.printElapsedTime(f'Calculating Counts for {len(self.spatial_umap.cells)} cells')
 
         # get the areas of cells and save to pickle file
-        area_threshold = 0.001
-        print('\nStarting Cell Areas process')
-        self.spatial_umap.get_areas(area_threshold, pool_size=cpu_pool_size)
+        print(f'\nStarting Cell Areas process with area threshold of {area_threshold}')
+        self.bc.startTimer()
+        self.spatial_umap.get_areas(calc_areas, area_threshold, pool_size=cpu_pool_size)
+        self.bc.printElapsedTime(f'Calculating Areas for {len(self.spatial_umap.cells)} cells')
 
         # calculate density based on counts of cells / area of each arc examine
         self.spatial_umap.calc_densities(area_threshold)
         # calculate proportions based on species counts/# cells within an arc
         self.spatial_umap.calc_proportions(area_threshold)
+
+        self.spatial_umap.density_completed = True
 
     def perform_spatial_umap(self, session_state, umap_style = 'density'):
         '''
