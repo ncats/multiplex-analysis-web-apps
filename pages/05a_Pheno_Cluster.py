@@ -345,6 +345,14 @@ def phenocluster__add_clusters_to_input_df():
     new_cluster_cols = list(dummies.columns)
     st.session_state["phenocluster__phenotype_cluster_cols"] = new_cluster_cols
 
+# check that only numeric columns are included in the adata.X
+def phenocluster__check_input_dat(input_dat, numeric_cols):
+    for cur_col in numeric_cols:
+        if pd.api.types.is_numeric_dtype(input_dat[cur_col]):
+            pass
+        else:
+            st.error("Column " + cur_col + " is not numeric. Only numeric columns can be included in the matrix",
+                     icon="🚨")          
 
 # main
 def main():
@@ -356,15 +364,17 @@ def main():
     # set default values
     phenocluster__default_session_state()
     
-    
-    
     # make layout with columns    
     # options
     
     with phenocluster__col_0[0]:
         
+        #select numeric 
         numeric_cols = st.multiselect('Select numeric columns for clustering:', options = st.session_state['input_dataset'].data.columns, 
                     key='phenocluster__X_cols')
+        
+        phenocluster__check_input_dat(input_dat=st.session_state['input_dataset'].data, numeric_cols=numeric_cols)
+        
         meta_columns = st.multiselect('Select columns for metadata:', options = st.session_state['input_dataset'].data.columns, 
                 key='phenocluster__meta_cols')
         
