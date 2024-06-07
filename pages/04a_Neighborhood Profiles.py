@@ -304,8 +304,10 @@ def slide_id_callback():
 
 def filter_and_plot():
     '''
-    function to update the filtering and the figure plotting
+    callback function to update the filtering and the 
+    figure plotting
     '''
+    
     st.session_state.prog_left_disabeled  = False
     st.session_state.prog_right_disabeled = False
 
