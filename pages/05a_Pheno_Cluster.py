@@ -368,7 +368,7 @@ def main():
         meta_columns = st.multiselect('Select columns for metadata:', options = st.session_state['input_dataset'].data.columns, 
                 key='phenocluster__meta_cols')
         
-        items_to_add = ['Centroid X (µm)_(standardized)', 'Centroid Y (µm)_(standardized)']
+        items_to_add = ['Image ID_(standardized)','Centroid X (µm)_(standardized)', 'Centroid Y (µm)_(standardized)']
         
         #meta_columns = st.session_state['phenocluster__meta_cols']
         # Add the new items if they don't already exist in the list
