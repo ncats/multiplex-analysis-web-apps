@@ -376,7 +376,7 @@ def main():
             if item not in meta_columns:
                 meta_columns.append(item)
         
-        if st.button('Submuit columns'):
+        if st.button('Submuit columns', help = '''Confirm columns selections to create the AnnData object'''):
             st.session_state['phenocluster__clustering_adata'] = phenocluster__make_adata(st.session_state['input_dataset'].data, 
                                             numeric_cols,
                                             meta_columns)
@@ -386,13 +386,13 @@ def main():
         with phenocluster__col1:
             
             # subset data
-            st.checkbox('Subset Data:', key='phenocluster__subset_data')
+            st.checkbox('Subset Data:', key='phenocluster__subset_data', help = '''Subset data based on a variable''')
             if st.session_state['phenocluster__subset_data'] == True:
                 st.session_state['phenocluster__subset_options'] = list(st.session_state['phenocluster__clustering_adata'].obs.columns)
                 phenocluster__subset_col = st.selectbox('Select column for subsetting:', st.session_state['phenocluster__subset_options'])
                 st.session_state["phenocluster__subset_col"] = phenocluster__subset_col 
                 st.session_state['phenocluster__subset_values_options'] = list(pd.unique(st.session_state['phenocluster__clustering_adata'].obs[st.session_state["phenocluster__subset_col"]]))
-                phenocluster__subset_vals = st.multiselect('Select value for subsetting:', options = st.session_state['phenocluster__subset_values_options'], key='phenocluster__subset_vals_1')
+                phenocluster__subset_vals = st.multiselect('Select a group for subsetting:', options = st.session_state['phenocluster__subset_values_options'], key='phenocluster__subset_vals_1')
                 st.session_state["phenocluster__subset_vals"] = phenocluster__subset_vals 
                 if st.button('Subset Data'):
                     phenocluster__subset_data(st.session_state['phenocluster__clustering_adata'],
@@ -415,37 +415,65 @@ def main():
 
             # default widgets
             
-            st.number_input(label = "Number of Principal Components", key='phenocluster__n_principal_components', step = 1)
+            st.number_input(label = "Number of Principal Components", key='phenocluster__n_principal_components', step = 1, 
+                            help='''Number of principal components to use for clustering.
+                            If 0, Clustering will be performed on a numeric matrx (0 cannot be used for UTAG clustering)''')
             
-            st.session_state['phenocluster__n_neighbors_state']  = st.number_input(label = "K Nearest Neighbors", 
-                                    value=st.session_state['phenocluster__n_neighbors_state'])
+            #st.session_state['phenocluster__n_neighbors_state']  = st.number_input(label = "K Nearest Neighbors", 
+            #                        value=st.session_state['phenocluster__n_neighbors_state'])
+            st.number_input(label = "K Nearest Neighbors", 
+                                    key='phenocluster__n_neighbors_state', step = 1,
+                                    help = '''The size of local neighborhood (in terms of number of neighboring data points) used for manifold approximation. 
+                                    Larger values result in more global views of the manifold, while smaller values result in more local data being preserved. 
+                                    In general values should be in the range 2 to 100''')
             
-            st.number_input(label = "Clustering resolution", key='phenocluster__resolution')
+            st.number_input(label = "Clustering resolution", key='phenocluster__resolution',
+                            help = '''A parameter value controlling the coarseness of the clustering. 
+                            Higher values lead to more clusters''')
             
             if st.session_state['phenocluster__cluster_method'] == "phenograph":
                 # st.session_state['phenocluster__phenograph_k'] = st.number_input(label = "Phenograph k", 
                 #                     value=st.session_state['phenocluster__phenograph_k'])
                 st.selectbox('Phenograph clustering algorithm:', ['louvain', 'leiden'], key='phenocluster__phenograph_clustering_algo')
-                st.number_input(label = "Phenograph min cluster size", key='phenocluster__phenograph_min_cluster_size', step = 1)
-                st.selectbox('Distance metric:', ['euclidean', 'manhattan', 'correlation', 'cosine'], key='phenocluster__metric')
-                st.selectbox('Phenograph nn method:', ['kdtree', 'brute'], key='phenocluster__phenograph_nn_method')
+                st.number_input(label = "Phenograph min cluster size", key='phenocluster__phenograph_min_cluster_size', step = 1,
+                                help = '''
+                                Cells that end up in a cluster smaller than min_cluster_size are considered
+                                outliers and are assigned to -1 in the cluster labels
+                                ''')
+                st.selectbox('Distance metric:', ['euclidean', 'manhattan', 'correlation', 'cosine'], key='phenocluster__metric',
+                             help='''Distance metric to define nearest neighbors.''')
+                st.selectbox('Phenograph nn method:', ['kdtree', 'brute'], key='phenocluster__phenograph_nn_method',
+                             help = '''Whether to use brute force or kdtree for nearest neighbor search.''')
             
             elif st.session_state['phenocluster__cluster_method'] == "scanpy":
-                st.selectbox('Distance metric:', ['euclidean', 'manhattan', 'correlation', 'cosine'], key='phenocluster__metric')
+                st.selectbox('Distance metric:', ['euclidean', 'manhattan', 'correlation', 'cosine'], key='phenocluster__metric',
+                             help='''Distance metric to define nearest neighbors.''')
             
             elif st.session_state['phenocluster__cluster_method'] == "parc":
                 # make parc specific widgets
-                st.number_input(label = "Parc dist std local", key='phenocluster__parc_dist_std_local', step = 1)
-                st.number_input(label = "Parc jac std global", key='phenocluster__parc_jac_std_global', step = 0.01)
+                st.number_input(label = "Parc dist std local", key='phenocluster__parc_dist_std_local', step = 1,
+                                help = '''local pruning threshold: the number of standard deviations above the mean minkowski 
+                                distance between neighbors of a given node. 
+                                The higher the parameter, the more edges are retained.''')
+                st.number_input(label = "Parc jac std global", key='phenocluster__parc_jac_std_global', step = 0.01,
+                                help = '''Global level graph pruning. This threshold can also be set as the number of standard deviations below the network's 
+                                mean-jaccard-weighted edges. 0.1-1 provide reasonable pruning. higher value means less pruning. 
+                                e.g. a value of 0.15 means all edges that are above mean(edgeweight)-0.15*std(edge-weights) are retained.''')
                 st.number_input(label = "Minimum cluster size to be considered a separate population",
-                                key='phenocluster__parc_small_pop', step = 1)
-                st.number_input(label = "Random seed", key='phenocluster__random_seed', step = 1)
+                                key='phenocluster__parc_small_pop', step = 1,
+                                help = '''Smallest cluster population to be considered a community.''')
+                st.number_input(label = "Random seed", key='phenocluster__random_seed', step = 1,
+                                help = '''enable reproducible Leiden clustering''')
                 st.number_input(label = "HNSW exploration factor for construction", 
-                                key='phenocluster__hnsw_param_ef_construction', step = 1)
+                                key='phenocluster__hnsw_param_ef_construction', step = 1,
+                                help = '''Higher value increases accuracy of index construction. 
+                                Even for several 100,000s of cells 150-200 is adequate''')
             elif st.session_state['phenocluster__cluster_method'] == "utag":
                 # make utag specific widgets
                 #st.selectbox('UTAG clustering method:', ['leiden', 'parc'], key='phenocluster__utag_clustering_method')
-                st.number_input(label = "UTAG max dist", key='phenocluster__utag_max_dist', step = 1)
+                st.number_input(label = "UTAG max dist", key='phenocluster__utag_max_dist', step = 1,
+                                help = '''Threshold euclidean distance to determine whether a pair of cell is adjacent in graph structure. 
+                                Recommended values are between 10 to 100 depending on magnification.''')
             
             # add options if clustering has been run
             if st.button('Run Clustering'):
