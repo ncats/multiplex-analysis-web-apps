@@ -837,21 +837,24 @@ def downcast_series_dtype(ser, frac_cutoff=0.05, number_cutoff=10):
     # Get the initial dtype
     initial_dtype = ser.dtype
 
-    # Check if the series dtype is 'object'
-    if ser.dtype == 'object':
-        cutoff = frac_cutoff * len(ser)  # Calculate the cutoff based on the fraction of unique values
-    else:
-        cutoff = number_cutoff  # Use the number cutoff for non-object dtypes
+    # Don't do anything if the series is boolean
+    if initial_dtype != 'bool':
 
-    # If the number of unique values is less than or equal to the cutoff, convert the series to the category data type
-    if ser.nunique() <= cutoff:
-        ser = ser.astype('category')
+        # Check if the series dtype is 'object'
+        if ser.dtype == 'object':
+            cutoff = frac_cutoff * len(ser)  # Calculate the cutoff based on the fraction of unique values
+        else:
+            cutoff = number_cutoff  # Use the number cutoff for non-object dtypes
 
-    # Halve the precision of integers and floats
-    if ser.dtype == 'int64':
-        ser = ser.astype('int32')
-    elif ser.dtype == 'float64':
-        ser = ser.astype('float32')
+        # If the number of unique values is less than or equal to the cutoff, convert the series to the category data type
+        if ser.nunique() <= cutoff:
+            ser = ser.astype('category')
+
+        # Halve the precision of integers and floats
+        if ser.dtype == 'int64':
+            ser = ser.astype('int32')
+        elif ser.dtype == 'float64':
+            ser = ser.astype('float32')
 
     # Get the final dtype
     final_dtype = ser.dtype
@@ -885,13 +888,12 @@ def downcast_dataframe_dtypes(df, also_return_final_size=False, frac_cutoff=0.05
     print('----')
     print('Memory usage before conversion: {:.2f} MB'.format(original_memory / 1024 ** 2))
 
-    # Potentially convert the columns to more efficient formats, ignoring boolean columns
+    # Potentially convert the columns to more efficient formats
     for col in df.columns:
-        if df[col].dtype != 'bool':
-            if no_categorical:
-                df[col] = downcast_series_dtype_no_categorical(df[col])
-            else:
-                df[col] = downcast_series_dtype(df[col], frac_cutoff=frac_cutoff, number_cutoff=number_cutoff)
+        if no_categorical:
+            df[col] = downcast_series_dtype_no_categorical(df[col])
+        else:
+            df[col] = downcast_series_dtype(df[col], frac_cutoff=frac_cutoff, number_cutoff=number_cutoff)
 
     # Print memory usage after conversion
     new_memory = df.memory_usage(deep=True).sum()
@@ -930,12 +932,15 @@ def downcast_series_dtype_no_categorical(ser):
     # Get the initial dtype
     initial_dtype = ser.dtype
 
-    # Halve the precision of integers and floats
-    if initial_dtype == 'int64':
-        # ser = ser.astype('int32')
-        ser = downcast_int_series(ser)
-    elif initial_dtype == 'float64':
-        ser = ser.astype('float32')
+    # Don't do anything if the series is boolean
+    if initial_dtype != 'bool':
+
+        # Halve the precision of integers and floats
+        if initial_dtype == 'int64':
+            # ser = ser.astype('int32')
+            ser = downcast_int_series(ser)
+        elif initial_dtype == 'float64':
+            ser = ser.astype('float32')
 
     # Get the final dtype
     final_dtype = ser.dtype
