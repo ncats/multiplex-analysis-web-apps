@@ -1,0 +1,13 @@
+﻿species_name_short,phenotype,species_name_long,species_count,species_percent
+cd4 low+,otherr,ki67 pos- mhcii low- mhcii high- cd4 low+ cd4 high-,223731,62.02
+cd4 high+,otherr,ki67 pos- mhcii low- mhcii high- cd4 low- cd4 high+,99090,27.47
+ki67 pos+ cd4 low+,ki67 poss,ki67 pos+ mhcii low- mhcii high- cd4 low+ cd4 high-,8629,2.39
+ki67 pos+ cd4 high+,ki67 poss,ki67 pos+ mhcii low- mhcii high- cd4 low- cd4 high+,6506,1.8
+ki67 pos+ mhcii low+ cd4 low+,ki67 poss,ki67 pos+ mhcii low+ mhcii high- cd4 low+ cd4 high-,3895,1.08
+ki67 pos+ mhcii high+ cd4 high+,otherr,ki67 pos+ mhcii low- mhcii high+ cd4 low- cd4 high+,3574,0.99
+ki67 pos+ mhcii high+ cd4 low+,mhcii highh,ki67 pos+ mhcii low- mhcii high+ cd4 low+ cd4 high-,3488,0.97
+ki67 pos+ mhcii low+ cd4 high+,otherr,ki67 pos+ mhcii low+ mhcii high- cd4 low- cd4 high+,2653,0.74
+mhcii low+ cd4 low+,mhcii loww,ki67 pos- mhcii low+ mhcii high- cd4 low+ cd4 high-,2534,0.7
+mhcii high+ cd4 high+,mhcii highh,ki67 pos- mhcii low- mhcii high+ cd4 low- cd4 high+,2402,0.67
+mhcii high+ cd4 low+,mhcii highh,ki67 pos- mhcii low- mhcii high+ cd4 low+ cd4 high-,2312,0.64
+mhcii low+ cd4 high+,mhcii loww,ki67 pos- mhcii low+ mhcii high- cd4 low- cd4 high+,1913,0.53
