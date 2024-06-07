@@ -9,15 +9,13 @@ Class UMAPDensityProcessing:
     Individual processing of UMAP density matrices
 '''
 
+import multiprocessing as mp
 import numpy as np
 import pandas as pd
-import multiprocessing as mp
-import matplotlib as mpl
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.cluster import KMeans # K-Means
 import umap
-from SpatialUMAP import SpatialUMAP
 from scipy import ndimage as ndi
 
 import basic_phenotyper_lib as bpl  # Useful functions for cell phenotyping
@@ -482,7 +480,8 @@ class UMAPDensityProcessing():
 
     def umap_summary_stats(self):
         '''
-        Identify the minimum and maximum values of the density matrix
+        Identify the minimum and maximum values of the
+        density matrix
         '''
 
         self.dfmin  = self.df[['X', 'Y']].min()
