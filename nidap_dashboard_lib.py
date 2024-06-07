@@ -569,7 +569,8 @@ def setFigureObjs_UMAP(session_state, palette = 'tab20'):
     session_state.seabornFig_clust, session_state.ax = bpl.draw_scatter_fig(figsize=session_state.figsize)
     session_state.seabornFig_clust = bpl.scatter_plot(session_state.spatial_umap.df_umap_filt, session_state.seabornFig_clust, session_state.ax, title,
                                                       xVar = 'Cell X Position', yVar = 'Cell Y Position', hueVar = 'clust_label',
-                                                      hueOrder=clust_order, palette = palette)
+                                                      hueOrder = session_state.cluster_dict.values(),
+                                                      palette  = session_state.palette_dict)
 
     # Altair
     session_state.altairFig_clust = drawAltairObj(session_state.spatial_umap.df_umap_filt, title, clust_order, session_state.seabornFig_clust, session_state.ax, legendCol = 'clust_label')
@@ -657,8 +658,12 @@ def setFigureObjs_UMAPDifferences(session_state):
         if split_dict_full_diff['appro_feat']:
 
             # Perform Density Calculations for each Condition
-            udp_fals = UMAPDensityProcessing(session_state.npf, split_dict_full_diff['df_umap_fals'], xx=udp_diff_raw.xx, yy=udp_diff_raw.yy)
-            udp_true = UMAPDensityProcessing(session_state.npf, split_dict_full_diff['df_umap_true'], xx=udp_diff_raw.xx, yy=udp_diff_raw.yy)
+            udp_fals = UMAPDensityProcessing(session_state.npf,
+                                             split_dict_full_diff['df_umap_fals'],
+                                             xx=udp_diff_raw.xx, yy=udp_diff_raw.yy)
+            udp_true = UMAPDensityProcessing(session_state.npf,
+                                             split_dict_full_diff['df_umap_true'],
+                                             xx=udp_diff_raw.xx, yy=udp_diff_raw.yy)
 
             udp_fals.cluster_dict = udp_diff_raw.cluster_dict
             udp_true.cluster_dict = udp_diff_raw.cluster_dict
@@ -696,7 +701,6 @@ def setFigureObjs_UMAPDifferences(session_state):
 
     session_state.UMAPFigDiff0_Clus = udp_fals.umap_draw_clusters()
     session_state.UMAPFigDiff1_Clus = udp_true.umap_draw_clusters()
-    session_state.UMAPFigDiff2_Clus = udp_diff.umap_draw_clusters()
 
     return session_state
 

@@ -237,6 +237,7 @@ def set_clusters():
                 st.session_state.spatial_umap.mean_measures()
                 st.session_state.bc.printElapsedTime('Performing Mean Measures')
 
+                # Average False condition and Average True Condition
                 dens_df_fals = st.session_state.spatial_umap.dens_df_mean.loc[st.session_state.spatial_umap.dens_df_mean['clust_label'].str.contains('False'), :]
                 dens_df_true = st.session_state.spatial_umap.dens_df_mean.loc[st.session_state.spatial_umap.dens_df_mean['clust_label'].str.contains('True'), :]
 
@@ -253,16 +254,16 @@ def set_clusters():
                                                                 st.session_state.slider_clus_val,
                                                                 st.session_state.clust_minmax,
                                                                 st.session_state.cpu_pool_size)
-            
+
             st.session_state.cluster_dict = st.session_state.spatial_umap.cluster_dict
             st.session_state.palette_dict = st.session_state.spatial_umap.palette_dict
             st.session_state.selected_nClus = st.session_state.slider_clus_val
 
-        # Draw a UMAP colored by the clusters
+        # Draw the 2D histogram UMAP colored by the clusters
         st.session_state.udp_full.cluster_dict = st.session_state.cluster_dict
         st.session_state.udp_full.palette_dict = st.session_state.palette_dict
         st.session_state.diff_clust_Fig = st.session_state.udp_full.umap_draw_clusters()
-    
+
     st.session_state.bc.printElapsedTime(msg = 'Setting Clusters')
     st.session_state.bc.set_value_df('time_to_run_cluster', st.session_state.bc.elapsedTime())
 
@@ -316,11 +317,7 @@ def filter_and_plot():
 
     if st.session_state.umap_completed:
         st.session_state.spatial_umap.df_umap_filt = st.session_state.spatial_umap.df_umap.loc[st.session_state.spatial_umap.df_umap['Slide ID'] == st.session_state['selSlide ID'], :]
-        if st.session_state['toggle_clust_diff']:
-            palette = st.session_state.palette_dict
-        else:
-            palette = 'tab20'
-        st.session_state = ndl.setFigureObjs_UMAP(st.session_state, palette = palette)
+        st.session_state = ndl.setFigureObjs_UMAP(st.session_state, palette = st.session_state.palette_dict)
 
 def load_neipro_struct():
     '''
@@ -735,10 +732,7 @@ def main():
         # If the spatial-umap is completed...
         if 'spatial_umap' in st.session_state:
             # List of Clusters to display
-            if st.session_state['toggle_clust_diff']:
-                list_clusters = list(st.session_state.spatial_umap.dens_df_mean['clust_label'].unique())
-            else:
-                list_clusters = list(range(st.session_state.selected_nClus))
+            list_clusters = list(st.session_state.spatial_umap.dens_df_mean['clust_label'].unique())
             if st.session_state['toggle_hide_no_cluster']:
                 list_clusters.remove('No Cluster')
 
