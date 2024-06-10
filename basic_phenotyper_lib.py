@@ -507,6 +507,7 @@ def setup_Spatial_UMAP(df, marker_names, pheno_order, smallest_image_size):
         df (Pandas dataframe): Dataframe containing the data
         marker_names (list): List of marker names
         pheno_order (list): List of phenotype order
+        smallest_image_size (int): The size of the smallest image in the dataset
     
     Returns:
         SpatialUMAP: SpatialUMAP object
@@ -713,8 +714,18 @@ def umap_clustering(spatial_umap, n_clusters, clust_minmax, cpu_pool_size = 8):
     # Identify the kmeans obj that matches the selected cluster number
     kmeans_obj_targ = results[n_clusters-1]
 
-    # Add cluster label column to cells dataframe
-    spatial_umap.df_umap.loc[:, 'clust_label'] = kmeans_obj_targ.labels_
+    spatial_umap.cluster_dict = dict()
+    for i in range(n_clusters):
+        spatial_umap.cluster_dict[i+1] = f'Cluster {i+1}'
+    spatial_umap.cluster_dict[0] = 'No Cluster'
+
+    spatial_umap.palette_dict = dict()
+    for i in range(n_clusters):
+        spatial_umap.palette_dict[f'Cluster {i+1}'] = sns.color_palette('tab20')[i]
+    spatial_umap.palette_dict['No Cluster'] = 'white'
+
+    # Assign values to cluster_label column in df_umap
+    spatial_umap.df_umap.loc[:, 'clust_label'] = [spatial_umap.cluster_dict[key] for key in (kmeans_obj_targ.labels_+1)]
 
     # After assigning cluster labels, perform mean calculations
     spatial_umap.mean_measures()

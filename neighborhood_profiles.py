@@ -9,15 +9,13 @@ Class UMAPDensityProcessing:
     Individual processing of UMAP density matrices
 '''
 
+import multiprocessing as mp
 import numpy as np
 import pandas as pd
-import multiprocessing as mp
-import matplotlib as mpl
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.cluster import KMeans # K-Means
 import umap
-from SpatialUMAP import SpatialUMAP
 from scipy import ndimage as ndi
 
 import basic_phenotyper_lib as bpl  # Useful functions for cell phenotyping
@@ -110,14 +108,14 @@ class NeighborhoodProfiles:
         self.inciOutcomeSel = self.definciOutcomes
         self.Inci_Value_display = 'Count Differences'
 
-    def setup_spatial_umap(self, df, marker_names, pheno_order):
+    def setup_spatial_umap(self, df, marker_names, pheno_order, smallest_image_size):
         '''
         Silly I know. I will fix it later
         '''
 
-        self.spatial_umap = bpl.setup_Spatial_UMAP(df, marker_names, pheno_order)
+        self.spatial_umap = bpl.setup_Spatial_UMAP(df, marker_names, pheno_order, smallest_image_size)
 
-    def perform_density_calc(self, cpu_pool_size = 1):
+    def perform_density_calc(self, calc_areas, cpu_pool_size = 1, area_threshold = 0.001):
         '''
         Calculate the cell counts, cell areas,
         perform the cell densities and cell proportions analyses.
@@ -147,16 +145,19 @@ class NeighborhoodProfiles:
         self.bc.printElapsedTime(f'Calculating Counts for {len(self.spatial_umap.cells)} cells')
 
         # get the areas of cells and save to pickle file
-        area_threshold = 0.001
-        print('\nStarting Cell Areas process')
-        self.spatial_umap.get_areas(area_threshold, pool_size=cpu_pool_size)
+        print(f'\nStarting Cell Areas process with area threshold of {area_threshold}')
+        self.bc.startTimer()
+        self.spatial_umap.get_areas(calc_areas, area_threshold, pool_size=cpu_pool_size)
+        self.bc.printElapsedTime(f'Calculating Areas for {len(self.spatial_umap.cells)} cells')
 
         # calculate density based on counts of cells / area of each arc examine
         self.spatial_umap.calc_densities(area_threshold)
         # calculate proportions based on species counts/# cells within an arc
         self.spatial_umap.calc_proportions(area_threshold)
 
-    def perform_spatial_umap(self, session_state, umap_style = 'density'):
+        self.spatial_umap.density_completed = True
+
+    def perform_spatial_umap(self, session_state, umap_subset_per_fit, umap_subset_toggle, umap_subset_per):
         '''
         Perform the spatial UMAP analysis
 
@@ -169,9 +170,13 @@ class NeighborhoodProfiles:
             spatial_umap: spatial_umap object with the UMAP analysis performed
         '''
 
+        min_image_size = self.spatial_umap.smallest_image_size
+        n_fit = int(min_image_size*umap_subset_per_fit/100)
+        n_tra = n_fit + int(min_image_size*umap_subset_per/100)
+
         # set training and "test" cells for umap training and embedding, respectively
         print('Setting Train/Test Split')
-        self.spatial_umap.set_train_test(n=2500, groupby_label = 'TMA_core_id', seed=54321)
+        self.spatial_umap.set_train_test(n_fit=n_fit, n_tra = n_tra, groupby_label = 'TMA_core_id', seed=54321, umap_subset_toggle = umap_subset_toggle)
 
         # fit umap on training cells
         self.bc.startTimer()
@@ -184,6 +189,8 @@ class NeighborhoodProfiles:
         print('Transforming Data')
         self.spatial_umap.umap_test = self.spatial_umap.umap_fit.transform(self.spatial_umap.density[self.spatial_umap.cells['umap_test'].values].reshape((self.spatial_umap.cells['umap_test'].sum(), -1)))
         self.bc.printElapsedTime(f'      Transforming {np.sum(self.spatial_umap.cells["umap_test"] == 1)} points with the model')
+
+        self.spatial_umap.umap_completed = True
 
         # Identify all of the features in the dataframe
         self.outcomes = self.spatial_umap.cells.columns
@@ -482,7 +489,8 @@ class UMAPDensityProcessing():
 
     def umap_summary_stats(self):
         '''
-        Identify the minimum and maximum values of the density matrix
+        Identify the minimum and maximum values of the
+        density matrix
         '''
 
         self.dfmin  = self.df[['X', 'Y']].min()

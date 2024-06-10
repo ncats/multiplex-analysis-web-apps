@@ -90,7 +90,7 @@ def init_spatial_umap():
         st.session_state.density_completed = True
 
         # Save checkpoint for Neighborhood Profile structure
-        save_neipro_struct()
+        # save_neipro_struct()
 
 def apply_umap(umap_style):
     '''
@@ -98,13 +98,13 @@ def apply_umap(umap_style):
     '''
 
     st.session_state.bc.startTimer()
-        # if togle for loading pre-generated UMAP is selected extract UMAP from file, works only with a specific dataset
+    # if toggle for loading pre-generated UMAP is selected extract UMAP from file, works only with a specific dataset
     if st.session_state['load_generated_umap_toggle']:
         st.session_state.spatial_umap = get_spatialUMAP(st.session_state.spatial_umap,
-                                                                st.session_state.bc,
-                                                                st.session_state.umap_subset_per_fit,
-                                                                st.session_state.umap_subset_toggle,
-                                                                st.session_state.umap_subset_per)
+                                                        st.session_state.bc,
+                                                        st.session_state.umap_subset_per_fit,
+                                                        st.session_state.umap_subset_toggle,
+                                                        st.session_state.umap_subset_per)
     else:
         with st.spinner('Calculating UMAP'):
             st.session_state.spatial_umap = bpl.perform_spatialUMAP(st.session_state.spatial_umap,
@@ -143,7 +143,7 @@ def apply_umap(umap_style):
 
     # Create Neighborhood Profiles Object
     st.session_state.npf = NeighborhoodProfiles(bc = st.session_state.bc)
-  
+
     # Create Full UMAP example
     st.session_state.udp_full = UMAPDensityProcessing(st.session_state.npf, st.session_state.spatial_umap.df_umap)
     st.session_state.UMAPFig = st.session_state.udp_full.UMAPdraw_density()
@@ -152,7 +152,7 @@ def apply_umap(umap_style):
     filter_and_plot()
 
     # Save checkpoint for Neighborhood Profile structure
-    save_neipro_struct()
+    # save_neipro_struct()
 
 def set_clusters():
     '''
@@ -237,6 +237,7 @@ def set_clusters():
                 st.session_state.spatial_umap.mean_measures()
                 st.session_state.bc.printElapsedTime('Performing Mean Measures')
 
+                # Average False condition and Average True Condition
                 dens_df_fals = st.session_state.spatial_umap.dens_df_mean.loc[st.session_state.spatial_umap.dens_df_mean['clust_label'].str.contains('False'), :]
                 dens_df_true = st.session_state.spatial_umap.dens_df_mean.loc[st.session_state.spatial_umap.dens_df_mean['clust_label'].str.contains('True'), :]
 
@@ -248,17 +249,21 @@ def set_clusters():
 
                 st.session_state.spatial_umap.dens_df_mean = pd.concat([st.session_state.spatial_umap.dens_df_mean, dens_df_mean_fals, dens_df_mean_true], axis=0)
 
-                # Draw a UMAP colored by the clusters
-                st.session_state.udp_full.cluster_dict = st.session_state.cluster_dict
-                st.session_state.udp_full.palette_dict = st.session_state.palette_dict
-                st.session_state.diff_clust_Fig = st.session_state.udp_full.umap_draw_clusters()
-
         else:
             st.session_state.spatial_umap = bpl.umap_clustering(st.session_state.spatial_umap,
                                                                 st.session_state.slider_clus_val,
                                                                 st.session_state.clust_minmax,
                                                                 st.session_state.cpu_pool_size)
+
+            st.session_state.cluster_dict = st.session_state.spatial_umap.cluster_dict
+            st.session_state.palette_dict = st.session_state.spatial_umap.palette_dict
             st.session_state.selected_nClus = st.session_state.slider_clus_val
+
+        # Draw the 2D histogram UMAP colored by the clusters
+        st.session_state.udp_full.cluster_dict = st.session_state.cluster_dict
+        st.session_state.udp_full.palette_dict = st.session_state.palette_dict
+        st.session_state.diff_clust_Fig = st.session_state.udp_full.umap_draw_clusters()
+
     st.session_state.bc.printElapsedTime(msg = 'Setting Clusters')
     st.session_state.bc.set_value_df('time_to_run_cluster', st.session_state.bc.elapsedTime())
 
@@ -299,8 +304,10 @@ def slide_id_callback():
 
 def filter_and_plot():
     '''
-    function to update the filtering and the figure plotting
+    callback function to update the filtering and the 
+    figure plotting
     '''
+
     st.session_state.prog_left_disabeled  = False
     st.session_state.prog_right_disabeled = False
 
@@ -312,11 +319,7 @@ def filter_and_plot():
 
     if st.session_state.umap_completed:
         st.session_state.spatial_umap.df_umap_filt = st.session_state.spatial_umap.df_umap.loc[st.session_state.spatial_umap.df_umap['Slide ID'] == st.session_state['selSlide ID'], :]
-        if st.session_state['toggle_clust_diff']:
-            palette = st.session_state.palette_dict
-        else:
-            palette = 'tab20'
-        st.session_state = ndl.setFigureObjs_UMAP(st.session_state, palette = palette)
+        st.session_state = ndl.setFigureObjs_UMAP(st.session_state, palette = st.session_state.palette_dict)
 
 def load_neipro_struct():
     '''
@@ -536,11 +539,13 @@ def main():
                                 key = 'umap_subset_per_fit')
 
             with neipro_settings[2]:
+                if 'umap_subset_toggle' not in st.session_state:
+                    st.session_state['umap_subset_toggle'] = True
                 st.toggle('Subset data transformed by UMAP',
-                          value = False, key = 'umap_subset_toggle',
+                          key = 'umap_subset_toggle',
                           help = '''The UMAP model is always trained on a percentage of data included
-                          in the smallest image.vYou can choose to transform the entire dataset using 
-                          this trained model, or only transformva percentage of the data. This can be 
+                          in the smallest image. You can choose to transform the entire dataset using 
+                          this trained model, or only transform a percentage of the data. This can be 
                           useful for large datasets. If a percentage is chosen for transformation, it 
                           is always a different sample than what the model was trained on.''')
                 add_vertical_space(2)
@@ -658,8 +663,9 @@ def main():
 
     # Tab for Loading Previous UMAP Results
     with nei_pro_tabs[1]:
-        st.write('Checkpoint file: neighborhood_profiles_checkpoint.pkl')
-        st.button('Load checkpointed UMAP results', on_click=load_neipro_struct)
+        st.write('Feature coming soon!')
+        # st.write('Checkpoint file: neighborhood_profiles_checkpoint.pkl')
+        # st.button('Load checkpointed UMAP results', on_click=load_neipro_struct)
         add_vertical_space(19)
 
     if not st.session_state.phenotyping_completed:
@@ -731,10 +737,7 @@ def main():
         # If the spatial-umap is completed...
         if 'spatial_umap' in st.session_state:
             # List of Clusters to display
-            if st.session_state['toggle_clust_diff']:
-                list_clusters = list(st.session_state.spatial_umap.dens_df_mean['clust_label'].unique())
-            else:
-                list_clusters = list(range(st.session_state.selected_nClus))
+            list_clusters = list(st.session_state.spatial_umap.dens_df_mean['clust_label'].unique())
             if st.session_state['toggle_hide_no_cluster']:
                 list_clusters.remove('No Cluster')
 

@@ -46,6 +46,12 @@ class SpatialUMAP:
     area_downsample: Downsample rate of area? Not exactly sure.
 
     '''
+
+    @staticmethod
+    def get_dataframes(results):
+        for df in results:
+            yield df
+
     @staticmethod
     def construct_arcs(dist_bin_px):
         '''
@@ -214,7 +220,7 @@ class SpatialUMAP:
         with mp.Pool(processes=cpu_pool_size) as pool:
             results = pool.starmap(utils.fast_neighbors_counts_for_block2, kwargs_list)
 
-        df_density_matrix = pd.concat(results)
+        df_density_matrix = pd.concat(self.get_dataframes(results))
         full_array = None
         for ii, phenotype in enumerate(phenotypes):
             cols2Use = [f'{phenotype} in {x}' for x in range_strings]
