@@ -188,6 +188,16 @@ def phenocluster__add_edit_clusters_to_input_df():
     st.session_state["phenocluster__phenotype_cluster_cols"] = new_cluster_cols
 
 def main():
+    if 'phenocluster__clustering_adata' not in st.session_state:
+        st.error("Please run the clustering step first",
+                     icon="🚨")
+        return
+    
+    if "Cluster" not in st.session_state['phenocluster__clustering_adata'].obs.columns:
+        st.error("Please run the clustering step first",
+                     icon="🚨")
+        return
+              
     phenocluster__col1b, phenocluster__col2b  = st.columns([2, 6])
     phenocluster__col3b, phenocluster__col4b  = st.columns([2, 6])
     with phenocluster__col1b:
