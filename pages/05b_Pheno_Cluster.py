@@ -21,21 +21,22 @@ import streamlit_dataframe_editor as sde
 import basic_phenotyper_lib as bpl
 import nidap_dashboard_lib as ndl 
 
-
-
+if 'phenocluster__dif_int_plot_methods' not in st.session_state:
+    st.session_state['phenocluster__dif_int_plot_methods'] = ["Rank Plot", "Dot Plot", "Heat Map", "Violin Plot"]
 # Functions 
 
 # clusters differential expression
-def phenocluster__diff_expr(adata, phenocluster__de_col, phenocluster__de_sel_groups, plot_column):
+def phenocluster__diff_expr(adata, phenocluster__de_col, phenocluster__de_sel_groups):
     sc.tl.rank_genes_groups(adata, groupby = phenocluster__de_col, method="wilcoxon", layer="counts")
     
     if "All" in phenocluster__de_sel_groups:
         phenocluster__de_results = sc.get.rank_genes_groups_df(adata, group=None)
     else:
         phenocluster__de_results = sc.get.rank_genes_groups_df(adata, group=phenocluster__de_sel_groups)
-    with plot_column:
-        phenocluster__de_results[['pvals', 'pvals_adj']] = phenocluster__de_results[['pvals', 'pvals_adj']].applymap('{:.1e}'.format)
-        st.dataframe(phenocluster__de_results, use_container_width=True)
+        
+    phenocluster__de_results[['pvals', 'pvals_adj']] = phenocluster__de_results[['pvals', 'pvals_adj']].applymap('{:.1e}'.format)
+    #st.dataframe(phenocluster__de_results, use_container_width=True)
+    st.session_state['phenocluster__de_results'] = phenocluster__de_results
         
 
 # change cluster names
@@ -49,7 +50,7 @@ def phenocluster__edit_cluster_names_2(adata, edit_names_result):
     st.session_state['phenocluster__clustering_adata'] = adata
     
 # make differential intensity plots    
-def phenocluster__plot_diff_intensity(adata, groups, method, n_genes, plot_column):
+def phenocluster__plot_diff_intensity(adata, groups, method, n_genes):
     if "All" in groups:
         cur_groups = None
     else:
@@ -68,8 +69,7 @@ def phenocluster__plot_diff_intensity(adata, groups, method, n_genes, plot_colum
         cur_fig = sc.pl.rank_genes_groups_stacked_violin(adata, n_genes=n_genes, 
                                                       groups=cur_groups, split = False)
         
-    with plot_column:
-         st.pyplot(fig = cur_fig, clear_figure=None, use_container_width=True)
+    st.session_state['phenocluster__diff_intensity_plot'] = cur_fig  
 
 def data_editor_change_callback():
     '''
@@ -189,6 +189,7 @@ def phenocluster__add_edit_clusters_to_input_df():
 
 def main():
     phenocluster__col1b, phenocluster__col2b  = st.columns([2, 6])
+    phenocluster__col3b, phenocluster__col4b  = st.columns([2, 6])
     with phenocluster__col1b:
         # differential expression
         phenocluster__de_col_options = list(st.session_state['phenocluster__clustering_adata'].obs.columns)
@@ -200,31 +201,40 @@ def main():
 
         st.button('Run Differential Expression', on_click=phenocluster__diff_expr, args = [st.session_state['phenocluster__clustering_adata'], 
                                                                                             st.session_state['phenocluster__de_col'], 
-                                                                                            st.session_state['phenocluster__de_sel_groups'],
-                                                                                            phenocluster__col2b
+                                                                                            st.session_state['phenocluster__de_sel_groups']
                                                                                             ])
-        
-    phenocluster__col3b, phenocluster__col4b  = st.columns([2, 6])
+    if 'phenocluster__de_results' in st.session_state:
+        with phenocluster__col2b:
+            st.dataframe(st.session_state['phenocluster__de_results'], use_container_width=True)
+            
+        with phenocluster__col3b:
+            # Plot differential intensity
+            st.selectbox('Select Plot Type:', st.session_state['phenocluster__dif_int_plot_methods'], key='phenocluster__plot_diff_intensity_method')
+            st.number_input(label = "Number of genes to plot", 
+                                key = 'phenocluster__plot_diff_intensity_n_genes',
+                                step = 1)
+            
+            phenocluster__plot_diff_intensity(st.session_state['phenocluster__clustering_adata'], 
+                                              st.session_state['phenocluster__de_sel_groups'],
+                                              st.session_state['phenocluster__plot_diff_intensity_method'],
+                                              st.session_state['phenocluster__plot_diff_intensity_n_genes'])
+            # st.button('Plot Markers', on_click=phenocluster__plot_diff_intensity, args = [st.session_state['phenocluster__clustering_adata'], 
+            #                                                                               st.session_state['phenocluster__de_sel_groups'],
+            #                                                                               st.session_state['phenocluster__plot_diff_intensity_method'],
+            #                                                                               st.session_state['phenocluster__plot_diff_intensity_n_genes']
+            #                                                                               ])   
+            
+    # make plots for differential intensity markers 
+    if 'phenocluster__diff_intensity_plot' in st.session_state:
+        with phenocluster__col4b:
+            cur_fig = st.session_state['phenocluster__diff_intensity_plot']
+            st.pyplot(cur_fig, use_container_width = True, clear_figure = False)
+    
     phenocluster__col5b, phenocluster__col6b  = st.columns([2, 6])
+    
     cur_clusters = list(pd.unique(st.session_state['phenocluster__clustering_adata'].obs["Cluster"]))
     edit_names_df = pd.DataFrame({"Cluster": cur_clusters, "New_Name": cur_clusters})
     st.session_state['phenocluster__edit_names_df'] = edit_names_df
-    
-    with phenocluster__col3b:
-        # Plot differential intensity
-        phenocluster__dif_int_plot_methods = ["Rank Plot", "Dot Plot", "Heat Map", "Violin Plot"]
-        st.selectbox('Select Plot Type:', phenocluster__dif_int_plot_methods, key='phenocluster__plot_diff_intensity_method')
-        st.number_input(label = "Number of genes to plot", 
-                                key = 'phenocluster__plot_diff_intensity_n_genes',
-                                step = 1)
-        
-        
-        st.button('Plot Markers', on_click=phenocluster__plot_diff_intensity, args = [st.session_state['phenocluster__clustering_adata'], 
-                                                                                            st.session_state['phenocluster__de_sel_groups'],
-                                                                                            st.session_state['phenocluster__plot_diff_intensity_method'],
-                                                                                            st.session_state['phenocluster__plot_diff_intensity_n_genes'],
-                                                                                            phenocluster__col4b
-                                                                                            ])   
     
     with phenocluster__col6b:
         #st.table(st.session_state['phenocluster__edit_names_df'])
