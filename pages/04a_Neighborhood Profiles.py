@@ -539,8 +539,6 @@ def main():
                                 key = 'umap_subset_per_fit')
 
             with neipro_settings[2]:
-                if 'umap_subset_toggle' not in st.session_state:
-                    st.session_state['umap_subset_toggle'] = True
                 st.toggle('Subset data transformed by UMAP',
                           key = 'umap_subset_toggle',
                           help = '''The UMAP model is always trained on a percentage of data included
