@@ -90,7 +90,7 @@ def init_spatial_umap():
         st.session_state.density_completed = True
 
         # Save checkpoint for Neighborhood Profile structure
-        save_neipro_struct()
+        # save_neipro_struct()
 
 def apply_umap(umap_style):
     '''
@@ -152,7 +152,7 @@ def apply_umap(umap_style):
     filter_and_plot()
 
     # Save checkpoint for Neighborhood Profile structure
-    save_neipro_struct()
+    # save_neipro_struct()
 
 def set_clusters():
     '''
@@ -661,8 +661,9 @@ def main():
 
     # Tab for Loading Previous UMAP Results
     with nei_pro_tabs[1]:
-        st.write('Checkpoint file: neighborhood_profiles_checkpoint.pkl')
-        st.button('Load checkpointed UMAP results', on_click=load_neipro_struct)
+        st.write('Feature coming soon!')
+        # st.write('Checkpoint file: neighborhood_profiles_checkpoint.pkl')
+        # st.button('Load checkpointed UMAP results', on_click=load_neipro_struct)
         add_vertical_space(19)
 
     if not st.session_state.phenotyping_completed:
