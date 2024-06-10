@@ -507,6 +507,7 @@ def setup_Spatial_UMAP(df, marker_names, pheno_order, smallest_image_size):
         df (Pandas dataframe): Dataframe containing the data
         marker_names (list): List of marker names
         pheno_order (list): List of phenotype order
+        smallest_image_size (int): The size of the smallest image in the dataset
     
     Returns:
         SpatialUMAP: SpatialUMAP object
