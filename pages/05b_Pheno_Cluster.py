@@ -188,7 +188,7 @@ def phenocluster__add_edit_clusters_to_input_df():
     st.session_state["phenocluster__phenotype_cluster_cols"] = new_cluster_cols
 
 def main():
-    phenocluster__col1b, phenocluster__col2b  = st.columns([1, 6])
+    phenocluster__col1b, phenocluster__col2b  = st.columns([2, 6])
     with phenocluster__col1b:
         # differential expression
         phenocluster__de_col_options = list(st.session_state['phenocluster__clustering_adata'].obs.columns)
@@ -204,8 +204,8 @@ def main():
                                                                                             phenocluster__col2b
                                                                                             ])
         
-    phenocluster__col3b, phenocluster__col4b  = st.columns([1, 6])
-    phenocluster__col5b, phenocluster__col6b  = st.columns([1, 6])
+    phenocluster__col3b, phenocluster__col4b  = st.columns([2, 6])
+    phenocluster__col5b, phenocluster__col6b  = st.columns([2, 6])
     cur_clusters = list(pd.unique(st.session_state['phenocluster__clustering_adata'].obs["Cluster"]))
     edit_names_df = pd.DataFrame({"Cluster": cur_clusters, "New_Name": cur_clusters})
     st.session_state['phenocluster__edit_names_df'] = edit_names_df
@@ -241,13 +241,13 @@ def main():
         st.button('Edit Clusters Names', on_click=phenocluster__edit_cluster_names_2, args = [st.session_state['phenocluster__clustering_adata'], 
                                                                                             st.session_state['phenocluster__edit_names_result_2']
                                                                                             ])
-    phenocluster__col7b, phenocluster__col8b, phenocluster__col9b = st.columns([1, 3, 3])
+    phenocluster__col7b, phenocluster__col8b= st.columns([2, 6])
     def make_all_plots_2():
         spatial_plots_cust_2b(st.session_state['phenocluster__clustering_adata'], 
                               st.session_state['phenocluster__umap_cur_col'], 
                               st.session_state['phenocluster__umap_cur_groups'],
                               st.session_state['phenocluster__umap_color_col_2'],
-                              phenocluster__col9b
+                              phenocluster__col8b
                               )
     # make umaps plots
         if 'X_umap' in st.session_state['phenocluster__clustering_adata'].obsm.keys():
@@ -279,7 +279,22 @@ def main():
                                                                             options = umap_cur_groups)
             st.session_state['phenocluster__umap_cur_groups'] = umap_sel_groups
             
-            st.button('Make Plots' , on_click=make_all_plots_2)
+            st.button('Make Spatial Plots' , on_click=spatial_plots_cust_2b, 
+                      args = [st.session_state['phenocluster__clustering_adata'], 
+                              st.session_state['phenocluster__umap_cur_col'], 
+                              st.session_state['phenocluster__umap_cur_groups'],
+                              st.session_state['phenocluster__umap_color_col_2'],
+                              phenocluster__col8b]
+                      )
+            
+            if 'X_umap' in st.session_state['phenocluster__clustering_adata'].obsm.keys():
+                st.button("Make UMAPS", on_click=phenocluster__plotly_umaps_b,
+                          args= [st.session_state['phenocluster__clustering_adata'], 
+                                            st.session_state['phenocluster__umap_cur_col'], 
+                                            st.session_state['phenocluster__umap_cur_groups'],
+                                            st.session_state['phenocluster__umap_color_col_2'],
+                                            phenocluster__col8b]
+                                            )
             
             st.button('Add Edited Clusters to Input Data', on_click=phenocluster__add_edit_clusters_to_input_df)
         

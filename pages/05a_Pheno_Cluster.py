@@ -576,13 +576,13 @@ def main():
                                                                                     st.session_state['phenocluster__n_principal_components']
                                                                                     ]
                         )
-                
-                st.button('Plot UMAPs' , on_click=phenocluster__plotly_umaps, args = [st.session_state['phenocluster__clustering_adata'], 
-                st.session_state['phenocluster__umap_cur_col'], 
-                st.session_state['phenocluster__umap_cur_groups'],
-                st.session_state['phenocluster__umap_color_col'],
-                ]
-                        )
+                if 'X_umap' in st.session_state['phenocluster__clustering_adata'].obsm.keys():
+                    st.button('Plot UMAPs' , on_click=phenocluster__plotly_umaps, 
+                              args = [st.session_state['phenocluster__clustering_adata'], 
+                                      st.session_state['phenocluster__umap_cur_col'], 
+                                      st.session_state['phenocluster__umap_cur_groups'],
+                                      st.session_state['phenocluster__umap_color_col']]
+                              )
                 
                 st.button('Add Clusters to Input Data' , on_click=phenocluster__add_clusters_to_input_df)
             
