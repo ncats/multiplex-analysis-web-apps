@@ -157,7 +157,7 @@ class NeighborhoodProfiles:
 
         self.spatial_umap.density_completed = True
 
-    def perform_spatial_umap(self, session_state, umap_style = 'density'):
+    def perform_spatial_umap(self, session_state, umap_subset_per_fit, umap_subset_toggle, umap_subset_per):
         '''
         Perform the spatial UMAP analysis
 
@@ -170,9 +170,13 @@ class NeighborhoodProfiles:
             spatial_umap: spatial_umap object with the UMAP analysis performed
         '''
 
+        min_image_size = self.spatial_umap.smallest_image_size
+        n_fit = int(min_image_size*umap_subset_per_fit/100)
+        n_tra = n_fit + int(min_image_size*umap_subset_per/100)
+
         # set training and "test" cells for umap training and embedding, respectively
         print('Setting Train/Test Split')
-        self.spatial_umap.set_train_test(n=2500, groupby_label = 'TMA_core_id', seed=54321)
+        self.spatial_umap.set_train_test(n_fit=n_fit, n_tra = n_tra, groupby_label = 'TMA_core_id', seed=54321, umap_subset_toggle = umap_subset_toggle)
 
         # fit umap on training cells
         self.bc.startTimer()
@@ -185,6 +189,8 @@ class NeighborhoodProfiles:
         print('Transforming Data')
         self.spatial_umap.umap_test = self.spatial_umap.umap_fit.transform(self.spatial_umap.density[self.spatial_umap.cells['umap_test'].values].reshape((self.spatial_umap.cells['umap_test'].sum(), -1)))
         self.bc.printElapsedTime(f'      Transforming {np.sum(self.spatial_umap.cells["umap_test"] == 1)} points with the model')
+
+        self.spatial_umap.umap_completed = True
 
         # Identify all of the features in the dataframe
         self.outcomes = self.spatial_umap.cells.columns
