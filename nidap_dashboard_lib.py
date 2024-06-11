@@ -140,6 +140,10 @@ def init_session_state(session_state):
     session_state.toggle_clust_diff = False
     session_state.appro_feat = False
 
+    # UMAP Differences Page Settings
+    session_state.umap_ins_msg = None
+    session_state.umap_diff_msg = None
+
     # Set data_loaded = False.
     # This needs to happen at the end to counteract the 'loadDataButton' action
     session_state.data_loaded = False
