@@ -70,6 +70,9 @@ def preprocess_dataset(df, perc_thresh_rawintnorm_column_check=0.01, image_col='
     # Note the input dataframe df should likely be that loaded from the Open File page
     # This function is essentially the same as the preprocess_radial_profile_data.ipynb Jupyter notebook
 
+    # Constant
+    run_repeated_rows_check = False
+
     # Output the initial dataframe shape
     print('Initial dataframe shape:', df.shape)
 
@@ -283,7 +286,8 @@ def preprocess_dataset(df, perc_thresh_rawintnorm_column_check=0.01, image_col='
     cols_with_unique_rows2 = [col for col in cols_with_unique_rows2 if col not in [distinct_old_row_identifier_col, new_index_col]]
 
     # These two definitions are part of a manual check that, if passing consistently, can likely be removed in the future
-    if run_checks:
+    if run_checks and run_repeated_rows_check:
+        # These sample rows are expected a unified dataframe but not for one processed by dataset_formats.py (which adds more columns), so in general we'll force this check to be skipped
         cols_with_repeated_rows = ['Image ID_(standardized)', 'Centroid X (µm)_(standardized)', 'Centroid Y (µm)_(standardized)', 'Area', 'X', 'Y', 'Perim.', 'Circ.', 'AR', 'Round', 'Solidity', 'input_filename', 'tif_name', 'T', 'cell_id', 'REEC', 'well_id', 'cell_type']
         cols_with_unique_rows = [' ', 'Label', 'Mean', 'StdDev', 'RawIntDen', 'RawIntNorm']
         print('Repeated:', cols_with_repeated_rows2)

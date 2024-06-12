@@ -134,6 +134,6 @@ icon = ""
 is_section = true
 
 [[pages]]
-path = "pages/macro_radial_density.py"
-name = "Macro Radial Density"
+path = "pages/radial_profiles_app.py"
+name = "Radial Profiles"
 icon = ""
