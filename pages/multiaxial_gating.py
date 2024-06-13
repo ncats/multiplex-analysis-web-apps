@@ -11,6 +11,7 @@ import app_top_of_page as top
 import streamlit_dataframe_editor as sde
 import random
 import string
+import image_filter
 
 
 def generate_random_string(length=10):
@@ -504,6 +505,9 @@ def main():
     Main function for running the page
     '''
 
+    # Global variable
+    st_key_prefix = 'mg__'
+
     # If 'input_dataset' isn't in the session state, print an error message and return
     if 'input_dataset' not in st.session_state:
         st.error('An input dataset has not yet been opened. Please do so using the "Open File" page in the sidebar.')
@@ -654,15 +658,33 @@ def main():
 
             # If extra settings are to be displayed, create widgets for selecting particular images to define two groups
             if st.session_state['mg__extra_settings']:
-                st.multiselect('Images in baseline group:', options=df['Slide ID'].unique().tolist(), key='mg__images_in_plotting_group_1')
-                st.multiselect('Images in signal group:', options=df['Slide ID'].unique().tolist(), key='mg__images_in_plotting_group_2')
+
+                # ---- Adapted from image_filter.py ----------------------------------------------------------------
+                # Allow the user to select the columns on which they want to filter
+                selected_cols_for_filtering = st.multiselect('Select columns on which to filter:', df.columns, key=st_key_prefix + 'selected_cols_for_filtering', on_change=image_filter.reset_filtering_columns)
+                # also delete df_deduped if it exists
+
+                # Simplify the dataframe to presumably just the essentially categorical columns
+                if st.button('Prepare filtering data'):
+                    st.session_state[st_key_prefix + 'df_deduped'] = df[['Slide ID'] + selected_cols_for_filtering].drop_duplicates().sort_values(selected_cols_for_filtering)
+
+                # Ensure the deduplication based on the selected columns has been performed
+                if st_key_prefix + 'df_deduped' not in st.session_state:
+                    st.warning('Please prepare the filtering data first')
+                    return
+
+                # Get a shortcut to the deduplicated dataframe
+                df_deduped = st.session_state[st_key_prefix + 'df_deduped']
+
+                # Create two image filters
+                st.session_state['mg__images_in_plotting_group_1'] = image_filter.image_filter(df_deduped, selected_cols_for_filtering, key='baseline', color='blue', image_colname='Slide ID')
+                st.session_state['mg__images_in_plotting_group_2'] = image_filter.image_filter(df_deduped, selected_cols_for_filtering, key='signal', color='red', image_colname='Slide ID')
+                # --------------------------------------------------------------------------------------------------
+
                 if 'mg__filter_on_another_column' not in st.session_state:
                     st.session_state['mg__filter_on_another_column'] = False
-                st.checkbox('Filter on another column', key='mg__filter_on_another_column')
-                st.selectbox('Select another column on which to filter the plots:', df.select_dtypes('category').columns, key='mg__another_filter_column', disabled=(not st.session_state['mg__filter_on_another_column']), on_change=reset_values_on_which_to_filter_another_column)
                 if 'mg__values_on_which_to_filter' not in st.session_state:
                     reset_values_on_which_to_filter_another_column()
-                st.multiselect('Values on which to filter:', df[st.session_state['mg__another_filter_column']].unique(), key='mg__values_on_which_to_filter', disabled=(not st.session_state['mg__filter_on_another_column']))
             else:
                 st.session_state['mg__images_in_plotting_group_1'] = []
                 st.session_state['mg__images_in_plotting_group_2'] = []

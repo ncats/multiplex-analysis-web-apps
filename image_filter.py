@@ -4,11 +4,11 @@ import pandas as pd
 import numpy as np
 
 # Global variable
-st_key_prefix = 'test_filter__'
+st_key_prefix = 'imagefilter__'
 
 
 # This is an image filter that should behave somewhat like a Streamlit (macro) widget
-def image_filter(df, selected_cols_for_filtering, st_key_prefix, key, color='red'):
+def image_filter(df, selected_cols_for_filtering, key, color='red', image_colname='Slide ID'):
 
     with st.expander(f'Image filter for :{color}[{key}] group:', expanded=False):
 
@@ -32,13 +32,13 @@ def image_filter(df, selected_cols_for_filtering, st_key_prefix, key, color='red
         st.write(f'Number of images filtered above: {len(df_masked)}')
 
         # Create an interactive dataframe to allow the user to customize the image selection
-        df_selection = st.dataframe(df_masked, on_select='rerun', hide_index=True, key=st_key_prefix + key + '_df_selection')
+        df_selection = st.dataframe(df_masked, on_select='rerun', hide_index=True, key=st_key_prefix + key + '_df_selection__do_not_persist')
 
         # Output the number of images that have been manually selected by the user
         st.write(f'Number of images selected above: {len(df_selection["selection"]["rows"])}')
 
         # Output the filenames of the selected images
-        ser_selection = df_masked['input_filename'].iloc[df_selection['selection']['rows']]
+        ser_selection = df_masked[image_colname].iloc[df_selection['selection']['rows']]
         st.dataframe(ser_selection, hide_index=True)
 
         # Convert the list of selected images to a list
@@ -83,7 +83,7 @@ def main():
     if st_key_prefix + 'df' not in st.session_state:
         st.warning('Please load the data first')
         return
-    
+
     # Get a shortcut to the full dataframe
     df = st.session_state[st_key_prefix + 'df']
 
@@ -106,8 +106,8 @@ def main():
     df_deduped = st.session_state[st_key_prefix + 'df_deduped']
 
     # Create two image filters
-    selected_images_baseline = image_filter(df_deduped, selected_cols_for_filtering, st_key_prefix, key='baseline', color='blue')
-    selected_images_signal = image_filter(df_deduped, selected_cols_for_filtering, st_key_prefix, key='signal', color='red')
+    selected_images_baseline = image_filter(df_deduped, selected_cols_for_filtering, key='baseline', color='blue', image_colname='input_filename')
+    selected_images_signal = image_filter(df_deduped, selected_cols_for_filtering, key='signal', color='red', image_colname='input_filename')
 
     # Output the selected images in each group
     st.write('Selected images in the baseline group:')
