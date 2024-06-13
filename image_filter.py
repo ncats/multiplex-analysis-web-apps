@@ -7,6 +7,20 @@ import numpy as np
 st_key_prefix = 'imagefilter__'
 
 
+class ImageFilter:
+
+    def __init__(self, df, image_colname='Slide ID'):
+        # self.df = df  # no real need to save this
+        self.image_colname = image_colname
+        self.df_image_filter = get_filtering_dataframe(df, image_colname)
+        self.ready = False if self.df_image_filter is None else True
+
+
+    def select_images(self, key, color='red'):
+        selected_images = filter_images(self.df_image_filter, key=key, color=color, image_colname=self.image_colname)
+        return selected_images
+
+
 def get_filtering_dataframe(df, image_colname='Slide ID'):
 
     # Allow the user to select the columns on which they want to filter
@@ -110,12 +124,16 @@ def main():
     # Get a shortcut to the full dataframe
     df = st.session_state[st_key_prefix + 'df']
 
-    # Prepare to render image filters. Note a single object should probably be created but we can do that in the future!
-    if (df_image_filter := get_filtering_dataframe(df, image_colname='input_filename')) is None: return
+    # Instantiate the object
+    image_filter = ImageFilter(df, image_colname='input_filename')
+
+    # If the image filter is not ready (which means the filtering dataframe was not generated), return
+    if not image_filter.ready:
+        return
 
     # Create two image filters
-    selected_images_baseline = filter_images(df_image_filter, key='baseline', color='blue', image_colname='input_filename')
-    selected_images_signal = filter_images(df_image_filter, key='signal', color='red', image_colname='input_filename')
+    selected_images_baseline = image_filter.select_images(key='baseline', color='blue')
+    selected_images_signal = image_filter.select_images(key='signal', color='red')
 
     # Output the selected images in each group
     st.write('Selected images in the baseline group:')

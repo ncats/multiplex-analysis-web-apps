@@ -659,20 +659,23 @@ def main():
             # If extra settings are to be displayed, create widgets for selecting particular images to define two groups
             if st.session_state['mg__extra_settings']:
 
-                # ---- Adapted from image_filter.py ----------------------------------------------------------------
+                # Instantiate the object
+                image_selector = image_filter.ImageFilter(df, image_colname='Slide ID')
 
-                # Prepare to render image filters
-                if (df_image_filter := image_filter.get_filtering_dataframe(df)) is None: return
+                # If the image filter is not ready (which means the filtering dataframe was not generated), return
+                if not image_selector.ready:
+                    return
 
                 # Create two image filters
-                st.session_state['mg__images_in_plotting_group_1'] = image_filter.filter_images(df_image_filter, key='baseline', color='blue')
-                st.session_state['mg__images_in_plotting_group_2'] = image_filter.filter_images(df_image_filter, key='signal', color='red')
-                # --------------------------------------------------------------------------------------------------
+                st.session_state['mg__images_in_plotting_group_1'] = image_selector.select_images(key='baseline', color='blue')
+                st.session_state['mg__images_in_plotting_group_2'] = image_selector.select_images(key='signal', color='red')
 
+                # Define other keys which are no longer relevant but we are leaving in so the rest of the code does not break
                 if 'mg__filter_on_another_column' not in st.session_state:
                     st.session_state['mg__filter_on_another_column'] = False
                 if 'mg__values_on_which_to_filter' not in st.session_state:
                     reset_values_on_which_to_filter_another_column()
+
             else:
                 st.session_state['mg__images_in_plotting_group_1'] = []
                 st.session_state['mg__images_in_plotting_group_2'] = []
