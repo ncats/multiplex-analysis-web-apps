@@ -228,6 +228,7 @@ def preprocess_dataset(df, perc_thresh_rawintnorm_column_check=0.01, image_col='
     df.drop(columns=['IntDen'], inplace=True)
 
     # Check again for duplicate columns
+    # This should return False if just loading the data in a Jupyter notebook but not when dataset_formats.py is used (as in Open File) because it probably does add duplicate columns
     if run_checks:
         print('has_duplicate_columns:', has_duplicate_columns(df.drop(columns=['input_filename'])))
 

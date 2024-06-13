@@ -4,6 +4,7 @@ import app_top_of_page as top
 import streamlit_dataframe_editor as sde
 import radial_profiles
 import time
+import numpy as np
 
 
 def main():
@@ -29,13 +30,13 @@ def main():
         key = st_key_prefix + '__run_checks'
         if key not in st.session_state:
             st.session_state[key] = False
-        st.checkbox('Run checks:', key=key)
+        st.checkbox('Run checks', key=key)
 
         # Number input for the threshold for the RawIntNorm check
+        key = st_key_prefix + '__perc_thresh_rawintnorm_column_check'
+        if key not in st.session_state:
+            st.session_state[key] = 0.01
         if st.session_state[st_key_prefix + '__run_checks']:
-            key = st_key_prefix + '__perc_thresh_rawintnorm_column_check'
-            if key not in st.session_state:
-                st.session_state[key] = 0.01
             st.number_input('Threshold for the RawIntNorm column check (%):', min_value=0.0, max_value=100.0, key=key)
 
         # Number input to select the nuclear intensity channel
@@ -48,13 +49,13 @@ def main():
         key = st_key_prefix + '__do_z_score_filter'
         if key not in st.session_state:
             st.session_state[key] = True
-        st.checkbox('Do z-score filter:', key=key)
+        st.checkbox('Do z-score filter', key=key)
 
         # Number input for the z-score filter threshold
+        key = st_key_prefix + '__z_score_filter_threshold'
+        if key not in st.session_state:
+            st.session_state[key] = 3
         if st.session_state[st_key_prefix + '__do_z_score_filter']:
-            key = st_key_prefix + '__z_score_filter_threshold'
-            if key not in st.session_state:
-                st.session_state[key] = 3
             st.number_input('z-score filter threshold:', min_value=0.0, key=key)
 
         # If dataset preprocessing is desired...
@@ -75,7 +76,7 @@ def main():
             )
 
             # Output the time taken
-            st.write(f'Preprocessing took {time.time() - start_time:.2f} seconds')
+            st.write(f'Preprocessing took {int(np.round(time.time() - start_time))} seconds')
 
             # Calculate the memory usage of the transformed dataframe
             st.session_state['input_dataframe_memory_usage_bytes'] = df.memory_usage(deep=True).sum()
@@ -83,15 +84,17 @@ def main():
             # Update the preprocessing parameters
             st.session_state['input_metadata']['preprocessing'] = {
                 'location': 'Radial Profiles app',
-                'perc_thresh_rawintnorm_column_check': st.session_state[st_key_prefix + '__perc_thresh_rawintnorm_column_check'],
                 'nuclear_channel': st.session_state[st_key_prefix + '__nuclear_channel'],
                 'do_z_score_filter': st.session_state[st_key_prefix + '__do_z_score_filter'],
-                'z_score_filter_threshold': st.session_state[st_key_prefix + '__z_score_filter_threshold'],
-                'run_checks': st.session_state[st_key_prefix + '__run_checks']
             }
+            if st.session_state[st_key_prefix + '__do_z_score_filter']:
+                st.session_state['input_metadata']['preprocessing']['z_score_filter_threshold'] = st.session_state[st_key_prefix + '__z_score_filter_threshold']
 
             # Display information about the new dataframe
             df.info()
+
+            # In case df has been modified not-in-place in any way, reassign the input dataset as the modified df
+            st.session_state['input_dataset'].data = df
 
 
 # Run the main function

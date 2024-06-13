@@ -159,8 +159,12 @@ def main():
         :small_orange_diamond: Number of rows: `{df.shape[0]}`  
         :small_orange_diamond: Number of columns: `{df.shape[1]}`  
         :small_orange_diamond: Minimum coordinate spacing: `{dataset_obj.min_coord_spacing_:.4f} microns`  
-        :small_orange_diamond: Loaded memory usage: `{st.session_state['input_dataframe_memory_usage_bytes'] / 1024 ** 2:.2f} MB`
+        :small_orange_diamond: Loaded memory usage: `{st.session_state['input_dataframe_memory_usage_bytes'] / 1024 ** 2:.2f} MB`  
         '''
+
+        # Display more information if the dataset has been preprocessed inside MAWA
+        if metadata['preprocessing'] is not None:
+            information += f':small_orange_diamond: Preprocessing: `{metadata["preprocessing"]}`'
 
         # Display the information and the sampled dataframe
         st.markdown(information)
