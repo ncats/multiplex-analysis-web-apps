@@ -660,25 +660,13 @@ def main():
             if st.session_state['mg__extra_settings']:
 
                 # ---- Adapted from image_filter.py ----------------------------------------------------------------
-                # Allow the user to select the columns on which they want to filter
-                selected_cols_for_filtering = st.multiselect('Select columns on which to filter:', df.columns, key=st_key_prefix + 'selected_cols_for_filtering', on_change=image_filter.reset_filtering_columns)
-                # also delete df_deduped if it exists
 
-                # Simplify the dataframe to presumably just the essentially categorical columns
-                if st.button('Prepare filtering data'):
-                    st.session_state[st_key_prefix + 'df_deduped'] = df[['Slide ID'] + selected_cols_for_filtering].drop_duplicates().sort_values(selected_cols_for_filtering)
-
-                # Ensure the deduplication based on the selected columns has been performed
-                if st_key_prefix + 'df_deduped' not in st.session_state:
-                    st.warning('Please prepare the filtering data first')
-                    return
-
-                # Get a shortcut to the deduplicated dataframe
-                df_deduped = st.session_state[st_key_prefix + 'df_deduped']
+                # Prepare to render image filters
+                if (df_image_filter := image_filter.get_filtering_dataframe(df)) is None: return
 
                 # Create two image filters
-                st.session_state['mg__images_in_plotting_group_1'] = image_filter.image_filter(df_deduped, selected_cols_for_filtering, key='baseline', color='blue', image_colname='Slide ID')
-                st.session_state['mg__images_in_plotting_group_2'] = image_filter.image_filter(df_deduped, selected_cols_for_filtering, key='signal', color='red', image_colname='Slide ID')
+                st.session_state['mg__images_in_plotting_group_1'] = image_filter.filter_images(df_image_filter, key='baseline', color='blue')
+                st.session_state['mg__images_in_plotting_group_2'] = image_filter.filter_images(df_image_filter, key='signal', color='red')
                 # --------------------------------------------------------------------------------------------------
 
                 if 'mg__filter_on_another_column' not in st.session_state:

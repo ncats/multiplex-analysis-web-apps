@@ -7,8 +7,31 @@ import numpy as np
 st_key_prefix = 'imagefilter__'
 
 
+def get_filtering_dataframe(df, image_colname='Slide ID'):
+
+    # Allow the user to select the columns on which they want to filter
+    selected_cols_for_filtering = st.multiselect('Select columns on which to filter:', df.columns, key=st_key_prefix + 'selected_cols_for_filtering', on_change=reset_filtering_columns)
+
+    # Simplify the dataframe to presumably just the essentially categorical columns
+    if st.button('Prepare filtering data'):
+        st.session_state[st_key_prefix + 'df_deduped'] = df[[image_colname] + selected_cols_for_filtering].drop_duplicates().sort_values(selected_cols_for_filtering)
+
+    # Ensure the deduplication based on the selected columns has been performed
+    if st_key_prefix + 'df_deduped' not in st.session_state:
+        st.warning('Please prepare the filtering data first')
+        return
+
+    # Get a shortcut to the deduplicated dataframe
+    df_deduped = st.session_state[st_key_prefix + 'df_deduped']
+
+    # Return the resulting dataframe
+    return df_deduped
+
+
 # This is an image filter that should behave somewhat like a Streamlit (macro) widget
-def image_filter(df, selected_cols_for_filtering, key, color='red', image_colname='Slide ID'):
+def filter_images(df, key, color='red', image_colname='Slide ID'):
+
+    selected_cols_for_filtering = df.columns[1:]
 
     with st.expander(f'Image filter for :{color}[{key}] group:', expanded=False):
 
@@ -87,27 +110,12 @@ def main():
     # Get a shortcut to the full dataframe
     df = st.session_state[st_key_prefix + 'df']
 
-    # Get the columns on which we will allow the user to create a filter
-    df_cols = [col for col in df.columns.tolist() if col != 'input_filename']
-
-    # Allow the user to select the columns on which they want to filter
-    selected_cols_for_filtering = st.multiselect('Select columns on which to filter:', df_cols, key=st_key_prefix + 'selected_cols_for_filtering', on_change=reset_filtering_columns)
-
-    # Simplify the dataframe to presumably just the essentially categorical columns
-    if st.button('Prepare filtering data'):
-        st.session_state[st_key_prefix + 'df_deduped'] = df[['input_filename'] + selected_cols_for_filtering].drop_duplicates().sort_values(selected_cols_for_filtering)
-
-    # Ensure the deduplication based on the selected columns has been performed
-    if st_key_prefix + 'df_deduped' not in st.session_state:
-        st.warning('Please prepare the filtering data first')
-        return
-    
-    # Get a shortcut to the deduplicated dataframe
-    df_deduped = st.session_state[st_key_prefix + 'df_deduped']
+    # Prepare to render image filters. Note a single object should probably be created but we can do that in the future!
+    if (df_image_filter := get_filtering_dataframe(df, image_colname='input_filename')) is None: return
 
     # Create two image filters
-    selected_images_baseline = image_filter(df_deduped, selected_cols_for_filtering, key='baseline', color='blue', image_colname='input_filename')
-    selected_images_signal = image_filter(df_deduped, selected_cols_for_filtering, key='signal', color='red', image_colname='input_filename')
+    selected_images_baseline = filter_images(df_image_filter, key='baseline', color='blue', image_colname='input_filename')
+    selected_images_signal = filter_images(df_image_filter, key='signal', color='red', image_colname='input_filename')
 
     # Output the selected images in each group
     st.write('Selected images in the baseline group:')
