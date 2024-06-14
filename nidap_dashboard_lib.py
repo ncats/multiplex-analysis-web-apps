@@ -133,12 +133,16 @@ def init_session_state(session_state):
 
     # General Neighborhood Profile Page Settings
     session_state.cpu_pool_size = 7
-    session_state.umap_subset_toggle = False
+    session_state.umap_subset_toggle = True
     session_state.umap_subset_per = 20
     session_state.area_filter_per = 0.001
     session_state.clust_minmax = [1, 10]
     session_state.toggle_clust_diff = False
     session_state.appro_feat = False
+
+    # UMAP Differences Page Settings
+    session_state.umap_ins_msg = None
+    session_state.umap_diff_msg = None
 
     # Set data_loaded = False.
     # This needs to happen at the end to counteract the 'loadDataButton' action
