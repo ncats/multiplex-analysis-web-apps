@@ -255,6 +255,7 @@ def set_clusters():
                                                                 st.session_state.clust_minmax,
                                                                 st.session_state.cpu_pool_size)
 
+            st.session_state.appro_feat = True
             st.session_state.cluster_dict = st.session_state.spatial_umap.cluster_dict
             st.session_state.palette_dict = st.session_state.spatial_umap.palette_dict
             st.session_state.selected_nClus = st.session_state.slider_clus_val
@@ -754,7 +755,7 @@ def main():
                 if st.session_state['toggle_compare_clusters']:
                     sel_npf_fig2 = st.selectbox('Select a cluster to compare', list_clusters)
 
-            if st.session_state.cluster_completed:
+            if st.session_state.cluster_completed and st.session_state.appro_feat:
                 # Draw the Neighborhood Profile
 
                 npf_fig, ax = bpl.draw_scatter_fig(figsize=(14, 16))
@@ -807,7 +808,7 @@ def main():
                         ['False Cluster 3', 'Average True', 'linear', [0, 15]],
                         ]
 
-        if st.session_state.cluster_completed:
+        if st.session_state.cluster_completed and st.session_state.appro_feat:
             num_figs = len(list_figures)
             num_cols = 3
             num_rows = np.ceil(num_figs/3).astype(int)
