@@ -42,7 +42,7 @@ def main():
         # Number input to select the nuclear intensity channel
         key = st_key_prefix + '__nuclear_channel'
         if key not in st.session_state:
-            st.session_state[key] = 2
+            st.session_state[key] = 1
         st.number_input('Nuclear channel:', min_value=1, key=key)
 
         # Checkbox for whether to apply the z-score filter

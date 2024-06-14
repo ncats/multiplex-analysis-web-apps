@@ -660,7 +660,7 @@ def main():
             if st.session_state['mg__extra_settings']:
 
                 # Instantiate the object
-                image_selector = image_filter.ImageFilter(df, image_colname='Slide ID')
+                image_selector = image_filter.ImageFilter(df, image_colname='Slide ID', st_key_prefix=st_key_prefix)
 
                 # If the image filter is not ready (which means the filtering dataframe was not generated), return
                 if not image_selector.ready:
@@ -673,6 +673,8 @@ def main():
                 # Define other keys which are no longer relevant but we are leaving in so the rest of the code does not break
                 if 'mg__filter_on_another_column' not in st.session_state:
                     st.session_state['mg__filter_on_another_column'] = False
+                if 'mg__another_filter_column' not in st.session_state:
+                    st.session_state['mg__another_filter_column'] = None  # otherwise, df.select_dtypes('category').columns[0]
                 if 'mg__values_on_which_to_filter' not in st.session_state:
                     reset_values_on_which_to_filter_another_column()
 
