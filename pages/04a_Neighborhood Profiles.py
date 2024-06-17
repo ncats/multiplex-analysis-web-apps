@@ -203,7 +203,7 @@ def set_clusters():
                                             num_clus_0=st.session_state.num_clus_0,
                                             num_clus_1=st.session_state.num_clus_1,
                                             clust_minmax=st.session_state.clust_minmax,
-                                            cpu_pool_size=st.session_state.cpu_pool_size)
+                                            cpu_pool_size=3)
                 udp_clus.set_feature_label(st.session_state.dens_diff_feat_sel, f'Clusters, False-{st.session_state.num_clus_0}, True-{st.session_state.num_clus_1}')
                 st.session_state.UMAPFig_clus = udp_clus.UMAPdraw_density(diff=True, legendtype='legend')
                 st.session_state.cluster_dict = udp_clus.cluster_dict
@@ -250,10 +250,10 @@ def set_clusters():
                 st.session_state.spatial_umap.dens_df_mean = pd.concat([st.session_state.spatial_umap.dens_df_mean, dens_df_mean_fals, dens_df_mean_true], axis=0)
 
         else:
-            st.session_state.spatial_umap = bpl.umap_clustering(st.session_state.spatial_umap,
-                                                                st.session_state.slider_clus_val,
-                                                                st.session_state.clust_minmax,
-                                                                st.session_state.cpu_pool_size)
+            st.session_state.spatial_umap = bpl.umap_clustering(spatial_umap = st.session_state.spatial_umap,
+                                                                n_clusters = st.session_state.slider_clus_val,
+                                                                clust_minmax = st.session_state.clust_minmax,
+                                                                cpu_pool_size = 3)
 
             st.session_state.appro_feat = True
             st.session_state.cluster_dict = st.session_state.spatial_umap.cluster_dict
