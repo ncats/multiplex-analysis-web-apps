@@ -25,8 +25,8 @@ class foundry_IO_lib:
         token = os.environ.get('FOUNDRY_TOKEN', 'Not found')
         if (host_name == 'Not found') | (token == 'Not found'):
             # Import SDK handling library
-            from palantir.datasets import dataset
-            self.dataset = dataset
+            # from palantir.datasets import dataset
+            # self.dataset = dataset
             # Inform on working environment
             print('Not Operating on NIDAP')
             self.onNIDAP = False

@@ -271,10 +271,11 @@ class SpatialUMAP:
         # Mean Densities
         self.dens_df = pd.DataFrame()
         self.prop_df = pd.DataFrame()
-        self.dens_df_mean = pd.DataFrame(data = {'clust_label': ['No Cluster'], 
+        self.dens_df_mean = pd.DataFrame(data = {'clust_label': ['No Cluster'],
                                                  'phenotype': ['Other'], 
                                                  'dist_bin': [25], 
-                                                 'density_mean': [0]})
+                                                 'density_mean': [0],
+                                                 'density_sem': [0]})
         self.dens_df_se = pd.DataFrame()
         self.maxdens_df = pd.DataFrame()
 
