@@ -63,7 +63,7 @@ def df_summary_callback():
             st.session_state['mg__min_selection_value'] = df_selected_threshold
 
 
-def generate_box_and_whisker(apply_another_filter, df, column_for_filtering, another_filter_column, values_on_which_to_filter, images_in_plotting_group_1, images_in_plotting_group_2, all_cells=True):
+def generate_box_and_whisker(apply_another_filter, df, column_for_filtering, another_filter_column, values_on_which_to_filter, images_in_plotting_group_1, images_in_plotting_group_2, all_cells=True, mean_for_zscore_calc=None, std_for_zscore_calc=None):
 
     # If we're ready to apply a filter, then create it
     if not apply_another_filter:
@@ -80,7 +80,11 @@ def generate_box_and_whisker(apply_another_filter, df, column_for_filtering, ano
 
     # From those data, get the values corresponding to -1 to 10 standard deviations above the mean
     z_scores = np.arange(-1, 11)
-    thresholds = ser_for_z_score.mean() + z_scores * ser_for_z_score.std()
+    if mean_for_zscore_calc is None:
+        mean_for_zscore_calc = ser_for_z_score.mean()
+    if std_for_zscore_calc is None:
+        std_for_zscore_calc = ser_for_z_score.std()
+    thresholds = mean_for_zscore_calc + z_scores * std_for_zscore_calc
 
     # Initialize the positive percentages holders
     group_1_holder = []
@@ -902,7 +906,25 @@ def main():
                     if 'mg__positive_percentage_per_image' not in st.session_state:
                         st.session_state['mg__positive_percentage_per_image'] = True
                     st.checkbox('Calculate positive percentages separately for each image', key='mg__positive_percentage_per_image')
-                    fig, df_summary = generate_box_and_whisker(apply_another_filter, df_batch_normalized, column_for_filtering, st.session_state['mg__another_filter_column'], st.session_state['mg__values_on_which_to_filter'], st.session_state['mg__images_in_plotting_group_1'], st.session_state['mg__images_in_plotting_group_2'], all_cells=(not st.session_state['mg__positive_percentage_per_image']))
+
+                    if 'mg__specify_mean_for_zscore_calc' not in st.session_state:
+                        st.session_state['mg__specify_mean_for_zscore_calc'] = False
+                    if st.checkbox('Specify mean for Z-score calculation', key='mg__specify_mean_for_zscore_calc'):
+                        if 'mg__mean_for_zscore_calc' not in st.session_state:
+                            st.session_state['mg__mean_for_zscore_calc'] = df_batch_normalized[column_for_filtering].mean()
+                        st.number_input('Mean for Z-score calculation:', key='mg__mean_for_zscore_calc')
+                    if 'mg__specify_std_for_zscore_calc' not in st.session_state:
+                        st.session_state['mg__specify_std_for_zscore_calc'] = False
+                    if st.checkbox('Specify standard deviation for Z-score calculation', key='mg__specify_std_for_zscore_calc'):
+                        if 'mg__std_for_zscore_calc' not in st.session_state:
+                            st.session_state['mg__std_for_zscore_calc'] = df_batch_normalized[column_for_filtering].std()
+                        st.number_input('Standard deviation for Z-score calculation:', min_value=0.0, key='mg__std_for_zscore_calc')
+                    if not st.session_state['mg__specify_mean_for_zscore_calc']:
+                        st.session_state['mg__mean_for_zscore_calc'] = None
+                    if not st.session_state['mg__specify_std_for_zscore_calc']:
+                        st.session_state['mg__std_for_zscore_calc'] = None
+
+                    fig, df_summary = generate_box_and_whisker(apply_another_filter, df_batch_normalized, column_for_filtering, st.session_state['mg__another_filter_column'], st.session_state['mg__values_on_which_to_filter'], st.session_state['mg__images_in_plotting_group_1'], st.session_state['mg__images_in_plotting_group_2'], all_cells=(not st.session_state['mg__positive_percentage_per_image']), mean_for_zscore_calc=st.session_state['mg__mean_for_zscore_calc'], std_for_zscore_calc=st.session_state['mg__std_for_zscore_calc'])
                     st.session_state['mg__df_summary_contents'] = df_summary
                     st.plotly_chart(fig, on_select=plotly_chart_summary_callback, key='mg__plotly_chart_summary__do_not_persist')
                     st.dataframe(df_summary, hide_index=True, key="mg__df_summary__do_not_persist", on_select=df_summary_callback, selection_mode=["single-row"])
