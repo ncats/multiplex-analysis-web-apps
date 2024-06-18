@@ -272,6 +272,17 @@ def set_clusters():
 
     filter_and_plot()
 
+def check_feature_approval_callback():
+    '''
+    
+    '''
+
+    if not st.session_state['toggle_clust_diff']:
+        st.session_state.appro_feat = True
+    else:
+        split_dict_full = st.session_state.udp_full.split_df_by_feature(st.session_state.dens_diff_feat_sel)
+        st.session_state.appro_feat = split_dict_full['appro_feat']
+
 def slide_id_prog_left_callback():
     '''
     callback function when the left Cell_ID progression button is clicked
@@ -598,14 +609,21 @@ def main():
 
             if st.session_state.umap_completed:
                 with st.expander('Clustering Settings', expanded = True):
-                    st.toggle('Perform Clustering on UMAP Density Difference', value = False, key = 'toggle_clust_diff')
+                    st.toggle('Perform Clustering on UMAP Density Difference', 
+                              value = False, key = 'toggle_clust_diff',
+                              help = '''Perform clustering on the density difference between
+                                        two levels of a dataset feature.''',
+                                        on_change = check_feature_approval_callback)
 
                     clust_exp_col = st.columns(2)
                     with clust_exp_col[0]:
 
                         # Run Clustering Normally
                         if st.session_state['toggle_clust_diff'] is True:
-                            st.selectbox('Feature', options = st.session_state.spatial_umap.outcomes, key = 'dens_diff_feat_sel')
+                            st.selectbox('Feature', options = st.session_state.spatial_umap.outcomes, 
+                                         key = 'dens_diff_feat_sel',
+                                         help = '''Select the feature to split the UMAP by.''',
+                                         on_change = check_feature_approval_callback)
                             st.number_input('Number of Clusters for False Condition', min_value = 1, max_value = 10, value = 3, step = 1, key = 'num_clus_0')
                             if st.session_state.elbow_fig_0 is not None:
                                 st.pyplot(st.session_state.elbow_fig_0)
