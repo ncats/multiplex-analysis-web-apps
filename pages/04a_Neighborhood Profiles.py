@@ -216,7 +216,6 @@ def set_clusters():
                 st.session_state.spatial_umap.df_umap.loc[:, 'cluster'] = 'No Cluster'
                 st.session_state.spatial_umap.df_umap.loc[:, 'Cluster'] = 'No Cluster'
 
-                st.session_state.bc.startTimer()
                 for key, val in st.session_state.cluster_dict.items():
                     if key != 0:
                         bin_clust = np.argwhere(udp_clus.dens_mat == key)
@@ -230,12 +229,12 @@ def set_clusters():
                         st.session_state.spatial_umap.df_umap.loc[umap_ind, 'cluster'] = val
                         st.session_state.spatial_umap.df_umap.loc[umap_ind, 'Cluster'] = val
 
-                st.session_state.bc.printElapsedTime('Untangling bin indicies with UMAP indicies')
+                # Benchmark how long it took to untangle indicies
+                st.session_state.bc.printElapsedTime('Untangling bin indicies with UMAP indicies', split = True)
 
                 # After assigning cluster labels, perform mean calculations
-                st.session_state.bc.startTimer()
                 st.session_state.spatial_umap.mean_measures()
-                st.session_state.bc.printElapsedTime('Performing Mean Measures')
+                st.session_state.bc.printElapsedTime('Performing Mean Measures', split = True)
 
                 # Average False condition and Average True Condition
                 dens_df_fals = st.session_state.spatial_umap.dens_df_mean.loc[st.session_state.spatial_umap.dens_df_mean['clust_label'].str.contains('False'), :]
@@ -805,7 +804,7 @@ def main():
                         st.toast(f'Added {st.session_state.neigh_prof_line_suffix} to export list')
 
     # Drawing the subplots of Neighborhood Profiles per cluster combinations
-    if st.session_state['appro_feat'] and st.session_state['toggle_clust_diff']:
+    if st.session_state['appro_feat'] and st.session_state.cluster_completed_diff:
 
         npf_fig_big = plt.figure(figsize=(16, 45), facecolor = '#0E1117')
 
