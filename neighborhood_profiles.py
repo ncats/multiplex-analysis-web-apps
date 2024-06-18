@@ -667,12 +667,13 @@ class UMAPDensityProcessing():
                 )
             )
 
+        mp_start_method = mp.get_start_method()
         # Create a pool of worker processes
-        with mp.Pool(processes=cpu_pool_size) as pool:
+        with mp.get_context(mp_start_method).Pool(processes=cpu_pool_size) as pool:
             results_0 = pool.starmap(self.kmeans_calc, kwargs_list_0)
 
         # Create a pool of worker processes
-        with mp.Pool(processes=cpu_pool_size) as pool:
+        with mp.get_context(mp_start_method).Pool(processes=cpu_pool_size) as pool:
             results_1 = pool.starmap(self.kmeans_calc, kwargs_list_1)
 
         wcss_0 = [x.inertia_ for x in results_0]

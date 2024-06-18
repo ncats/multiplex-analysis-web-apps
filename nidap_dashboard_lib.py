@@ -138,6 +138,7 @@ def init_session_state(session_state):
     session_state.area_filter_per = 0.001
     session_state.clust_minmax = [1, 10]
     session_state.toggle_clust_diff = False
+    session_state.cluster_completed_diff = False
     session_state.appro_feat = False
 
     # UMAP Differences Page Settings

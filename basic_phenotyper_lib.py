@@ -5,6 +5,7 @@ required for phenotyping
 '''
 
 import time
+import math
 import numpy as np
 import pandas as pd
 import umap
@@ -700,8 +701,9 @@ def umap_clustering(spatial_umap, n_clusters, clust_minmax, cpu_pool_size = 8):
             )
         )
 
+    mp_start_method = mp.get_start_method()
     # Create a pool of worker processes
-    with mp.Pool(processes=cpu_pool_size) as pool:
+    with mp.get_context(mp_start_method).Pool(processes=cpu_pool_size) as pool:
         results = pool.starmap(kmeans_calc, kwargs_list)
 
     wcss = [x.inertia_ for x in results]
@@ -890,6 +892,9 @@ def neighProfileDraw(spatial_umap, ax, sel_clus, cmp_clus = None, cmp_style = No
             cluster_title = f'{sel_clus} / {cmp_clus}'
     else:
         cmp_style = None
+
+    if not np.all([math.isfinite(x) for x in ylim]):
+        ylim = [0, 1]
 
     umPT.plot_mean_neighborhood_profile(ax = ax,
                                         dist_bin = spatial_umap.dist_bin_um,
