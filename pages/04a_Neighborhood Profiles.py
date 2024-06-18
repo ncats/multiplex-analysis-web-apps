@@ -676,8 +676,8 @@ def main():
                             st.pyplot(fig=st.session_state.UMAPFig_mask)
                         with mor_cols[1]:
                             st.pyplot(fig=st.session_state.diff_clust_Fig)
-                    else:
-                        st.write('Feature must be boolean or numeric to perform density difference analysis')
+                else:
+                    st.write('Feature must be boolean or numeric to perform density difference analysis')
 
     # Tab for Loading Previous UMAP Results
     with nei_pro_tabs[1]:
