@@ -5,6 +5,7 @@ required for phenotyping
 '''
 
 import time
+import math
 import numpy as np
 import pandas as pd
 import umap
@@ -892,6 +893,9 @@ def neighProfileDraw(spatial_umap, ax, sel_clus, cmp_clus = None, cmp_style = No
             cluster_title = f'{sel_clus} / {cmp_clus}'
     else:
         cmp_style = None
+
+    if not np.all([math.isfinite(x) for x in ylim]):
+        ylim = [0, 1]
 
     umPT.plot_mean_neighborhood_profile(ax = ax,
                                         dist_bin = spatial_umap.dist_bin_um,

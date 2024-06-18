@@ -668,7 +668,6 @@ class UMAPDensityProcessing():
             )
 
         mp_start_method = mp.get_start_method()
-        # mp_start_method = 'forkserver'
         # Create a pool of worker processes
         with mp.get_context(mp_start_method).Pool(processes=cpu_pool_size) as pool:
             results_0 = pool.starmap(self.kmeans_calc, kwargs_list_0)
