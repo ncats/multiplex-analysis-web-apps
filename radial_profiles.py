@@ -324,7 +324,7 @@ def preprocess_dataset(df, perc_thresh_rawintnorm_column_check=0.01, image_col='
     # Filter out cells for each image that are more than three standard deviations from the mean for any channel
     if do_z_score_filter:
         num_cells_before = df_transformed[image_col].value_counts()
-        df_transformed = df_transformed[(df_transformed[signal_zscore_columns].abs() <= z_score_filter_threshold).all(axis='columns')]
+        df_transformed = df_transformed[(df_transformed[signal_zscore_columns].abs() < z_score_filter_threshold).all(axis='columns')]
         num_cells_removed = num_cells_before - df_transformed[image_col].value_counts()
         print('Number of cells removed by Z score threshold:')
         print(num_cells_removed)
