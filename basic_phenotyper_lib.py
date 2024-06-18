@@ -702,7 +702,6 @@ def umap_clustering(spatial_umap, n_clusters, clust_minmax, cpu_pool_size = 8):
         )
 
     mp_start_method = mp.get_start_method()
-    # mp_start_method = 'forkserver'
     # Create a pool of worker processes
     with mp.get_context(mp_start_method).Pool(processes=cpu_pool_size) as pool:
         results = pool.starmap(kmeans_calc, kwargs_list)
