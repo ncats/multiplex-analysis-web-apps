@@ -5,6 +5,7 @@ required for phenotyping
 '''
 
 import time
+import math
 import numpy as np
 import pandas as pd
 import umap
@@ -20,6 +21,7 @@ from sklearn.cluster import KMeans # K-Means
 from benchmark_collector import benchmark_collector # Benchmark Collector Class
 from SpatialUMAP import SpatialUMAP
 import PlottingTools as umPT
+import utils
 
 def preprocess_df(df_orig, marker_names, marker_col_prefix, bc):
     '''Perform some preprocessing on our dataset to apply tranforms
@@ -700,9 +702,15 @@ def umap_clustering(spatial_umap, n_clusters, clust_minmax, cpu_pool_size = 8):
             )
         )
 
-    # Create a pool of worker processes
-    with mp.Pool(processes=cpu_pool_size) as pool:
-        results = pool.starmap(kmeans_calc, kwargs_list)
+    results = utils.execute_data_parallelism_potentially(kmeans_calc,
+                                                         kwargs_list,
+                                                         nworkers = cpu_pool_size,
+                                                         task_description='KMeans Clustering',
+                                                         use_starmap=True)
+    # mp_start_method = mp.get_start_method()
+    # # Create a pool of worker processes
+    # with mp.get_context(mp_start_method).Pool(processes=cpu_pool_size) as pool:
+    #     results = pool.starmap(kmeans_calc, kwargs_list)
 
     wcss = [x.inertia_ for x in results]
 
@@ -890,6 +898,9 @@ def neighProfileDraw(spatial_umap, ax, sel_clus, cmp_clus = None, cmp_style = No
             cluster_title = f'{sel_clus} / {cmp_clus}'
     else:
         cmp_style = None
+
+    if not np.all([math.isfinite(x) for x in ylim]):
+        ylim = [0, 1]
 
     umPT.plot_mean_neighborhood_profile(ax = ax,
                                         dist_bin = spatial_umap.dist_bin_um,
