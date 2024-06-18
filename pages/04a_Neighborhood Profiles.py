@@ -249,6 +249,8 @@ def set_clusters():
 
                 st.session_state.spatial_umap.dens_df_mean = pd.concat([st.session_state.spatial_umap.dens_df_mean, dens_df_mean_fals, dens_df_mean_true], axis=0)
 
+                st.session_state.cluster_completed_diff = True
+
         else:
             st.session_state.spatial_umap = bpl.umap_clustering(spatial_umap = st.session_state.spatial_umap,
                                                                 n_clusters = st.session_state.slider_clus_val,
@@ -256,6 +258,7 @@ def set_clusters():
                                                                 cpu_pool_size = 3)
 
             st.session_state.appro_feat = True
+            st.session_state.cluster_completed_diff = False
             st.session_state.cluster_dict = st.session_state.spatial_umap.cluster_dict
             st.session_state.palette_dict = st.session_state.spatial_umap.palette_dict
             st.session_state.selected_nClus = st.session_state.slider_clus_val
@@ -274,7 +277,8 @@ def set_clusters():
 
 def check_feature_approval_callback():
     '''
-    
+    Simple callback to test the current value of 
+    st.session_state.dens_diff_feat_sel
     '''
 
     if not st.session_state['toggle_clust_diff']:
@@ -609,21 +613,19 @@ def main():
 
             if st.session_state.umap_completed:
                 with st.expander('Clustering Settings', expanded = True):
-                    st.toggle('Perform Clustering on UMAP Density Difference', 
+                    st.toggle('Perform Clustering on UMAP Density Difference',
                               value = False, key = 'toggle_clust_diff',
                               help = '''Perform clustering on the density difference between
-                                        two levels of a dataset feature.''',
-                                        on_change = check_feature_approval_callback)
+                                        two levels of a dataset feature.''')
 
                     clust_exp_col = st.columns(2)
                     with clust_exp_col[0]:
 
                         # Run Clustering Normally
                         if st.session_state['toggle_clust_diff'] is True:
-                            st.selectbox('Feature', options = st.session_state.spatial_umap.outcomes, 
+                            st.selectbox('Feature', options = st.session_state.spatial_umap.outcomes,
                                          key = 'dens_diff_feat_sel',
-                                         help = '''Select the feature to split the UMAP by.''',
-                                         on_change = check_feature_approval_callback)
+                                         help = '''Select the feature to split the UMAP by.''')
                             st.number_input('Number of Clusters for False Condition', min_value = 1, max_value = 10, value = 3, step = 1, key = 'num_clus_0')
                             if st.session_state.elbow_fig_0 is not None:
                                 st.pyplot(st.session_state.elbow_fig_0)
@@ -659,7 +661,7 @@ def main():
                 with st.columns(3)[1]:
                     st.pyplot(fig=st.session_state.UMAPFig)
 
-                if st.session_state.cluster_completed and st.session_state['toggle_clust_diff']:
+                if st.session_state.cluster_completed_diff and st.session_state['toggle_clust_diff']:
                     if st.session_state['appro_feat']:
 
                         diff_cols = st.columns(3)
@@ -774,8 +776,8 @@ def main():
                     sel_npf_fig2 = st.selectbox('Select a cluster to compare', list_clusters)
 
             if st.session_state.cluster_completed and st.session_state.appro_feat:
-                # Draw the Neighborhood Profile
 
+                # Draw the Neighborhood Profile
                 npf_fig, ax = bpl.draw_scatter_fig(figsize=(14, 16))
 
                 bpl.neighProfileDraw(st.session_state.spatial_umap,
