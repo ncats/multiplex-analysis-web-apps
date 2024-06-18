@@ -91,7 +91,12 @@ def main():
 
         # Store columns of certain types
         if ('rsp__categorical_columns' not in st.session_state) or input_dataset_has_changed:
-            st.session_state['rsp__categorical_columns'] = df.select_dtypes(include=('category', 'object')).columns
+            max_num_unique_values = 1000
+            categorical_columns = []
+            for col in df.select_dtypes(include=('category', 'object')).columns:
+                if df[col].nunique() <= max_num_unique_values:
+                    categorical_columns.append(col)
+            st.session_state['rsp__categorical_columns'] = categorical_columns
         if ('rsp__numeric_columns' not in st.session_state) or input_dataset_has_changed:
             st.session_state['rsp__numeric_columns'] = df.select_dtypes(include='number').columns
         categorical_columns = st.session_state['rsp__categorical_columns']
@@ -282,9 +287,31 @@ def main():
         st.session_state['rsp__get_percent_frequencies'] = False
     if st.toggle('Get percent frequencies of coloring column for entire dataset', key='rsp__get_percent_frequencies'):
         vc = df[column_to_plot].value_counts()
-        st.dataframe((df[column_to_plot].value_counts() / vc.sum() * 100).astype(int).reset_index())
+        st.dataframe((vc / vc.sum() * 100).astype(int).reset_index())
 
-        
+    if 'rsp__generate_box_and_whisker_plot' not in st.session_state:
+        st.session_state['rsp__generate_box_and_whisker_plot'] = False
+    if st.toggle('Generate box and whisker plot', key='rsp__generate_box_and_whisker_plot'):
+        with st.columns(3)[0]:
+            if 'rsp__box_and_whisker_plot_value' not in st.session_state:
+                st.session_state['rsp__box_and_whisker_plot_value'] = values_to_plot[0]
+            box_and_whisker_plot_value = st.selectbox('Select a value in the selected coloring column to analyze:', values_to_plot, key='rsp__box_and_whisker_plot_value')
+            if 'rsp__column_identifying_trace' not in st.session_state:
+                st.session_state['rsp__column_identifying_trace'] = categorical_columns[0]
+            column_identifying_trace = st.selectbox('Select a column to identify different values/traces to plot:', categorical_columns, key='rsp__column_identifying_trace')
+            match_loc = df[column_to_plot] == box_and_whisker_plot_value
+            percent_match_holder = []
+            trace_value_holder = []
+            for image in unique_images:
+                image_loc = df['Slide ID'] == image
+                set_trace_values = set(df.loc[image_loc, column_identifying_trace])
+                assert len(set_trace_values) == 1, 'There should only be one value for the column identifying the trace'
+                trace_value_holder.append(set_trace_values.pop())
+                percent_match_holder.append((image_loc & match_loc).sum() / image_loc.sum() * 100)
+            df_boxplot = pd.DataFrame({'Image': unique_images, 'Percent': percent_match_holder, 'Trace': trace_value_holder})
+            fig = px.box(df_boxplot, x='Trace', y='Percent', title=f'Box and whisker plot for {box_and_whisker_plot_value}', points='all')
+            st.plotly_chart(fig, use_container_width=True)
+
 # Run the main function
 if __name__ == '__main__':
 
