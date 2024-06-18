@@ -643,7 +643,7 @@ def main():
 
                 if st.session_state.cluster_completed and st.session_state['toggle_clust_diff']:
                     if st.session_state['appro_feat']:
-                        
+
                         diff_cols = st.columns(3)
                         with diff_cols[0]:
                             st.pyplot(fig=st.session_state.UMAPFig_fals)
@@ -784,7 +784,8 @@ def main():
                         ndl.save_png(npf_fig, 'Neighborhood Profiles', st.session_state.neigh_prof_line_suffix)
                         st.toast(f'Added {st.session_state.neigh_prof_line_suffix} to export list')
 
-    if st.session_state.umap_completed and st.session_state['toggle_clust_diff']:
+    # Drawing the subplots of Neighborhood Profiles per cluster combinations
+    if st.session_state['appro_feat'] and st.session_state['toggle_clust_diff']:
 
         npf_fig_big = plt.figure(figsize=(16, 45), facecolor = '#0E1117')
 
@@ -808,33 +809,32 @@ def main():
                         ['False Cluster 3', 'Average True', 'linear', [0, 15]],
                         ]
 
-        if st.session_state.cluster_completed and st.session_state.appro_feat:
-            num_figs = len(list_figures)
-            num_cols = 3
-            num_rows = np.ceil(num_figs/3).astype(int)
-            for ii, cluster in enumerate(list_figures):
-                axii = npf_fig_big.add_subplot(num_rows, 3, ii+1, facecolor = '#0E1117')
+        num_figs = len(list_figures)
+        num_cols = 3
+        num_rows = np.ceil(num_figs/3).astype(int)
+        for ii, cluster in enumerate(list_figures):
+            axii = npf_fig_big.add_subplot(num_rows, 3, ii+1, facecolor = '#0E1117')
 
-                if ii == ((num_rows*num_cols)-3):
-                    legend_flag = True
-                else:
-                    legend_flag = False
+            if ii == ((num_rows*num_cols)-3):
+                legend_flag = True
+            else:
+                legend_flag = False
 
-                bpl.neighProfileDraw(st.session_state.spatial_umap,
-                                    ax = axii,
-                                    sel_clus = cluster[0],
-                                    cmp_clus = cluster[1],
-                                    cmp_style = 'Ratio',
-                                    hide_other = st.session_state['toggle_hide_other'],
-                                    hide_no_cluster = st.session_state['toggle_hide_no_cluster'],
-                                    legend_flag = legend_flag)
+            bpl.neighProfileDraw(st.session_state.spatial_umap,
+                                ax = axii,
+                                sel_clus = cluster[0],
+                                cmp_clus = cluster[1],
+                                cmp_style = 'Ratio',
+                                hide_other = st.session_state['toggle_hide_other'],
+                                hide_no_cluster = st.session_state['toggle_hide_no_cluster'],
+                                legend_flag = legend_flag)
 
-                if cluster[2] == 'log':
-                    axii.set_yscale('log')
+            if cluster[2] == 'log':
+                axii.set_yscale('log')
 
-                axii.set_ylim(cluster[3])
+            axii.set_ylim(cluster[3])
 
-            st.pyplot(fig=npf_fig_big)
+        st.pyplot(fig=npf_fig_big)
 
 if __name__ == '__main__':
 
