@@ -22,6 +22,7 @@ import basic_phenotyper_lib as bpl  # Useful functions for cell phenotyping
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
 from benchmark_collector import benchmark_collector # Benchmark Collector Class
 import PlottingTools as umPT
+import utils
 
 class NeighborhoodProfiles:
     '''
@@ -667,14 +668,17 @@ class UMAPDensityProcessing():
                 )
             )
 
-        mp_start_method = mp.get_start_method()
-        # Create a pool of worker processes
-        with mp.get_context(mp_start_method).Pool(processes=cpu_pool_size) as pool:
-            results_0 = pool.starmap(self.kmeans_calc, kwargs_list_0)
+        results_0 = utils.execute_data_parallelism_potentially(self.kmeans_calc,
+                                                               kwargs_list_0,
+                                                               nworkers = cpu_pool_size,
+                                                               task_description='KMeans Clustering for False Condition',
+                                                               use_starmap=True)
 
-        # Create a pool of worker processes
-        with mp.get_context(mp_start_method).Pool(processes=cpu_pool_size) as pool:
-            results_1 = pool.starmap(self.kmeans_calc, kwargs_list_1)
+        results_1 = utils.execute_data_parallelism_potentially(self.kmeans_calc,
+                                                               kwargs_list_1,
+                                                               nworkers = cpu_pool_size,
+                                                               task_description='KMeans Clustering for True Condition',
+                                                               use_starmap=True)
 
         wcss_0 = [x.inertia_ for x in results_0]
         wcss_1 = [x.inertia_ for x in results_1]
