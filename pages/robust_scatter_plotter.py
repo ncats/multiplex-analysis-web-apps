@@ -60,10 +60,7 @@ def go_to_next_image(unique_images):
         st.session_state['rsp__image_to_view'] = unique_images[current_index]
 
 
-def main():
-    """
-    Main function for the page.
-    """
+def draw_scatter_plot_with_options():
 
     # Define the main settings columns
     settings_columns_main = st.columns(3)
@@ -283,6 +280,17 @@ def main():
         # Plot the plotly chart in Streamlit
         st.plotly_chart(fig, use_container_width=True)
 
+    # Return necessary variables
+    return df, column_to_plot, values_to_plot, categorical_columns, unique_images
+
+
+def main():
+    """
+    Main function for the page.
+    """
+
+    df, column_to_plot, values_to_plot, categorical_columns, unique_images = draw_scatter_plot_with_options()
+
     if 'rsp__get_percent_frequencies' not in st.session_state:
         st.session_state['rsp__get_percent_frequencies'] = False
     if st.toggle('Get percent frequencies of coloring column for entire dataset', key='rsp__get_percent_frequencies'):
@@ -311,6 +319,7 @@ def main():
             df_boxplot = pd.DataFrame({'Image': unique_images, 'Percent': percent_match_holder, 'Trace': trace_value_holder})
             fig = px.box(df_boxplot, x='Trace', y='Percent', title=f'Box and whisker plot for {box_and_whisker_plot_value}', points='all')
             st.plotly_chart(fig, use_container_width=True)
+
 
 # Run the main function
 if __name__ == '__main__':

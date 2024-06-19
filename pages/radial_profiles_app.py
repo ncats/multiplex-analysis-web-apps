@@ -5,15 +5,15 @@ import streamlit_dataframe_editor as sde
 import radial_profiles
 import time
 import numpy as np
+from pages import robust_scatter_plotter
+
+# Global variable
+st_key_prefix = 'radial_profiles__'
 
 
-def main():
-    """
-    Main function for the page.
-    """
+def initialize_preprocessing():
 
-    # Global variable
-    st_key_prefix = 'radial_profiles__'
+    st.header('Preprocessing')
 
     # Ensure a dataset has been opened in the first place
     if 'input_dataset' not in st.session_state:
@@ -95,6 +95,18 @@ def main():
 
             # In case df has been modified not-in-place in any way, reassign the input dataset as the modified df
             st.session_state['input_dataset'].data = df
+
+
+def main():
+    """
+    Main function for the page.
+    """
+
+    initialize_preprocessing()
+
+    st.divider()
+
+    df, column_to_plot, values_to_plot, categorical_columns, unique_images = robust_scatter_plotter.draw_scatter_plot_with_options()
 
 
 # Run the main function
