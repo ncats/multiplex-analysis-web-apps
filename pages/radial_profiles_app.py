@@ -108,6 +108,9 @@ def main():
 
     df, column_to_plot, values_to_plot, categorical_columns, unique_images = robust_scatter_plotter.draw_scatter_plot_with_options()
 
+    # We seem to need to render something on the page after rendering a plotly figure in order for the page to not automatically scroll back to the top when you go to the Previous or Next image
+    st.write(' ')
+
 
 # Run the main function
 if __name__ == '__main__':
