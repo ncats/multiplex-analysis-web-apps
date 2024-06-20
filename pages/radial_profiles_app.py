@@ -14,17 +14,9 @@ import pandas as pd
 st_key_prefix = 'radial_profiles__'
 
 
-def initialize_preprocessing():
+def initialize_preprocessing(df):
 
     st.header('Preprocessing')
-
-    # Ensure a dataset has been opened in the first place
-    if 'input_dataset' not in st.session_state:
-        st.warning('Please open a dataset from the Open File page at left.')
-        return
-
-    # Save a shortcut to the dataframe
-    df = st.session_state['input_dataset'].data
 
     # On the first third vertical third of the page...
     with st.columns(3)[0]:
@@ -99,6 +91,8 @@ def initialize_preprocessing():
             # In case df has been modified not-in-place in any way, reassign the input dataset as the modified df
             st.session_state['input_dataset'].data = df
 
+    return df
+
 
 def update_color_for_value(value_to_change_color):
     st.session_state[st_key_prefix + 'color_dict'][value_to_change_color] = st.session_state[st_key_prefix + 'new_picked_color']
@@ -157,7 +151,15 @@ def main():
     Main function for the page.
     """
 
-    initialize_preprocessing()
+    # Ensure a dataset has been opened in the first place
+    if 'input_dataset' not in st.session_state:
+        st.warning('Please open a dataset from the Open File page at left.')
+        return
+
+    # Save a shortcut to the dataframe
+    df = st.session_state['input_dataset'].data
+
+    df = initialize_preprocessing(df)
 
     st.divider()
 
@@ -166,24 +168,6 @@ def main():
 
     # In the first column...
     with settings_columns_main[0]:
-
-        # Allow user to select the dataframe containing the data to plot
-        if st_key_prefix + 'data_to_plot' not in st.session_state:
-            st.session_state[st_key_prefix + 'data_to_plot'] = 'Input data'
-        data_to_plot = st.selectbox('Dataset containing plotting data:', ['Input data', 'Phenotyped data'], key=st_key_prefix + 'data_to_plot')
-        input_dataset_has_changed = (st_key_prefix + 'data_to_plot_prev' not in st.session_state) or (st.session_state[st_key_prefix + 'data_to_plot_prev'] != data_to_plot)
-        st.session_state[st_key_prefix + 'data_to_plot_prev'] = data_to_plot
-
-        # If they want to plot phenotyped data, ensure they've performed phenotyping
-        if (data_to_plot == 'Phenotyped data') and (len(st.session_state['df']) == 1):
-            st.warning('If you\'d like to plot the phenotyped data, please perform phenotyping first.')
-            return
-
-        # Set the shortcut to the dataframe of interest
-        if data_to_plot == 'Input data':
-            df = st.session_state['input_dataset'].data
-        else:
-            df = st.session_state['df']
 
         # Store columns of certain types
         if (st_key_prefix + 'categorical_columns' not in st.session_state) or input_dataset_has_changed:
