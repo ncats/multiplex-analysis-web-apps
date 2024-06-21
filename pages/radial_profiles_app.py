@@ -302,6 +302,18 @@ def main():
         # Filter the DataFrame to include only the selected image and filter
         df_selected_image_and_filter = df[(df['Slide ID'] == image_to_view) & filter_loc]
 
+        #### This is only temporary and is due to not performing the conversion in the datafile unifier this time ####
+        df_selected_image_and_filter[['Cell X Position', 'Cell Y Position']] = df_selected_image_and_filter[['Cell X Position', 'Cell Y Position']] * 0.32
+
+        key = st_key_prefix + 'image_center_x_microns'
+        if key not in st.session_state:
+            st.session_state[key] = 10130 / 2 * 0.32
+        image_center_x_microns = st.number_input('Image center x-coordinate (microns):', key=key)
+        key = st_key_prefix + 'image_center_y_microns'
+        if key not in st.session_state:
+            st.session_state[key] = 10130 / 2 * 0.32
+        image_center_y_microns = st.number_input('Image center y-coordinate (microns):', key=key)
+
         # Group the DataFrame for the selected image by unique value of the column to plot
         selected_image_grouped_by_value = df_selected_image_and_filter.groupby(column_to_plot)
 
@@ -364,15 +376,6 @@ def main():
 
         # Plot the plotly chart in Streamlit
         st.plotly_chart(fig, use_container_width=True)
-
-    key = st_key_prefix + 'image_center_x_microns'
-    if key not in st.session_state:
-        st.session_state[key] = 10130 / 2 * 0.32
-    image_center_x_microns = st.number_input('Image center x-coordinate (microns):', key=key)
-    key = st_key_prefix + 'image_center_y_microns'
-    if key not in st.session_state:
-        st.session_state[key] = 10130 / 2 * 0.32
-    image_center_y_microns = st.number_input('Image center y-coordinate (microns):', key=key)
 
     # We seem to need to render something on the page after rendering a plotly figure in order for the page to not automatically scroll back to the top when you go to the Previous or Next image
     st.write(' ')
