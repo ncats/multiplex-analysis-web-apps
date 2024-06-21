@@ -22,36 +22,38 @@ def initialize_preprocessing(df):
     with st.columns(3)[0]:
     
         # Checkbox for whether to run checks
-        key = st_key_prefix + '__run_checks'
+        key = st_key_prefix + 'run_checks'
         if key not in st.session_state:
             st.session_state[key] = False
-        st.checkbox('Run checks', key=key)
+        run_checks = st.checkbox('Run checks', key=key)
 
         # Number input for the threshold for the RawIntNorm check
-        key = st_key_prefix + '__perc_thresh_rawintnorm_column_check'
+        key = st_key_prefix + 'perc_thresh_rawintnorm_column_check'
         if key not in st.session_state:
             st.session_state[key] = 0.01
-        if st.session_state[st_key_prefix + '__run_checks']:
+        if run_checks:
             st.number_input('Threshold for the RawIntNorm column check (%):', min_value=0.0, max_value=100.0, key=key)
+        perc_thresh_rawintnorm_column_check = st.session_state[key]
 
         # Number input to select the nuclear intensity channel
-        key = st_key_prefix + '__nuclear_channel'
+        key = st_key_prefix + 'nuclear_channel'
         if key not in st.session_state:
             st.session_state[key] = 1
-        st.number_input('Nuclear channel:', min_value=1, key=key)
+        nuclear_channel = st.number_input('Nuclear channel:', min_value=1, key=key)
 
         # Checkbox for whether to apply the z-score filter
-        key = st_key_prefix + '__do_z_score_filter'
+        key = st_key_prefix + 'do_z_score_filter'
         if key not in st.session_state:
             st.session_state[key] = True
-        st.checkbox('Do z-score filter', key=key)
+        do_z_score_filter = st.checkbox('Do z-score filter', key=key)
 
         # Number input for the z-score filter threshold
-        key = st_key_prefix + '__z_score_filter_threshold'
+        key = st_key_prefix + 'z_score_filter_threshold'
         if key not in st.session_state:
             st.session_state[key] = 3
-        if st.session_state[st_key_prefix + '__do_z_score_filter']:
+        if do_z_score_filter:
             st.number_input('z-score filter threshold:', min_value=0.0, key=key)
+        z_score_filter_threshold = st.session_state[key]
 
         # If dataset preprocessing is desired...
         if st.button('Preprocess dataset'):
@@ -62,12 +64,12 @@ def initialize_preprocessing(df):
             # Preprocess the dataset
             df = radial_profiles.preprocess_dataset(
                 df,
-                perc_thresh_rawintnorm_column_check=st.session_state[st_key_prefix + '__perc_thresh_rawintnorm_column_check'],
+                perc_thresh_rawintnorm_column_check=perc_thresh_rawintnorm_column_check,
                 image_col='Slide ID',
-                nuclear_channel=st.session_state[st_key_prefix + '__nuclear_channel'],
-                do_z_score_filter=st.session_state[st_key_prefix + '__do_z_score_filter'],
-                z_score_filter_threshold=st.session_state[st_key_prefix + '__z_score_filter_threshold'],
-                run_checks=st.session_state[st_key_prefix + '__run_checks']
+                nuclear_channel=nuclear_channel,
+                do_z_score_filter=do_z_score_filter,
+                z_score_filter_threshold=z_score_filter_threshold,
+                run_checks=run_checks
             )
 
             # Output the time taken
@@ -79,11 +81,11 @@ def initialize_preprocessing(df):
             # Update the preprocessing parameters
             st.session_state['input_metadata']['preprocessing'] = {
                 'location': 'Radial Profiles app',
-                'nuclear_channel': st.session_state[st_key_prefix + '__nuclear_channel'],
-                'do_z_score_filter': st.session_state[st_key_prefix + '__do_z_score_filter'],
+                'nuclear_channel': nuclear_channel,
+                'do_z_score_filter': do_z_score_filter,
             }
-            if st.session_state[st_key_prefix + '__do_z_score_filter']:
-                st.session_state['input_metadata']['preprocessing']['z_score_filter_threshold'] = st.session_state[st_key_prefix + '__z_score_filter_threshold']
+            if do_z_score_filter:
+                st.session_state['input_metadata']['preprocessing']['z_score_filter_threshold'] = z_score_filter_threshold
 
             # Display information about the new dataframe
             df.info()
@@ -118,12 +120,13 @@ def go_to_previous_image(unique_images):
     """
 
     # Get the current index in the unique images
-    current_index = list(unique_images).index(st.session_state[st_key_prefix + 'image_to_view'])
+    key = st_key_prefix + 'image_to_view'
+    current_index = list(unique_images).index(st.session_state[key])
 
     # If we're not already at the first image, go to the previous image
     if current_index > 0:
         current_index -= 1
-        st.session_state[st_key_prefix + 'image_to_view'] = unique_images[current_index]
+        st.session_state[key] = unique_images[current_index]
 
 
 def go_to_next_image(unique_images):
@@ -138,12 +141,13 @@ def go_to_next_image(unique_images):
     """
 
     # Get the current index in the unique images
-    current_index = list(unique_images).index(st.session_state[st_key_prefix + 'image_to_view'])
+    key = st_key_prefix + 'image_to_view'
+    current_index = list(unique_images).index(st.session_state[key])
 
     # If we're not already at the last image, go to the next image
     if current_index < len(unique_images) - 1:
         current_index += 1
-        st.session_state[st_key_prefix + 'image_to_view'] = unique_images[current_index]
+        st.session_state[key] = unique_images[current_index]
 
 
 def main():
@@ -170,28 +174,29 @@ def main():
     with settings_columns_main[0]:
 
         # Store columns of certain types
-        if (st_key_prefix + 'categorical_columns' not in st.session_state) or input_dataset_has_changed:
+        if st_key_prefix + 'categorical_columns' not in st.session_state:
             max_num_unique_values = 1000
             categorical_columns = []
             for col in df.select_dtypes(include=('category', 'object')).columns:
                 if df[col].nunique() <= max_num_unique_values:
                     categorical_columns.append(col)
             st.session_state[st_key_prefix + 'categorical_columns'] = categorical_columns
-        if (st_key_prefix + 'numeric_columns' not in st.session_state) or input_dataset_has_changed:
+        if st_key_prefix + 'numeric_columns' not in st.session_state:
             st.session_state[st_key_prefix + 'numeric_columns'] = df.select_dtypes(include='number').columns
         categorical_columns = st.session_state[st_key_prefix + 'categorical_columns']
         numeric_columns = st.session_state[st_key_prefix + 'numeric_columns']
 
         # Choose a column to plot
-        if (st_key_prefix + 'column_to_plot' not in st.session_state) or input_dataset_has_changed:
+        if st_key_prefix + 'column_to_plot' not in st.session_state:
             st.session_state[st_key_prefix + 'column_to_plot'] = categorical_columns[0]
         column_to_plot = st.selectbox('Select a column by which to color the points:', categorical_columns, key=st_key_prefix + 'column_to_plot')
-        column_to_plot_has_changed = (st_key_prefix + 'column_to_plot_prev' not in st.session_state) or (st.session_state[st_key_prefix + 'column_to_plot_prev'] != column_to_plot) or input_dataset_has_changed
+        column_to_plot_has_changed = (st_key_prefix + 'column_to_plot_prev' not in st.session_state) or (st.session_state[st_key_prefix + 'column_to_plot_prev'] != column_to_plot)
         st.session_state[st_key_prefix + 'column_to_plot_prev'] = column_to_plot
 
         # Get some information about the images in the input dataset
-        if input_dataset_has_changed:
+        if st_key_prefix + 'unique_images' not in st.session_state:
             st.session_state[st_key_prefix + 'unique_images'] = df['Slide ID'].unique()  # get the unique images in the dataset
+        if st_key_prefix + 'ser_size_of_each_image' not in st.session_state:
             st.session_state[st_key_prefix + 'ser_size_of_each_image'] = df['Slide ID'].value_counts()  # calculate the number of objects in each image
         unique_images = st.session_state[st_key_prefix + 'unique_images']
         ser_size_of_each_image = st.session_state[st_key_prefix + 'ser_size_of_each_image']
@@ -238,18 +243,15 @@ def main():
         units = ('coordinate units' if use_coordinate_mins_and_maxs else 'microns')
 
         # Optionally add another filter
-        if (st_key_prefix + 'add_another_filter' not in st.session_state) or input_dataset_has_changed:
+        if st_key_prefix + 'add_another_filter' not in st.session_state:
             st.session_state[st_key_prefix + 'add_another_filter'] = False
-        if (st_key_prefix + 'column_to_filter_by' not in st.session_state) or input_dataset_has_changed:
+        if st_key_prefix + 'column_to_filter_by' not in st.session_state:
             st.session_state[st_key_prefix + 'column_to_filter_by'] = categorical_columns[0]
-        if (st_key_prefix + 'values_to_filter_by' not in st.session_state) or input_dataset_has_changed:
+        if st_key_prefix + 'values_to_filter_by' not in st.session_state:
             st.session_state[st_key_prefix + 'values_to_filter_by'] = []
-        st.checkbox('Add filter', key=st_key_prefix + 'add_another_filter')
-        st.selectbox('Select a column to filter by:', categorical_columns, key=st_key_prefix + 'column_to_filter_by', disabled=(not st.session_state[st_key_prefix + 'add_another_filter']))
-        st.multiselect('Select values to filter by:', df[st.session_state[st_key_prefix + 'column_to_filter_by']].unique(), key=st_key_prefix + 'values_to_filter_by', disabled=(not st.session_state[st_key_prefix + 'add_another_filter']))
-        add_another_filter = st.session_state[st_key_prefix + 'add_another_filter']
-        column_to_filter_by = st.session_state[st_key_prefix + 'column_to_filter_by']
-        values_to_filter_by = st.session_state[st_key_prefix + 'values_to_filter_by']
+        add_another_filter = st.checkbox('Add filter', key=st_key_prefix + 'add_another_filter')
+        column_to_filter_by = st.selectbox('Select a column to filter by:', categorical_columns, key=st_key_prefix + 'column_to_filter_by', disabled=(not add_another_filter))
+        values_to_filter_by = st.multiselect('Select values to filter by:', df[column_to_filter_by].unique(), key=st_key_prefix + 'values_to_filter_by', disabled=(not add_another_filter))
 
     # In the third column...
     with settings_columns_main[2]:
@@ -363,14 +365,14 @@ def main():
         # Plot the plotly chart in Streamlit
         st.plotly_chart(fig, use_container_width=True)
 
-    key = st_key_prefix + '__image_center_x_microns'
+    key = st_key_prefix + 'image_center_x_microns'
     if key not in st.session_state:
         st.session_state[key] = 10130 / 2 * 0.32
-    st.number_input('Image center x-coordinate (microns):', key=key)
-    key = st_key_prefix + '__image_center_y_microns'
+    image_center_x_microns = st.number_input('Image center x-coordinate (microns):', key=key)
+    key = st_key_prefix + 'image_center_y_microns'
     if key not in st.session_state:
         st.session_state[key] = 10130 / 2 * 0.32
-    st.number_input('Image center y-coordinate (microns):', key=key)
+    image_center_y_microns = st.number_input('Image center y-coordinate (microns):', key=key)
 
     # We seem to need to render something on the page after rendering a plotly figure in order for the page to not automatically scroll back to the top when you go to the Previous or Next image
     st.write(' ')
