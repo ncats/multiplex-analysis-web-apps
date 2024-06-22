@@ -2,6 +2,7 @@ dependencies:
   - pip
   - foundry-transforms-lib-python>=0.578.0
   - pip:
+    - streamlit=1.35.0
     - scikit-learn
     - streamlit-extras
     - squidpy
@@ -15,4 +16,3 @@ dependencies:
     - parmap
     - setuptools-scm
     - scanpy
-    
