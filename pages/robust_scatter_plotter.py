@@ -76,6 +76,11 @@ def draw_scatter_plot_with_options():
         st.session_state['rsp__data_to_plot_prev'] = data_to_plot
 
         # If they want to plot phenotyped data, ensure they've performed phenotyping
+        if (data_to_plot == 'Input data') and ('input_dataset' not in st.session_state):
+            st.warning('If you\'d like to plot the input data, please open a file first.')
+            return
+
+        # If they want to plot phenotyped data, ensure they've performed phenotyping
         if (data_to_plot == 'Phenotyped data') and (len(st.session_state['df']) == 1):
             st.warning('If you\'d like to plot the phenotyped data, please perform phenotyping first.')
             return

@@ -302,17 +302,25 @@ def main():
         # Filter the DataFrame to include only the selected image and filter
         df_selected_image_and_filter = df[(df['Slide ID'] == image_to_view) & filter_loc]
 
+
+
         #### This is only temporary and is due to not performing the conversion in the datafile unifier this time ####
         df_selected_image_and_filter[['Cell X Position', 'Cell Y Position']] = df_selected_image_and_filter[['Cell X Position', 'Cell Y Position']] * 0.32
 
-        key = st_key_prefix + 'image_center_x_microns'
-        if key not in st.session_state:
-            st.session_state[key] = 10130 / 2 * 0.32
-        image_center_x_microns = st.number_input('Image center x-coordinate (microns):', key=key)
-        key = st_key_prefix + 'image_center_y_microns'
-        if key not in st.session_state:
-            st.session_state[key] = 10130 / 2 * 0.32
-        image_center_y_microns = st.number_input('Image center y-coordinate (microns):', key=key)
+
+
+        # Get the x-y midpoint of the coordinates in df_selected_image_and_filter[['Cell X Position', 'Cell Y Position']]
+        xy_min = df_selected_image_and_filter[['Cell X Position', 'Cell Y Position']].min()
+        xy_max = df_selected_image_and_filter[['Cell X Position', 'Cell Y Position']].max()
+        xy_mid = (xy_min + xy_max) / 2
+
+        # Get the radius edges that fit within the largest possible radius
+        largest_possible_radius = (xy_max - xy_mid).min()
+        spacing_um = 250
+        num_intervals = largest_possible_radius // spacing_um  # calculate the number of intervals that fit within the largest_possible_radius
+        end_value = (num_intervals + 1) * spacing_um  # calculate the end value for np.arange to ensure it does not exceed largest_possible_radius
+        radius_edges = np.arange(0, end_value, spacing_um)  # generate steps
+
 
         # Group the DataFrame for the selected image by unique value of the column to plot
         selected_image_grouped_by_value = df_selected_image_and_filter.groupby(column_to_plot)
@@ -356,6 +364,23 @@ def main():
                         ),
                         hovertemplate=df_group['hover_label']
                     ))
+
+        # Plot circles of radii radius_edges[1:] centered at the midpoint of the coordinates
+        for radius in radius_edges[1:]:
+            fig.add_shape(
+                type='circle',
+                xref='x',
+                yref='y',
+                x0=xy_mid['Cell X Position'] - radius,
+                y0=xy_mid['Cell Y Position'] - radius,
+                x1=xy_mid['Cell X Position'] + radius,
+                y1=xy_mid['Cell Y Position'] + radius,
+                line=dict(
+                    color='lime',
+                    width=4,
+                ),
+                opacity=0.75,
+            )
 
         # Update the layout
         fig.update_layout(
