@@ -321,7 +321,6 @@ def main():
         end_value = (num_intervals + 1) * spacing_um  # calculate the end value for np.arange to ensure it does not exceed largest_possible_radius
         radius_edges = np.arange(0, end_value, spacing_um)  # generate steps
 
-
         # Group the DataFrame for the selected image by unique value of the column to plot
         selected_image_grouped_by_value = df_selected_image_and_filter.groupby(column_to_plot)
 
