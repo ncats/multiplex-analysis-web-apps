@@ -248,7 +248,7 @@ def loadDataButton(session_state, df_import, projectName, fileName):
     # Analysis Setting Init
     session_state.loaded_marker_names = session_state.marker_names
     session_state.marker_multi_sel = session_state.marker_names
-    session_state.pointstSliderVal_Sel = 100
+    session_state.point_slider_val = 100
     session_state.calcSliderVal  = 100
     session_state.selected_nClus = 1         # Clustering (If applicable)
     session_state.NormHeatRadio  = 'No Norm' # Heatmap Radio
@@ -291,7 +291,7 @@ def loadDataButton(session_state, df_import, projectName, fileName):
 
     # Set Figure Objects
     session_state.bc.startTimer()
-    session_state = setFigureObjs(session_state, df_plot)
+    session_state = set_figure_objs(session_state, df_plot)
     session_state.pointstSliderVal_Sel = session_state.calcSliderVal
     # session_state.bc.printElapsedTime(msg = 'Setting Figure Objects')
 
@@ -373,7 +373,7 @@ def updatePhenotyping(session_state):
     df_plot = perform_filtering(session_state)
 
     # Update and reset Figure Objects
-    session_state = setFigureObjs(session_state, df_plot)
+    session_state = set_figure_objs(session_state, df_plot)
 
     return session_state
 
@@ -511,7 +511,7 @@ def export_results_dataset(fiol, df, path, filename, saveCompass=False, type = '
 
 def set_figure_objs(session_state, df_plot, slider_val = None):
     """
-    Organize Figure Objects to be used in plotting
+    Organize Figure Objects to be used in phenotyping plotting
     """
 
     title = [f'DATASET: {session_state.datafile}',
