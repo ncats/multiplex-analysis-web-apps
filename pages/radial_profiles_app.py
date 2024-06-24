@@ -9,6 +9,7 @@ import plotly.express as px
 from itertools import cycle, islice
 import plotly.graph_objects as go
 import pandas as pd
+import scipy.spatial
 
 # Global variable
 st_key_prefix = 'radial_profiles__'
@@ -321,6 +322,8 @@ def main():
         end_value = (num_intervals + 1) * spacing_um  # calculate the end value for np.arange to ensure it does not exceed largest_possible_radius
         radius_edges = np.arange(0, end_value, spacing_um)  # generate steps
 
+        kdtree = scipy.spatial.KDTree(df_selected_image_and_filter[['Cell X Position', 'Cell Y Position']])
+
         # Group the DataFrame for the selected image by unique value of the column to plot
         selected_image_grouped_by_value = df_selected_image_and_filter.groupby(column_to_plot)
 
@@ -365,7 +368,10 @@ def main():
                     ))
 
         # Plot circles of radii radius_edges[1:] centered at the midpoint of the coordinates
+        prev_indices = None
+        percent_positives = []
         for radius in radius_edges[1:]:
+
             fig.add_shape(
                 type='circle',
                 xref='x',
@@ -380,6 +386,21 @@ def main():
                 ),
                 opacity=0.75,
             )
+
+            curr_indices = kdtree.query_ball_point(xy_mid, radius)
+
+            if prev_indices is not None:
+                annulus_indices = np.setdiff1d(curr_indices, prev_indices)
+            else:
+                annulus_indices = curr_indices
+
+            ser_positivity_annulus = df_selected_image_and_filter.iloc[annulus_indices][column_to_plot]
+
+            percent_positives.append((ser_positivity_annulus == '+').sum() / len(ser_positivity_annulus) * 100)
+
+            prev_indices = curr_indices
+
+        st.write(percent_positives)
 
         # Update the layout
         fig.update_layout(
