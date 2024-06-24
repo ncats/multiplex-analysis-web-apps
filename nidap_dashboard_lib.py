@@ -509,7 +509,7 @@ def export_results_dataset(fiol, df, path, filename, saveCompass=False, type = '
     """
     fiol.export_results_dataset(df, path, filename, saveCompass, type)
 
-def setFigureObjs(session_state, df_plot, InSliderVal = None):
+def set_figure_objs(session_state, df_plot, slider_val = None):
     """
     Organize Figure Objects to be used in plotting
     """
@@ -524,15 +524,15 @@ def setFigureObjs(session_state, df_plot, InSliderVal = None):
     targ_cell_count = 150000
 
     num_points = df_plot.shape[0]
-    if (num_points > targ_cell_count) & (InSliderVal is None):
+    if (num_points > targ_cell_count) & (slider_val is None):
         n = targ_cell_count
 
         calc_slider_val = int(np.ceil(100*n/num_points))
         df_plot = df_plot.sample(n)
         session_state.plotPointsCustom = False
-    elif InSliderVal is not None:
+    elif slider_val is not None:
 
-        calc_slider_val = InSliderVal
+        calc_slider_val = slider_val
         df_plot = df_plot.sample(frac = calc_slider_val/100)
         session_state.plotPointsCustom = True
     else:
