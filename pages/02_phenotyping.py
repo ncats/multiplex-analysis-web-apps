@@ -266,11 +266,9 @@ def main():
 
         plot_slide = st.columns(2)
         with plot_slide[0]:
-            with st.form('Plotting Num'):
-                st.slider('How many points to plot (%)', 0, 100, key = 'point_slider_val')
-                update_pixels_button = st.form_submit_button('Update Scatterplot')
-                if update_pixels_button:
-                    filter_and_plot(plot_by_slider = True)
+            st.slider('How many points to plot (%)', 0, 100, key = 'point_slider_val',
+                        on_change = filter_and_plot, kwargs = {"plot_by_slider": True})
+
 
         with plot_slide[1]:
             if st.session_state.calcSliderVal < 100:
@@ -281,7 +279,8 @@ def main():
             st.write(f'Drawing {st.session_state.drawnPoints} points')
             st.checkbox('Omit drawing cells with all negative markers',
                         key = 'selhas_pos_mark',
-                        on_change=filter_and_plot)
+                        on_change=filter_and_plot,
+                        kwargs = {"plot_by_slider": True})
 
         image_prog_col = st.columns([3, 1, 1, 2])
         with image_prog_col[0]:
