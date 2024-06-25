@@ -865,7 +865,7 @@ def neighProfileDraw(spatial_umap, ax, sel_clus, cmp_clus = None, cmp_style = No
 
     maxdens_df   = 1.05*max(dens_df_mean_base['density_mean'] + dens_df_mean_base['density_sem'])
     dens_df_mean_sel = dens_df_mean_base.loc[dens_df_mean_base['clust_label'] == sel_clus, :].reset_index(drop=True)
-    ylim = [0, maxdens_df]
+    ylim = [1, maxdens_df]
     dens_df_mean = dens_df_mean_sel.copy()
     cluster_title = f'{sel_clus}'
 
@@ -900,7 +900,7 @@ def neighProfileDraw(spatial_umap, ax, sel_clus, cmp_clus = None, cmp_style = No
         cmp_style = None
 
     if not np.all([math.isfinite(x) for x in ylim]):
-        ylim = [0, 1]
+        ylim = [1, 10]
 
     umPT.plot_mean_neighborhood_profile(ax = ax,
                                         dist_bin = spatial_umap.dist_bin_um,

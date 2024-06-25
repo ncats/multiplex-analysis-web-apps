@@ -788,7 +788,6 @@ def main():
                                      hide_no_cluster = st.session_state['toggle_hide_no_cluster'])
 
                 if st.session_state['nei_pro_toggle_log_scale']:
-                    ax.set_ylim([0.1, 10000])
                     ax.set_yscale('log')
                 st.pyplot(fig=npf_fig)
 
@@ -850,8 +849,6 @@ def main():
 
             if cluster[2] == 'log':
                 axii.set_yscale('log')
-
-            axii.set_ylim(cluster[3])
 
         st.pyplot(fig=npf_fig_big)
 
