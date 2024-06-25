@@ -6,6 +6,7 @@ import image_filter
 import pandas as pd
 import scipy.stats
 import numpy as np
+import plotly.graph_objects as go
 
 
 # Global variable
@@ -123,6 +124,26 @@ def main():
 
     # Write the confidence intervals
     st.write(df_confidence_interval)
+
+    # Create a heatmap of df_means
+    heatmap = go.Heatmap(
+        x=df_means.columns,  # Column names as x-axis labels
+        y=df_means.index,    # Index as y-axis labels
+        z=df_means.values,    # DataFrame values as heatmap values
+        colorscale='Jet'
+    )
+
+    # Create a figure and add the heatmap
+    fig = go.Figure(data=[heatmap])
+
+    # Customize layout
+    fig.update_layout(
+        title='Heatmap of df_means',
+        xaxis_title='X Axis Title',
+        yaxis_title='Y Axis Title'
+    )
+
+    st.plotly_chart(fig)
 
 
 # Run the main function
