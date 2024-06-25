@@ -15,6 +15,65 @@ import scipy.spatial
 st_key_prefix = 'radial_profiles__'
 
 
+# Function to determine the radial bin for every cell in the dataset
+def add_radial_bin_to_dataset(df, unique_images, coordinate_scale_factor=1, annulus_spacing_um=250, xy_position_columns=['Cell X Position', 'Cell Y Position'], radii_go_up_to_edges=False):
+
+    # For every image in the dataset...
+    for current_image in unique_images:
+
+        # Filter the DataFrame to the current image
+        df_selected_image_and_filter = df.loc[(df['Slide ID'] == current_image), xy_position_columns]
+
+        # Scale the coordinates. Generally unnecessary as this should have been done (converted to microns) in the unifier
+        if coordinate_scale_factor != 1:
+            df_selected_image_and_filter[xy_position_columns] = df_selected_image_and_filter[xy_position_columns] * coordinate_scale_factor
+
+        # Get the x-y midpoint of the coordinates in df_selected_image_and_filter[xy_position_columns]
+        xy_min = df_selected_image_and_filter[xy_position_columns].min()
+        xy_max = df_selected_image_and_filter[xy_position_columns].max()
+        xy_mid = (xy_min + xy_max) / 2
+
+        # Get the radius edges that fit within the largest possible radius
+        if radii_go_up_to_edges:
+            largest_possible_radius = (xy_max - xy_mid).min()
+        else:  # go up to the corners
+            largest_possible_radius = np.linalg.norm(xy_max - xy_mid) + annulus_spacing_um
+        spacing_um = annulus_spacing_um
+        num_intervals = largest_possible_radius // spacing_um  # calculate the number of intervals that fit within the largest_possible_radius
+        end_value = (num_intervals + 1) * spacing_um  # calculate the end value for np.arange to ensure it does not exceed largest_possible_radius
+        radius_edges = np.arange(0, end_value, spacing_um)  # generate steps
+
+        # Construct a KDTree for the current image
+        kdtree = scipy.spatial.KDTree(df_selected_image_and_filter[xy_position_columns])
+
+        # For every outer radius...
+        prev_indices = None
+        for radius in radius_edges[1:]:
+
+            # Get the indices of the points in the image within the current radius
+            curr_indices = kdtree.query_ball_point(xy_mid, radius)
+
+            # Get the indices of the points in the current annulus (defined by the outer radius)
+            if prev_indices is not None:
+                annulus_indices = np.setdiff1d(curr_indices, prev_indices)
+                # annulus_indices = curr_indices[~np.isin(curr_indices, prev_indices)]  # note copilot said this would be faster though may need to ensure curr_indices is a numpy array or else will get "TypeError: only integer scalar arrays can be converted to a scalar index"
+            else:
+                annulus_indices = curr_indices
+
+            # Store the outer radius for all the cells in the current annulus in the current image
+            if len(annulus_indices) > 0:
+                df.loc[df_selected_image_and_filter.iloc[annulus_indices].index, 'Outer radius'] = radius
+
+            # Store the current indices for the next iteration
+            prev_indices = curr_indices
+
+    # Make sure there are no NaNs in the "Outer radius" column using an assertion
+    assert df['Outer radius'].isna().sum() == 0, 'There are NaNs in the "Outer radius" column but every cell should have been assigned a radial bin'
+
+    # Return the dataframe with the new "Outer radius" column
+    return df
+
+
 # Function to calculate the percent positives in each annulus in each image
 def calculate_percent_positives_for_entire_dataset(df, column_to_plot, unique_images, coordinate_scale_factor=1, annulus_spacing_um=250):
 
