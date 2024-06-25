@@ -15,8 +15,82 @@ import scipy.spatial
 st_key_prefix = 'radial_profiles__'
 
 
+# Function to calculate the percent positives in each annulus in each image
+def calculate_percent_positives_for_entire_dataset(df, column_to_plot, unique_images, coordinate_scale_factor=1, annulus_spacing_um=250):
+
+    # For every image in the dataset...
+    analysis_results_holder = []
+    for current_image in unique_images:
+
+        # Filter the DataFrame to the current image
+        df_selected_image_and_filter = df.loc[(df['Slide ID'] == current_image), ['Cell X Position', 'Cell Y Position', column_to_plot]]
+
+        # Scale the coordinates. Generally unnecessary as this should have been done (converted to microns) in the unifier
+        if coordinate_scale_factor != 1:
+            df_selected_image_and_filter[['Cell X Position', 'Cell Y Position']] = df_selected_image_and_filter[['Cell X Position', 'Cell Y Position']] * coordinate_scale_factor
+
+        # Get the x-y midpoint of the coordinates in df_selected_image_and_filter[['Cell X Position', 'Cell Y Position']]
+        xy_min = df_selected_image_and_filter[['Cell X Position', 'Cell Y Position']].min()
+        xy_max = df_selected_image_and_filter[['Cell X Position', 'Cell Y Position']].max()
+        xy_mid = (xy_min + xy_max) / 2
+
+        # Get the radius edges that fit within the largest possible radius
+        largest_possible_radius = (xy_max - xy_mid).min()
+        spacing_um = annulus_spacing_um
+        num_intervals = largest_possible_radius // spacing_um  # calculate the number of intervals that fit within the largest_possible_radius
+        end_value = (num_intervals + 1) * spacing_um  # calculate the end value for np.arange to ensure it does not exceed largest_possible_radius
+        radius_edges = np.arange(0, end_value, spacing_um)  # generate steps
+
+        # Construct a KDTree for the current image
+        kdtree = scipy.spatial.KDTree(df_selected_image_and_filter[['Cell X Position', 'Cell Y Position']])
+
+        # For every outer radius...
+        prev_indices = None
+        percent_positives = []
+        annulus_radius_strings = []
+        for radius in radius_edges[1:]:
+
+            # Get the indices of the points in the image within the current radius
+            curr_indices = kdtree.query_ball_point(xy_mid, radius)
+
+            # Get the indices of the points in the current annulus (defined by the outer radius)
+            if prev_indices is not None:
+                annulus_indices = np.setdiff1d(curr_indices, prev_indices)
+                # annulus_indices = curr_indices[~np.isin(curr_indices, prev_indices)]  # note copilot said this would be faster though may need to ensure curr_indices is a numpy array or else will get "TypeError: only integer scalar arrays can be converted to a scalar index"
+            else:
+                annulus_indices = curr_indices
+
+            # Get the series in the current image corresponding to the current annulus and positivity column
+            ser_positivity_annulus = df_selected_image_and_filter.iloc[annulus_indices][column_to_plot]
+
+            # Calculate the percent positive, denoted by "+"
+            full_size = len(ser_positivity_annulus)
+            if full_size != 0:
+                percent_positives.append((ser_positivity_annulus == '+').sum() / full_size * 100)
+            else:
+                percent_positives.append(None)
+
+            # Store the annulus radii as a string for the current annulus
+            annulus_radius_strings.append(f'Annulus from {radius - annulus_spacing_um} to {radius} um')
+
+            # Store the current indices for the next iteration
+            prev_indices = curr_indices
+
+        # Get a dictionary containing the calculation results for the current image
+        percent_positives_dict = dict(zip(annulus_radius_strings, percent_positives))
+        percent_positives_dict[f'Number of annuli of width {annulus_spacing_um} um'] = len(percent_positives)
+
+        # Store the dictionary in the analysis results holder
+        analysis_results_holder.append(percent_positives_dict)
+
+    # Return a dataframe of the results
+    return pd.DataFrame(analysis_results_holder, index=unique_images)
+
+
+# Function to initialize the preprocessing section
 def initialize_preprocessing(df):
 
+    # Preprocessing section
     st.header('Preprocessing')
 
     # On the first third vertical third of the page...
@@ -94,13 +168,16 @@ def initialize_preprocessing(df):
             # In case df has been modified not-in-place in any way, reassign the input dataset as the modified df
             st.session_state['input_dataset'].data = df
 
+    # Return the modified dataframe
     return df
 
 
+# Function to update the color for a value
 def update_color_for_value(value_to_change_color):
     st.session_state[st_key_prefix + 'color_dict'][value_to_change_color] = st.session_state[st_key_prefix + 'new_picked_color']
 
 
+# Function to reset the color dictionary
 def reset_color_dict(ser_to_plot):
     # Create a color sequence based on the frequency of the values to plot in the entire dataset
     values_to_plot = ser_to_plot.value_counts().index
@@ -164,9 +241,12 @@ def main():
     # Save a shortcut to the dataframe
     df = st.session_state['input_dataset'].data
 
+    # Set up preprocessing
     df = initialize_preprocessing(df)
 
+    # Main settings section
     st.divider()
+    st.header('Main settings')
 
     # Define the main settings columns
     settings_columns_main = st.columns(3)
@@ -286,29 +366,48 @@ def main():
         st.button('Reset plotting colors to defaults', on_click=reset_color_dict, args=(df[column_to_plot],))
         color_dict = st.session_state[st_key_prefix + 'color_dict']
 
-    # Draw a divider
+    # Analysis section
     st.divider()
+    st.header('Analysis')
+
+    # Define the analysis settings columns
+    with st.columns(3)[0]:
+
+        # Number input for the coordinate scale factor
+        key = st_key_prefix + 'coordinate_scale_factor'
+        if key not in st.session_state:
+            st.session_state[key] = 1
+        coordinate_scale_factor = st.number_input('Coordinate scale factor:', min_value=0.0, key=key, help='This is only necessary if you have forgotten to scale the coordinates in the Datafile Unifier.')
+
+        # Number input for the annulus spacing
+        key = st_key_prefix + 'annulus_spacing_um'
+        if key not in st.session_state:
+            st.session_state[key] = 250
+        annulus_spacing_um = st.number_input('Annulus spacing (um):', min_value=0.0, key=key)
+
+    # Run main analysis
+    if st.button('Calculate percent positives in each annulus in each image'):
+        start_time = time.time()
+        df_analysis_results = calculate_percent_positives_for_entire_dataset(df, column_to_plot, unique_images, coordinate_scale_factor=coordinate_scale_factor, annulus_spacing_um=annulus_spacing_um)
+        st.write(f'Analysis took {int(np.round(time.time() - start_time))} seconds')
+        st.write(df_analysis_results)
+        st.session_state[st_key_prefix + 'df_analysis_results'] = df_analysis_results
+
+    # Output/plutting section
+    st.divider()
+    st.header('Output')
 
     # If the user wants to display the scatter plot, indicated by a toggle...
     if st_key_prefix + 'show_scatter_plot' not in st.session_state:
         st.session_state[st_key_prefix + 'show_scatter_plot'] = False
     if st.toggle('Show scatter plot', key=st_key_prefix + 'show_scatter_plot'):
 
-        # Optionally set up another filter
-        if add_another_filter:
-            filter_loc = df[column_to_filter_by].isin(values_to_filter_by)
-        else:
-            filter_loc = pd.Series(True, index=df.index)
+        # Filter the DataFrame to include only the selected image
+        df_selected_image_and_filter = df.loc[(df['Slide ID'] == image_to_view), ['Cell X Position', 'Cell Y Position', column_to_plot]]
 
-        # Filter the DataFrame to include only the selected image and filter
-        df_selected_image_and_filter = df[(df['Slide ID'] == image_to_view) & filter_loc]
-
-
-
-        #### This is only temporary and is due to not performing the conversion in the datafile unifier this time ####
-        df_selected_image_and_filter[['Cell X Position', 'Cell Y Position']] = df_selected_image_and_filter[['Cell X Position', 'Cell Y Position']] * 0.32
-
-
+        # Optionally scale the coordinates (probably not; should have been done in Datafile Unifier
+        if coordinate_scale_factor != 1:
+            df_selected_image_and_filter[['Cell X Position', 'Cell Y Position']] = df_selected_image_and_filter[['Cell X Position', 'Cell Y Position']] * coordinate_scale_factor
 
         # Get the x-y midpoint of the coordinates in df_selected_image_and_filter[['Cell X Position', 'Cell Y Position']]
         xy_min = df_selected_image_and_filter[['Cell X Position', 'Cell Y Position']].min()
@@ -321,8 +420,6 @@ def main():
         num_intervals = largest_possible_radius // spacing_um  # calculate the number of intervals that fit within the largest_possible_radius
         end_value = (num_intervals + 1) * spacing_um  # calculate the end value for np.arange to ensure it does not exceed largest_possible_radius
         radius_edges = np.arange(0, end_value, spacing_um)  # generate steps
-
-        kdtree = scipy.spatial.KDTree(df_selected_image_and_filter[['Cell X Position', 'Cell Y Position']])
 
         # Group the DataFrame for the selected image by unique value of the column to plot
         selected_image_grouped_by_value = df_selected_image_and_filter.groupby(column_to_plot)
@@ -368,10 +465,7 @@ def main():
                     ))
 
         # Plot circles of radii radius_edges[1:] centered at the midpoint of the coordinates
-        prev_indices = None
-        percent_positives = []
         for radius in radius_edges[1:]:
-
             fig.add_shape(
                 type='circle',
                 xref='x',
@@ -386,21 +480,6 @@ def main():
                 ),
                 opacity=0.75,
             )
-
-            curr_indices = kdtree.query_ball_point(xy_mid, radius)
-
-            if prev_indices is not None:
-                annulus_indices = np.setdiff1d(curr_indices, prev_indices)
-            else:
-                annulus_indices = curr_indices
-
-            ser_positivity_annulus = df_selected_image_and_filter.iloc[annulus_indices][column_to_plot]
-
-            percent_positives.append((ser_positivity_annulus == '+').sum() / len(ser_positivity_annulus) * 100)
-
-            prev_indices = curr_indices
-
-        st.write(percent_positives)
 
         # Update the layout
         fig.update_layout(
@@ -421,6 +500,10 @@ def main():
 
         # Plot the plotly chart in Streamlit
         st.plotly_chart(fig, use_container_width=True)
+
+        # Write the analysis results for the selected image
+        if st_key_prefix + 'df_analysis_results' in st.session_state:
+            st.write(st.session_state[st_key_prefix + 'df_analysis_results'].loc[image_to_view])
 
     # We seem to need to render something on the page after rendering a plotly figure in order for the page to not automatically scroll back to the top when you go to the Previous or Next image
     st.write(' ')
