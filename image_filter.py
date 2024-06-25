@@ -9,23 +9,28 @@ st_key_prefix = 'imagefilter__'
 
 class ImageFilter:
 
-    def __init__(self, df, image_colname='Slide ID', st_key_prefix=st_key_prefix):
+    def __init__(self, df, image_colname='Slide ID', st_key_prefix=st_key_prefix, possible_filtering_columns=None):
         # self.df = df  # no real need to save this
         self.image_colname = image_colname
         self.st_key_prefix = st_key_prefix
-        self.df_image_filter = get_filtering_dataframe(df, image_colname, st_key_prefix=self.st_key_prefix)
+        self.possible_filtering_columns = possible_filtering_columns
+        self.df_image_filter = get_filtering_dataframe(df, image_colname, st_key_prefix=self.st_key_prefix, possible_filtering_columns=possible_filtering_columns)
         self.ready = False if self.df_image_filter is None else True
 
 
-    def select_images(self, key, color='red'):
-        selected_images = filter_images(self.df_image_filter, key=key, color=color, image_colname=self.image_colname, st_key_prefix=self.st_key_prefix)
-        return selected_images
+    def select_images(self, key, color='red', return_df_masked=False):
+        return filter_images(self.df_image_filter, key=key, color=color, image_colname=self.image_colname, st_key_prefix=self.st_key_prefix, return_df_masked=return_df_masked)
 
 
-def get_filtering_dataframe(df, image_colname='Slide ID', st_key_prefix=st_key_prefix):
+def get_filtering_dataframe(df, image_colname='Slide ID', st_key_prefix=st_key_prefix, possible_filtering_columns=None):
+
+    if possible_filtering_columns is None:
+        possible_columns_on_which_to_filter = df.columns
+    else:
+        possible_columns_on_which_to_filter = possible_filtering_columns
 
     # Allow the user to select the columns on which they want to filter
-    selected_cols_for_filtering = st.multiselect('Select columns on which to filter:', df.columns, key=st_key_prefix + 'selected_cols_for_filtering', on_change=reset_filtering_columns, kwargs={'st_key_prefix': st_key_prefix})
+    selected_cols_for_filtering = st.multiselect('Select columns on which to filter:', possible_columns_on_which_to_filter, key=st_key_prefix + 'selected_cols_for_filtering', on_change=reset_filtering_columns, kwargs={'st_key_prefix': st_key_prefix})
 
     # Simplify the dataframe to presumably just the essentially categorical columns
     if st.button('Prepare filtering data'):
@@ -44,7 +49,7 @@ def get_filtering_dataframe(df, image_colname='Slide ID', st_key_prefix=st_key_p
 
 
 # This is an image filter that should behave somewhat like a Streamlit (macro) widget
-def filter_images(df, key, color='red', image_colname='Slide ID', st_key_prefix=st_key_prefix):
+def filter_images(df, key, color='red', image_colname='Slide ID', st_key_prefix=st_key_prefix, return_df_masked=False):
 
     selected_cols_for_filtering = df.columns[1:]
 
@@ -87,7 +92,10 @@ def filter_images(df, key, color='red', image_colname='Slide ID', st_key_prefix=
         st.session_state[full_key] = selected_images
 
     # Also return it
-    return(selected_images)
+    if not return_df_masked:
+        return selected_images
+    else:
+        return selected_images, df_masked.set_index('Slide ID', drop=True)
 
 
 # Reset the filtering columns

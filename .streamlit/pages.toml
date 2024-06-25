@@ -129,11 +129,16 @@ name = "Memory Analyzer"
 icon = ""
 
 [[pages]]
-name = "In Development"
+name = "Radial Profiles"
 icon = ""
 is_section = true
 
 [[pages]]
 path = "pages/radial_profiles_app.py"
-name = "Radial Profiles"
+name = "Calculations"
+icon = ""
+
+[[pages]]
+path = "pages/radial_profiles_app_plotting_aggregated_results.py"
+name = "Plots"
 icon = ""
