@@ -267,7 +267,7 @@ class Platform:
     # Load any selected available inputs on the remote to the local machine
     def load_selected_inputs(self):
 
-        # st.subheader('Load into MAWA :arrow_forward:')
+        st.subheader('Load into MAWA :arrow_forward:')
         load_button = st.button('Load NIDAP input data into MAWA :arrow_right:')
         # Irrelevant for local
         if self.platform == 'local':
