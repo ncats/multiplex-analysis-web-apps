@@ -15,8 +15,67 @@ import scipy.spatial
 st_key_prefix = 'radial_profiles__'
 
 
+def calculate_radial_bins(df):
+
+    # Radial bins calculation section
+    st.header('Radial bins')
+
+    # Get some information about the images in the input dataset
+    if st_key_prefix + 'unique_images' not in st.session_state:
+        st.session_state[st_key_prefix + 'unique_images'] = df['Slide ID'].unique()  # get the unique images in the dataset
+    unique_images = st.session_state[st_key_prefix + 'unique_images']
+
+    # Number input for the coordinate scale factor
+    key = st_key_prefix + 'coordinate_scale_factor'
+    if key not in st.session_state:
+        st.session_state[key] = 1
+    coordinate_scale_factor = st.number_input('Coordinate scale factor:', min_value=0.0, key=key, help='This is only necessary if you have forgotten to scale the coordinates in the Datafile Unifier.')
+
+    # Number input for the annulus spacing
+    key = st_key_prefix + 'annulus_spacing_um'
+    if key not in st.session_state:
+        st.session_state[key] = 250
+    annulus_spacing_um = st.number_input('Annulus spacing (um):', min_value=0.0, key=key)
+
+    # Multiselect for selection of coordinate columns
+    # key = st_key_prefix + 'xy_position_columns'
+    # if key not in st.session_state:
+    #     st.session_state[key] = ['Cell X Position', 'Cell Y Position']
+    # st.multiselect('Select the x-y position columns:', df.columns, key=key)
+    # st.session_state[key] = sorted(st.session_state[key])
+    # xy_position_columns = st.session_state[key]
+    xy_position_columns = ['Cell X Position', 'Cell Y Position']  # this is set in Open File so should always be the same, no need for a widget
+
+    # Calculate radial bins
+    if st.button('Calculate radial bins'):
+        start_time = time.time()
+        df = add_radial_bin_to_dataset(df, unique_images, coordinate_scale_factor=coordinate_scale_factor, annulus_spacing_um=annulus_spacing_um, xy_position_columns=xy_position_columns)
+        st.session_state['input_dataset'].data = df
+        st.write(f'Calculation of radial bins took {int(np.round(time.time() - start_time))} seconds')
+        del st.session_state[st_key_prefix + 'categorical_columns']  # force the categorical columns to be recalculated since we just added one to the dataset
+
+    return df, unique_images, coordinate_scale_factor, annulus_spacing_um, xy_position_columns
+
+
+def calculate_annuli_radius_edges(df, annulus_spacing_um=250, xy_position_columns=['Cell X Position', 'Cell Y Position']):
+
+    # Get the x-y midpoint of the coordinates in df[xy_position_columns]
+    xy_min = df[xy_position_columns].min()
+    xy_max = df[xy_position_columns].max()
+    xy_mid = (xy_min + xy_max) / 2
+
+    # Get the radius edges that fit within the largest possible radius
+    largest_possible_radius = np.linalg.norm(xy_max - xy_mid) + annulus_spacing_um
+    num_intervals = largest_possible_radius // annulus_spacing_um  # calculate the number of intervals that fit within the largest_possible_radius
+    end_value = (num_intervals + 1) * annulus_spacing_um  # calculate the end value for np.arange to ensure it does not exceed largest_possible_radius
+    radius_edges = np.arange(0, end_value, annulus_spacing_um)  # generate steps
+
+    # Return the necessary variables
+    return radius_edges, xy_mid
+
+
 # Function to determine the radial bin for every cell in the dataset
-def add_radial_bin_to_dataset(df, unique_images, coordinate_scale_factor=1, annulus_spacing_um=250, xy_position_columns=['Cell X Position', 'Cell Y Position'], radii_go_up_to_edges=False):
+def add_radial_bin_to_dataset(df, unique_images, coordinate_scale_factor=1, annulus_spacing_um=250, xy_position_columns=['Cell X Position', 'Cell Y Position']):
 
     # For every image in the dataset...
     for current_image in unique_images:
@@ -28,20 +87,8 @@ def add_radial_bin_to_dataset(df, unique_images, coordinate_scale_factor=1, annu
         if coordinate_scale_factor != 1:
             df_selected_image_and_filter[xy_position_columns] = df_selected_image_and_filter[xy_position_columns] * coordinate_scale_factor
 
-        # Get the x-y midpoint of the coordinates in df_selected_image_and_filter[xy_position_columns]
-        xy_min = df_selected_image_and_filter[xy_position_columns].min()
-        xy_max = df_selected_image_and_filter[xy_position_columns].max()
-        xy_mid = (xy_min + xy_max) / 2
-
-        # Get the radius edges that fit within the largest possible radius
-        if radii_go_up_to_edges:
-            largest_possible_radius = (xy_max - xy_mid).min()
-        else:  # go up to the corners
-            largest_possible_radius = np.linalg.norm(xy_max - xy_mid) + annulus_spacing_um
-        spacing_um = annulus_spacing_um
-        num_intervals = largest_possible_radius // spacing_um  # calculate the number of intervals that fit within the largest_possible_radius
-        end_value = (num_intervals + 1) * spacing_um  # calculate the end value for np.arange to ensure it does not exceed largest_possible_radius
-        radius_edges = np.arange(0, end_value, spacing_um)  # generate steps
+        # Calculate the radius edges of the annuli
+        radius_edges, xy_mid = calculate_annuli_radius_edges(df_selected_image_and_filter, annulus_spacing_um=annulus_spacing_um, xy_position_columns=xy_position_columns)
 
         # Construct a KDTree for the current image
         kdtree = scipy.spatial.KDTree(df_selected_image_and_filter[xy_position_columns])
@@ -75,22 +122,22 @@ def add_radial_bin_to_dataset(df, unique_images, coordinate_scale_factor=1, annu
 
 
 # Function to calculate the percent positives in each annulus in each image
-def calculate_percent_positives_for_entire_dataset(df, column_to_plot, unique_images, coordinate_scale_factor=1, annulus_spacing_um=250):
+def calculate_percent_positives_for_entire_dataset(df, column_to_plot, unique_images, coordinate_scale_factor=1, annulus_spacing_um=250, xy_position_columns=['Cell X Position', 'Cell Y Position']):
 
     # For every image in the dataset...
     analysis_results_holder = []
     for current_image in unique_images:
 
         # Filter the DataFrame to the current image
-        df_selected_image_and_filter = df.loc[(df['Slide ID'] == current_image), ['Cell X Position', 'Cell Y Position', column_to_plot]]
+        df_selected_image_and_filter = df.loc[(df['Slide ID'] == current_image), xy_position_columns + [column_to_plot]]
 
         # Scale the coordinates. Generally unnecessary as this should have been done (converted to microns) in the unifier
         if coordinate_scale_factor != 1:
-            df_selected_image_and_filter[['Cell X Position', 'Cell Y Position']] = df_selected_image_and_filter[['Cell X Position', 'Cell Y Position']] * coordinate_scale_factor
+            df_selected_image_and_filter[xy_position_columns] = df_selected_image_and_filter[xy_position_columns] * coordinate_scale_factor
 
-        # Get the x-y midpoint of the coordinates in df_selected_image_and_filter[['Cell X Position', 'Cell Y Position']]
-        xy_min = df_selected_image_and_filter[['Cell X Position', 'Cell Y Position']].min()
-        xy_max = df_selected_image_and_filter[['Cell X Position', 'Cell Y Position']].max()
+        # Get the x-y midpoint of the coordinates in df_selected_image_and_filter[xy_position_columns]
+        xy_min = df_selected_image_and_filter[xy_position_columns].min()
+        xy_max = df_selected_image_and_filter[xy_position_columns].max()
         xy_mid = (xy_min + xy_max) / 2
 
         # Get the radius edges that fit within the largest possible radius
@@ -101,7 +148,7 @@ def calculate_percent_positives_for_entire_dataset(df, column_to_plot, unique_im
         radius_edges = np.arange(0, end_value, spacing_um)  # generate steps
 
         # Construct a KDTree for the current image
-        kdtree = scipy.spatial.KDTree(df_selected_image_and_filter[['Cell X Position', 'Cell Y Position']])
+        kdtree = scipy.spatial.KDTree(df_selected_image_and_filter[xy_position_columns])
 
         # For every outer radius...
         prev_indices = None
@@ -152,80 +199,77 @@ def initialize_preprocessing(df):
     # Preprocessing section
     st.header('Preprocessing')
 
-    # On the first third vertical third of the page...
-    with st.columns(3)[0]:
-    
-        # Checkbox for whether to run checks
-        key = st_key_prefix + 'run_checks'
-        if key not in st.session_state:
-            st.session_state[key] = False
-        run_checks = st.checkbox('Run checks', key=key)
+    # Checkbox for whether to run checks
+    key = st_key_prefix + 'run_checks'
+    if key not in st.session_state:
+        st.session_state[key] = False
+    run_checks = st.checkbox('Run checks', key=key)
 
-        # Number input for the threshold for the RawIntNorm check
-        key = st_key_prefix + 'perc_thresh_rawintnorm_column_check'
-        if key not in st.session_state:
-            st.session_state[key] = 0.01
-        if run_checks:
-            st.number_input('Threshold for the RawIntNorm column check (%):', min_value=0.0, max_value=100.0, key=key)
-        perc_thresh_rawintnorm_column_check = st.session_state[key]
+    # Number input for the threshold for the RawIntNorm check
+    key = st_key_prefix + 'perc_thresh_rawintnorm_column_check'
+    if key not in st.session_state:
+        st.session_state[key] = 0.01
+    if run_checks:
+        st.number_input('Threshold for the RawIntNorm column check (%):', min_value=0.0, max_value=100.0, key=key)
+    perc_thresh_rawintnorm_column_check = st.session_state[key]
 
-        # Number input to select the nuclear intensity channel
-        key = st_key_prefix + 'nuclear_channel'
-        if key not in st.session_state:
-            st.session_state[key] = 1
-        nuclear_channel = st.number_input('Nuclear channel:', min_value=1, key=key)
+    # Number input to select the nuclear intensity channel
+    key = st_key_prefix + 'nuclear_channel'
+    if key not in st.session_state:
+        st.session_state[key] = 1
+    nuclear_channel = st.number_input('Nuclear channel:', min_value=1, key=key)
 
-        # Checkbox for whether to apply the z-score filter
-        key = st_key_prefix + 'do_z_score_filter'
-        if key not in st.session_state:
-            st.session_state[key] = True
-        do_z_score_filter = st.checkbox('Do z-score filter', key=key)
+    # Checkbox for whether to apply the z-score filter
+    key = st_key_prefix + 'do_z_score_filter'
+    if key not in st.session_state:
+        st.session_state[key] = True
+    do_z_score_filter = st.checkbox('Do z-score filter', key=key)
 
-        # Number input for the z-score filter threshold
-        key = st_key_prefix + 'z_score_filter_threshold'
-        if key not in st.session_state:
-            st.session_state[key] = 3
+    # Number input for the z-score filter threshold
+    key = st_key_prefix + 'z_score_filter_threshold'
+    if key not in st.session_state:
+        st.session_state[key] = 3
+    if do_z_score_filter:
+        st.number_input('z-score filter threshold:', min_value=0.0, key=key)
+    z_score_filter_threshold = st.session_state[key]
+
+    # If dataset preprocessing is desired...
+    if st.button('Preprocess dataset'):
+
+        # Record the start time
+        start_time = time.time()
+
+        # Preprocess the dataset
+        df = radial_profiles.preprocess_dataset(
+            df,
+            perc_thresh_rawintnorm_column_check=perc_thresh_rawintnorm_column_check,
+            image_col='Slide ID',
+            nuclear_channel=nuclear_channel,
+            do_z_score_filter=do_z_score_filter,
+            z_score_filter_threshold=z_score_filter_threshold,
+            run_checks=run_checks
+        )
+
+        # Output the time taken
+        st.write(f'Preprocessing took {int(np.round(time.time() - start_time))} seconds')
+
+        # Calculate the memory usage of the transformed dataframe
+        st.session_state['input_dataframe_memory_usage_bytes'] = df.memory_usage(deep=True).sum()
+
+        # Update the preprocessing parameters
+        st.session_state['input_metadata']['preprocessing'] = {
+            'location': 'Radial Profiles app',
+            'nuclear_channel': nuclear_channel,
+            'do_z_score_filter': do_z_score_filter,
+        }
         if do_z_score_filter:
-            st.number_input('z-score filter threshold:', min_value=0.0, key=key)
-        z_score_filter_threshold = st.session_state[key]
+            st.session_state['input_metadata']['preprocessing']['z_score_filter_threshold'] = z_score_filter_threshold
 
-        # If dataset preprocessing is desired...
-        if st.button('Preprocess dataset'):
+        # Display information about the new dataframe
+        df.info()
 
-            # Record the start time
-            start_time = time.time()
-
-            # Preprocess the dataset
-            df = radial_profiles.preprocess_dataset(
-                df,
-                perc_thresh_rawintnorm_column_check=perc_thresh_rawintnorm_column_check,
-                image_col='Slide ID',
-                nuclear_channel=nuclear_channel,
-                do_z_score_filter=do_z_score_filter,
-                z_score_filter_threshold=z_score_filter_threshold,
-                run_checks=run_checks
-            )
-
-            # Output the time taken
-            st.write(f'Preprocessing took {int(np.round(time.time() - start_time))} seconds')
-
-            # Calculate the memory usage of the transformed dataframe
-            st.session_state['input_dataframe_memory_usage_bytes'] = df.memory_usage(deep=True).sum()
-
-            # Update the preprocessing parameters
-            st.session_state['input_metadata']['preprocessing'] = {
-                'location': 'Radial Profiles app',
-                'nuclear_channel': nuclear_channel,
-                'do_z_score_filter': do_z_score_filter,
-            }
-            if do_z_score_filter:
-                st.session_state['input_metadata']['preprocessing']['z_score_filter_threshold'] = z_score_filter_threshold
-
-            # Display information about the new dataframe
-            df.info()
-
-            # In case df has been modified not-in-place in any way, reassign the input dataset as the modified df
-            st.session_state['input_dataset'].data = df
+        # In case df has been modified not-in-place in any way, reassign the input dataset as the modified df
+        st.session_state['input_dataset'].data = df
 
     # Return the modified dataframe
     return df
@@ -300,8 +344,16 @@ def main():
     # Save a shortcut to the dataframe
     df = st.session_state['input_dataset'].data
 
+    # Set up some columns
+    columns = st.columns(3)
+
     # Set up preprocessing
-    df = initialize_preprocessing(df)
+    with columns[0]:
+        df = initialize_preprocessing(df)
+
+    # Set up calculation of radial bins
+    with columns[1]:
+        df, unique_images, coordinate_scale_factor, annulus_spacing_um, xy_position_columns = calculate_radial_bins(df)
 
     # Main settings section
     st.divider()
@@ -317,7 +369,8 @@ def main():
         if st_key_prefix + 'categorical_columns' not in st.session_state:
             max_num_unique_values = 1000
             categorical_columns = []
-            for col in df.select_dtypes(include=('category', 'object')).columns:
+            # for col in df.select_dtypes(include=('category', 'object')).columns:
+            for col in df.columns:
                 if df[col].nunique() <= max_num_unique_values:
                     categorical_columns.append(col)
             st.session_state[st_key_prefix + 'categorical_columns'] = categorical_columns
@@ -334,11 +387,8 @@ def main():
         st.session_state[st_key_prefix + 'column_to_plot_prev'] = column_to_plot
 
         # Get some information about the images in the input dataset
-        if st_key_prefix + 'unique_images' not in st.session_state:
-            st.session_state[st_key_prefix + 'unique_images'] = df['Slide ID'].unique()  # get the unique images in the dataset
         if st_key_prefix + 'ser_size_of_each_image' not in st.session_state:
             st.session_state[st_key_prefix + 'ser_size_of_each_image'] = df['Slide ID'].value_counts()  # calculate the number of objects in each image
-        unique_images = st.session_state[st_key_prefix + 'unique_images']
         ser_size_of_each_image = st.session_state[st_key_prefix + 'ser_size_of_each_image']
 
         # Create an image selection selectbox
@@ -425,32 +475,32 @@ def main():
         st.button('Reset plotting colors to defaults', on_click=reset_color_dict, args=(df[column_to_plot],))
         color_dict = st.session_state[st_key_prefix + 'color_dict']
 
-    # Analysis section
-    st.divider()
-    st.header('Analysis')
+    # # Analysis section
+    # st.divider()
+    # st.header('Analysis')
 
-    # Define the analysis settings columns
-    with st.columns(3)[0]:
+    # # Define the analysis settings columns
+    # with st.columns(3)[0]:
 
-        # Number input for the coordinate scale factor
-        key = st_key_prefix + 'coordinate_scale_factor'
-        if key not in st.session_state:
-            st.session_state[key] = 1
-        coordinate_scale_factor = st.number_input('Coordinate scale factor:', min_value=0.0, key=key, help='This is only necessary if you have forgotten to scale the coordinates in the Datafile Unifier.')
+    #     # Number input for the coordinate scale factor
+    #     key = st_key_prefix + 'coordinate_scale_factor'
+    #     if key not in st.session_state:
+    #         st.session_state[key] = 1
+    #     coordinate_scale_factor = st.number_input('Coordinate scale factor:', min_value=0.0, key=key, help='This is only necessary if you have forgotten to scale the coordinates in the Datafile Unifier.')
 
-        # Number input for the annulus spacing
-        key = st_key_prefix + 'annulus_spacing_um'
-        if key not in st.session_state:
-            st.session_state[key] = 250
-        annulus_spacing_um = st.number_input('Annulus spacing (um):', min_value=0.0, key=key)
+    #     # Number input for the annulus spacing
+    #     key = st_key_prefix + 'annulus_spacing_um'
+    #     if key not in st.session_state:
+    #         st.session_state[key] = 250
+    #     annulus_spacing_um = st.number_input('Annulus spacing (um):', min_value=0.0, key=key)
 
-    # Run main analysis
-    if st.button('Calculate percent positives in each annulus in each image'):
-        start_time = time.time()
-        df_analysis_results = calculate_percent_positives_for_entire_dataset(df, column_to_plot, unique_images, coordinate_scale_factor=coordinate_scale_factor, annulus_spacing_um=annulus_spacing_um)
-        st.write(f'Analysis took {int(np.round(time.time() - start_time))} seconds')
-        st.write(df_analysis_results)
-        st.session_state[st_key_prefix + 'df_analysis_results'] = df_analysis_results
+    # # Run main analysis
+    # if st.button('Calculate percent positives in each annulus in each image'):
+    #     start_time = time.time()
+    #     df_analysis_results = calculate_percent_positives_for_entire_dataset(df, column_to_plot, unique_images, coordinate_scale_factor=coordinate_scale_factor, annulus_spacing_um=annulus_spacing_um)
+    #     st.write(f'Analysis took {int(np.round(time.time() - start_time))} seconds')
+    #     st.write(df_analysis_results)
+    #     st.session_state[st_key_prefix + 'df_analysis_results'] = df_analysis_results
 
     # Output/plutting section
     st.divider()
@@ -462,23 +512,14 @@ def main():
     if st.toggle('Show scatter plot', key=st_key_prefix + 'show_scatter_plot'):
 
         # Filter the DataFrame to include only the selected image
-        df_selected_image_and_filter = df.loc[(df['Slide ID'] == image_to_view), ['Cell X Position', 'Cell Y Position', column_to_plot]]
+        df_selected_image_and_filter = df.loc[(df['Slide ID'] == image_to_view), xy_position_columns + [column_to_plot]]
 
         # Optionally scale the coordinates (probably not; should have been done in Datafile Unifier
         if coordinate_scale_factor != 1:
-            df_selected_image_and_filter[['Cell X Position', 'Cell Y Position']] = df_selected_image_and_filter[['Cell X Position', 'Cell Y Position']] * coordinate_scale_factor
+            df_selected_image_and_filter[xy_position_columns] = df_selected_image_and_filter[xy_position_columns] * coordinate_scale_factor
 
-        # Get the x-y midpoint of the coordinates in df_selected_image_and_filter[['Cell X Position', 'Cell Y Position']]
-        xy_min = df_selected_image_and_filter[['Cell X Position', 'Cell Y Position']].min()
-        xy_max = df_selected_image_and_filter[['Cell X Position', 'Cell Y Position']].max()
-        xy_mid = (xy_min + xy_max) / 2
-
-        # Get the radius edges that fit within the largest possible radius
-        largest_possible_radius = (xy_max - xy_mid).min()
-        spacing_um = 250
-        num_intervals = largest_possible_radius // spacing_um  # calculate the number of intervals that fit within the largest_possible_radius
-        end_value = (num_intervals + 1) * spacing_um  # calculate the end value for np.arange to ensure it does not exceed largest_possible_radius
-        radius_edges = np.arange(0, end_value, spacing_um)  # generate steps
+        # Calculate the radius edges of the annuli
+        radius_edges, xy_mid = calculate_annuli_radius_edges(df_selected_image_and_filter, annulus_spacing_um=annulus_spacing_um, xy_position_columns=xy_position_columns)
 
         # Group the DataFrame for the selected image by unique value of the column to plot
         selected_image_grouped_by_value = df_selected_image_and_filter.groupby(column_to_plot)
@@ -506,7 +547,7 @@ def main():
 
                 # Works but doesn't scale the shapes
                 if not use_coordinate_mins_and_maxs:
-                    fig.add_trace(go.Scatter(x=df_group['Cell X Position'], y=df_group['Cell Y Position'], mode='markers', name=value_str_cleaned, marker_color=color_dict[value_to_plot], hovertemplate=df_group['hover_label']))
+                    fig.add_trace(go.Scatter(x=df_group[xy_position_columns[0]], y=df_group[xy_position_columns[1]], mode='markers', name=value_str_cleaned, marker_color=color_dict[value_to_plot], hovertemplate=df_group['hover_label']))
 
                 # Works really well
                 else:
@@ -529,10 +570,10 @@ def main():
                 type='circle',
                 xref='x',
                 yref='y',
-                x0=xy_mid['Cell X Position'] - radius,
-                y0=xy_mid['Cell Y Position'] - radius,
-                x1=xy_mid['Cell X Position'] + radius,
-                y1=xy_mid['Cell Y Position'] + radius,
+                x0=xy_mid[xy_position_columns[0]] - radius,
+                y0=xy_mid[xy_position_columns[1]] - radius,
+                x1=xy_mid[xy_position_columns[0]] + radius,
+                y1=xy_mid[xy_position_columns[1]] + radius,
                 line=dict(
                     color='lime',
                     width=4,
