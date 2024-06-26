@@ -15,7 +15,228 @@ import scipy.spatial
 st_key_prefix = 'radial_profiles__'
 
 
-def calculate_radial_bins(df):
+def draw_single_image_scatter_plot(df, image_to_view, column_to_plot, values_to_plot, color_dict, xy_position_columns=['Cell X Position', 'Cell Y Position'], coordinate_scale_factor=1, annulus_spacing_um=250, use_coordinate_mins_and_maxs=False, xmin_col='Cell X Position', xmax_col='Cell X Position', ymin_col='Cell Y Position', ymax_col='Cell Y Position', units='microns', invert_y_axis=False, opacity=0.7):
+
+    # Draw a header
+    st.header('Single image scatter plot')
+
+    # If the user wants to display the scatter plot, indicated by a toggle...
+    if st_key_prefix + 'show_scatter_plot' not in st.session_state:
+        st.session_state[st_key_prefix + 'show_scatter_plot'] = False
+    if st.toggle('Show scatter plot', key=st_key_prefix + 'show_scatter_plot'):
+
+        # Filter the DataFrame to include only the selected image
+        df_selected_image_and_filter = df.loc[(df['Slide ID'] == image_to_view), xy_position_columns + [column_to_plot]]
+
+        # Optionally scale the coordinates (probably not; should have been done in Datafile Unifier
+        if coordinate_scale_factor != 1:
+            df_selected_image_and_filter[xy_position_columns] = df_selected_image_and_filter[xy_position_columns] * coordinate_scale_factor
+
+        # Calculate the radius edges of the annuli
+        radius_edges, xy_mid = calculate_annuli_radius_edges(df_selected_image_and_filter, annulus_spacing_um=annulus_spacing_um, xy_position_columns=xy_position_columns)
+
+        # Group the DataFrame for the selected image by unique value of the column to plot
+        selected_image_grouped_by_value = df_selected_image_and_filter.groupby(column_to_plot)
+
+        # Create the scatter plot
+        fig = go.Figure()
+
+        # Loop over the unique values in the column whose values to plot, in order of their frequency
+        for value_to_plot in values_to_plot:
+
+            # If the value exists in the selected image...
+            if (value_to_plot in selected_image_grouped_by_value.groups) and (len(selected_image_grouped_by_value.groups[value_to_plot]) > 0):
+
+                # Store the dataframe for the current value for the selected image
+                df_group = selected_image_grouped_by_value.get_group(value_to_plot)
+
+                # If value is a string, replace '(plus)' with '+' and '(dash)' with '-', since it could likely be a phenotype with those substitutions
+                if isinstance(value_to_plot, str):
+                    value_str_cleaned = value_to_plot.replace('(plus)', '+').replace('(dash)', '-')
+                else:
+                    value_str_cleaned = value_to_plot
+
+                # Add the object index to the label
+                df_group['hover_label'] = 'Index: ' + df_group.index.astype(str)
+
+                # Works but doesn't scale the shapes
+                if not use_coordinate_mins_and_maxs:
+                    fig.add_trace(go.Scatter(x=df_group[xy_position_columns[0]], y=df_group[xy_position_columns[1]], mode='markers', name=value_str_cleaned, marker_color=color_dict[value_to_plot], hovertemplate=df_group['hover_label']))
+
+                # Works really well
+                else:
+                    fig.add_trace(go.Bar(
+                        x=((df_group[xmin_col] + df_group[xmax_col]) / 2),
+                        y=df_group[ymax_col] - df_group[ymin_col],
+                        width=df_group[xmax_col] - df_group[xmin_col],
+                        base=df_group[ymin_col],
+                        name=value_str_cleaned,
+                        marker=dict(
+                            color=color_dict[value_to_plot],
+                            opacity=opacity,
+                        ),
+                        hovertemplate=df_group['hover_label']
+                    ))
+
+        # Plot circles of radii radius_edges[1:] centered at the midpoint of the coordinates
+        for radius in radius_edges[1:]:
+            fig.add_shape(
+                type='circle',
+                xref='x',
+                yref='y',
+                x0=xy_mid[xy_position_columns[0]] - radius,
+                y0=xy_mid[xy_position_columns[1]] - radius,
+                x1=xy_mid[xy_position_columns[0]] + radius,
+                y1=xy_mid[xy_position_columns[1]] + radius,
+                line=dict(
+                    color='lime',
+                    width=4,
+                ),
+                opacity=0.75,
+            )
+
+        # Update the layout
+        fig.update_layout(
+            xaxis=dict(
+                scaleanchor="y",
+                scaleratio=1,
+            ),
+            yaxis=dict(
+                autorange=('reversed' if invert_y_axis else True),
+            ),
+            title=f'Scatter plot for {image_to_view}',
+            xaxis_title=f'Cell X Position ({units})',
+            yaxis_title=f'Cell Y Position ({units})',
+            legend_title=column_to_plot,
+            height=800,  # Set the height of the figure
+            width=800,  # Set the width of the figure
+        )
+
+        # Plot the plotly chart in Streamlit
+        st.plotly_chart(fig, use_container_width=True)
+
+        # Write the analysis results for the selected image
+        if st_key_prefix + 'df_analysis_results' in st.session_state:
+            st.write(st.session_state[st_key_prefix + 'df_analysis_results'].loc[image_to_view])
+
+    # We seem to need to render something on the page after rendering a plotly figure in order for the page to not automatically scroll back to the top when you go to the Previous or Next image
+    st.write(' ')
+
+
+def initialize_main_settings(df, unique_images):
+
+    # Main settings section
+    st.header('Main settings')
+
+    # Define the main settings columns
+    settings_columns_main = st.columns(3)
+
+    # In the first column...
+    with settings_columns_main[0]:
+
+        # Store columns of certain types
+        if st_key_prefix + 'categorical_columns' not in st.session_state:
+            max_num_unique_values = 1000
+            categorical_columns = []
+            for col in df.columns:
+                if df[col].nunique() <= max_num_unique_values:
+                    categorical_columns.append(col)
+            st.session_state[st_key_prefix + 'categorical_columns'] = categorical_columns
+        if st_key_prefix + 'numeric_columns' not in st.session_state:
+            st.session_state[st_key_prefix + 'numeric_columns'] = df.select_dtypes(include='number').columns
+        categorical_columns = st.session_state[st_key_prefix + 'categorical_columns']
+        numeric_columns = st.session_state[st_key_prefix + 'numeric_columns']
+
+        # Choose a column to plot
+        if st_key_prefix + 'column_to_plot' not in st.session_state:
+            st.session_state[st_key_prefix + 'column_to_plot'] = categorical_columns[0]
+        column_to_plot = st.selectbox('Select a column by which to color the points:', categorical_columns, key=st_key_prefix + 'column_to_plot')
+        column_to_plot_has_changed = (st_key_prefix + 'column_to_plot_prev' not in st.session_state) or (st.session_state[st_key_prefix + 'column_to_plot_prev'] != column_to_plot)
+        st.session_state[st_key_prefix + 'column_to_plot_prev'] = column_to_plot
+
+        # Get some information about the images in the input dataset
+        if st_key_prefix + 'ser_size_of_each_image' not in st.session_state:
+            st.session_state[st_key_prefix + 'ser_size_of_each_image'] = df['Slide ID'].value_counts()  # calculate the number of objects in each image
+        ser_size_of_each_image = st.session_state[st_key_prefix + 'ser_size_of_each_image']
+
+        # Create an image selection selectbox
+        if st_key_prefix + 'image_to_view' not in st.session_state:
+            st.session_state[st_key_prefix + 'image_to_view'] = unique_images[0]
+        image_to_view = st.selectbox('Select image to view:', unique_images, key=st_key_prefix + 'image_to_view')
+
+        # Display the number of cells in the selected image
+        st.write(f'Number of cells in image: {ser_size_of_each_image.loc[image_to_view]}')
+
+        # Optionally navigate through the images using Previous and Next buttons
+        cols = st.columns(2)
+        with cols[0]:
+            st.button('Previous image', on_click=go_to_previous_image, args=(unique_images,), disabled=(image_to_view == unique_images[0]), use_container_width=True)
+        with cols[1]:
+            st.button('Next image', on_click=go_to_next_image, args=(unique_images, ), disabled=(image_to_view == unique_images[-1]), use_container_width=True)
+
+    # In the second column...
+    with settings_columns_main[1]:
+
+        # Optionally plot minimum and maximum coordinate fields
+        if st_key_prefix + 'use_coordinate_mins_and_maxs' not in st.session_state:
+            st.session_state[st_key_prefix + 'use_coordinate_mins_and_maxs'] = False
+        use_coordinate_mins_and_maxs = st.checkbox('Use coordinate mins and maxs', key=st_key_prefix + 'use_coordinate_mins_and_maxs')
+        settings_columns_refined = st.columns(2)
+        if st_key_prefix + 'x_min_coordinate_column' not in st.session_state:
+            st.session_state[st_key_prefix + 'x_min_coordinate_column'] = numeric_columns[0]
+        if st_key_prefix + 'y_min_coordinate_column' not in st.session_state:
+            st.session_state[st_key_prefix + 'y_min_coordinate_column'] = numeric_columns[0]
+        if st_key_prefix + 'x_max_coordinate_column' not in st.session_state:
+            st.session_state[st_key_prefix + 'x_max_coordinate_column'] = numeric_columns[0]
+        if st_key_prefix + 'y_max_coordinate_column' not in st.session_state:
+            st.session_state[st_key_prefix + 'y_max_coordinate_column'] = numeric_columns[0]
+        with settings_columns_refined[0]:
+            xmin_col = st.selectbox('Select a column for the minimum x-coordinate:', numeric_columns, key=st_key_prefix + 'x_min_coordinate_column', disabled=(not use_coordinate_mins_and_maxs))
+        with settings_columns_refined[1]:
+            xmax_col = st.selectbox('Select a column for the maximum x-coordinate:', numeric_columns, key=st_key_prefix + 'x_max_coordinate_column', disabled=(not use_coordinate_mins_and_maxs))
+        with settings_columns_refined[0]:
+            ymin_col = st.selectbox('Select a column for the minimum y-coordinate:', numeric_columns, key=st_key_prefix + 'y_min_coordinate_column', disabled=(not use_coordinate_mins_and_maxs))
+        with settings_columns_refined[1]:
+            ymax_col = st.selectbox('Select a column for the maximum y-coordinate:', numeric_columns, key=st_key_prefix + 'y_max_coordinate_column', disabled=(not use_coordinate_mins_and_maxs))
+        units = ('coordinate units' if use_coordinate_mins_and_maxs else 'microns')
+
+    # In the third column...
+    with settings_columns_main[2]:
+
+        # Add an option to invert the y-axis
+        if st_key_prefix + 'invert_y_axis' not in st.session_state:
+            st.session_state[st_key_prefix + 'invert_y_axis'] = False
+        invert_y_axis = st.checkbox('Invert y-axis', key=st_key_prefix + 'invert_y_axis')
+
+        # Choose the opacity of objects
+        if st_key_prefix + 'opacity' not in st.session_state:
+            st.session_state[st_key_prefix + 'opacity'] = 0.7
+        opacity = st.number_input('Opacity:', min_value=0.0, max_value=1.0, step=0.1, key=st_key_prefix + 'opacity')
+
+        # Define the colors for the values to plot
+        if (st_key_prefix + 'color_dict' not in st.session_state) or column_to_plot_has_changed:
+            reset_color_dict(df[column_to_plot])
+        values_to_plot = st.session_state[st_key_prefix + 'values_to_plot']
+        color_dict = st.session_state[st_key_prefix + 'color_dict']
+
+        # Select a value whose color we want to modify
+        if (st_key_prefix + 'value_to_change_color' not in st.session_state) or column_to_plot_has_changed:
+            st.session_state[st_key_prefix + 'value_to_change_color'] = values_to_plot[0]
+        value_to_change_color = st.selectbox('Value whose color to change:', values_to_plot, key=st_key_prefix + 'value_to_change_color')
+
+        # Create a color picker widget for the selected value
+        st.session_state[st_key_prefix + 'new_picked_color'] = color_dict[value_to_change_color]
+        st.color_picker('Pick a new color:', key=st_key_prefix + 'new_picked_color', on_change=update_color_for_value, args=(value_to_change_color,))
+
+        # Add a button to reset the colors to their default values
+        st.button('Reset plotting colors to defaults', on_click=reset_color_dict, args=(df[column_to_plot],))
+        color_dict = st.session_state[st_key_prefix + 'color_dict']
+
+    # Return assigned variables
+    return column_to_plot, image_to_view, use_coordinate_mins_and_maxs, xmin_col, xmax_col, ymin_col, ymax_col, units, invert_y_axis, opacity, color_dict, values_to_plot, categorical_columns
+
+
+def initialize_radial_bin_calculation(df):
 
     # Radial bins calculation section
     st.header('Radial bins')
@@ -38,12 +259,6 @@ def calculate_radial_bins(df):
     annulus_spacing_um = st.number_input('Annulus spacing (um):', min_value=0.0, key=key)
 
     # Multiselect for selection of coordinate columns
-    # key = st_key_prefix + 'xy_position_columns'
-    # if key not in st.session_state:
-    #     st.session_state[key] = ['Cell X Position', 'Cell Y Position']
-    # st.multiselect('Select the x-y position columns:', df.columns, key=key)
-    # st.session_state[key] = sorted(st.session_state[key])
-    # xy_position_columns = st.session_state[key]
     xy_position_columns = ['Cell X Position', 'Cell Y Position']  # this is set in Open File so should always be the same, no need for a widget
 
     # Calculate radial bins
@@ -54,6 +269,7 @@ def calculate_radial_bins(df):
         st.write(f'Calculation of radial bins took {int(np.round(time.time() - start_time))} seconds')
         del st.session_state[st_key_prefix + 'categorical_columns']  # force the categorical columns to be recalculated since we just added one to the dataset
 
+    # Return the necessary variables
     return df, unique_images, coordinate_scale_factor, annulus_spacing_um, xy_position_columns
 
 
@@ -353,267 +569,55 @@ def main():
 
     # Set up calculation of radial bins
     with columns[1]:
-        df, unique_images, coordinate_scale_factor, annulus_spacing_um, xy_position_columns = calculate_radial_bins(df)
+        df, unique_images, coordinate_scale_factor, annulus_spacing_um, xy_position_columns = initialize_radial_bin_calculation(df)
+
+    # Draw a divider
+    st.divider()
 
     # Main settings section
-    st.divider()
-    st.header('Main settings')
-
-    # Define the main settings columns
-    settings_columns_main = st.columns(3)
-
-    # In the first column...
-    with settings_columns_main[0]:
-
-        # Store columns of certain types
-        if st_key_prefix + 'categorical_columns' not in st.session_state:
-            max_num_unique_values = 1000
-            categorical_columns = []
-            # for col in df.select_dtypes(include=('category', 'object')).columns:
-            for col in df.columns:
-                if df[col].nunique() <= max_num_unique_values:
-                    categorical_columns.append(col)
-            st.session_state[st_key_prefix + 'categorical_columns'] = categorical_columns
-        if st_key_prefix + 'numeric_columns' not in st.session_state:
-            st.session_state[st_key_prefix + 'numeric_columns'] = df.select_dtypes(include='number').columns
-        categorical_columns = st.session_state[st_key_prefix + 'categorical_columns']
-        numeric_columns = st.session_state[st_key_prefix + 'numeric_columns']
-
-        # Choose a column to plot
-        if st_key_prefix + 'column_to_plot' not in st.session_state:
-            st.session_state[st_key_prefix + 'column_to_plot'] = categorical_columns[0]
-        column_to_plot = st.selectbox('Select a column by which to color the points:', categorical_columns, key=st_key_prefix + 'column_to_plot')
-        column_to_plot_has_changed = (st_key_prefix + 'column_to_plot_prev' not in st.session_state) or (st.session_state[st_key_prefix + 'column_to_plot_prev'] != column_to_plot)
-        st.session_state[st_key_prefix + 'column_to_plot_prev'] = column_to_plot
-
-        # Get some information about the images in the input dataset
-        if st_key_prefix + 'ser_size_of_each_image' not in st.session_state:
-            st.session_state[st_key_prefix + 'ser_size_of_each_image'] = df['Slide ID'].value_counts()  # calculate the number of objects in each image
-        ser_size_of_each_image = st.session_state[st_key_prefix + 'ser_size_of_each_image']
-
-        # Create an image selection selectbox
-        if st_key_prefix + 'image_to_view' not in st.session_state:
-            st.session_state[st_key_prefix + 'image_to_view'] = unique_images[0]
-        image_to_view = st.selectbox('Select image to view:', unique_images, key=st_key_prefix + 'image_to_view')
-
-        # Display the number of cells in the selected image
-        st.write(f'Number of cells in image: {ser_size_of_each_image.loc[image_to_view]}')
-
-        # Optionally navigate through the images using Previous and Next buttons
-        cols = st.columns(2)
-        with cols[0]:
-            st.button('Previous image', on_click=go_to_previous_image, args=(unique_images,), disabled=(image_to_view == unique_images[0]), use_container_width=True)
-        with cols[1]:
-            st.button('Next image', on_click=go_to_next_image, args=(unique_images, ), disabled=(image_to_view == unique_images[-1]), use_container_width=True)
-
-    # In the second column...
-    with settings_columns_main[1]:
-
-        # Optionally plot minimum and maximum coordinate fields
-        if st_key_prefix + 'use_coordinate_mins_and_maxs' not in st.session_state:
-            st.session_state[st_key_prefix + 'use_coordinate_mins_and_maxs'] = False
-        use_coordinate_mins_and_maxs = st.checkbox('Use coordinate mins and maxs', key=st_key_prefix + 'use_coordinate_mins_and_maxs')
-        settings_columns_refined = st.columns(2)
-        if st_key_prefix + 'x_min_coordinate_column' not in st.session_state:
-            st.session_state[st_key_prefix + 'x_min_coordinate_column'] = numeric_columns[0]
-        if st_key_prefix + 'y_min_coordinate_column' not in st.session_state:
-            st.session_state[st_key_prefix + 'y_min_coordinate_column'] = numeric_columns[0]
-        if st_key_prefix + 'x_max_coordinate_column' not in st.session_state:
-            st.session_state[st_key_prefix + 'x_max_coordinate_column'] = numeric_columns[0]
-        if st_key_prefix + 'y_max_coordinate_column' not in st.session_state:
-            st.session_state[st_key_prefix + 'y_max_coordinate_column'] = numeric_columns[0]
-        with settings_columns_refined[0]:
-            xmin_col = st.selectbox('Select a column for the minimum x-coordinate:', numeric_columns, key=st_key_prefix + 'x_min_coordinate_column', disabled=(not use_coordinate_mins_and_maxs))
-        with settings_columns_refined[1]:
-            xmax_col = st.selectbox('Select a column for the maximum x-coordinate:', numeric_columns, key=st_key_prefix + 'x_max_coordinate_column', disabled=(not use_coordinate_mins_and_maxs))
-        with settings_columns_refined[0]:
-            ymin_col = st.selectbox('Select a column for the minimum y-coordinate:', numeric_columns, key=st_key_prefix + 'y_min_coordinate_column', disabled=(not use_coordinate_mins_and_maxs))
-        with settings_columns_refined[1]:
-            ymax_col = st.selectbox('Select a column for the maximum y-coordinate:', numeric_columns, key=st_key_prefix + 'y_max_coordinate_column', disabled=(not use_coordinate_mins_and_maxs))
-        units = ('coordinate units' if use_coordinate_mins_and_maxs else 'microns')
-
-        # Optionally add another filter
-        if st_key_prefix + 'add_another_filter' not in st.session_state:
-            st.session_state[st_key_prefix + 'add_another_filter'] = False
-        if st_key_prefix + 'column_to_filter_by' not in st.session_state:
-            st.session_state[st_key_prefix + 'column_to_filter_by'] = categorical_columns[0]
-        if st_key_prefix + 'values_to_filter_by' not in st.session_state:
-            st.session_state[st_key_prefix + 'values_to_filter_by'] = []
-        add_another_filter = st.checkbox('Add filter', key=st_key_prefix + 'add_another_filter')
-        column_to_filter_by = st.selectbox('Select a column to filter by:', categorical_columns, key=st_key_prefix + 'column_to_filter_by', disabled=(not add_another_filter))
-        values_to_filter_by = st.multiselect('Select values to filter by:', df[column_to_filter_by].unique(), key=st_key_prefix + 'values_to_filter_by', disabled=(not add_another_filter))
-
-    # In the third column...
-    with settings_columns_main[2]:
-
-        # Add an option to invert the y-axis
-        if st_key_prefix + 'invert_y_axis' not in st.session_state:
-            st.session_state[st_key_prefix + 'invert_y_axis'] = False
-        invert_y_axis = st.checkbox('Invert y-axis', key=st_key_prefix + 'invert_y_axis')
-
-        # Choose the opacity of objects
-        if st_key_prefix + 'opacity' not in st.session_state:
-            st.session_state[st_key_prefix + 'opacity'] = 0.7
-        opacity = st.number_input('Opacity:', min_value=0.0, max_value=1.0, step=0.1, key=st_key_prefix + 'opacity')
-
-        # Define the colors for the values to plot
-        if (st_key_prefix + 'color_dict' not in st.session_state) or column_to_plot_has_changed:
-            reset_color_dict(df[column_to_plot])
-        values_to_plot = st.session_state[st_key_prefix + 'values_to_plot']
-        color_dict = st.session_state[st_key_prefix + 'color_dict']
-
-        # Select a value whose color we want to modify
-        if (st_key_prefix + 'value_to_change_color' not in st.session_state) or column_to_plot_has_changed:
-            st.session_state[st_key_prefix + 'value_to_change_color'] = values_to_plot[0]
-        value_to_change_color = st.selectbox('Value whose color to change:', values_to_plot, key=st_key_prefix + 'value_to_change_color')
-
-        # Create a color picker widget for the selected value
-        st.session_state[st_key_prefix + 'new_picked_color'] = color_dict[value_to_change_color]
-        st.color_picker('Pick a new color:', key=st_key_prefix + 'new_picked_color', on_change=update_color_for_value, args=(value_to_change_color,))
-
-        # Add a button to reset the colors to their default values
-        st.button('Reset plotting colors to defaults', on_click=reset_color_dict, args=(df[column_to_plot],))
-        color_dict = st.session_state[st_key_prefix + 'color_dict']
-
-    # # Analysis section
-    # st.divider()
-    # st.header('Analysis')
-
-    # # Define the analysis settings columns
-    # with st.columns(3)[0]:
-
-    #     # Number input for the coordinate scale factor
-    #     key = st_key_prefix + 'coordinate_scale_factor'
-    #     if key not in st.session_state:
-    #         st.session_state[key] = 1
-    #     coordinate_scale_factor = st.number_input('Coordinate scale factor:', min_value=0.0, key=key, help='This is only necessary if you have forgotten to scale the coordinates in the Datafile Unifier.')
-
-    #     # Number input for the annulus spacing
-    #     key = st_key_prefix + 'annulus_spacing_um'
-    #     if key not in st.session_state:
-    #         st.session_state[key] = 250
-    #     annulus_spacing_um = st.number_input('Annulus spacing (um):', min_value=0.0, key=key)
-
-    # # Run main analysis
-    # if st.button('Calculate percent positives in each annulus in each image'):
-    #     start_time = time.time()
-    #     df_analysis_results = calculate_percent_positives_for_entire_dataset(df, column_to_plot, unique_images, coordinate_scale_factor=coordinate_scale_factor, annulus_spacing_um=annulus_spacing_um)
-    #     st.write(f'Analysis took {int(np.round(time.time() - start_time))} seconds')
-    #     st.write(df_analysis_results)
-    #     st.session_state[st_key_prefix + 'df_analysis_results'] = df_analysis_results
+    column_to_plot, image_to_view, use_coordinate_mins_and_maxs, xmin_col, xmax_col, ymin_col, ymax_col, units, invert_y_axis, opacity, color_dict, values_to_plot, categorical_columns = initialize_main_settings(df, unique_images)
 
     # Output/plutting section
     st.divider()
-    st.header('Output')
 
-    # If the user wants to display the scatter plot, indicated by a toggle...
-    if st_key_prefix + 'show_scatter_plot' not in st.session_state:
-        st.session_state[st_key_prefix + 'show_scatter_plot'] = False
-    if st.toggle('Show scatter plot', key=st_key_prefix + 'show_scatter_plot'):
+    # Draw a single image scatter plot
+    draw_single_image_scatter_plot(df, image_to_view, column_to_plot, values_to_plot, color_dict, xy_position_columns=xy_position_columns, coordinate_scale_factor=coordinate_scale_factor, annulus_spacing_um=annulus_spacing_um, use_coordinate_mins_and_maxs=use_coordinate_mins_and_maxs, xmin_col=xmin_col, xmax_col=xmax_col, ymin_col=ymin_col, ymax_col=ymax_col, units=units, invert_y_axis=invert_y_axis, opacity=opacity)
 
-        # Filter the DataFrame to include only the selected image
-        df_selected_image_and_filter = df.loc[(df['Slide ID'] == image_to_view), xy_position_columns + [column_to_plot]]
+    ####
 
-        # Optionally scale the coordinates (probably not; should have been done in Datafile Unifier
-        if coordinate_scale_factor != 1:
-            df_selected_image_and_filter[xy_position_columns] = df_selected_image_and_filter[xy_position_columns] * coordinate_scale_factor
+    key = st_key_prefix + 'columns_for_phenotype_grouping'
+    if key not in st.session_state:
+        st.session_state[key] = []
+    columns_for_phenotype_grouping = st.multiselect('Columns for phenotype grouping:', categorical_columns, key=key)
 
-        # Calculate the radius edges of the annuli
-        radius_edges, xy_mid = calculate_annuli_radius_edges(df_selected_image_and_filter, annulus_spacing_um=annulus_spacing_um, xy_position_columns=xy_position_columns)
+    st.write(df.sample(100))
+    
+    if st.button('Calculate thresholds for phenotyping'):
+        df_grouped = df.groupby(by=columns_for_phenotype_grouping)
+        for group_name, df_group in df_grouped:
+            # group_name is the value(s) of the columns_for_phenotype_grouping for the current group
+            # group_df is the DataFrame containing only the rows from df that belong to this group
+            
+            # Example operation: print the name of the group and the size of the group
+            st.write(f"Group: {group_name}, Size: {len(df_group)}")
+            # You can perform any operation you want with group_name and group_df here
 
-        # Group the DataFrame for the selected image by unique value of the column to plot
-        selected_image_grouped_by_value = df_selected_image_and_filter.groupby(column_to_plot)
+            # st.write(list(df_group.loc[df_group['cell_type'] == 'mCMV', 'Slide ID'].unique()))
+            df_baseline = df_group[df_group['cell_type'] == 'mCMV']
 
-        # Create the scatter plot
-        fig = go.Figure()
+            for group_name2, df_group2 in df_baseline.groupby('Slide ID'):
+                pass
 
-        # Loop over the unique values in the column whose values to plot, in order of their frequency
-        for value_to_plot in values_to_plot:
+            # at the end, compare with how I did it in the gater
 
-            # If the value exists in the selected image...
-            if (value_to_plot in selected_image_grouped_by_value.groups) and (len(selected_image_grouped_by_value.groups[value_to_plot]) > 0):
-
-                # Store the dataframe for the current value for the selected image
-                df_group = selected_image_grouped_by_value.get_group(value_to_plot)
-
-                # If value is a string, replace '(plus)' with '+' and '(dash)' with '-', since it could likely be a phenotype with those substitutions
-                if isinstance(value_to_plot, str):
-                    value_str_cleaned = value_to_plot.replace('(plus)', '+').replace('(dash)', '-')
-                else:
-                    value_str_cleaned = value_to_plot
-
-                # Add the object index to the label
-                df_group['hover_label'] = 'Index: ' + df_group.index.astype(str)
-
-                # Works but doesn't scale the shapes
-                if not use_coordinate_mins_and_maxs:
-                    fig.add_trace(go.Scatter(x=df_group[xy_position_columns[0]], y=df_group[xy_position_columns[1]], mode='markers', name=value_str_cleaned, marker_color=color_dict[value_to_plot], hovertemplate=df_group['hover_label']))
-
-                # Works really well
-                else:
-                    fig.add_trace(go.Bar(
-                        x=((df_group[xmin_col] + df_group[xmax_col]) / 2),
-                        y=df_group[ymax_col] - df_group[ymin_col],
-                        width=df_group[xmax_col] - df_group[xmin_col],
-                        base=df_group[ymin_col],
-                        name=value_str_cleaned,
-                        marker=dict(
-                            color=color_dict[value_to_plot],
-                            opacity=opacity,
-                        ),
-                        hovertemplate=df_group['hover_label']
-                    ))
-
-        # Plot circles of radii radius_edges[1:] centered at the midpoint of the coordinates
-        for radius in radius_edges[1:]:
-            fig.add_shape(
-                type='circle',
-                xref='x',
-                yref='y',
-                x0=xy_mid[xy_position_columns[0]] - radius,
-                y0=xy_mid[xy_position_columns[1]] - radius,
-                x1=xy_mid[xy_position_columns[0]] + radius,
-                y1=xy_mid[xy_position_columns[1]] + radius,
-                line=dict(
-                    color='lime',
-                    width=4,
-                ),
-                opacity=0.75,
-            )
-
-        # Update the layout
-        fig.update_layout(
-            xaxis=dict(
-                scaleanchor="y",
-                scaleratio=1,
-            ),
-            yaxis=dict(
-                autorange=('reversed' if invert_y_axis else True),
-            ),
-            title=f'Scatter plot for {image_to_view}',
-            xaxis_title=f'Cell X Position ({units})',
-            yaxis_title=f'Cell Y Position ({units})',
-            legend_title=column_to_plot,
-            height=800,  # Set the height of the figure
-            width=800,  # Set the width of the figure
-        )
-
-        # Plot the plotly chart in Streamlit
-        st.plotly_chart(fig, use_container_width=True)
-
-        # Write the analysis results for the selected image
-        if st_key_prefix + 'df_analysis_results' in st.session_state:
-            st.write(st.session_state[st_key_prefix + 'df_analysis_results'].loc[image_to_view])
-
-    # We seem to need to render something on the page after rendering a plotly figure in order for the page to not automatically scroll back to the top when you go to the Previous or Next image
-    st.write(' ')
+    ####
 
 
 # Run the main function
 if __name__ == '__main__':
 
     # Set page settings
-    page_name = 'Radial Profiles'
+    page_name = 'Radial Profiles - Calculations'
     st.set_page_config(layout='wide', page_title=page_name)
     st.title(page_name)
 
