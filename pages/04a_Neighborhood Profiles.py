@@ -128,6 +128,8 @@ def apply_umap(umap_style):
     st.session_state.outcomes = st.session_state.spatial_umap.cells.columns
     st.session_state.spatial_umap.outcomes = st.session_state.spatial_umap.cells.columns
 
+    st.session_state.dens_diff_feat_sel = st.session_state.outcomes[0]
+
     # List of possible outcome variables as defined by the config yaml files
     st.session_state.umapOutcomes = [st.session_state.defumapOutcomes]
     st.session_state.umapOutcomes.extend(st.session_state.outcomes)
@@ -283,8 +285,14 @@ def check_feature_approval_callback():
     if not st.session_state['toggle_clust_diff']:
         st.session_state.appro_feat = True
     else:
-        split_dict_full = st.session_state.udp_full.split_df_by_feature(st.session_state.dens_diff_feat_sel)
-        st.session_state.appro_feat = split_dict_full['appro_feat']
+
+        # Check feature values
+        st.session_state.clust_diff_vals_code = st.session_state.udp_full.check_feature_values(st.session_state.dens_diff_feat_sel)
+
+        if st.session_state.clust_diff_vals_code == 0:
+            st.session_state.appro_feat = False
+        else:
+            st.session_state.appro_feat = True
 
 def slide_id_prog_left_callback():
     '''
@@ -615,7 +623,8 @@ def main():
                     st.toggle('Perform Clustering on UMAP Density Difference',
                               value = False, key = 'toggle_clust_diff',
                               help = '''Perform clustering on the density difference between
-                                        two levels of a dataset feature.''')
+                                        two levels of a dataset feature.''',
+                                        on_change=check_feature_approval_callback)
 
                     clust_exp_col = st.columns(2)
                     with clust_exp_col[0]:
@@ -624,7 +633,11 @@ def main():
                         if st.session_state['toggle_clust_diff'] is True:
                             st.selectbox('Feature', options = st.session_state.spatial_umap.outcomes,
                                          key = 'dens_diff_feat_sel',
-                                         help = '''Select the feature to split the UMAP by.''')
+                                         help = '''Select the feature to split the UMAP by.''',
+                                         on_change=check_feature_approval_callback)
+                            
+                            options  = st.session_state.spatial_umap.df_umap[st.session_state.dens_diff_feat_sel].unique()
+                            st.selectbox('Values for False Condition', key = 'feature_value_fals', options = options)
                             st.number_input('Number of Clusters for False Condition', min_value = 1, max_value = 10, value = 3, step = 1, key = 'num_clus_0')
                             if st.session_state.elbow_fig_0 is not None:
                                 st.pyplot(st.session_state.elbow_fig_0)
@@ -639,6 +652,7 @@ def main():
                     with clust_exp_col[1]:
                         if st.session_state['toggle_clust_diff'] is True:
                             st.number_input('Cutoff Percentage', min_value = 0.01, max_value = 0.99, value = 0.01, step = 0.01, key = 'dens_diff_cutoff')
+                            st.selectbox('Values for True Condition', key = 'feature_value_true', options = options)
                             st.number_input('Number of Clusters for True Condition', min_value = 1, max_value = 10, value = 3, step = 1, key = 'num_clus_1')
                             if st.session_state.elbow_fig_1 is not None:
                                 st.pyplot(st.session_state.elbow_fig_1)
@@ -676,8 +690,8 @@ def main():
                             st.pyplot(fig=st.session_state.UMAPFig_mask)
                         with mor_cols[1]:
                             st.pyplot(fig=st.session_state.diff_clust_Fig)
-                else:
-                    st.write('Feature must be boolean or numeric to perform density difference analysis')
+                    else:
+                        st.write('Feature must be boolean or numeric to perform density difference analysis')
 
     # Tab for Loading Previous UMAP Results
     with nei_pro_tabs[1]:

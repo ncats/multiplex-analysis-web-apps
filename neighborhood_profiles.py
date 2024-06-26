@@ -501,6 +501,32 @@ class UMAPDensityProcessing():
         self.dens_max = np.max(self.dens_mat)
         self.minabs   = np.min([np.abs(self.dens_min), np.abs(self.dens_max)])
 
+    def check_feature_values(self, feature):
+        '''
+        
+        Returns:
+            int: 0: Feature is inappropriate for splitting
+            int: 2: Feature is boolean and is easily split
+            int  3-15: Feature has a few different options but can be easily compared when values are selected
+            int: 100: Feature is a numerical range and can be split by finding the median
+        '''
+
+        col = self.df[feature]
+        dtypes = col.dtype
+        n_uni = col.nunique()
+
+        if n_uni <= 1:
+            return 0
+        elif n_uni == 2:
+            return 2
+        elif n_uni > 2 and n_uni <= 15:
+            return n_uni
+        else:
+            if dtypes == 'category' or dtypes == 'object':
+                return 0
+            else:
+                return 100
+
     def filter_by_lineage(self, display_toggle, drop_val, default_val):
         '''
         Function for filtering UMAP function based on Phenotypes or Markers
