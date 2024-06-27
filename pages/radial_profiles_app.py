@@ -15,6 +15,10 @@ import scipy.spatial
 st_key_prefix = 'radial_profiles__'
 
 
+def delete_session_state_variable(key_suffix):
+    del st.session_state[st_key_prefix + key_suffix]
+
+
 def draw_single_image_scatter_plot(df, image_to_view, column_to_plot, values_to_plot, color_dict, xy_position_columns=['Cell X Position', 'Cell Y Position'], coordinate_scale_factor=1, annulus_spacing_um=250, use_coordinate_mins_and_maxs=False, xmin_col='Cell X Position', xmax_col='Cell X Position', ymin_col='Cell Y Position', ymax_col='Cell Y Position', units='microns', invert_y_axis=False, opacity=0.7):
 
     # Draw a header
@@ -585,30 +589,93 @@ def main():
 
     ####
 
-    key = st_key_prefix + 'columns_for_phenotype_grouping'
+    with st.columns(3)[0]:
+
+        # Select columns to use for grouping the threshold calculations
+        key = st_key_prefix + 'columns_for_phenotype_grouping'
+        if key not in st.session_state:
+            st.session_state[key] = []
+        columns_for_phenotype_grouping = st.multiselect('Columns for phenotype grouping:', categorical_columns, key=key)
+
+        # Set the column name that describes the baseline field such as cell type
+        key = st_key_prefix + 'baseline_column_name'
+        if key not in st.session_state:
+            st.session_state[key] = categorical_columns[0]
+        baseline_column_name = st.selectbox('Baseline column name:', categorical_columns, key=key, on_change=delete_session_state_variable, args=('baseline_column_value',))
+
+        # Extract the baseline field value (such as a specific cell type) to be used for determining the thresholds
+        available_baseline_values = df[baseline_column_name].unique()
+        key = st_key_prefix + 'baseline_column_value'
+        if key not in st.session_state:
+            st.session_state[key] = available_baseline_values[0]
+        baseline_column_value = st.selectbox('Baseline column value:', available_baseline_values, key=key)
+
+        # Extract the available channels for performing phenotyping
+        key = st_key_prefix + 'channel_for_phenotyping'
+        if key not in st.session_state:
+            st.session_state[key] = df.columns[0]
+        channel_for_phenotyping = st.selectbox('Channel for phenotyping:', df.columns, key=key)
+
+        # If adaptive thresholding is desired...
+        if st.button('Calculate thresholds for phenotyping'):
+
+            # Group the relevant subset of the dataframe by the selected variables
+            if len(columns_for_phenotype_grouping) > 0:
+                df_grouped = df[columns_for_phenotype_grouping + [baseline_column_name, channel_for_phenotyping]].groupby(by=columns_for_phenotype_grouping)
+            else:
+                df_grouped = [(None, df)]
+
+            # Define various z scores of interest to use for determining the thresholds
+            z_scores = np.arange(-1, 11)
+
+            # For every group of variables for which you want a different threshold...
+            thresholds_outer = []
+            for _, df_group in df_grouped:
+
+                # Get the selected intensity data for just the baseline field value
+                ser_baseline = df_group.loc[df_group[baseline_column_name] == baseline_column_value, channel_for_phenotyping]
+
+                # From that, calculate the mean and std
+                mean_to_use = ser_baseline.mean()
+                std_to_use = ser_baseline.std()
+
+                # Determine the corresponding threshold for each z score
+                thresholds_inner = []
+                for z_score in z_scores:
+                    thresholds_inner.append(mean_to_use + z_score * std_to_use)
+
+                # Add to the main thresholds holder
+                thresholds_outer.append(thresholds_inner)
+
+            # Determine the multi-index for the dataframe
+            if len(columns_for_phenotype_grouping) == 0:
+                index = pd.Index([-1])
+            elif len(columns_for_phenotype_grouping) == 1:
+                index = pd.Index(list(df_grouped.groups.keys()), name=columns_for_phenotype_grouping[0])
+            elif len(columns_for_phenotype_grouping) > 1:
+                index = pd.MultiIndex.from_tuples(list(df_grouped.groups.keys()), names=columns_for_phenotype_grouping)
+            index.name = 'Grouping'
+
+            # Determine the columns index for the dataframe
+            columns_index = pd.Index([f'z score = {z_score}' for z_score in z_scores])
+            columns_index.name = 'Thresholds'
+
+            # Set the dataframe of thresholds
+            df_thresholds = pd.DataFrame(thresholds_outer, columns=columns_index, index=index)
+            st.session_state[st_key_prefix + 'df_thresholds'] = df_thresholds
+
+    # Make sure the phenotyping thresholds have been calculated
+    key = st_key_prefix + 'df_thresholds'
     if key not in st.session_state:
-        st.session_state[key] = []
-    columns_for_phenotype_grouping = st.multiselect('Columns for phenotype grouping:', categorical_columns, key=key)
-
-    st.write(df.sample(100))
+        st.warning('Please calculate thresholds for phenotyping')
+        return
     
-    if st.button('Calculate thresholds for phenotyping'):
-        df_grouped = df.groupby(by=columns_for_phenotype_grouping)
-        for group_name, df_group in df_grouped:
-            # group_name is the value(s) of the columns_for_phenotype_grouping for the current group
-            # group_df is the DataFrame containing only the rows from df that belong to this group
-            
-            # Example operation: print the name of the group and the size of the group
-            st.write(f"Group: {group_name}, Size: {len(df_group)}")
-            # You can perform any operation you want with group_name and group_df here
+    # Set a shortcut to the thresholds dataframe
+    df_thresholds = st.session_state[key]
 
-            # st.write(list(df_group.loc[df_group['cell_type'] == 'mCMV', 'Slide ID'].unique()))
-            df_baseline = df_group[df_group['cell_type'] == 'mCMV']
+    st.write(df_thresholds)
 
-            for group_name2, df_group2 in df_baseline.groupby('Slide ID'):
-                pass
-
-            # at the end, compare with how I did it in the gater
+    # at the end, compare with how I did it in the gater
 
     ####
 
