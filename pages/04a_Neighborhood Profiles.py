@@ -9,6 +9,7 @@ import dill
 from streamlit_extras.add_vertical_space import add_vertical_space
 import matplotlib.pyplot as plt
 import pandas as pd
+from natsort import natsorted
 
 # Import relevant libraries
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
@@ -128,6 +129,8 @@ def apply_umap(umap_style):
     st.session_state.outcomes = st.session_state.spatial_umap.cells.columns
     st.session_state.spatial_umap.outcomes = st.session_state.spatial_umap.cells.columns
 
+    st.session_state.dens_diff_feat_sel = st.session_state.outcomes[0]
+
     # List of possible outcome variables as defined by the config yaml files
     st.session_state.umapOutcomes = [st.session_state.defumapOutcomes]
     st.session_state.umapOutcomes.extend(st.session_state.outcomes)
@@ -163,92 +166,92 @@ def set_clusters():
 
     with st.spinner('Calculating Clusters'):
         # If clustering is to be performed on the UMAP density difference
-        if st.session_state['toggle_clust_diff']:
+        if st.session_state['toggle_clust_diff'] and st.session_state['appro_feat']:
 
-            split_dict_full = st.session_state.udp_full.split_df_by_feature(st.session_state.dens_diff_feat_sel)
-            st.session_state.appro_feat = split_dict_full['appro_feat']
+            # Split the UMAP by the selected values of the feature
+            split_dict_full = st.session_state.udp_full.split_df_by_feature(st.session_state.dens_diff_feat_sel,
+                                                                            st.session_state.feature_value_fals,
+                                                                            st.session_state.feature_value_true,
+                                                                            st.session_state.clust_diff_vals_code)
 
-            # If the feature is appropriate, perform the density difference split/clustering
-            if st.session_state.appro_feat:
+            # Perform Density Calculations for each Condition
+            udp_fals = UMAPDensityProcessing(st.session_state.npf, split_dict_full['df_umap_fals'], xx=st.session_state.udp_full.xx, yy=st.session_state.udp_full.yy)
+            udp_true = UMAPDensityProcessing(st.session_state.npf, split_dict_full['df_umap_true'], xx=st.session_state.udp_full.xx, yy=st.session_state.udp_full.yy)
 
-                # Perform Density Calculations for each Condition
-                udp_fals = UMAPDensityProcessing(st.session_state.npf, split_dict_full['df_umap_fals'], xx=st.session_state.udp_full.xx, yy=st.session_state.udp_full.yy)
-                udp_true = UMAPDensityProcessing(st.session_state.npf, split_dict_full['df_umap_true'], xx=st.session_state.udp_full.xx, yy=st.session_state.udp_full.yy)
+            ## Copy over
+            udp_diff = copy(udp_fals)
+            ## Perform difference calculation
+            udp_diff.dens_mat = np.log10(udp_fals.dens_mat) - np.log10(udp_true.dens_mat)
+            ## Rerun the min/max calcs
+            udp_diff.umap_summary_stats()
+            ## Set Feature Labels
+            udp_fals.set_feature_label(st.session_state.dens_diff_feat_sel, split_dict_full['fals_msg'])
+            udp_true.set_feature_label(st.session_state.dens_diff_feat_sel, split_dict_full['true_msg'])
+            udp_diff.set_feature_label(st.session_state.dens_diff_feat_sel, 'Difference')
 
-                ## Copy over
-                udp_diff = copy(udp_fals)
-                ## Perform difference calculation
-                udp_diff.dens_mat = np.log10(udp_fals.dens_mat) - np.log10(udp_true.dens_mat)
-                ## Rerun the min/max calcs
-                udp_diff.umap_summary_stats()
-                ## Set Feature Labels
-                udp_fals.set_feature_label(st.session_state.dens_diff_feat_sel, split_dict_full['fals_msg'])
-                udp_true.set_feature_label(st.session_state.dens_diff_feat_sel, split_dict_full['true_msg'])
-                udp_diff.set_feature_label(st.session_state.dens_diff_feat_sel, 'Difference')
+            # Draw UMAPS
+            st.session_state.UMAPFig_fals = udp_fals.UMAPdraw_density()
+            st.session_state.UMAPFig_true = udp_true.UMAPdraw_density()
+            st.session_state.UMAPFig_diff = udp_diff.UMAPdraw_density(diff=True)
 
-                # Draw UMAPS
-                st.session_state.UMAPFig_fals = udp_fals.UMAPdraw_density()
-                st.session_state.UMAPFig_true = udp_true.UMAPdraw_density()
-                st.session_state.UMAPFig_diff = udp_diff.UMAPdraw_density(diff=True)
+            # Assign Masking and plot
+            udp_mask = copy(udp_diff)
+            udp_mask.filter_density_matrix(st.session_state.dens_diff_cutoff, st.session_state.udp_full.empty_bin_ind)
+            udp_mask.set_feature_label(st.session_state.dens_diff_feat_sel, f'Difference- Masked, \ncutoff = {st.session_state.dens_diff_cutoff}')
+            st.session_state.UMAPFig_mask = udp_mask.UMAPdraw_density(diff=True)
 
-                # Assign Masking and plot
-                udp_mask = copy(udp_diff)
-                udp_mask.filter_density_matrix(st.session_state.dens_diff_cutoff, st.session_state.udp_full.empty_bin_ind)
-                udp_mask.set_feature_label(st.session_state.dens_diff_feat_sel, f'Difference- Masked, \ncutoff = {st.session_state.dens_diff_cutoff}')
-                st.session_state.UMAPFig_mask = udp_mask.UMAPdraw_density(diff=True)
+            # Perform Clustering
+            udp_clus = copy(udp_mask)
+            udp_clus.perform_clustering(dens_mat_cmp=udp_mask.dens_mat,
+                                        num_clus_0=st.session_state.num_clus_0,
+                                        num_clus_1=st.session_state.num_clus_1,
+                                        clust_minmax=st.session_state.clust_minmax,
+                                        cpu_pool_size=3)
+            udp_clus.set_feature_label(st.session_state.dens_diff_feat_sel, f'Clusters, False-{st.session_state.num_clus_0}, True-{st.session_state.num_clus_1}')
+            st.session_state.UMAPFig_clus = udp_clus.UMAPdraw_density(diff=True, legendtype='legend')
+            st.session_state.cluster_dict = udp_clus.cluster_dict
+            st.session_state.palette_dict = udp_clus.palette_dict
+            st.session_state.elbow_fig_0 = udp_clus.elbow_fig_0
+            st.session_state.elbow_fig_1 = udp_clus.elbow_fig_1
 
-                # Perform Clustering
-                udp_clus = copy(udp_mask)
-                udp_clus.perform_clustering(dens_mat_cmp=udp_mask.dens_mat,
-                                            num_clus_0=st.session_state.num_clus_0,
-                                            num_clus_1=st.session_state.num_clus_1,
-                                            clust_minmax=st.session_state.clust_minmax,
-                                            cpu_pool_size=3)
-                udp_clus.set_feature_label(st.session_state.dens_diff_feat_sel, f'Clusters, False-{st.session_state.num_clus_0}, True-{st.session_state.num_clus_1}')
-                st.session_state.UMAPFig_clus = udp_clus.UMAPdraw_density(diff=True, legendtype='legend')
-                st.session_state.cluster_dict = udp_clus.cluster_dict
-                st.session_state.palette_dict = udp_clus.palette_dict
-                st.session_state.elbow_fig_0 = udp_clus.elbow_fig_0
-                st.session_state.elbow_fig_1 = udp_clus.elbow_fig_1
+            # Add cluster label column to cells dataframe
+            st.session_state.spatial_umap.df_umap.loc[:, 'clust_label'] = 'No Cluster'
+            st.session_state.spatial_umap.df_umap.loc[:, 'cluster'] = 'No Cluster'
+            st.session_state.spatial_umap.df_umap.loc[:, 'Cluster'] = 'No Cluster'
 
-                # Add cluster label column to cells dataframe
-                st.session_state.spatial_umap.df_umap.loc[:, 'clust_label'] = 'No Cluster'
-                st.session_state.spatial_umap.df_umap.loc[:, 'cluster'] = 'No Cluster'
-                st.session_state.spatial_umap.df_umap.loc[:, 'Cluster'] = 'No Cluster'
+            for key, val in st.session_state.cluster_dict.items():
+                if key != 0:
+                    bin_clust = np.argwhere(udp_clus.dens_mat == key)
+                    bin_clust = bin_clust[:, [1, 0]] # Swapping columns to by y, x
+                    bin_clust = [tuple(x) for x in bin_clust]
 
-                for key, val in st.session_state.cluster_dict.items():
-                    if key != 0:
-                        bin_clust = np.argwhere(udp_clus.dens_mat == key)
-                        bin_clust = bin_clust[:, [1, 0]] # Swapping columns to by y, x
-                        bin_clust = [tuple(x) for x in bin_clust]
+                    significant_groups = st.session_state.udp_full.bin_indices_df_group[st.session_state.udp_full.bin_indices_df_group.set_index(['indx', 'indy']).index.isin(bin_clust)]
 
-                        significant_groups = st.session_state.udp_full.bin_indices_df_group[st.session_state.udp_full.bin_indices_df_group.set_index(['indx', 'indy']).index.isin(bin_clust)]
+                    umap_ind = significant_groups.index.values
+                    st.session_state.spatial_umap.df_umap.loc[umap_ind, 'clust_label'] = val
+                    st.session_state.spatial_umap.df_umap.loc[umap_ind, 'cluster'] = val
+                    st.session_state.spatial_umap.df_umap.loc[umap_ind, 'Cluster'] = val
 
-                        umap_ind = significant_groups.index.values
-                        st.session_state.spatial_umap.df_umap.loc[umap_ind, 'clust_label'] = val
-                        st.session_state.spatial_umap.df_umap.loc[umap_ind, 'cluster'] = val
-                        st.session_state.spatial_umap.df_umap.loc[umap_ind, 'Cluster'] = val
+            # Benchmark how long it took to untangle indicies
+            st.session_state.bc.printElapsedTime('Untangling bin indicies with UMAP indicies', split = True)
 
-                # Benchmark how long it took to untangle indicies
-                st.session_state.bc.printElapsedTime('Untangling bin indicies with UMAP indicies', split = True)
+            # After assigning cluster labels, perform mean calculations
+            st.session_state.spatial_umap.mean_measures()
+            st.session_state.bc.printElapsedTime('Performing Mean Measures', split = True)
 
-                # After assigning cluster labels, perform mean calculations
-                st.session_state.spatial_umap.mean_measures()
-                st.session_state.bc.printElapsedTime('Performing Mean Measures', split = True)
+            # Average False condition and Average True Condition
+            dens_df_fals = st.session_state.spatial_umap.dens_df_mean.loc[st.session_state.spatial_umap.dens_df_mean['clust_label'].str.contains('False'), :]
+            dens_df_true = st.session_state.spatial_umap.dens_df_mean.loc[st.session_state.spatial_umap.dens_df_mean['clust_label'].str.contains('True'), :]
 
-                # Average False condition and Average True Condition
-                dens_df_fals = st.session_state.spatial_umap.dens_df_mean.loc[st.session_state.spatial_umap.dens_df_mean['clust_label'].str.contains('False'), :]
-                dens_df_true = st.session_state.spatial_umap.dens_df_mean.loc[st.session_state.spatial_umap.dens_df_mean['clust_label'].str.contains('True'), :]
+            dens_df_fals['clust_label'] = 'Average False'
+            dens_df_mean_fals = dens_df_fals.groupby(['clust_label', 'phenotype', 'dist_bin'], as_index=False).mean()
 
-                dens_df_fals['clust_label'] = 'Average False'
-                dens_df_mean_fals = dens_df_fals.groupby(['clust_label', 'phenotype', 'dist_bin'], as_index=False).mean()
+            dens_df_true['clust_label'] = 'Average True'
+            dens_df_mean_true = dens_df_true.groupby(['clust_label', 'phenotype', 'dist_bin'], as_index=False).mean()
 
-                dens_df_true['clust_label'] = 'Average True'
-                dens_df_mean_true = dens_df_true.groupby(['clust_label', 'phenotype', 'dist_bin'], as_index=False).mean()
+            st.session_state.spatial_umap.dens_df_mean = pd.concat([st.session_state.spatial_umap.dens_df_mean, dens_df_mean_fals, dens_df_mean_true], axis=0)
 
-                st.session_state.spatial_umap.dens_df_mean = pd.concat([st.session_state.spatial_umap.dens_df_mean, dens_df_mean_fals, dens_df_mean_true], axis=0)
-
-                st.session_state.cluster_completed_diff = True
+            st.session_state.cluster_completed_diff = True
 
         else:
             st.session_state.spatial_umap = bpl.umap_clustering(spatial_umap = st.session_state.spatial_umap,
@@ -283,8 +286,35 @@ def check_feature_approval_callback():
     if not st.session_state['toggle_clust_diff']:
         st.session_state.appro_feat = True
     else:
-        split_dict_full = st.session_state.udp_full.split_df_by_feature(st.session_state.dens_diff_feat_sel)
-        st.session_state.appro_feat = split_dict_full['appro_feat']
+
+        # Check feature values
+        st.session_state.clust_diff_vals_code = st.session_state.udp_full.check_feature_values(st.session_state.dens_diff_feat_sel)
+
+        if st.session_state.clust_diff_vals_code == 0:
+            st.session_state.appro_feat = False
+        else:
+            st.session_state.appro_feat = True
+
+        feature_vals = natsorted(st.session_state.udp_full.df[st.session_state.dens_diff_feat_sel].unique())
+        if st.session_state.clust_diff_vals_code == 2:
+            options_fals = [feature_vals[1]]
+            options_true = [feature_vals[0]]
+        elif st.session_state.clust_diff_vals_code > 2 and st.session_state.clust_diff_vals_code <= 15:
+            options_fals = feature_vals
+            options_true = feature_vals
+        elif st.session_state.clust_diff_vals_code == 100:
+            median = np.round(st.session_state.udp_full.df[st.session_state.dens_diff_feat_sel].median(), decimals = 2)
+
+            options_fals = [median]
+            options_true = [median]
+        else:
+            options_fals = ['None']
+            options_true = ['None']
+
+        st.session_state.clus_diff_vals_fals = options_fals
+        st.session_state.clus_diff_vals_true = options_true
+        st.session_state.feature_value_fals = options_fals[0]
+        st.session_state.feature_value_true = options_true[0]
 
 def slide_id_prog_left_callback():
     '''
@@ -615,7 +645,8 @@ def main():
                     st.toggle('Perform Clustering on UMAP Density Difference',
                               value = False, key = 'toggle_clust_diff',
                               help = '''Perform clustering on the density difference between
-                                        two levels of a dataset feature.''')
+                                        two levels of a dataset feature.''',
+                                        on_change=check_feature_approval_callback)
 
                     clust_exp_col = st.columns(2)
                     with clust_exp_col[0]:
@@ -624,7 +655,11 @@ def main():
                         if st.session_state['toggle_clust_diff'] is True:
                             st.selectbox('Feature', options = st.session_state.spatial_umap.outcomes,
                                          key = 'dens_diff_feat_sel',
-                                         help = '''Select the feature to split the UMAP by.''')
+                                         help = '''Select the feature to split the UMAP by.''',
+                                         on_change=check_feature_approval_callback)
+
+                            st.selectbox('Values for False Condition', key = 'feature_value_fals',
+                                         options = st.session_state.clus_diff_vals_fals)
                             st.number_input('Number of Clusters for False Condition', min_value = 1, max_value = 10, value = 3, step = 1, key = 'num_clus_0')
                             if st.session_state.elbow_fig_0 is not None:
                                 st.pyplot(st.session_state.elbow_fig_0)
@@ -639,6 +674,8 @@ def main():
                     with clust_exp_col[1]:
                         if st.session_state['toggle_clust_diff'] is True:
                             st.number_input('Cutoff Percentage', min_value = 0.01, max_value = 0.99, value = 0.01, step = 0.01, key = 'dens_diff_cutoff')
+                            st.selectbox('Values for True Condition', key = 'feature_value_true',
+                                         options = st.session_state.clus_diff_vals_true)
                             st.number_input('Number of Clusters for True Condition', min_value = 1, max_value = 10, value = 3, step = 1, key = 'num_clus_1')
                             if st.session_state.elbow_fig_1 is not None:
                                 st.pyplot(st.session_state.elbow_fig_1)
@@ -676,7 +713,7 @@ def main():
                             st.pyplot(fig=st.session_state.UMAPFig_mask)
                         with mor_cols[1]:
                             st.pyplot(fig=st.session_state.diff_clust_Fig)
-                else:
+                if st.session_state['appro_feat'] is False:
                     st.write('Feature must be boolean or numeric to perform density difference analysis')
 
     # Tab for Loading Previous UMAP Results
@@ -745,12 +782,20 @@ def main():
     with viz_cols[1]:
         st.header('Neighborhood Profiles')
         with st.expander('Neighborhood Profile Options'):
-            nei_sett_col = st.columns([1, 2, 1])
+            nei_sett_col = st.columns([1, 1, 1, 1])
             with nei_sett_col[0]:
+                st.toggle('Manual Y-axis scaling',
+                          key = 'toggle_manual_y_axis_scaling_main')
                 st.toggle('Hide "Other" Phenotype', value = False, key = 'toggle_hide_other')
-                st.toggle('Plot on Log Scale', value = True, key = 'nei_pro_toggle_log_scale')
             with nei_sett_col[1]:
+                st.number_input('Y-axis Min', key = 'y_axis_min_main',
+                                value = 0.1, step = 0.01,)
                 st.toggle('Hide "No Cluster" Neighborhood Profile', value = False, key = 'toggle_hide_no_cluster')
+            with nei_sett_col[2]:
+                st.number_input('Y-axis Max', key = 'y_axis_max_main',
+                                value = 10000, step = 10,)
+            with nei_sett_col[3]:
+                st.checkbox('Log Scale', key = 'nei_pro_toggle_log_scale', value = True)
 
         # If the spatial-umap is completed...
         if 'spatial_umap' in st.session_state:
@@ -765,7 +810,7 @@ def main():
                 add_vertical_space(2)
                 st.toggle('Compare Cluster Neighborhoods', value = False, key = 'toggle_compare_clusters')
                 if st.session_state['toggle_compare_clusters']:
-                    st.radio('Compare as:', ('Difference', 'Ratio'), index = 0, key = 'compare_clusters_as', horizontal=True)
+                    st.radio('Compare as:', ('Ratio', 'Difference'), index = 0, key = 'compare_clusters_as', horizontal=True)
 
             # Cluster Select Widgets
             with cluster_sel_col[0]:
@@ -788,44 +833,93 @@ def main():
                                      hide_no_cluster = st.session_state['toggle_hide_no_cluster'])
 
                 if st.session_state['nei_pro_toggle_log_scale']:
-                    ax.set_ylim([0.1, 10000])
                     ax.set_yscale('log')
-                st.pyplot(fig=npf_fig)
 
-                # Create widgets for exporting the Neighborhood Profile images
-                neigh_prof_col = st.columns([2, 1])
-                with neigh_prof_col[0]:
-                    st.text_input('.png file suffix (Optional)', key = 'neigh_prof_line_suffix')
-                with neigh_prof_col[1]:
-                    add_vertical_space(2)
-                    if st.button('Append Export List', key = 'appendexportbutton_neighproline__do_not_persist'):
+                if st.session_state['toggle_manual_y_axis_scaling_main']:
+                    ax.set_ylim(st.session_state['y_axis_min_main'], st.session_state['y_axis_max_main'])
 
-                        ndl.save_png(npf_fig, 'Neighborhood Profiles', st.session_state.neigh_prof_line_suffix)
-                        st.toast(f'Added {st.session_state.neigh_prof_line_suffix} to export list')
+                if sel_npf_fig == sel_npf_fig2:
+                    st.markdown('## Please choose two different clusters to compare')
+                else:
+                    # Display the Neighborhood Profile
+                    st.pyplot(fig=npf_fig)
+
+                    # Create widgets for exporting the Neighborhood Profile images
+                    neigh_prof_col = st.columns([2, 1])
+                    with neigh_prof_col[0]:
+                        st.text_input('.png file suffix (Optional)', key = 'neigh_prof_line_suffix')
+                    with neigh_prof_col[1]:
+                        add_vertical_space(2)
+                        if st.button('Append Export List', key = 'appendexportbutton_neighproline__do_not_persist'):
+
+                            ndl.save_png(npf_fig, 'Neighborhood Profiles', st.session_state.neigh_prof_line_suffix)
+                            st.toast(f'Added {st.session_state.neigh_prof_line_suffix} to export list')
 
     # Drawing the subplots of Neighborhood Profiles per cluster combinations
     if st.session_state['appro_feat'] and st.session_state.cluster_completed_diff:
 
+        supp_neipro_col = st.columns([4, 2])
+        with supp_neipro_col[0]:
+            with st.expander('Neighborhood Profile Subplots Settings', expanded = False):
+                st.toggle('Manual Y-axis scaling',
+                          key = 'toggle_manual_y_axis_scaling_supplemental')
+
+                st.write('Settings for Individual Cluster Plots')
+                neipro_exp_full = st.columns([3, 3, 1])
+                with neipro_exp_full[0]:
+                    st.number_input('Y-axis Min', key = 'y_axis_min_supplemental',
+                                    value = 0.1, step = 0.001,)
+                with neipro_exp_full[1]:
+                    st.number_input('Y-axis Max', key = 'y_axis_max_supplemental',
+                                    value = 10000, step = 10,)
+                with neipro_exp_full[2]:
+                    st.checkbox('Log Scale', key = 'log_scale_supplemental', value = True)
+
+                st.write('Settings for Individual Cluster Ratios')
+                neipro_exp_full = st.columns([3, 3, 1])
+                with neipro_exp_full[0]:
+                    st.number_input('Y-axis Min', key = 'y_axis_min_indiratio_supplemental',
+                                    value = 0.1, step = 0.001,)
+                with neipro_exp_full[1]:
+                    st.number_input('Y-axis Max', key = 'y_axis_max_indiratio_supplemental',
+                                    value = 10, step = 1,)
+                with neipro_exp_full[2]:
+                    st.checkbox('Log Scale', key = 'log_scale_indiratio_supplemental', value = True)
+
+                st.write('Settings for Aggregated Cluster Ratios')
+                neipro_exp_full = st.columns([3, 3, 1])
+                with neipro_exp_full[0]:
+                    st.number_input('Y-axis Min', key = 'y_axis_min_aggratio_supplemental',
+                                    value = 0.1, step = 0.001,)
+                with neipro_exp_full[1]:
+                    st.number_input('Y-axis Max', key = 'y_axis_max_aggratio_supplemental',
+                                    value = 10, step = 1,)
+                with neipro_exp_full[2]:
+                    st.checkbox('Log Scale', key = 'log_scale_aggratio_supplemental', value = True)
+
         npf_fig_big = plt.figure(figsize=(16, 45), facecolor = '#0E1117')
 
-        list_figures = [['Average False', None, 'log', [1, 10000]],
-                        ['Average True', None, 'log', [1, 10000]],
-                        ['Average False', 'Average True', 'linear', [0, 4]],
-                        ['False Cluster 1', None, 'log', [0.1, 10000]],
-                        ['False Cluster 2', None, 'log', [0.1, 10000]],
-                        ['False Cluster 3', None, 'log', [0.1, 10000]],
-                        ['True Cluster 1', None, 'log', [0.1, 10000]],
-                        ['True Cluster 2', None, 'log', [0.1, 10000]],
-                        ['False Cluster 3', None, 'linear', [0, 2000]],
-                        ['False Cluster 1', 'True Cluster 1', 'log', [0.01, 100]],
-                        ['False Cluster 2', 'True Cluster 1', 'log', [0.01, 100]],
-                        ['False Cluster 3', 'True Cluster 1', 'log', [0.01, 100]],
-                        ['False Cluster 1', 'True Cluster 2', 'log', [0.01, 100]],
-                        ['False Cluster 2', 'True Cluster 2', 'log', [0.01, 100]],
-                        ['False Cluster 3', 'True Cluster 2', 'log', [0.01, 100]],
-                        ['False Cluster 1', 'Average True', 'linear', [0, 15]],
-                        ['False Cluster 2', 'Average True', 'linear', [0, 15]],
-                        ['False Cluster 3', 'Average True', 'linear', [0, 15]],
+        list_figures = [['Average False', None, 'Individual Cluster Plots'],
+                        ['Average True', None, 'Individual Cluster Plots'],
+                        ['Average False', 'Average True', 'Aggregate Cluster Ratios'],
+                        ['False Cluster 1', None, 'Individual Cluster Plots'],
+                        ['False Cluster 2', None, 'Individual Cluster Plots'],
+                        ['False Cluster 3', None, 'Individual Cluster Plots'],
+                        ['True Cluster 1', None, 'Individual Cluster Plots'],
+                        ['True Cluster 2', None, 'Individual Cluster Plots'],
+                        ['True Cluster 3', None, 'Individual Cluster Plots'],
+                        ['False Cluster 1', 'True Cluster 1', 'Individual Cluster Ratios'],
+                        ['False Cluster 2', 'True Cluster 1', 'Individual Cluster Ratios'],
+                        ['False Cluster 3', 'True Cluster 1', 'Individual Cluster Ratios'],
+                        ['False Cluster 1', 'True Cluster 2', 'Individual Cluster Ratios'],
+                        ['False Cluster 2', 'True Cluster 2', 'Individual Cluster Ratios'],
+                        ['False Cluster 3', 'True Cluster 2', 'Individual Cluster Ratios'],
+                        ['False Cluster 1', 'Average True', 'Aggregate Cluster Ratios'],
+                        ['False Cluster 2', 'Average True', 'Aggregate Cluster Ratios'],
+                        ['False Cluster 3', 'Average True', 'Aggregate Cluster Ratios'],
+                        ['True Cluster 1', 'Average False', 'Aggregate Cluster Ratios'],
+                        ['True Cluster 2', 'Average False', 'Aggregate Cluster Ratios'],
+                        ['True Cluster 3', 'Average False', 'Aggregate Cluster Ratios'],
                         ]
 
         num_figs = len(list_figures)
@@ -848,10 +942,24 @@ def main():
                                 hide_no_cluster = st.session_state['toggle_hide_no_cluster'],
                                 legend_flag = legend_flag)
 
-            if cluster[2] == 'log':
+            if st.session_state['toggle_manual_y_axis_scaling_supplemental']:
+                if cluster[2] == 'Individual Cluster Plots':
+                    axii.set_ylim([st.session_state['y_axis_min_supplemental'],
+                                   st.session_state['y_axis_max_supplemental']])
+                    if st.session_state['log_scale_supplemental']:
+                        axii.set_yscale('log')
+                elif cluster[2] == 'Individual Cluster Ratios':
+                    axii.set_ylim([st.session_state['y_axis_min_indiratio_supplemental'],
+                                   st.session_state['y_axis_max_indiratio_supplemental']])
+                    if st.session_state['log_scale_indiratio_supplemental']:
+                        axii.set_yscale('log')
+                elif cluster[2] == 'Aggregate Cluster Ratios':
+                    axii.set_ylim([st.session_state['y_axis_min_aggratio_supplemental'],
+                                   st.session_state['y_axis_max_aggratio_supplemental']])
+                    if st.session_state['log_scale_aggratio_supplemental']:
+                        axii.set_yscale('log')
+            else:
                 axii.set_yscale('log')
-
-            axii.set_ylim(cluster[3])
 
         st.pyplot(fig=npf_fig_big)
 

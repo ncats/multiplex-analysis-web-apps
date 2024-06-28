@@ -248,7 +248,7 @@ def loadDataButton(session_state, df_import, projectName, fileName):
     # Analysis Setting Init
     session_state.loaded_marker_names = session_state.marker_names
     session_state.marker_multi_sel = session_state.marker_names
-    session_state.pointstSliderVal_Sel = 100
+    session_state.point_slider_val = 100
     session_state.calcSliderVal  = 100
     session_state.selected_nClus = 1         # Clustering (If applicable)
     session_state.NormHeatRadio  = 'No Norm' # Heatmap Radio
@@ -291,8 +291,7 @@ def loadDataButton(session_state, df_import, projectName, fileName):
 
     # Set Figure Objects
     session_state.bc.startTimer()
-    session_state = setFigureObjs(session_state, df_plot)
-    session_state.pointstSliderVal_Sel = session_state.calcSliderVal
+    session_state = set_figure_objs(session_state, df_plot)
     # session_state.bc.printElapsedTime(msg = 'Setting Figure Objects')
 
     session_state.bc.set_value_df('file', fileName)
@@ -373,7 +372,7 @@ def updatePhenotyping(session_state):
     df_plot = perform_filtering(session_state)
 
     # Update and reset Figure Objects
-    session_state = setFigureObjs(session_state, df_plot)
+    session_state = set_figure_objs(session_state, df_plot, session_state.point_slider_val)
 
     return session_state
 
@@ -509,9 +508,17 @@ def export_results_dataset(fiol, df, path, filename, saveCompass=False, type = '
     """
     fiol.export_results_dataset(df, path, filename, saveCompass, type)
 
-def setFigureObjs(session_state, df_plot, InSliderVal = None):
+def set_figure_objs(session_state, df_plot, slider_val = None):
     """
-    Organize Figure Objects to be used in plotting
+    Organize Figure Objects to be used in phenotyping plotting
+
+    Args:
+        session_state: Streamlit data structure
+        df_plot: Filtered dataset to be plotted
+        slider_val: Value of the slider
+
+    Returns:
+        session_state: Streamlit data structure
     """
 
     title = [f'DATASET: {session_state.datafile}',
@@ -524,23 +531,28 @@ def setFigureObjs(session_state, df_plot, InSliderVal = None):
     targ_cell_count = 150000
 
     num_points = df_plot.shape[0]
-    if (num_points > targ_cell_count) & (InSliderVal is None):
+    print(f'Full image contains {num_points} points')
+    if (num_points > targ_cell_count) & (slider_val is None):
         n = targ_cell_count
 
         calc_slider_val = int(np.ceil(100*n/num_points))
         df_plot = df_plot.sample(n)
         session_state.plotPointsCustom = False
-    elif InSliderVal is not None:
+        print(f'    No slider_val selected. Randomly sampled {n} points')
+    elif slider_val is not None:
 
-        calc_slider_val = InSliderVal
+        calc_slider_val = slider_val
         df_plot = df_plot.sample(frac = calc_slider_val/100)
         session_state.plotPointsCustom = True
+        print(f'    Slider_val selected. Randomly sampled {slider_val} points')
     else:
         n = num_points
         calc_slider_val = 100
         session_state.plotPointsCustom = False
 
-    session_state.calcSliderVal = calc_slider_val
+        print(f'    Number of points below {targ_cell_count}. Sampling the full image')
+
+    session_state.point_slider_val = calc_slider_val
     session_state.drawnPoints = df_plot.shape[0]
 
     # Seaborn

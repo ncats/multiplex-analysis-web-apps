@@ -501,6 +501,32 @@ class UMAPDensityProcessing():
         self.dens_max = np.max(self.dens_mat)
         self.minabs   = np.min([np.abs(self.dens_min), np.abs(self.dens_max)])
 
+    def check_feature_values(self, feature):
+        '''
+        
+        Returns:
+            int: 0: Feature is inappropriate for splitting
+            int: 2: Feature is boolean and is easily split
+            int  3-15: Feature has a few different options but can be easily compared when values are selected
+            int: 100: Feature is a numerical range and can be split by finding the median
+        '''
+
+        col = self.df[feature]
+        dtypes = col.dtype
+        n_uni = col.nunique()
+
+        if n_uni <= 1:
+            return 0
+        elif n_uni == 2:
+            return 2
+        elif n_uni > 2 and n_uni <= 15:
+            return n_uni
+        else:
+            if dtypes == 'category' or dtypes == 'object':
+                return 0
+            else:
+                return 100
+
     def filter_by_lineage(self, display_toggle, drop_val, default_val):
         '''
         Function for filtering UMAP function based on Phenotypes or Markers
@@ -519,7 +545,7 @@ class UMAPDensityProcessing():
             elif display_toggle == 'Markers':
                 self.df = self.df.loc[self.df['species_name_short'].str.contains(drop_val), :]
 
-    def split_df_by_feature(self, feature):
+    def split_df_by_feature(self, feature, val_fals, val_true, val_code):
         '''
         split_df_by_feature takes in a feature from a dataframe
         and first identifies if the feature is boolean, if it contains 
@@ -543,27 +569,18 @@ class UMAPDensityProcessing():
         '''
 
         split_dict = dict()
-        # Idenfify the column type that is splitting the UMAP
-        col_type = ndl.identify_col_type(self.df[feature])
 
-        if col_type == 'not_bool':
-            # Identify UMAP by Condition
-            median = np.round(self.df[feature].median(), 2)
+        if val_code == 100:
+            median = val_fals
             split_dict['df_umap_fals'] = self.df.loc[self.df[feature] <= median, :]
             split_dict['df_umap_true'] = self.df.loc[self.df[feature] > median, :]
-            split_dict['fals_msg']   = f'<= {median}'
-            split_dict['true_msg']   = f'> {median}'
-            split_dict['appro_feat'] = True
-        elif col_type == 'bool':
-            # Identify UMAP by Condition
-            values = self.df[feature].unique()
-            split_dict['df_umap_fals'] = self.df.loc[self.df[feature] == values[0], :]
-            split_dict['df_umap_true'] = self.df.loc[self.df[feature] == values[1], :]
-            split_dict['fals_msg']   = f'= {values[0]}'
-            split_dict['true_msg']   = f'= {values[1]}'
-            split_dict['appro_feat'] = True
+            split_dict['fals_msg']   = f'<= {median:.2f}'
+            split_dict['true_msg']   = f'> {median:.2f}'
         else:
-            split_dict['appro_feat'] = False
+            split_dict['df_umap_fals'] = self.df.loc[self.df[feature] == val_fals, :]
+            split_dict['df_umap_true'] = self.df.loc[self.df[feature] == val_true, :]
+            split_dict['fals_msg']   = f'= {val_fals}'
+            split_dict['true_msg']   = f'= {val_true}'
 
         return split_dict
 

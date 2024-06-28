@@ -7,6 +7,7 @@ import streamlit as st
 import streamlit_utils
 import app_top_of_page as top
 import streamlit_dataframe_editor as sde
+from streamlit_extras.add_vertical_space import add_vertical_space
 
 def main():
     '''
@@ -45,6 +46,7 @@ def main():
 
     # In the second column...
     with cols[1]:
+        add_vertical_space(5)
         platform.load_selected_inputs()
         # st.divider()
         platform.save_selected_input()
