@@ -9,6 +9,6 @@ set -e
 # mamba create -n my_env -y -q python==3.8 ipykernel palantir-sdk
 # mamba create -n my_env -y -q python==3.8 ipykernel foundry-transforms-lib-python
 
-pip install streamlit==1.35.0 scikit-learn streamlit-extras squidpy split-file-reader st-pages dill pympler objsize
+pip install scikit-learn streamlit-extras squidpy split-file-reader st-pages dill pympler objsize
 mamba install -y -q natsort "foundry-transforms-lib-python>=0.578.0"
 mamba install -y gcc_linux-64 gxx_linux-64 && mamba install -y hnswlib
