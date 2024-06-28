@@ -782,12 +782,20 @@ def main():
     with viz_cols[1]:
         st.header('Neighborhood Profiles')
         with st.expander('Neighborhood Profile Options'):
-            nei_sett_col = st.columns([1, 2, 1])
+            nei_sett_col = st.columns([1, 1, 1, 1])
             with nei_sett_col[0]:
+                st.toggle('Manual Y-axis scaling',
+                          key = 'toggle_manual_y_axis_scaling_main')
                 st.toggle('Hide "Other" Phenotype', value = False, key = 'toggle_hide_other')
-                st.toggle('Plot on Log Scale', value = True, key = 'nei_pro_toggle_log_scale')
             with nei_sett_col[1]:
+                st.number_input('Y-axis Min', key = 'y_axis_min_main',
+                                value = 0.1, step = 0.01,)
                 st.toggle('Hide "No Cluster" Neighborhood Profile', value = False, key = 'toggle_hide_no_cluster')
+            with nei_sett_col[2]:
+                st.number_input('Y-axis Max', key = 'y_axis_max_main',
+                                value = 10000, step = 10,)
+            with nei_sett_col[3]:
+                st.checkbox('Log Scale', key = 'nei_pro_toggle_log_scale', value = True)
 
         # If the spatial-umap is completed...
         if 'spatial_umap' in st.session_state:
@@ -826,6 +834,9 @@ def main():
 
                 if st.session_state['nei_pro_toggle_log_scale']:
                     ax.set_yscale('log')
+
+                if st.session_state['toggle_manual_y_axis_scaling_main']:
+                    ax.set_ylim(st.session_state['y_axis_min_main'], st.session_state['y_axis_max_main'])
 
                 if sel_npf_fig == sel_npf_fig2:
                     st.markdown('## Please choose two different clusters to compare')
