@@ -802,7 +802,7 @@ def main():
                 add_vertical_space(2)
                 st.toggle('Compare Cluster Neighborhoods', value = False, key = 'toggle_compare_clusters')
                 if st.session_state['toggle_compare_clusters']:
-                    st.radio('Compare as:', ('Difference', 'Ratio'), index = 0, key = 'compare_clusters_as', horizontal=True)
+                    st.radio('Compare as:', ('Ratio', 'Difference'), index = 0, key = 'compare_clusters_as', horizontal=True)
 
             # Cluster Select Widgets
             with cluster_sel_col[0]:
@@ -826,18 +826,23 @@ def main():
 
                 if st.session_state['nei_pro_toggle_log_scale']:
                     ax.set_yscale('log')
-                st.pyplot(fig=npf_fig)
 
-                # Create widgets for exporting the Neighborhood Profile images
-                neigh_prof_col = st.columns([2, 1])
-                with neigh_prof_col[0]:
-                    st.text_input('.png file suffix (Optional)', key = 'neigh_prof_line_suffix')
-                with neigh_prof_col[1]:
-                    add_vertical_space(2)
-                    if st.button('Append Export List', key = 'appendexportbutton_neighproline__do_not_persist'):
+                if sel_npf_fig == sel_npf_fig2:
+                    st.markdown('## Please choose two different clusters to compare')
+                else:
+                    # Display the Neighborhood Profile
+                    st.pyplot(fig=npf_fig)
 
-                        ndl.save_png(npf_fig, 'Neighborhood Profiles', st.session_state.neigh_prof_line_suffix)
-                        st.toast(f'Added {st.session_state.neigh_prof_line_suffix} to export list')
+                    # Create widgets for exporting the Neighborhood Profile images
+                    neigh_prof_col = st.columns([2, 1])
+                    with neigh_prof_col[0]:
+                        st.text_input('.png file suffix (Optional)', key = 'neigh_prof_line_suffix')
+                    with neigh_prof_col[1]:
+                        add_vertical_space(2)
+                        if st.button('Append Export List', key = 'appendexportbutton_neighproline__do_not_persist'):
+
+                            ndl.save_png(npf_fig, 'Neighborhood Profiles', st.session_state.neigh_prof_line_suffix)
+                            st.toast(f'Added {st.session_state.neigh_prof_line_suffix} to export list')
 
     # Drawing the subplots of Neighborhood Profiles per cluster combinations
     if st.session_state['appro_feat'] and st.session_state.cluster_completed_diff:
