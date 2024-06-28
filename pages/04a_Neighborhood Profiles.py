@@ -782,12 +782,20 @@ def main():
     with viz_cols[1]:
         st.header('Neighborhood Profiles')
         with st.expander('Neighborhood Profile Options'):
-            nei_sett_col = st.columns([1, 2, 1])
+            nei_sett_col = st.columns([1, 1, 1, 1])
             with nei_sett_col[0]:
+                st.toggle('Manual Y-axis scaling',
+                          key = 'toggle_manual_y_axis_scaling_main')
                 st.toggle('Hide "Other" Phenotype', value = False, key = 'toggle_hide_other')
-                st.toggle('Plot on Log Scale', value = True, key = 'nei_pro_toggle_log_scale')
             with nei_sett_col[1]:
+                st.number_input('Y-axis Min', key = 'y_axis_min_main',
+                                value = 0.1, step = 0.01,)
                 st.toggle('Hide "No Cluster" Neighborhood Profile', value = False, key = 'toggle_hide_no_cluster')
+            with nei_sett_col[2]:
+                st.number_input('Y-axis Max', key = 'y_axis_max_main',
+                                value = 10000, step = 10,)
+            with nei_sett_col[3]:
+                st.checkbox('Log Scale', key = 'nei_pro_toggle_log_scale', value = True)
 
         # If the spatial-umap is completed...
         if 'spatial_umap' in st.session_state:
@@ -802,7 +810,7 @@ def main():
                 add_vertical_space(2)
                 st.toggle('Compare Cluster Neighborhoods', value = False, key = 'toggle_compare_clusters')
                 if st.session_state['toggle_compare_clusters']:
-                    st.radio('Compare as:', ('Difference', 'Ratio'), index = 0, key = 'compare_clusters_as', horizontal=True)
+                    st.radio('Compare as:', ('Ratio', 'Difference'), index = 0, key = 'compare_clusters_as', horizontal=True)
 
             # Cluster Select Widgets
             with cluster_sel_col[0]:
@@ -826,42 +834,92 @@ def main():
 
                 if st.session_state['nei_pro_toggle_log_scale']:
                     ax.set_yscale('log')
-                st.pyplot(fig=npf_fig)
 
-                # Create widgets for exporting the Neighborhood Profile images
-                neigh_prof_col = st.columns([2, 1])
-                with neigh_prof_col[0]:
-                    st.text_input('.png file suffix (Optional)', key = 'neigh_prof_line_suffix')
-                with neigh_prof_col[1]:
-                    add_vertical_space(2)
-                    if st.button('Append Export List', key = 'appendexportbutton_neighproline__do_not_persist'):
+                if st.session_state['toggle_manual_y_axis_scaling_main']:
+                    ax.set_ylim(st.session_state['y_axis_min_main'], st.session_state['y_axis_max_main'])
 
-                        ndl.save_png(npf_fig, 'Neighborhood Profiles', st.session_state.neigh_prof_line_suffix)
-                        st.toast(f'Added {st.session_state.neigh_prof_line_suffix} to export list')
+                if sel_npf_fig == sel_npf_fig2:
+                    st.markdown('## Please choose two different clusters to compare')
+                else:
+                    # Display the Neighborhood Profile
+                    st.pyplot(fig=npf_fig)
+
+                    # Create widgets for exporting the Neighborhood Profile images
+                    neigh_prof_col = st.columns([2, 1])
+                    with neigh_prof_col[0]:
+                        st.text_input('.png file suffix (Optional)', key = 'neigh_prof_line_suffix')
+                    with neigh_prof_col[1]:
+                        add_vertical_space(2)
+                        if st.button('Append Export List', key = 'appendexportbutton_neighproline__do_not_persist'):
+
+                            ndl.save_png(npf_fig, 'Neighborhood Profiles', st.session_state.neigh_prof_line_suffix)
+                            st.toast(f'Added {st.session_state.neigh_prof_line_suffix} to export list')
 
     # Drawing the subplots of Neighborhood Profiles per cluster combinations
     if st.session_state['appro_feat'] and st.session_state.cluster_completed_diff:
 
+        supp_neipro_col = st.columns([4, 2])
+        with supp_neipro_col[0]:
+            with st.expander('Neighborhood Profile Subplots Settings', expanded = False):
+                st.toggle('Manual Y-axis scaling',
+                          key = 'toggle_manual_y_axis_scaling_supplemental')
+
+                st.write('Settings for Individual Cluster Plots')
+                neipro_exp_full = st.columns([3, 3, 1])
+                with neipro_exp_full[0]:
+                    st.number_input('Y-axis Min', key = 'y_axis_min_supplemental',
+                                    value = 0.1, step = 0.001,)
+                with neipro_exp_full[1]:
+                    st.number_input('Y-axis Max', key = 'y_axis_max_supplemental',
+                                    value = 10000, step = 10,)
+                with neipro_exp_full[2]:
+                    st.checkbox('Log Scale', key = 'log_scale_supplemental', value = True)
+
+                st.write('Settings for Individual Cluster Ratios')
+                neipro_exp_full = st.columns([3, 3, 1])
+                with neipro_exp_full[0]:
+                    st.number_input('Y-axis Min', key = 'y_axis_min_indiratio_supplemental',
+                                    value = 0.1, step = 0.001,)
+                with neipro_exp_full[1]:
+                    st.number_input('Y-axis Max', key = 'y_axis_max_indiratio_supplemental',
+                                    value = 10, step = 1,)
+                with neipro_exp_full[2]:
+                    st.checkbox('Log Scale', key = 'log_scale_indiratio_supplemental', value = True)
+
+                st.write('Settings for Aggregated Cluster Ratios')
+                neipro_exp_full = st.columns([3, 3, 1])
+                with neipro_exp_full[0]:
+                    st.number_input('Y-axis Min', key = 'y_axis_min_aggratio_supplemental',
+                                    value = 0.1, step = 0.001,)
+                with neipro_exp_full[1]:
+                    st.number_input('Y-axis Max', key = 'y_axis_max_aggratio_supplemental',
+                                    value = 10, step = 1,)
+                with neipro_exp_full[2]:
+                    st.checkbox('Log Scale', key = 'log_scale_aggratio_supplemental', value = True)
+
         npf_fig_big = plt.figure(figsize=(16, 45), facecolor = '#0E1117')
 
-        list_figures = [['Average False', None, 'log', [1, 10000]],
-                        ['Average True', None, 'log', [1, 10000]],
-                        ['Average False', 'Average True', 'linear', [0, 4]],
-                        ['False Cluster 1', None, 'log', [0.1, 10000]],
-                        ['False Cluster 2', None, 'log', [0.1, 10000]],
-                        ['False Cluster 3', None, 'log', [0.1, 10000]],
-                        ['True Cluster 1', None, 'log', [0.1, 10000]],
-                        ['True Cluster 2', None, 'log', [0.1, 10000]],
-                        ['False Cluster 3', None, 'linear', [0, 2000]],
-                        ['False Cluster 1', 'True Cluster 1', 'log', [0.01, 100]],
-                        ['False Cluster 2', 'True Cluster 1', 'log', [0.01, 100]],
-                        ['False Cluster 3', 'True Cluster 1', 'log', [0.01, 100]],
-                        ['False Cluster 1', 'True Cluster 2', 'log', [0.01, 100]],
-                        ['False Cluster 2', 'True Cluster 2', 'log', [0.01, 100]],
-                        ['False Cluster 3', 'True Cluster 2', 'log', [0.01, 100]],
-                        ['False Cluster 1', 'Average True', 'linear', [0, 15]],
-                        ['False Cluster 2', 'Average True', 'linear', [0, 15]],
-                        ['False Cluster 3', 'Average True', 'linear', [0, 15]],
+        list_figures = [['Average False', None, 'Individual Cluster Plots'],
+                        ['Average True', None, 'Individual Cluster Plots'],
+                        ['Average False', 'Average True', 'Aggregate Cluster Ratios'],
+                        ['False Cluster 1', None, 'Individual Cluster Plots'],
+                        ['False Cluster 2', None, 'Individual Cluster Plots'],
+                        ['False Cluster 3', None, 'Individual Cluster Plots'],
+                        ['True Cluster 1', None, 'Individual Cluster Plots'],
+                        ['True Cluster 2', None, 'Individual Cluster Plots'],
+                        ['True Cluster 3', None, 'Individual Cluster Plots'],
+                        ['False Cluster 1', 'True Cluster 1', 'Individual Cluster Ratios'],
+                        ['False Cluster 2', 'True Cluster 1', 'Individual Cluster Ratios'],
+                        ['False Cluster 3', 'True Cluster 1', 'Individual Cluster Ratios'],
+                        ['False Cluster 1', 'True Cluster 2', 'Individual Cluster Ratios'],
+                        ['False Cluster 2', 'True Cluster 2', 'Individual Cluster Ratios'],
+                        ['False Cluster 3', 'True Cluster 2', 'Individual Cluster Ratios'],
+                        ['False Cluster 1', 'Average True', 'Aggregate Cluster Ratios'],
+                        ['False Cluster 2', 'Average True', 'Aggregate Cluster Ratios'],
+                        ['False Cluster 3', 'Average True', 'Aggregate Cluster Ratios'],
+                        ['True Cluster 1', 'Average False', 'Aggregate Cluster Ratios'],
+                        ['True Cluster 2', 'Average False', 'Aggregate Cluster Ratios'],
+                        ['True Cluster 3', 'Average False', 'Aggregate Cluster Ratios'],
                         ]
 
         num_figs = len(list_figures)
@@ -884,7 +942,23 @@ def main():
                                 hide_no_cluster = st.session_state['toggle_hide_no_cluster'],
                                 legend_flag = legend_flag)
 
-            if cluster[2] == 'log':
+            if st.session_state['toggle_manual_y_axis_scaling_supplemental']:
+                if cluster[2] == 'Individual Cluster Plots':
+                    axii.set_ylim([st.session_state['y_axis_min_supplemental'],
+                                   st.session_state['y_axis_max_supplemental']])
+                    if st.session_state['log_scale_supplemental']:
+                        axii.set_yscale('log')
+                elif cluster[2] == 'Individual Cluster Ratios':
+                    axii.set_ylim([st.session_state['y_axis_min_indiratio_supplemental'],
+                                   st.session_state['y_axis_max_indiratio_supplemental']])
+                    if st.session_state['log_scale_indiratio_supplemental']:
+                        axii.set_yscale('log')
+                elif cluster[2] == 'Aggregate Cluster Ratios':
+                    axii.set_ylim([st.session_state['y_axis_min_aggratio_supplemental'],
+                                   st.session_state['y_axis_max_aggratio_supplemental']])
+                    if st.session_state['log_scale_aggratio_supplemental']:
+                        axii.set_yscale('log')
+            else:
                 axii.set_yscale('log')
 
         st.pyplot(fig=npf_fig_big)
