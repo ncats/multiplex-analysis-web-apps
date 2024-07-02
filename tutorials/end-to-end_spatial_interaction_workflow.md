@@ -272,7 +272,7 @@ If you press the "Refresh available results archives" button, you will see that 
 
 <img src="end-to-end_spatial_interaction_workflow/data_import_and_export_page-new_archive_created.png" alt="New archive created" width="600"/>
 
-The next time you start MAWA, you can optionally load this archive by selecting it in the "Select available results archive to load" dropdown and clicking the "Load selected (above) results archive" button, allowing  you to, e.g., resume analysis with the SIT or visualize its results using the web interface. In the meantime, it will be safely stored on NIDAP.
+The next time you start MAWA, you can optionally load this archive by selecting it in the "Select available results archive to load" dropdown, clicking the "Load selected (above) results archive" button, and then pressing the Load button in the App Session Management section of the left sidebar, allowing  you to, e.g., resume analysis with the SIT or visualize its results using the web interface. In the meantime, it will be safely stored on NIDAP.
 
 ## What's next?
 
