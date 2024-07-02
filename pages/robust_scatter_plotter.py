@@ -85,6 +85,9 @@ def main():
         
         # Set the shortcut to the dataframe of interest
         if data_to_plot == 'Input data':
+            if 'input_dataset' not in st.session_state:
+                st.warning('Please open a dataset first using the Open File page at left.')
+                return
             df = st.session_state['input_dataset'].data
         else:
             df = st.session_state['df']

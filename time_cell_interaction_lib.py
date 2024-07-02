@@ -4002,7 +4002,7 @@ def plot_just_rois(df, plotting_map, num_colors, webpage_dir, mapping_dict, coor
                     boxes_to_plot = boxes_for_slide.iloc[iroi_box].to_frame().T  # this is a one-row dataframe
                     tag = boxes_to_plot.index[0]
                     list_of_tuple_arguments.append((roi_figsize, spec2plot_roi, species_roi, x_roi, y_roi, plotting_map, colors, x_range, y_range, uroi, marker_size_step, default_marker_size, roi_dpi, mapping_dict, coord_units_in_microns, alpha, edgecolors, yaxis_dir, boxes_to_plot, pval_params, title_suffix, tag, filename_suffix, savedir))
-                utils.execute_data_parallelism_potentially(function=plot_and_save_roi, list_of_tuple_arguments=list_of_tuple_arguments, nworkers=(0 if not use_multiprocessing else nworkers), task_description='plotting of the single ROI outlines on whole slide images')
+                utils.execute_data_parallelism_potentially(function=plot_and_save_roi, list_of_tuple_arguments=list_of_tuple_arguments, nworkers=(0 if not use_multiprocessing else nworkers), task_description='plotting of the single ROI outlines on whole slide images')  # note this takes plenty of overhead... the individual plot_and_save_roi() function takes about 0.2s per image, but over six seconds seem to be taken for setting up the forkserver or other multiprocessing overhead. So it seems like the plotting of the single ROI outlines on whole slide images step takes long on simple datasets, but that's okay! This step in particular is all execute_data_parallelism_potentially() which is all (for small datasets) overhead!
 
 
 def get_integer_index(val_to_map, vmin=-200, vmax=0, N=2**8):

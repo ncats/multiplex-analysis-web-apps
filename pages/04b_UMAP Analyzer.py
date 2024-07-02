@@ -21,6 +21,9 @@ def main():
     Main function for running the page
     '''
 
+    # Make a generic check to avoid neeeding to hunt down individual checks
+    rdy_to_plot = st.session_state.cluster_completed
+
     # Toggles for different figures
     fig_toggle = st.columns([1, 1, 2])
     with fig_toggle[0]:
@@ -41,7 +44,7 @@ def main():
     elif st.session_state.lineageDisplayToggle == 'Markers':
         st.session_state.umaplineages = st.session_state.umapMarks
 
-    if st.session_state.umap_completed:
+    if rdy_to_plot:
         st.session_state = ndl.setFigureObjs_UMAPDifferences(st.session_state)
     else:
         st.warning('No spatial UMAP analysis detected. Please complete Neighborhood Profiles')
@@ -71,12 +74,12 @@ def main():
 
     # FULL UMAP
     with umap_viz[0]:
-        if st.session_state.umap_completed:
+        if rdy_to_plot:
             st.pyplot(st.session_state.UMAPFig)
 
     # Inspection UMAP
     with umap_viz[1]:
-        if st.session_state.umap_completed:
+        if rdy_to_plot:
             st.pyplot(st.session_state.UMAPFigInsp)
 
     # Difference Measures
@@ -100,12 +103,12 @@ def main():
     diff_umap_col = st.columns(3)
     with diff_umap_col[0]:
         st.header('UMAP A')
-        if st.session_state.umap_completed:
+        if rdy_to_plot:
             st.pyplot(st.session_state.UMAPFigDiff0_Dens)
             st.pyplot(st.session_state.UMAPFigDiff0_Clus)
     with diff_umap_col[1]:
         st.header('UMAP B')
-        if st.session_state.umap_completed:
+        if rdy_to_plot:
             st.pyplot(st.session_state.UMAPFigDiff1_Dens)
             st.pyplot(st.session_state.UMAPFigDiff1_Clus)
     with diff_umap_col[2]:
@@ -113,7 +116,7 @@ def main():
         st.write('###')
         st.write('###')
         st.header('UMAP A - UMAP B')
-        if st.session_state.umap_completed:
+        if rdy_to_plot:
             st.pyplot(st.session_state.UMAPFigDiff2_Dens)
 
 if __name__ == '__main__':

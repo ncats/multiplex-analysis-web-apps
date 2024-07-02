@@ -5,6 +5,7 @@ required for phenotyping
 '''
 
 import time
+import math
 import numpy as np
 import pandas as pd
 import umap
@@ -20,6 +21,7 @@ from sklearn.cluster import KMeans # K-Means
 from benchmark_collector import benchmark_collector # Benchmark Collector Class
 from SpatialUMAP import SpatialUMAP
 import PlottingTools as umPT
+import utils
 
 def preprocess_df(df_orig, marker_names, marker_col_prefix, bc):
     '''Perform some preprocessing on our dataset to apply tranforms
@@ -507,6 +509,7 @@ def setup_Spatial_UMAP(df, marker_names, pheno_order, smallest_image_size):
         df (Pandas dataframe): Dataframe containing the data
         marker_names (list): List of marker names
         pheno_order (list): List of phenotype order
+        smallest_image_size (int): The size of the smallest image in the dataset
     
     Returns:
         SpatialUMAP: SpatialUMAP object
@@ -632,16 +635,14 @@ def perform_spatialUMAP(spatial_umap, bc, umap_subset_per_fit, umap_subset_toggl
     spatial_umap.set_train_test(n_fit=n_fit, n_tra = n_tra, groupby_label = 'TMA_core_id', seed=54321, umap_subset_toggle = umap_subset_toggle)
 
     # fit umap on training cells
-    bc.startTimer()
     print('Fitting Model')
     spatial_umap.umap_fit = umap.UMAP().fit(spatial_umap.density[spatial_umap.cells['umap_train'].values].reshape((spatial_umap.cells['umap_train'].sum(), -1)))
-    bc.printElapsedTime(f'      Fitting {np.sum(spatial_umap.cells["umap_train"] == 1)} points to a model')
+    bc.printElapsedTime(f'      Fitting {np.sum(spatial_umap.cells["umap_train"] == 1)} points to a model', split = True)
 
     # Transform test cells based on fitted model
-    bc.startTimer()
     print('Transforming Data')
     spatial_umap.umap_test = spatial_umap.umap_fit.transform(spatial_umap.density[spatial_umap.cells['umap_test'].values].reshape((spatial_umap.cells['umap_test'].sum(), -1)))
-    bc.printElapsedTime(f'      Transforming {np.sum(spatial_umap.cells["umap_test"] == 1)} points with the model')
+    bc.printElapsedTime(f'      Transforming {np.sum(spatial_umap.cells["umap_test"] == 1)} points with the model', split = True)
 
     spatial_umap.umap_completed = True
 
@@ -701,9 +702,15 @@ def umap_clustering(spatial_umap, n_clusters, clust_minmax, cpu_pool_size = 8):
             )
         )
 
-    # Create a pool of worker processes
-    with mp.Pool(processes=cpu_pool_size) as pool:
-        results = pool.starmap(kmeans_calc, kwargs_list)
+    results = utils.execute_data_parallelism_potentially(kmeans_calc,
+                                                         kwargs_list,
+                                                         nworkers = cpu_pool_size,
+                                                         task_description='KMeans Clustering',
+                                                         use_starmap=True)
+    # mp_start_method = mp.get_start_method()
+    # # Create a pool of worker processes
+    # with mp.get_context(mp_start_method).Pool(processes=cpu_pool_size) as pool:
+    #     results = pool.starmap(kmeans_calc, kwargs_list)
 
     wcss = [x.inertia_ for x in results]
 
@@ -858,7 +865,7 @@ def neighProfileDraw(spatial_umap, ax, sel_clus, cmp_clus = None, cmp_style = No
 
     maxdens_df   = 1.05*max(dens_df_mean_base['density_mean'] + dens_df_mean_base['density_sem'])
     dens_df_mean_sel = dens_df_mean_base.loc[dens_df_mean_base['clust_label'] == sel_clus, :].reset_index(drop=True)
-    ylim = [0, maxdens_df]
+    ylim = [1, maxdens_df]
     dens_df_mean = dens_df_mean_sel.copy()
     cluster_title = f'{sel_clus}'
 
@@ -891,6 +898,9 @@ def neighProfileDraw(spatial_umap, ax, sel_clus, cmp_clus = None, cmp_style = No
             cluster_title = f'{sel_clus} / {cmp_clus}'
     else:
         cmp_style = None
+
+    if not np.all([math.isfinite(x) for x in ylim]):
+        ylim = [1, 10]
 
     umPT.plot_mean_neighborhood_profile(ax = ax,
                                         dist_bin = spatial_umap.dist_bin_um,

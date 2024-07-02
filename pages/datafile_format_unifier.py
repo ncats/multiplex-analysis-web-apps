@@ -64,7 +64,7 @@ def main():
 
     # Constants
     directory = os.path.join('.', 'input')
-    extensions = ('.csv', '.tsv')
+    valid_extensions = ('.csv', '.tsv', '.txt')
 
     # Initialization
     show_dataframe_updates = False
@@ -91,20 +91,20 @@ def main():
         st.header(':one: Select datafile(s)')
 
         # Retrieve list of files with the given extensions in the requested directory
-        files = list_files(directory, extensions)
+        files = list_files(directory, valid_extensions)
 
         # If no files are found, write a message to the user
         if len(files) == 0:
-            st.warning('No ".csv" or ".tsv" files found in the `input` directory.')
+            st.warning(f'No files with extensions {valid_extensions} found in the `input` directory.')
 
         # If files are found, display them in a dataframe editor
         else:
             # Write messages to the user
             num_files = len(files)
             if num_files == 1:
-                st.write('Detected 1 ".csv" or ".tsv" file in the `input` directory.')
+                st.write(f'Detected 1 file with any of the extensions {valid_extensions} in the `input` directory.')
             else:
-                st.write(f'Detected {num_files} ".csv" and ".tsv" files in the `input` directory.')
+                st.write(f'Detected {num_files} files with any of the extensions {valid_extensions} in the `input` directory.')
             st.write('Select 1 or more files to load into the MAWA Datafile Unifier.')
             st.write('Note: Double-click any cell to see the full filename.')
 
