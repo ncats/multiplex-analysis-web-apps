@@ -10,6 +10,7 @@ from itertools import cycle, islice
 import plotly.graph_objects as go
 import pandas as pd
 import scipy.spatial
+# import multiaxial_gating
 
 # Global variable
 st_key_prefix = 'radial_profiles__'
@@ -245,6 +246,8 @@ def initialize_radial_bin_calculation(df):
     # Radial bins calculation section
     st.header('Radial bins')
 
+    st.warning('Note, currently the image centroid is hardcoded!')
+
     # Get some information about the images in the input dataset
     if st_key_prefix + 'unique_images' not in st.session_state:
         st.session_state[st_key_prefix + 'unique_images'] = df['Slide ID'].unique()  # get the unique images in the dataset
@@ -283,6 +286,11 @@ def calculate_annuli_radius_edges(df, annulus_spacing_um=250, xy_position_column
     xy_min = df[xy_position_columns].min()
     xy_max = df[xy_position_columns].max()
     xy_mid = (xy_min + xy_max) / 2
+
+
+    xy_mid.iloc[0] = 10130 / 2 * 0.32
+    xy_mid.iloc[1] = 10130 / 2 * 0.32
+
 
     # Get the radius edges that fit within the largest possible radius
     largest_possible_radius = np.linalg.norm(xy_max - xy_mid) + annulus_spacing_um
@@ -598,17 +606,23 @@ def main():
         columns_for_phenotype_grouping = st.multiselect('Columns for phenotype grouping:', categorical_columns, key=key)
 
         # Set the column name that describes the baseline field such as cell type
-        key = st_key_prefix + 'baseline_column_name'
+        key = st_key_prefix + 'column_identifying_baseline_signal'
         if key not in st.session_state:
             st.session_state[key] = categorical_columns[0]
-        baseline_column_name = st.selectbox('Baseline column name:', categorical_columns, key=key, on_change=delete_session_state_variable, args=('baseline_column_value',))
+        column_identifying_baseline_signal = st.selectbox('Column identifying baseline/signal:', categorical_columns, key=key, on_change=delete_session_state_variable, args=('baseline_column_value',))
 
         # Extract the baseline field value (such as a specific cell type) to be used for determining the thresholds
-        available_baseline_values = df[baseline_column_name].unique()
-        key = st_key_prefix + 'baseline_column_value'
+        available_baseline_signal_values = df[column_identifying_baseline_signal].unique()
+        key = st_key_prefix + 'value_identifying_baseline'
         if key not in st.session_state:
-            st.session_state[key] = available_baseline_values[0]
-        baseline_column_value = st.selectbox('Baseline column value:', available_baseline_values, key=key)
+            st.session_state[key] = available_baseline_signal_values[0]
+        value_identifying_baseline = st.selectbox('Value identifying baseline:', available_baseline_signal_values, key=key)
+
+        # Extract the value identifying the signal (such as a specific cell type) to be used for testing the thresholds
+        key = st_key_prefix + 'value_identifying_signal'
+        if key not in st.session_state:
+            st.session_state[key] = available_baseline_signal_values[0]
+        value_identifying_signal = st.selectbox('Value identifying signal:', available_baseline_signal_values, key=key, help='Note this is not used for calculating the thresholds.')
 
         # Extract the available channels for performing phenotyping
         key = st_key_prefix + 'channel_for_phenotyping'
@@ -621,7 +635,7 @@ def main():
 
             # Group the relevant subset of the dataframe by the selected variables
             if len(columns_for_phenotype_grouping) > 0:
-                df_grouped = df[columns_for_phenotype_grouping + [baseline_column_name, channel_for_phenotyping]].groupby(by=columns_for_phenotype_grouping)
+                df_grouped = df[columns_for_phenotype_grouping + [column_identifying_baseline_signal, channel_for_phenotyping]].groupby(by=columns_for_phenotype_grouping)
             else:
                 df_grouped = [(None, df)]
 
@@ -633,7 +647,7 @@ def main():
             for _, df_group in df_grouped:
 
                 # Get the selected intensity data for just the baseline field value
-                ser_baseline = df_group.loc[df_group[baseline_column_name] == baseline_column_value, channel_for_phenotyping]
+                ser_baseline = df_group.loc[df_group[column_identifying_baseline_signal] == value_identifying_baseline, channel_for_phenotyping]
 
                 # From that, calculate the mean and std
                 mean_to_use = ser_baseline.mean()
@@ -673,7 +687,38 @@ def main():
     # Set a shortcut to the thresholds dataframe
     df_thresholds = st.session_state[key]
 
-    st.write(df_thresholds)
+    group_selection = st.dataframe(df_thresholds, on_select='rerun', selection_mode='single-row')
+    ser_selected = df_thresholds.iloc[group_selection['selection']['rows']]
+    st.write(ser_selected)
+
+    st.write(df.sample(100))
+
+
+    #### Next up, save df_group above to the session state?
+    # Or, just essentially recalculate the group below and replace df=df with df=df_group
+    # Then, keep filling out the generate_box_and_whisker arguments, just the last two are left
+    # Figure out how to properly import multiaxial gating
+    # Pick up with the radial profiles tasks in OneNote
+
+
+    fig, df_summary = multiaxial_gating.generate_box_and_whisker(
+        apply_another_filter=False,
+        df=df,
+        column_for_filtering=channel_for_phenotyping,
+        another_filter_column=None,
+        values_on_which_to_filter=None,
+        images_in_plotting_group_1=df.loc[df[column_identifying_baseline_signal] == value_identifying_baseline, 'Slide ID'].unique(),
+        images_in_plotting_group_2=df.loc[df[column_identifying_baseline_signal] == value_identifying_signal, 'Slide ID'].unique(),
+        all_cells=False,
+        mean_for_zscore_calc=st.session_state['mg__mean_for_zscore_calc'],
+        std_for_zscore_calc=st.session_state['mg__std_for_zscore_calc']
+        )
+    # apply_another_filter, df, column_for_filtering, another_filter_column, values_on_which_to_filter, images_in_plotting_group_1, images_in_plotting_group_2, all_cells=True, mean_for_zscore_calc=None, std_for_zscore_calc=None
+    st.session_state['mg__df_summary_contents'] = df_summary
+    st.plotly_chart(fig, on_select=plotly_chart_summary_callback, key='mg__plotly_chart_summary__do_not_persist')
+    st.dataframe(df_summary, hide_index=True, key="mg__df_summary__do_not_persist", on_select=df_summary_callback, selection_mode=["single-row"])
+
+    # st.write(pd.read_csv('Thresholds_mCMV_Ch2.csv'))
 
     # at the end, compare with how I did it in the gater
 
