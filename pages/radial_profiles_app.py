@@ -123,7 +123,7 @@ def draw_single_image_scatter_plot(df, image_to_view, column_to_plot, values_to_
         if st_key_prefix + 'df_analysis_results' in st.session_state:
             st.write(st.session_state[st_key_prefix + 'df_analysis_results'].loc[image_to_view])
 
-    # We seem to need to render something on the page after rendering a plotly figure in order for the page to not automatically scroll back to the top when you go to the Previous or Next image
+    # We seem to need to render something on the page after rendering a plotly figure in order for the page to not automatically scroll back to the top when you go to the Previous or Next image... doesn't seem to always work at least in the scatter plotter
     st.write(' ')
 
 

@@ -129,6 +129,11 @@ def draw_scatter_plot_with_options():
         # Display the number of cells in the selected image
         st.write(f'Number of cells in image: {ser_size_of_each_image.loc[image_to_view]}')
 
+        # Allow sampling of the scatter plot
+        if 'rsp__sample_percent' not in st.session_state:
+            st.session_state['rsp__sample_percent'] = 100
+        sample_percent = st.number_input('Sample percent:', min_value=1, max_value=100, step=1, key='rsp__sample_percent')
+
         # Optionally navigate through the images using Previous and Next buttons
         cols = st.columns(2)
         with cols[0]:
@@ -223,7 +228,7 @@ def draw_scatter_plot_with_options():
             filter_loc = pd.Series(True, index=df.index)
 
         # Filter the DataFrame to include only the selected image and filter
-        df_selected_image_and_filter = df[(df['Slide ID'] == image_to_view) & filter_loc]
+        df_selected_image_and_filter = df[(df['Slide ID'] == image_to_view) & filter_loc].sample(frac=sample_percent / 100)
 
         # Group the DataFrame for the selected image by unique value of the column to plot
         selected_image_grouped_by_value = df_selected_image_and_filter.groupby(column_to_plot)
@@ -287,6 +292,9 @@ def draw_scatter_plot_with_options():
 
         # Plot the plotly chart in Streamlit
         st.plotly_chart(fig, use_container_width=True)
+
+        # Attempt to get page to not scroll up to the top after the plot is drawn... doesn't seem to work here
+        st.write(' ')
 
     # Return necessary variables
     return df, column_to_plot, values_to_plot, categorical_columns, unique_images
