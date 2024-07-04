@@ -63,7 +63,7 @@ def df_summary_callback():
             st.session_state['mg__min_selection_value'] = df_selected_threshold
 
 
-def generate_box_and_whisker(apply_another_filter, df, column_for_filtering, another_filter_column, values_on_which_to_filter, images_in_plotting_group_1, images_in_plotting_group_2, all_cells=True, mean_for_zscore_calc=None, std_for_zscore_calc=None):
+def generate_box_and_whisker(apply_another_filter, df, column_for_filtering, another_filter_column, values_on_which_to_filter, images_in_plotting_group_1, images_in_plotting_group_2, all_cells=True, mean_for_zscore_calc=None, std_for_zscore_calc=None, return_figure_and_summary=True):
 
     # If we're ready to apply a filter, then create it
     if not apply_another_filter:
@@ -89,7 +89,8 @@ def generate_box_and_whisker(apply_another_filter, df, column_for_filtering, ano
     # Initialize the positive percentages holders
     group_1_holder = []
     group_2_holder = []
-    data_for_box_plot_holder = []
+    if return_figure_and_summary:
+        data_for_box_plot_holder = []
 
     # For each threshold...
     for threshold, z_score in zip(thresholds, z_scores):
@@ -124,8 +125,9 @@ def generate_box_and_whisker(apply_another_filter, df, column_for_filtering, ano
             df_group_2_pos_perc['Z score'] = z_score
             df_group_1_pos_perc['Group'] = 'Baseline'
             df_group_2_pos_perc['Group'] = 'Signal'
-            data_for_box_plot_holder.append(df_group_1_pos_perc)
-            data_for_box_plot_holder.append(df_group_2_pos_perc)
+            if return_figure_and_summary:
+                data_for_box_plot_holder.append(df_group_1_pos_perc)
+                data_for_box_plot_holder.append(df_group_2_pos_perc)
 
             # Name each series the value of the current threshold
             ser_group_1_pos_perc.name = threshold
@@ -137,15 +139,17 @@ def generate_box_and_whisker(apply_another_filter, df, column_for_filtering, ano
 
     # If we want the positive percentage of all the cells in each group...
     if all_cells:
+
+        if return_figure_and_summary:
     
-        # Create a plotly figure
-        fig = go.Figure()
+            # Create a plotly figure
+            fig = go.Figure()
 
-        # Plot positive percentage in whole dataset vs. threshold for group 1
-        fig.add_trace(go.Scatter(x=z_scores, y=group_1_holder, mode='lines+markers', name='Baseline'))
+            # Plot positive percentage in whole dataset vs. threshold for group 1
+            fig.add_trace(go.Scatter(x=z_scores, y=group_1_holder, mode='lines+markers', name='Baseline'))
 
-        # Plot positive percentage in whole dataset vs. threshold for group 2
-        fig.add_trace(go.Scatter(x=z_scores, y=group_2_holder, mode='lines+markers', name='Signal'))
+            # Plot positive percentage in whole dataset vs. threshold for group 2
+            fig.add_trace(go.Scatter(x=z_scores, y=group_2_holder, mode='lines+markers', name='Signal'))
 
         # Create the summary dataframe
         df_summary = pd.DataFrame({'Z score': z_scores, 'Threshold': thresholds, 'Positive percentage (all cells) for baseline group': group_1_holder, 'Positive percentage (all cells) for signal group': group_2_holder})
@@ -154,7 +158,8 @@ def generate_box_and_whisker(apply_another_filter, df, column_for_filtering, ano
     else:
 
         # Create the dataframe holding all the data for the desired box plot
-        df_box_plot = pd.concat(data_for_box_plot_holder, axis='rows')
+        if return_figure_and_summary:
+            df_box_plot = pd.concat(data_for_box_plot_holder, axis='rows')
 
         # Create a dataframe from the positive percentages for each image in each group
         df_group_1_pos_perc = pd.concat(group_1_holder, axis='columns')
@@ -164,25 +169,25 @@ def generate_box_and_whisker(apply_another_filter, df, column_for_filtering, ano
         avg_group_1 = df_group_1_pos_perc.mean()
         avg_group_2 = df_group_2_pos_perc.mean()
 
-        # Plot the positive percentage in each image vs. threshold for both groups
-        # fig = go.Figure()
-        # fig.add_trace(go.Scatter(x=avg_group_1.index, y=avg_group_1.values, mode='lines+markers', name='Baseline'))
-        # fig.add_trace(go.Scatter(x=avg_group_2.index, y=avg_group_2.values, mode='lines+markers', name='Signal'))
-
         # Create the desired box plot
-        fig = px.box(df_box_plot, x='Z score', y='Positive %', color='Group', points='all')
+        if return_figure_and_summary:
+            fig = px.box(df_box_plot, x='Z score', y='Positive %', color='Group', points='all')
 
         # Create the summary dataframe
         df_summary = pd.DataFrame({'Z score': z_scores, 'Threshold': thresholds, 'Positive % (avg. over images) for baseline group': avg_group_1.values, 'Positive % (avg. over images) for signal group': avg_group_2.values})
 
     # Update the layout of the plot
-    fig.update_layout(title='Positive percentage vs. baseline Z score',
-                    xaxis_title='Baseline Z score',
-                    yaxis_title='Positive percentage',
-                    legend_title='Group')
+    if return_figure_and_summary:
+        fig.update_layout(title='Positive percentage vs. baseline Z score',
+                        xaxis_title='Baseline Z score',
+                        yaxis_title='Positive percentage',
+                        legend_title='Group')
 
     # Return the plot, the Z scores, and the thresholds
-    return fig, df_summary
+    if return_figure_and_summary:
+        return fig, df_summary
+    else:
+        return df_summary
 
 
 def reset_values_on_which_to_filter_another_column():
