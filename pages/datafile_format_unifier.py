@@ -178,8 +178,8 @@ def main():
                         df_holder = []
                         for input_file in input_files:
                             curr_df = pd.read_csv(os.path.join(directory, input_file), sep=sep)
-                            assert 'input_filename' not in curr_df.columns, 'ERROR: "input_filename" is one of the columns but we want to overwrite it'
-                            curr_df['input_filename'] = input_file
+                            if 'input_filename' not in curr_df.columns:
+                                curr_df['input_filename'] = input_file
                             df_holder.append(curr_df)
                         st.session_state['unifier__df'] = utils.downcast_dataframe_dtypes(pd.concat(df_holder, ignore_index=True))
 

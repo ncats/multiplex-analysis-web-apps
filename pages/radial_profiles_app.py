@@ -246,7 +246,7 @@ def initialize_radial_bin_calculation(df):
     # Radial bins calculation section
     st.header('Radial bins')
 
-    st.warning('Note, currently the image centroid is hardcoded!')
+    # st.warning('Note, currently the image centroid is hardcoded!')
 
     # Get some information about the images in the input dataset
     if st_key_prefix + 'unique_images' not in st.session_state:
@@ -257,7 +257,8 @@ def initialize_radial_bin_calculation(df):
     key = st_key_prefix + 'coordinate_scale_factor'
     if key not in st.session_state:
         st.session_state[key] = 1
-    coordinate_scale_factor = st.number_input('Coordinate scale factor:', min_value=0.0, key=key, help='This is only necessary if you have forgotten to scale the coordinates in the Datafile Unifier.')
+    # coordinate_scale_factor = st.number_input('Coordinate scale factor:', min_value=0.0, key=key, help='This is only necessary if you have forgotten to scale the coordinates in the Datafile Unifier.')
+    coordinate_scale_factor = st.session_state[key]
 
     # Number input for the annulus spacing
     key = st_key_prefix + 'annulus_spacing_um'
@@ -288,8 +289,8 @@ def calculate_annuli_radius_edges(df, annulus_spacing_um=250, xy_position_column
     xy_mid = (xy_min + xy_max) / 2
 
 
-    xy_mid.iloc[0] = 10130 / 2 * 0.32
-    xy_mid.iloc[1] = 10130 / 2 * 0.32
+    # xy_mid.iloc[0] = 10130 / 2 * 0.32
+    # xy_mid.iloc[1] = 10130 / 2 * 0.32
 
 
     # Get the radius edges that fit within the largest possible radius
@@ -597,7 +598,9 @@ def main():
 
     ####
 
-    with st.columns(3)[0]:
+    columns = st.columns(3)
+
+    with columns[0]:
 
         # Select columns to use for grouping the threshold calculations
         key = st_key_prefix + 'columns_for_phenotype_grouping'
@@ -609,7 +612,7 @@ def main():
         key = st_key_prefix + 'column_identifying_baseline_signal'
         if key not in st.session_state:
             st.session_state[key] = categorical_columns[0]
-        column_identifying_baseline_signal = st.selectbox('Column identifying baseline/signal:', categorical_columns, key=key, on_change=delete_session_state_variable, args=('baseline_column_value',))
+        column_identifying_baseline_signal = st.selectbox('Column identifying baseline/signal:', categorical_columns, key=key, on_change=delete_session_state_variable, args=('value_identifying_baseline',))
 
         # Extract the baseline field value (such as a specific cell type) to be used for determining the thresholds
         available_baseline_signal_values = df[column_identifying_baseline_signal].unique()
@@ -690,7 +693,7 @@ def main():
         ser_selected = df_thresholds.iloc[group_selection['selection']['rows']]
         st.write(ser_selected)
 
-    with st.columns(3)[1]:
+    with columns[1]:
 
         # Extract the value identifying the signal (such as a specific cell type) to be used for testing the thresholds
         key = st_key_prefix + 'value_identifying_signal'
