@@ -16,6 +16,49 @@ from pages import multiaxial_gating
 st_key_prefix = 'radial_profiles__'
 
 
+def get_box_and_whisker_data(df_grouped, df_thresholds, apply_thresh_to_selected_group, df, channel_for_phenotyping, column_identifying_baseline_signal, value_identifying_baseline, value_identifying_signal, row_selection, return_figure_and_summary=True):
+
+    # Obtain the index and dataframe of the group identified by row_selection
+    if isinstance(df_grouped, list):
+        current_index = None
+        df_selected = df_grouped[0][1]
+    else:
+        current_index = df_thresholds.iloc[row_selection].name
+        df_selected = df_grouped.get_group(current_index)
+
+    # Obtain the dataframe to actually transform as well as the mean and std to use for the transformation
+    if apply_thresh_to_selected_group:
+        df_transform = df_selected
+        mean_for_zscore_calc = None
+        std_for_zscore_calc = None
+    else:
+        df_transform = df
+        ser_selected = df_thresholds.iloc[row_selection]
+        mean_for_zscore_calc = ser_selected.loc['z score = 0']
+        std_for_zscore_calc = ser_selected.loc['z score = 1'] - mean_for_zscore_calc
+
+    # Obtain the data that one would get by generating a box and whisker plot
+    return_values = multiaxial_gating.generate_box_and_whisker(
+        df=df_transform,
+        column_for_filtering=channel_for_phenotyping,
+        apply_another_filter=False,
+        another_filter_column=None,
+        values_on_which_to_filter=None,
+        images_in_plotting_group_1=df_transform.loc[df_transform[column_identifying_baseline_signal] == value_identifying_baseline, 'Slide ID'].unique(),
+        images_in_plotting_group_2=df_transform.loc[df_transform[column_identifying_baseline_signal] == value_identifying_signal, 'Slide ID'].unique(),
+        all_cells=False,
+        mean_for_zscore_calc=mean_for_zscore_calc,
+        std_for_zscore_calc=std_for_zscore_calc,
+        return_figure_and_summary=return_figure_and_summary
+        )
+
+    # Return the desired values
+    if return_figure_and_summary:
+        return return_values
+    else:
+        return return_values, current_index
+
+
 def delete_session_state_variable(key_suffix):
     del st.session_state[st_key_prefix + key_suffix]
 
@@ -713,115 +756,72 @@ def main():
 
         start_time = time.time()
 
+        # If we want to generate a plot based on the currently selected group...
         if not average_over_all_groups:
 
+            # Obtain the current selection
             row_selection_list = group_selection['selection']['rows']
 
+            # If something is actually selected...
             if row_selection_list:
 
-                if isinstance(df_grouped, list):
-                    df_selected = df_grouped[0][1]
-                else:
-                    df_selected = df_grouped.get_group(df_thresholds.iloc[row_selection_list[0]].name)
+                # Get the box and whisker data
+                fig, _ = get_box_and_whisker_data(df_grouped, df_thresholds, apply_thresh_to_selected_group, df, channel_for_phenotyping, column_identifying_baseline_signal, value_identifying_baseline, value_identifying_signal, row_selection_list[0], return_figure_and_summary=True)
 
-                if apply_thresh_to_selected_group:
-                    df_transform = df_selected
-                    mean_for_zscore_calc = None
-                    std_for_zscore_calc = None
-                else:
-                    df_transform = df
-                    ser_selected = df_thresholds.iloc[row_selection_list[0]]
-                    mean_for_zscore_calc = ser_selected.loc['z score = 0']
-                    std_for_zscore_calc = ser_selected.loc['z score = 1'] - mean_for_zscore_calc
-
-                fig, df_summary = multiaxial_gating.generate_box_and_whisker(
-                    df=df_transform,
-                    column_for_filtering=channel_for_phenotyping,
-                    apply_another_filter=False,
-                    another_filter_column=None,
-                    values_on_which_to_filter=None,
-                    images_in_plotting_group_1=df_transform.loc[df_transform[column_identifying_baseline_signal] == value_identifying_baseline, 'Slide ID'].unique(),
-                    images_in_plotting_group_2=df_transform.loc[df_transform[column_identifying_baseline_signal] == value_identifying_signal, 'Slide ID'].unique(),
-                    all_cells=False,
-                    mean_for_zscore_calc=mean_for_zscore_calc,
-                    std_for_zscore_calc=std_for_zscore_calc,
-                    return_figure_and_summary=True
-                    )
-
+                # Plot the box and whisker chart
                 st.plotly_chart(fig)
 
-                st.write(df_summary)
-
+        # If we want to generate a plot from averaging over all the groups...
         else:
 
+            # Since this takes a non-trivial amount of time, hide the calculation behind a button
             if st.button('Calculate average positive percentages over all groups'):
 
+                # Initialize the holders of the group indices and the average positive percentages
+                index_holder = []
                 ser_holder_baseline = []
                 ser_holder_signal = []
-                index_holder = []
 
-                for row_selection in range(len(df_thresholds)):
+                # For every group...
+                for irow in range(len(df_thresholds)):
 
-                    if isinstance(df_grouped, list):
-                        current_index = None
-                        df_selected = df_grouped[0][1]
-                    else:
-                        current_index = df_thresholds.iloc[row_selection].name
-                        df_selected = df_grouped.get_group(current_index)
-                    index_holder.append(current_index)
+                    # Get the box and whisker data
+                    df_summary, current_index = get_box_and_whisker_data(df_grouped, df_thresholds, apply_thresh_to_selected_group, df, channel_for_phenotyping, column_identifying_baseline_signal, value_identifying_baseline, value_identifying_signal, irow, return_figure_and_summary=False)
 
-                    if apply_thresh_to_selected_group:
-                        df_transform = df_selected
-                        mean_for_zscore_calc = None
-                        std_for_zscore_calc = None
-                    else:
-                        df_transform = df
-                        ser_selected = df_thresholds.iloc[row_selection]
-                        mean_for_zscore_calc = ser_selected.loc['z score = 0']
-                        std_for_zscore_calc = ser_selected.loc['z score = 1'] - mean_for_zscore_calc
-
-                    df_summary = multiaxial_gating.generate_box_and_whisker(
-                        df=df_transform,
-                        column_for_filtering=channel_for_phenotyping,
-                        apply_another_filter=False,
-                        another_filter_column=None,
-                        values_on_which_to_filter=None,
-                        images_in_plotting_group_1=df_transform.loc[df_transform[column_identifying_baseline_signal] == value_identifying_baseline, 'Slide ID'].unique(),
-                        images_in_plotting_group_2=df_transform.loc[df_transform[column_identifying_baseline_signal] == value_identifying_signal, 'Slide ID'].unique(),
-                        all_cells=False,
-                        mean_for_zscore_calc=mean_for_zscore_calc,
-                        std_for_zscore_calc=std_for_zscore_calc,
-                        return_figure_and_summary=False
-                        )
-
+                    # Append the desired data to the holders
                     df_summary = df_summary.drop('Threshold', axis='columns').set_index('Z score')  # the drop isn't necessary but it may make the operations marginally faster
+                    index_holder.append(current_index)
                     ser_holder_baseline.append(df_summary['Positive % (avg. over images) for baseline group'])
                     ser_holder_signal.append(df_summary['Positive % (avg. over images) for signal group'])
 
+                # Calculate and save the average positive percentages for the baseline group
                 df_baseline = pd.concat(ser_holder_baseline, axis='columns', keys=index_holder)
                 df_baseline.columns.names = columns_for_phenotype_grouping
                 st.session_state[st_key_prefix + 'df_baseline'] = df_baseline
 
+                # Calculate and save the average positive percentages for the signal group
                 df_signal = pd.concat(ser_holder_signal, axis='columns', keys=index_holder)
                 df_signal.columns.names = columns_for_phenotype_grouping
                 st.session_state[st_key_prefix + 'df_signal'] = df_signal
 
+            # Ensure the average positive percentages have been calculated
             if st_key_prefix + 'df_baseline' not in st.session_state:
                 st.warning('Please calculate average positive percentages over all groups')
                 return
 
+            # Get the difference in the average positive percentages between the baseline and signal groups
             df_baseline = st.session_state[st_key_prefix + 'df_baseline']
             df_signal = st.session_state[st_key_prefix + 'df_signal']
             df_diff = df_signal - df_baseline
 
-            # Calculate mean and SEM over the columns
+            # Calculate mean and SEM over the groups
             mean_values = df_diff.mean(axis='columns')
             sem_values = df_diff.sem(axis='columns')
 
             # Create a Plotly figure
             fig = go.Figure()
 
-            # Add a scatter plot or bar plot
+            # Add a scatter plot
             fig.add_trace(go.Scatter(
                 x=mean_values.index,
                 y=mean_values,
@@ -841,9 +841,10 @@ def main():
                 yaxis_title='Mean Value',
             )
 
+            # Render the chart in Streamlit
             st.plotly_chart(fig)
 
-        st.write(f'Took {time.time() - start_time} seconds')
+        st.write(f'Took {time.time() - start_time:.2f} seconds')
 
     ####
 
