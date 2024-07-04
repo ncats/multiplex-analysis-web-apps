@@ -10,7 +10,7 @@ from itertools import cycle, islice
 import plotly.graph_objects as go
 import pandas as pd
 import scipy.spatial
-# import multiaxial_gating
+from pages import multiaxial_gating
 
 # Global variable
 st_key_prefix = 'radial_profiles__'
@@ -618,12 +618,6 @@ def main():
             st.session_state[key] = available_baseline_signal_values[0]
         value_identifying_baseline = st.selectbox('Value identifying baseline:', available_baseline_signal_values, key=key)
 
-        # Extract the value identifying the signal (such as a specific cell type) to be used for testing the thresholds
-        key = st_key_prefix + 'value_identifying_signal'
-        if key not in st.session_state:
-            st.session_state[key] = available_baseline_signal_values[0]
-        value_identifying_signal = st.selectbox('Value identifying signal:', available_baseline_signal_values, key=key, help='Note this is not used for calculating the thresholds.')
-
         # Extract the available channels for performing phenotyping
         key = st_key_prefix + 'channel_for_phenotyping'
         if key not in st.session_state:
@@ -678,24 +672,33 @@ def main():
             df_thresholds = pd.DataFrame(thresholds_outer, columns=columns_index, index=index)
             st.session_state[st_key_prefix + 'df_thresholds'] = df_thresholds
 
-    # Make sure the phenotyping thresholds have been calculated
-    key = st_key_prefix + 'df_thresholds'
-    if key not in st.session_state:
-        st.warning('Please calculate thresholds for phenotyping')
-        return
-    
-    # Set a shortcut to the thresholds dataframe
-    df_thresholds = st.session_state[key]
+            # Save the grouped data as well for plotting and phenotyping
+            st.session_state[st_key_prefix + 'df_grouped'] = df_grouped
 
-    group_selection = st.dataframe(df_thresholds, on_select='rerun', selection_mode='single-row')
-    ser_selected = df_thresholds.iloc[group_selection['selection']['rows']]
-    st.write(ser_selected)
+        # Make sure the phenotyping thresholds have been calculated
+        key = st_key_prefix + 'df_thresholds'
+        if key not in st.session_state:
+            st.warning('Please calculate thresholds for phenotyping')
+            return
 
-    st.write(df.sample(100))
+        # Set a shortcut to the relevant data
+        df_thresholds = st.session_state[key]
+        df_grouped = st.session_state[st_key_prefix + 'df_grouped']
+
+        # Display the thresholds, allowing the user to select a single row
+        group_selection = st.dataframe(df_thresholds, on_select='rerun', selection_mode='single-row')
+        ser_selected = df_thresholds.iloc[group_selection['selection']['rows']]
+        st.write(ser_selected)
+
+    with st.columns(3)[1]:
+
+        # Extract the value identifying the signal (such as a specific cell type) to be used for testing the thresholds
+        key = st_key_prefix + 'value_identifying_signal'
+        if key not in st.session_state:
+            st.session_state[key] = available_baseline_signal_values[0]
+        value_identifying_signal = st.selectbox('Value identifying signal:', available_baseline_signal_values, key=key)
 
 
-    #### Next up, save df_group above to the session state?
-    # Or, just essentially recalculate the group below and replace df=df with df=df_group
     # Then, keep filling out the generate_box_and_whisker arguments, just the last two are left
     # Figure out how to properly import multiaxial gating
     # Pick up with the radial profiles tasks in OneNote
