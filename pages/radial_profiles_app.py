@@ -11,6 +11,7 @@ import plotly.graph_objects as go
 import pandas as pd
 import scipy.spatial
 from pages import multiaxial_gating
+import utils
 
 # Global variable
 st_key_prefix = 'radial_profiles__'
@@ -696,9 +697,13 @@ def main():
 
     ####
 
+    st.header('Adaptive phenotyping')
+
     columns = st.columns(3)
 
     with columns[0]:
+
+        st.subheader(':one: Threshold calculation')
 
         # Select columns to use for grouping the threshold calculations
         key = st_key_prefix + 'columns_for_phenotype_grouping'
@@ -787,6 +792,7 @@ def main():
         df_grouped = st.session_state[st_key_prefix + 'df_grouped']
 
         # Display the thresholds, allowing the user to select a single row
+        st.write('Calculated thresholds:')
         group_selection = st.dataframe(df_thresholds, on_select='rerun', selection_mode='single-row')
 
         # Create a new figure
@@ -814,6 +820,8 @@ def main():
         st.plotly_chart(fig)
 
     with columns[1]:
+
+        st.subheader(':two: Percent positives plotting')
 
         # Extract the value identifying the signal (such as a specific cell type) to be used for testing the thresholds
         key = st_key_prefix + 'value_identifying_signal'
@@ -860,25 +868,25 @@ def main():
                 ser_holder_signal = []
 
                 # For every group...
-                for irow in range(len(df_thresholds)):
+                for curr_row in range(len(df_thresholds)):
 
                     # Get the box and whisker data
-                    df_summary, current_index = get_box_and_whisker_data(df_grouped, df_thresholds, apply_thresh_to_selected_group, df, channel_for_phenotyping, column_identifying_baseline_signal, value_identifying_baseline, value_identifying_signal, irow, return_figure_and_summary=False)
+                    df_summary, curr_index = get_box_and_whisker_data(df_grouped, df_thresholds, apply_thresh_to_selected_group, df, channel_for_phenotyping, column_identifying_baseline_signal, value_identifying_baseline, value_identifying_signal, curr_row, return_figure_and_summary=False)
 
                     # Append the desired data to the holders
                     df_summary = df_summary.drop('Threshold', axis='columns').set_index('Z score')  # the drop isn't necessary but it may make the operations marginally faster
-                    index_holder.append(current_index)
+                    index_holder.append(curr_index)
                     ser_holder_baseline.append(df_summary['Positive % (avg. over images) for baseline group'])
                     ser_holder_signal.append(df_summary['Positive % (avg. over images) for signal group'])
 
                 # Calculate and save the average positive percentages for the baseline group
                 df_baseline = pd.concat(ser_holder_baseline, axis='columns', keys=index_holder)
-                df_baseline.columns.names = [columns_for_phenotype_grouping if len(columns_for_phenotype_grouping) > 0 else 'No group']
+                df_baseline.columns.names = columns_for_phenotype_grouping if len(columns_for_phenotype_grouping) > 0 else ['No group']
                 st.session_state[st_key_prefix + 'df_baseline'] = df_baseline
 
                 # Calculate and save the average positive percentages for the signal group
                 df_signal = pd.concat(ser_holder_signal, axis='columns', keys=index_holder)
-                df_signal.columns.names = [columns_for_phenotype_grouping if len(columns_for_phenotype_grouping) > 0 else 'No group']
+                df_signal.columns.names = columns_for_phenotype_grouping if len(columns_for_phenotype_grouping) > 0 else ['No group']
                 st.session_state[st_key_prefix + 'df_signal'] = df_signal
 
             # Ensure the average positive percentages have been calculated
@@ -897,6 +905,8 @@ def main():
 
     with columns[2]:
 
+        st.subheader(':three: Phenotype generation')
+
         # Set the phenotype name
         key = st_key_prefix + 'phenotype_name'
         if key not in st.session_state:
@@ -906,8 +916,8 @@ def main():
         # Set the desired Z score
         key = st_key_prefix + 'desired_z_score'
         if key not in st.session_state:
-            st.session_state[key] = 2
-        desired_z_score = st.selectbox('Desired Z score:', [int(column.split(' = ')[1]) for column in df_thresholds.columns], key=key)
+            st.session_state[key] = 2.0
+        desired_z_score = st.number_input('Desired Z score:', key=key)
 
         # Set the phenotyping method
         key = st_key_prefix + 'phenotyping_method'
@@ -919,8 +929,7 @@ def main():
         # Obtain the current selection
         row_selection_list = group_selection['selection']['rows']
 
-        # Old: apply_thresh_to_selected_group=False, average_over_all_groups=False, DO have a particular group selected --> "Selected threshold applied to entire dataset"
-        # New: apply_thresh_to_selected_group=True, average_over_all_groups=True, DO NOT have a particular group selected --> "Group-specific threshold applied to each group"
+        # Determine whether the phenotyping button should be disabled
         phenotyping_button_disabled = False
         if (phenotyping_method == phenotyping_method_options[0]) and (not row_selection_list):
             st.warning(f'Phenotyping method "{phenotyping_method}" requires a group to be selected in the first column')
@@ -929,69 +938,93 @@ def main():
             st.warning(f'Phenotyping method "{phenotyping_method}" does not actually require that no group be selected in the first column, but for clarity (since that method performs calculations for every group), we are enacting that requirement; please de-select the group selection in the first column')
             phenotyping_button_disabled = True
 
+        # Render the button to perform the phenotyping
         if st.button('Perform phenotyping', disabled=phenotyping_button_disabled, on_click=update_phenotyping_sub_options, args=(phenotyping_method_options,)):
 
-            st.write(f'Phenotyping method: {phenotyping_method}')
-            st.write(f'Phenotype name: {phenotype_name}')
-            st.write(f'Desired Z score: {desired_z_score}')
-            st.write(f'Apply threshold to selected group: {apply_thresh_to_selected_group}')
-            st.write(f'Average over all groups: {average_over_all_groups}')
-            st.write(f'Row selection: {row_selection_list[0]}')
-
             # Perform the phenotyping method that applies the selected threshold to the entire dataset
-            #### EDIT THIS
+            # Old: apply_thresh_to_selected_group=False, average_over_all_groups=False, DO have a particular group selected --> "Selected threshold applied to entire dataset"
             if phenotyping_method == phenotyping_method_options[0]:
 
                 # Get the selected row of df_thresholds, which is a series
                 ser_selected = df_thresholds.iloc[row_selection_list[0]]
 
-                # Get the desired threshold
-                threshold = ser_selected.loc[f'z score = {desired_z_score}']
+                # Calculate the threshold from the mean/std from the selected group
+                mean_for_zscore_calc = ser_selected.loc['z score = 0']
+                std_for_zscore_calc = ser_selected.loc['z score = 1'] - mean_for_zscore_calc
+                threshold = mean_for_zscore_calc + desired_z_score * std_for_zscore_calc
 
-                # Note that in the future if we don't want to use a pre-calculated Z score (e.g., right now we're only doing integer steps from -1 to 10), say, 1.5, then we can use the following code:
-                # Get the mean and std from the thresholds for the selected group
-                # mean_for_zscore_calc = ser_selected.loc['z score = 0']
-                # std_for_zscore_calc = ser_selected.loc['z score = 1'] - mean_for_zscore_calc
-                # threshold = mean_for_zscore_calc + desired_z_score * std_for_zscore_calc
+                # If the threshold for our desired Z score has already been calculated, enforce agreement
+                if desired_z_score in np.arange(-1, 11, 1):
+                    assert np.abs(threshold - ser_selected.loc[f'z score = {int(desired_z_score)}']) < 1e-8, 'The threshold calculated for the selected group does not match the threshold in the thresholds DataFrame'
 
-                # Get the locations where the selected filtering column is at least the current threshold value
+                # Get the locations where the selected filtering column is at least the current threshold value and assign the integer version of this to a new series
                 positive_loc = df[channel_for_phenotyping] >= threshold
+                ser_phenotype = positive_loc.astype(int)
+
+                # Output the acutally used threshold
+                st.write(f'Threshold used for entire dataset: {threshold}')
 
             # Perform the phenotyping method that applies a group-specific threshold to each group
-            #### EDIT THIS
+            # New: apply_thresh_to_selected_group=True, average_over_all_groups=True, DO NOT have a particular group selected --> "Group-specific threshold applied to each group"
             elif phenotyping_method == phenotyping_method_options[1]:
 
-                # Initialize the holders of the group indices and the average positive percentages
-                index_holder = []
-                ser_holder_baseline = []
-                ser_holder_signal = []
+                # Initialize the phenotype column to all-negative
+                ser_phenotype = pd.Series(-1, index=df.index)
 
                 # For every group...
-                for irow in range(len(df_thresholds)):
+                thresholds = []
+                for curr_row in range(len(df_thresholds)):
 
-                    # Get the box and whisker data
-                    df_summary, current_index = get_box_and_whisker_data(df_grouped, df_thresholds, apply_thresh_to_selected_group, df, channel_for_phenotyping, column_identifying_baseline_signal, value_identifying_baseline, value_identifying_signal, irow, return_figure_and_summary=False)
+                    # Obtain the index and dataframe of the group identified by curr_row
+                    if isinstance(df_grouped, list):
+                        curr_index = None
+                        curr_df = df_grouped[0][1]
+                        curr_integer_indices_into_df = np.array(range(len(curr_df)))
+                    else:
+                        curr_index = df_thresholds.iloc[curr_row].name
+                        curr_df = df_grouped.get_group(curr_index)
+                        curr_integer_indices_into_df = df_grouped.indices[curr_index]  # this is just to ensure that the group is in the groupby object
 
-                    # Append the desired data to the holders
-                    df_summary = df_summary.drop('Threshold', axis='columns').set_index('Z score')  # the drop isn't necessary but it may make the operations marginally faster
-                    index_holder.append(current_index)
-                    ser_holder_baseline.append(df_summary['Positive % (avg. over images) for baseline group'])
-                    ser_holder_signal.append(df_summary['Positive % (avg. over images) for signal group'])
+                    # Get the locations of the images in the baseline group
+                    images_in_plotting_group_1 = curr_df.loc[curr_df[column_identifying_baseline_signal] == value_identifying_baseline, 'Slide ID'].unique()
+                    image_loc_group_1 = curr_df['Slide ID'].isin(images_in_plotting_group_1)
 
-                # Calculate and save the average positive percentages for the baseline group
-                df_baseline = pd.concat(ser_holder_baseline, axis='columns', keys=index_holder)
-                df_baseline.columns.names = [columns_for_phenotype_grouping if len(columns_for_phenotype_grouping) > 0 else 'No group']
-                st.session_state[st_key_prefix + 'df_baseline'] = df_baseline
+                    # Get only the data for the column of interest for the baseline images
+                    ser_for_z_score = curr_df.loc[image_loc_group_1, channel_for_phenotyping]
 
-                # Calculate and save the average positive percentages for the signal group
-                df_signal = pd.concat(ser_holder_signal, axis='columns', keys=index_holder)
-                df_signal.columns.names = [columns_for_phenotype_grouping if len(columns_for_phenotype_grouping) > 0 else 'No group']
-                st.session_state[st_key_prefix + 'df_signal'] = df_signal
+                    # Use the mean and std from those data to calculate the desired threshold
+                    mean_for_zscore_calc = ser_for_z_score.mean()
+                    std_for_zscore_calc = ser_for_z_score.std()
+                    threshold = mean_for_zscore_calc + desired_z_score * std_for_zscore_calc
 
-            #### Pick up here with implementing each of the two phenotyping methods by keeping only the necessary part of the called functions
-            # See OneNote for more to do
+                    # If the threshold for our desired Z score has already been calculated, enforce agreement
+                    if desired_z_score in np.arange(-1, 11, 1):
+                        assert np.abs(threshold - df_thresholds.iloc[curr_row].loc[f'z score = {int(desired_z_score)}']) < 1e-8, 'The threshold calculated for the current group does not match the threshold in the thresholds DataFrame'
 
-        # st.write(df_thresholds[f'z score = {desired_z_score}'])
+                    # Get the locations where the selected filtering column is at least the current threshold value
+                    positive_loc = curr_df[channel_for_phenotyping] >= threshold  # boolean series fitting the current group
+
+                    # Update the phenotype assignments for the current group
+                    ser_phenotype.iloc[curr_integer_indices_into_df] = positive_loc.astype(int)  # the LHS is the slice of ser_phenotype corresponding to the current group
+
+                    # Store the threshold for the current group
+                    thresholds.append(threshold)
+
+                # Check that there are no values of -1 remaining in ser_phenotype
+                assert -1 not in ser_phenotype, 'There are still cells that have not been assigned positivity, which shouldn\'t have happened'
+
+                # Output the actually used thresholds
+                thresholds = pd.Series(thresholds, index=df_thresholds.index)
+                thresholds.name = 'Threshold'
+                st.write('Thresholds used for each group in turn:')
+                st.write(thresholds)
+
+            # Add the phenotype column to the dataframe
+            pheno_colname = f'Phenotype {phenotype_name}'
+            df[pheno_colname] = utils.downcast_series_dtype(ser_phenotype)
+            st.success(f'Phenotype column "{pheno_colname}" has been appended to the dataset')
+            st.write(f'Number of cells in each phenotype group (0 = negative, 1 = positive):')
+            st.write(df[pheno_colname].value_counts().reset_index(drop=True))
 
     ####
 
