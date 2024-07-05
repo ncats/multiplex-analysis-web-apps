@@ -16,7 +16,62 @@ from pages import multiaxial_gating
 st_key_prefix = 'radial_profiles__'
 
 
+def update_phenotyping_sub_options(phenotyping_method_options):
+    if st.session_state[st_key_prefix + 'phenotyping_method'] == phenotyping_method_options[0]:
+        st.session_state[st_key_prefix + 'apply_thresh_to_selected_group'] = False
+        st.session_state[st_key_prefix + 'average_over_all_groups'] = False
+    else:
+        st.session_state[st_key_prefix + 'apply_thresh_to_selected_group'] = True
+        st.session_state[st_key_prefix + 'average_over_all_groups'] = True
+
+
+def plotly_mean_and_sem(dfs, df_names):
+
+    # Create a Plotly figure
+    fig = go.Figure()
+
+    # For each dataframe and its name...
+    for df, df_name in zip(dfs, df_names):
+
+        # Calculate mean and SEM over the groups
+        mean_values = df.mean(axis='columns')
+        sem_values = df.sem(axis='columns')
+
+        # Add a scatter plot
+        fig.add_trace(go.Scatter(
+            x=mean_values.index,
+            y=mean_values,
+            error_y=dict(
+                type='data', # or 'percent' for percentage-based error bars
+                array=sem_values,
+                visible=True
+            ),
+            mode='markers+lines', # Use 'markers' or 'lines' or 'markers+lines'
+            name=df_name
+        ))
+
+    # Customize layout
+    fig.update_layout(
+        title=f'Average Positive Percentage Mean with SEM as Error Bars',
+        xaxis_title='Z score',
+        yaxis_title='Average positive percentage mean',
+        showlegend=True
+    )
+
+    # Return the plotly figure
+    return fig
+
+
 def get_box_and_whisker_data(df_grouped, df_thresholds, apply_thresh_to_selected_group, df, channel_for_phenotyping, column_identifying_baseline_signal, value_identifying_baseline, value_identifying_signal, row_selection, return_figure_and_summary=True):
+
+    # If apply_thresh_to_selected_group (and not average_over_all_groups), the input into the function generate_box_and_whisker() corresponds to the selected group. The mean and std used are the defaults (None) for the function, i.e., those corresponding to the baseline group of the selected group.
+    # If not apply_thresh_to_selected_group (and not average_over_all_groups), the input into the function generate_box_and_whisker() corresponds to the entire dataset. The mean and std (which, when corresponding to a selection from df_thresholds, correspond to the baseline group) used are those from the selected group. --> this is the original phenotyping method (like a single T=0 threshold)!
+    # The thresholds (as in df_thresholds) are calculated from just baseline groups, whereas the groups of dataframes correspond to both the baseline and signal groups.
+    # If average_over_all_groups, then it's as if we're selecting the groups in turn via a for loop. We don't want to transform the entire dataset every time; we only want to transform each part of the full dataset once. Thus, it generally doesn't make sense to average_over_all_groups and (not apply_thresh_to_selected_group), but it does make sense to average_over_all_groups and apply_thresh_to_selected_group, which essentially thresholds each group using its own baseline group, i.e., corresponds to the new phenotyping method.
+    # Thus, here are the settings for the old and new phenotyping methods:
+    #   Old: apply_thresh_to_selected_group=False, average_over_all_groups=False, DO have a particular group selected --> "Selected threshold applied to entire dataset"
+    #   New: apply_thresh_to_selected_group=True, average_over_all_groups=True, DO NOT have a particular group selected --> "Group-specific threshold applied to each group"
+    # Note that there are no other combinations of these settings that will transform each part of the full dataset once, so the above is complete!
 
     # Obtain the index and dataframe of the group identified by row_selection
     if isinstance(df_grouped, list):
@@ -715,7 +770,7 @@ def main():
             columns_index.name = 'Thresholds'
 
             # Set the dataframe of thresholds
-            df_thresholds = pd.DataFrame(thresholds_outer, columns=columns_index, index=index)
+            df_thresholds = pd.DataFrame(thresholds_outer, columns=columns_index, index=index).sort_index()
             st.session_state[st_key_prefix + 'df_thresholds'] = df_thresholds
 
             # Save the grouped data as well for plotting and phenotyping
@@ -733,6 +788,30 @@ def main():
 
         # Display the thresholds, allowing the user to select a single row
         group_selection = st.dataframe(df_thresholds, on_select='rerun', selection_mode='single-row')
+
+        # Create a new figure
+        fig = go.Figure()
+
+        # Loop through each column in df_thresholds to add a trace for each one
+        for column in df_thresholds.columns:
+            fig.add_trace(go.Scatter(
+                # x=df_thresholds.index,  # Use the DataFrame index for the x-axis
+                x=np.array(range(len(df_thresholds))),
+                y=df_thresholds[column],  # Column values for the y-axis
+                mode='markers+lines',  # Line plot
+                name=column  # Use the column name as the trace name
+            ))
+
+        # Update the layout to add titles and adjust other aesthetics if needed
+        fig.update_layout(
+            title='Line Plot of Thresholds Dataframe Above',
+            xaxis_title='Index',
+            yaxis_title='Phenotyping channel',
+            legend_title='Column'
+        )
+
+        # Plot the line plots
+        st.plotly_chart(fig)
 
     with columns[1]:
 
@@ -753,8 +832,6 @@ def main():
         if key not in st.session_state:
             st.session_state[key] = False
         average_over_all_groups = st.checkbox('Average over all groups', key=key)
-
-        start_time = time.time()
 
         # If we want to generate a plot based on the currently selected group...
         if not average_over_all_groups:
@@ -814,37 +891,9 @@ def main():
             df_signal = st.session_state[st_key_prefix + 'df_signal']
             df_diff = df_signal - df_baseline
 
-            # Calculate mean and SEM over the groups
-            mean_values = df_diff.mean(axis='columns')
-            sem_values = df_diff.sem(axis='columns')
-
-            # Create a Plotly figure
-            fig = go.Figure()
-
-            # Add a scatter plot
-            fig.add_trace(go.Scatter(
-                x=mean_values.index,
-                y=mean_values,
-                error_y=dict(
-                    type='data', # or 'percent' for percentage-based error bars
-                    array=sem_values,
-                    visible=True
-                ),
-                mode='markers+lines', # Use 'markers' or 'lines' or 'markers+lines'
-                name='Mean with SEM'
-            ))
-
-            # Customize layout
-            fig.update_layout(
-                title='Mean of df_diff with SEM as Error Bars',
-                xaxis_title='Index',
-                yaxis_title='Mean Value',
-            )
-
-            # Render the chart in Streamlit
-            st.plotly_chart(fig)
-
-        st.write(f'Took {time.time() - start_time:.2f} seconds')
+            # Render some charts in Streamlit
+            st.plotly_chart(plotly_mean_and_sem([df_baseline, df_signal], ['Baseline', 'Signal']))
+            st.plotly_chart(plotly_mean_and_sem([df_diff], ['signal - baseline']))
 
     with columns[2]:
 
@@ -857,10 +906,41 @@ def main():
         # Set the desired Z score
         key = st_key_prefix + 'desired_z_score'
         if key not in st.session_state:
-            st.session_state[key] = 1
+            st.session_state[key] = 2
         desired_z_score = st.selectbox('Desired Z score:', [int(column.split(' = ')[1]) for column in df_thresholds.columns], key=key)
 
-        st.write(df_thresholds[f'z score = {desired_z_score}'])
+        # Set the phenotyping method
+        key = st_key_prefix + 'phenotyping_method'
+        phenotyping_method_options = ["Selected threshold applied to entire dataset", "Group-specific threshold applied to each group"]
+        if key not in st.session_state:
+            st.session_state[key] = phenotyping_method_options[0]
+        phenotyping_method = st.selectbox('Phenotyping method:', phenotyping_method_options, key=key, on_change=update_phenotyping_sub_options, args=(phenotyping_method_options,))
+
+        # Obtain the current selection
+        row_selection_list = group_selection['selection']['rows']
+
+        # Old: apply_thresh_to_selected_group=False, average_over_all_groups=False, DO have a particular group selected --> "Selected threshold applied to entire dataset"
+        # New: apply_thresh_to_selected_group=True, average_over_all_groups=True, DO NOT have a particular group selected --> "Group-specific threshold applied to each group"
+        phenotyping_button_disabled = False
+        if (phenotyping_method == phenotyping_method_options[0]) and (not row_selection_list):
+            st.warning(f'Phenotyping method "{phenotyping_method}" requires a group to be selected in the first column')
+            phenotyping_button_disabled = True
+        if (phenotyping_method == phenotyping_method_options[1]) and (row_selection_list):
+            st.warning(f'Phenotyping method "{phenotyping_method}" does not actually require that no group be selected in the first column, but for clarity (since that method performs calculations for every group), we are enacting that requirement; please de-select the group selection in the first column')
+            phenotyping_button_disabled = True
+
+        if st.button('Perform phenotyping', disabled=phenotyping_button_disabled, on_click=update_phenotyping_sub_options, args=(phenotyping_method_options,)):
+            st.write(f'Phenotyping method: {phenotyping_method}')
+            st.write(f'Phenotype name: {phenotype_name}')
+            st.write(f'Desired Z score: {desired_z_score}')
+            st.write(f'Apply threshold to selected group: {apply_thresh_to_selected_group}')
+            st.write(f'Average over all groups: {average_over_all_groups}')
+            st.write(f'Row selection: {row_selection_list[0]}')
+
+            #### Pick up here with implementing each of the two phenotyping methods by keeping only the necessary part of the called functions
+            # See OneNote for more to do
+
+        # st.write(df_thresholds[f'z score = {desired_z_score}'])
 
     ####
 
