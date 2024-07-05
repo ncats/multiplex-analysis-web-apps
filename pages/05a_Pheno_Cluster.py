@@ -32,6 +32,94 @@ import scanpy.external as sce
 import plotly.express as px
 import time
 from utag.segmentation import utag
+from pynndescent import PyNNDescentTransformer
+import annoy
+from scipy.sparse import csr_matrix
+from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn_ann.utils import TransformerChecksMixin
+
+def add_probabilities_to_centroid(adata, col, name_to_output = None):
+    from utag.utils import z_score
+    from scipy.special import softmax
+
+    if name_to_output is None:
+        name_to_output = col + "_probabilities"
+
+    mean = z_score(adata.to_df()).groupby(adata.obs[col]).mean()
+    probs = softmax(adata.to_df() @ mean.T, axis=1)
+    adata.obsm[name_to_output] = probs
+    return adata
+
+class AnnoyTransformer(TransformerChecksMixin, TransformerMixin, BaseEstimator):
+    """Wrapper for using annoy.AnnoyIndex as sklearn's KNeighborsTransformer"""
+
+    def __init__(self, n_neighbors=5, *, metric="euclidean", 
+                 n_trees=10, search_k=-1, n_jobs=-1):
+        self.n_neighbors = n_neighbors
+        self.n_trees = n_trees
+        self.search_k = search_k
+        self.metric = metric
+        self.n_jobs = n_jobs
+
+    def fit(self, X, y=None):
+        X = self._validate_data(X)
+        self.n_samples_fit_ = X.shape[0]
+        metric = self.metric if self.metric != "sqeuclidean" else "euclidean"
+        self.annoy_ = annoy.AnnoyIndex(X.shape[1], metric=metric)
+        for i, x in enumerate(X):
+            self.annoy_.add_item(i, x.tolist())
+        self.annoy_.build(self.n_trees, n_jobs = self.n_jobs)
+        return self
+
+    def transform(self, X):
+        X = self._transform_checks(X, "annoy_")
+        return self._transform(X)
+
+    def fit_transform(self, X, y=None):
+        return self.fit(X)._transform(X=None)
+
+    def _transform(self, X):
+        """As `transform`, but handles X is None for faster `fit_transform`."""
+
+        n_samples_transform = self.n_samples_fit_ if X is None else X.shape[0]
+
+        # For compatibility reasons, as each sample is considered as its own
+        # neighbor, one extra neighbor will be computed.
+        n_neighbors = self.n_neighbors + 1
+
+        indices = np.empty((n_samples_transform, n_neighbors), dtype=int)
+        distances = np.empty((n_samples_transform, n_neighbors))
+
+        if X is None:
+            for i in range(self.annoy_.get_n_items()):
+                ind, dist = self.annoy_.get_nns_by_item(
+                    i, n_neighbors, self.search_k, include_distances=True
+                )
+
+                indices[i], distances[i] = ind, dist
+        else:
+            for i, x in enumerate(X):
+                indices[i], distances[i] = self.annoy_.get_nns_by_vector(
+                    x.tolist(), n_neighbors, self.search_k, include_distances=True
+                )
+
+        if self.metric == "sqeuclidean":
+            distances **= 2
+
+        indptr = np.arange(0, n_samples_transform * n_neighbors + 1, n_neighbors)
+        kneighbors_graph = csr_matrix(
+            (distances.ravel(), indices.ravel(), indptr),
+            shape=(n_samples_transform, self.n_samples_fit_),
+        )
+
+        return kneighbors_graph
+
+    def _more_tags(self):
+        return {
+            "_xfail_checks": {"check_estimators_pickle": "Cannot pickle AnnoyIndex"},
+            "requires_y": False,
+        }
+
 
 def phenocluster__make_adata(df, x_cols, meta_cols):
     mat = df[x_cols]
@@ -43,13 +131,29 @@ def phenocluster__make_adata(df, x_cols, meta_cols):
     return adata
 
 # scanpy clustering
-def RunNeighbClust(adata, n_neighbors, metric, resolution, random_state, n_principal_components):
-    if n_principal_components > 0:
+def RunNeighbClust(adata, n_neighbors, metric, resolution, random_state, n_principal_components, 
+                   n_jobs, n_iterations, fast, transformer):
+    
+    if fast == True:
         sc.pp.pca(adata, n_comps=n_principal_components)
-    sc.pp.neighbors(adata, n_neighbors=n_neighbors, metric=metric, n_pcs=n_principal_components)
-    sc.tl.leiden(adata,resolution=resolution, random_state=random_state, n_iterations=5, flavor="igraph")
+        if transformer == "Annoy":
+            sc.pp.neighbors(adata, transformer=AnnoyTransformer(n_neighbors=n_neighbors, metric=metric, n_jobs=n_jobs), 
+                       n_pcs=n_principal_components, random_state=random_state)
+        elif transformer == "PNNDescent":
+            transformer = PyNNDescentTransformer(n_neighbors=n_neighbors, metric=metric, n_jobs=n_jobs, random_state=random_state)
+            sc.pp.neighbors(adata, transformer=transformer, n_pcs=n_principal_components, random_state=random_state)
+        else:
+            sc.pp.neighbors(adata, n_neighbors=n_neighbors, metric=metric, n_pcs=n_principal_components, random_state=random_state)
+        
+    else:
+        if n_principal_components > 0:
+            sc.pp.pca(adata, n_comps=n_principal_components)
+            sc.pp.neighbors(adata, n_neighbors=n_neighbors, metric=metric, n_pcs=n_principal_components, random_state=random_state)
+            
+    sc.tl.leiden(adata,resolution=resolution, random_state=random_state, n_iterations=n_iterations, flavor="igraph")
     adata.obs['Cluster'] = adata.obs['leiden']
     #sc.tl.umap(adata)
+    
     adata.obsm['spatial'] = np.array(adata.obs[["Centroid X (µm)_(standardized)", "Centroid Y (µm)_(standardized)"]])
     return adata
 
@@ -102,30 +206,58 @@ def run_parc_clust(adata, n_neighbors, dist_std_local, jac_std_global, small_pop
 
 # utag clustering
 # need to make image selection based on the variable
-def run_utag_clust(adata, n_neighbors, resolutions, clustering_method, max_dist, n_principal_components):
+def run_utag_clust(adata, n_neighbors, resolutions, clustering_method, max_dist, n_principal_components,
+                   random_state, n_jobs, n_iterations, fast, transformer):
     #sc.pp.neighbors(adata, n_neighbors=n_neighbors, n_pcs=0)
     #sc.tl.umap(adata)
     adata.obsm['spatial'] = np.array(adata.obs[["Centroid X (µm)_(standardized)", "Centroid Y (µm)_(standardized)"]])
-    utag_results = utag(adata,
+    
+    if fast == True:
+        utag_results = utag(adata,
+        slide_key="Image ID_(standardized)",
+        max_dist=max_dist,
+        normalization_mode='l1_norm',
+        apply_clustering=False)
+        
+        sc.pp.pca(utag_results, n_comps=n_principal_components)
+        print("start k graph")
+        if transformer == "Annoy":
+            sc.pp.neighbors(utag_results, transformer=AnnoyTransformer(n_neighbors=n_neighbors, n_jobs=n_jobs), 
+                        n_pcs=n_principal_components, random_state=random_state)
+        elif transformer == "PNNDescent":
+            transformer = PyNNDescentTransformer(n_neighbors=n_neighbors, n_jobs=n_jobs, random_state=random_state)
+            sc.pp.neighbors(utag_results, transformer=transformer, n_pcs=n_principal_components, random_state=random_state)
+        else:
+            sc.pp.neighbors(utag_results, n_neighbors=n_neighbors,n_pcs=n_principal_components, random_state=random_state)
+
+        resolution_parameter = resolutions[0]
+        sc.tl.leiden(utag_results,resolution=resolution_parameter, random_state=random_state,
+                n_iterations=n_iterations, flavor="igraph")
+        utag_results.obs['Cluster'] = utag_results.obs['leiden']   
+        
+    else:
+        utag_results = utag(adata,
         slide_key="Image ID_(standardized)",
         max_dist=max_dist,
         normalization_mode='l1_norm',
         apply_clustering=True,
         clustering_method = clustering_method, 
         resolutions = resolutions,
-        leiden_kwargs={"n_iterations": 5, "random_state": 42},
-        pca_kwargs = {"n_comps": n_principal_components}
+        leiden_kwargs={"n_iterations": n_iterations, "random_state": random_state},
+        pca_kwargs = {"n_comps": n_principal_components},
+        processes = n_jobs
     )
+        curClusterCol = 'UTAG Label_leiden_'  + str(resolutions[0])
+        utag_results.obs['Cluster'] = utag_results.obs[curClusterCol]
 
-                                
-    curClusterCol = 'UTAG Label_leiden_'  + str(resolutions[0])
-    utag_results.obs['Cluster'] = utag_results.obs[curClusterCol]
-    adata.obs['Cluster'] = utag_results.obs[curClusterCol]
-        
-    curClusterCol = 'UTAG Label_leiden_'  + str(resolutions[0])
-    utag_results.obs['Cluster'] = utag_results.obs[curClusterCol]
-    adata.obs['Cluster'] = utag_results.obs[curClusterCol]
-    return utag_results
+                  
+    adata.obs["Cluster"] = utag_results.obs['Cluster'].astype(str)
+    adata.obsp["distances"] = utag_results.obsp["distances"]
+    adata.obsp["connectivities"] = utag_results.obsp["connectivities"]
+    adata.obsm["X_pca"] = utag_results.obsm["X_pca"]
+    adata.uns["neighbors"] = utag_results.uns["neighbors"]
+    
+    return adata
 
 def phenocluster__scanpy_umap(adata, n_neighbors, metric, n_principal_components):
     if n_principal_components > 0:
@@ -244,13 +376,16 @@ def phenocluster__default_session_state():
         
     if 'phenocluster__resolution' not in st.session_state:
         st.session_state['phenocluster__resolution'] = 1.0
+        
+    if 'phenocluster__n_jobs' not in st.session_state:
+        st.session_state['phenocluster__n_jobs'] = 7
+        
+    if 'phenocluster__n_iterations' not in st.session_state:
+        st.session_state['phenocluster__n_iterations'] = 5
 
     # phenograph options
     if 'phenocluster__n_neighbors_state' not in st.session_state:
         st.session_state['phenocluster__n_neighbors_state'] = 10
-
-    if 'phenocluster__phenograph_k' not in st.session_state:
-        st.session_state['phenocluster__phenograph_k'] = 30
     
     if 'phenocluster__phenograph_clustering_algo' not in st.session_state:
         st.session_state['phenocluster__phenograph_clustering_algo'] = 'louvain'
@@ -441,6 +576,12 @@ def main():
                             help = '''A parameter value controlling the coarseness of the clustering. 
                             Higher values lead to more clusters''')
             
+            st.number_input(label = "n_jobs", key='phenocluster__n_jobs',
+                help = '''N threads to use''')
+            
+            st.number_input(label = "n_iterations", key='phenocluster__n_iterations',
+                help = '''N iterations to use for leiden clustering''')
+            
             if st.session_state['phenocluster__cluster_method'] == "phenograph":
                 # st.session_state['phenocluster__phenograph_k'] = st.number_input(label = "Phenograph k", 
                 #                     value=st.session_state['phenocluster__phenograph_k'])
@@ -458,6 +599,10 @@ def main():
             elif st.session_state['phenocluster__cluster_method'] == "scanpy":
                 st.selectbox('Distance metric:', ['euclidean', 'manhattan', 'correlation', 'cosine'], key='phenocluster__metric',
                              help='''Distance metric to define nearest neighbors.''')
+                st.checkbox('Fast:', key='phenocluster__scanpy_fast', help = '''Use aproximate nearest neigbour search''')
+                if st.session_state['phenocluster__scanpy_fast'] == True:
+                    st.selectbox('Transformer:', ['Annoy', 'PNNDescent'], key='phenocluster__scanpy_transformer',
+                             help = '''Transformer for the approximate nearest neigbours search''')
             
             elif st.session_state['phenocluster__cluster_method'] == "parc":
                 # make parc specific widgets
@@ -484,6 +629,10 @@ def main():
                 st.number_input(label = "UTAG max dist", key='phenocluster__utag_max_dist', step = 1,
                                 help = '''Threshold euclidean distance to determine whether a pair of cell is adjacent in graph structure. 
                                 Recommended values are between 10 to 100 depending on magnification.''')
+                st.checkbox('Fast:', key='phenocluster__utag_fast', help = '''Use aproximate nearest neigbour search''')
+                if st.session_state['phenocluster__utag_fast'] == True:
+                    st.selectbox('Transformer:', ['Annoy', 'PNNDescent'], key='phenocluster__utag_transformer',
+                             help = '''Transformer for the approximate nearest neigbours search''')
             
             # add options if clustering has been run
             if st.button('Run Clustering'):
@@ -506,7 +655,11 @@ def main():
                                                                                             metric=st.session_state['phenocluster__metric'],
                                                                                             resolution=st.session_state['phenocluster__resolution'],
                                                                                             random_state=st.session_state['phenocluster__random_seed'],
-                                                                                            n_principal_components=st.session_state['phenocluster__n_principal_components']
+                                                                                            n_principal_components=st.session_state['phenocluster__n_principal_components'],
+                                                                                            n_jobs=st.session_state['phenocluster__n_jobs'],
+                                                                                            n_iterations= st.session_state['phenocluster__n_iterations'],
+                                                                                            fast=st.session_state["phenocluster__scanpy_fast"],
+                                                                                            transformer = st.session_state["phenocluster__scanpy_transformer"]
                                                                                             )
                 #st.session_state['phenocluster__clustering_adata'] = adata
                 elif st.session_state['phenocluster__cluster_method'] == "parc":
@@ -529,7 +682,12 @@ def main():
                                                                                             resolutions=phenocluster__utag_resolutions,
                                                                                             clustering_method=st.session_state['phenocluster__utag_clustering_method'],
                                                                                             max_dist=st.session_state['phenocluster__utag_max_dist'],
-                                                                                            n_principal_components=st.session_state['phenocluster__n_principal_components']
+                                                                                            n_principal_components=st.session_state['phenocluster__n_principal_components'],
+                                                                                            random_state=st.session_state['phenocluster__random_seed'],
+                                                                                            n_jobs=st.session_state['phenocluster__n_jobs'],
+                                                                                            n_iterations= st.session_state['phenocluster__n_iterations'],
+                                                                                            fast=st.session_state["phenocluster__utag_fast"],
+                                                                                            transformer = st.session_state["phenocluster__utag_transformer"]
                                                                                             )
                 # save clustering result
                 #st.session_state['phenocluster__clustering_adata'].write("input/clust_dat.h5ad")
