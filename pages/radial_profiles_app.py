@@ -846,6 +846,22 @@ def main():
 
         st.write(f'Took {time.time() - start_time:.2f} seconds')
 
+    with columns[2]:
+
+        # Set the phenotype name
+        key = st_key_prefix + 'phenotype_name'
+        if key not in st.session_state:
+            st.session_state[key] = ''
+        phenotype_name = st.text_input('Phenotype name:', key=key)
+
+        # Set the desired Z score
+        key = st_key_prefix + 'desired_z_score'
+        if key not in st.session_state:
+            st.session_state[key] = 1
+        desired_z_score = st.selectbox('Desired Z score:', [int(column.split(' = ')[1]) for column in df_thresholds.columns], key=key)
+
+        st.write(df_thresholds[f'z score = {desired_z_score}'])
+
     ####
 
 
