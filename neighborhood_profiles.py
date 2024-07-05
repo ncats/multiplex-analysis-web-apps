@@ -22,6 +22,7 @@ import basic_phenotyper_lib as bpl  # Useful functions for cell phenotyping
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
 from benchmark_collector import benchmark_collector # Benchmark Collector Class
 import PlottingTools as umPT
+import utils
 
 class NeighborhoodProfiles:
     '''
@@ -108,14 +109,14 @@ class NeighborhoodProfiles:
         self.inciOutcomeSel = self.definciOutcomes
         self.Inci_Value_display = 'Count Differences'
 
-    def setup_spatial_umap(self, df, marker_names, pheno_order):
+    def setup_spatial_umap(self, df, marker_names, pheno_order, smallest_image_size):
         '''
         Silly I know. I will fix it later
         '''
 
-        self.spatial_umap = bpl.setup_Spatial_UMAP(df, marker_names, pheno_order)
+        self.spatial_umap = bpl.setup_Spatial_UMAP(df, marker_names, pheno_order, smallest_image_size)
 
-    def perform_density_calc(self, cpu_pool_size = 1):
+    def perform_density_calc(self, calc_areas, cpu_pool_size = 1, area_threshold = 0.001):
         '''
         Calculate the cell counts, cell areas,
         perform the cell densities and cell proportions analyses.
@@ -145,16 +146,19 @@ class NeighborhoodProfiles:
         self.bc.printElapsedTime(f'Calculating Counts for {len(self.spatial_umap.cells)} cells')
 
         # get the areas of cells and save to pickle file
-        area_threshold = 0.001
-        print('\nStarting Cell Areas process')
-        self.spatial_umap.get_areas(area_threshold, pool_size=cpu_pool_size)
+        print(f'\nStarting Cell Areas process with area threshold of {area_threshold}')
+        self.bc.startTimer()
+        self.spatial_umap.get_areas(calc_areas, area_threshold, pool_size=cpu_pool_size)
+        self.bc.printElapsedTime(f'Calculating Areas for {len(self.spatial_umap.cells)} cells')
 
         # calculate density based on counts of cells / area of each arc examine
         self.spatial_umap.calc_densities(area_threshold)
         # calculate proportions based on species counts/# cells within an arc
         self.spatial_umap.calc_proportions(area_threshold)
 
-    def perform_spatial_umap(self, session_state, umap_style = 'density'):
+        self.spatial_umap.density_completed = True
+
+    def perform_spatial_umap(self, session_state, umap_subset_per_fit, umap_subset_toggle, umap_subset_per):
         '''
         Perform the spatial UMAP analysis
 
@@ -167,9 +171,13 @@ class NeighborhoodProfiles:
             spatial_umap: spatial_umap object with the UMAP analysis performed
         '''
 
+        min_image_size = self.spatial_umap.smallest_image_size
+        n_fit = int(min_image_size*umap_subset_per_fit/100)
+        n_tra = n_fit + int(min_image_size*umap_subset_per/100)
+
         # set training and "test" cells for umap training and embedding, respectively
         print('Setting Train/Test Split')
-        self.spatial_umap.set_train_test(n=2500, groupby_label = 'TMA_core_id', seed=54321)
+        self.spatial_umap.set_train_test(n_fit=n_fit, n_tra = n_tra, groupby_label = 'TMA_core_id', seed=54321, umap_subset_toggle = umap_subset_toggle)
 
         # fit umap on training cells
         self.bc.startTimer()
@@ -182,6 +190,8 @@ class NeighborhoodProfiles:
         print('Transforming Data')
         self.spatial_umap.umap_test = self.spatial_umap.umap_fit.transform(self.spatial_umap.density[self.spatial_umap.cells['umap_test'].values].reshape((self.spatial_umap.cells['umap_test'].sum(), -1)))
         self.bc.printElapsedTime(f'      Transforming {np.sum(self.spatial_umap.cells["umap_test"] == 1)} points with the model')
+
+        self.spatial_umap.umap_completed = True
 
         # Identify all of the features in the dataframe
         self.outcomes = self.spatial_umap.cells.columns
@@ -491,6 +501,32 @@ class UMAPDensityProcessing():
         self.dens_max = np.max(self.dens_mat)
         self.minabs   = np.min([np.abs(self.dens_min), np.abs(self.dens_max)])
 
+    def check_feature_values(self, feature):
+        '''
+        
+        Returns:
+            int: 0: Feature is inappropriate for splitting
+            int: 2: Feature is boolean and is easily split
+            int  3-15: Feature has a few different options but can be easily compared when values are selected
+            int: 100: Feature is a numerical range and can be split by finding the median
+        '''
+
+        col = self.df[feature]
+        dtypes = col.dtype
+        n_uni = col.nunique()
+
+        if n_uni <= 1:
+            return 0
+        elif n_uni == 2:
+            return 2
+        elif n_uni > 2 and n_uni <= 15:
+            return n_uni
+        else:
+            if dtypes == 'category' or dtypes == 'object':
+                return 0
+            else:
+                return 100
+
     def filter_by_lineage(self, display_toggle, drop_val, default_val):
         '''
         Function for filtering UMAP function based on Phenotypes or Markers
@@ -509,7 +545,7 @@ class UMAPDensityProcessing():
             elif display_toggle == 'Markers':
                 self.df = self.df.loc[self.df['species_name_short'].str.contains(drop_val), :]
 
-    def split_df_by_feature(self, feature):
+    def split_df_by_feature(self, feature, val_fals, val_true, val_code):
         '''
         split_df_by_feature takes in a feature from a dataframe
         and first identifies if the feature is boolean, if it contains 
@@ -533,27 +569,18 @@ class UMAPDensityProcessing():
         '''
 
         split_dict = dict()
-        # Idenfify the column type that is splitting the UMAP
-        col_type = ndl.identify_col_type(self.df[feature])
 
-        if col_type == 'not_bool':
-            # Identify UMAP by Condition
-            median = np.round(self.df[feature].median(), 2)
+        if val_code == 100:
+            median = val_fals
             split_dict['df_umap_fals'] = self.df.loc[self.df[feature] <= median, :]
             split_dict['df_umap_true'] = self.df.loc[self.df[feature] > median, :]
-            split_dict['fals_msg']   = f'<= {median}'
-            split_dict['true_msg']   = f'> {median}'
-            split_dict['appro_feat'] = True
-        elif col_type == 'bool':
-            # Identify UMAP by Condition
-            values = self.df[feature].unique()
-            split_dict['df_umap_fals'] = self.df.loc[self.df[feature] == values[0], :]
-            split_dict['df_umap_true'] = self.df.loc[self.df[feature] == values[1], :]
-            split_dict['fals_msg']   = f'= {values[0]}'
-            split_dict['true_msg']   = f'= {values[1]}'
-            split_dict['appro_feat'] = True
+            split_dict['fals_msg']   = f'<= {median:.2f}'
+            split_dict['true_msg']   = f'> {median:.2f}'
         else:
-            split_dict['appro_feat'] = False
+            split_dict['df_umap_fals'] = self.df.loc[self.df[feature] == val_fals, :]
+            split_dict['df_umap_true'] = self.df.loc[self.df[feature] == val_true, :]
+            split_dict['fals_msg']   = f'= {val_fals}'
+            split_dict['true_msg']   = f'= {val_true}'
 
         return split_dict
 
@@ -658,13 +685,17 @@ class UMAPDensityProcessing():
                 )
             )
 
-        # Create a pool of worker processes
-        with mp.Pool(processes=cpu_pool_size) as pool:
-            results_0 = pool.starmap(self.kmeans_calc, kwargs_list_0)
+        results_0 = utils.execute_data_parallelism_potentially(self.kmeans_calc,
+                                                               kwargs_list_0,
+                                                               nworkers = cpu_pool_size,
+                                                               task_description='KMeans Clustering for False Condition',
+                                                               use_starmap=True)
 
-        # Create a pool of worker processes
-        with mp.Pool(processes=cpu_pool_size) as pool:
-            results_1 = pool.starmap(self.kmeans_calc, kwargs_list_1)
+        results_1 = utils.execute_data_parallelism_potentially(self.kmeans_calc,
+                                                               kwargs_list_1,
+                                                               nworkers = cpu_pool_size,
+                                                               task_description='KMeans Clustering for True Condition',
+                                                               use_starmap=True)
 
         wcss_0 = [x.inertia_ for x in results_0]
         wcss_1 = [x.inertia_ for x in results_1]

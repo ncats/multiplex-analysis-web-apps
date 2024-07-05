@@ -3,12 +3,11 @@ Class for benchmarking the analyses used within MAWA.
 Specifically to mark the time it takes for functions to run
 and save their values in a spreadsheet (if wanted)
 '''
-
+from datetime import datetime
 import os
 import time
 import numpy as np
 import pandas as pd
-from datetime import datetime
 
 class benchmark_collector:
     '''
@@ -56,6 +55,7 @@ class benchmark_collector:
         self.benchmarkDF.loc[0, 'id']       = datetime.now()
         self.benchmarkDF.loc[0, 'on_NIDAP'] = self.on_nidap
         self.stTimer = None
+        self.stTimer_split = None
         self.spTimer = None
 
     def startTimer(self):
@@ -63,6 +63,7 @@ class benchmark_collector:
         Set the Start time to the current date-time
         '''
         self.stTimer = time.time()
+        self.stTimer_split = self.stTimer
 
     def stopTimer(self):
         '''
@@ -70,22 +71,26 @@ class benchmark_collector:
         '''
         self.spTimer = time.time()
 
-    def elapsedTime(self):
+    def elapsedTime(self, split = False):
         '''
         Calculate the elapsed time from the spTimer and the stTimer
         '''
-        if self.stTimer is not None:
+        if self.stTimer is not None and split is False:
             self.stopTimer()
-            elapsed_time =  np.round(self.spTimer - self.stTimer, 3)
+            elapsed_time = np.round((self.spTimer - self.stTimer)/60, 2)
+        elif self.stTimer is not None and split is True:
+            self.stopTimer()
+            elapsed_time = np.round((self.spTimer - self.stTimer_split)/60, 2)
+            self.stTimer_split = self.spTimer
         else:
             elapsed_time = None
         return elapsed_time
 
-    def printElapsedTime(self, msg):
+    def printElapsedTime(self, msg, split = False):
         '''
-        Print the current value of elapsed time 
+        Print the current value of elapsed time
         '''
-        print(f'{msg} took {self.elapsedTime()} s')
+        print(f'{msg} took {self.elapsedTime(split)} min')
 
     def check_df(self):
         '''
