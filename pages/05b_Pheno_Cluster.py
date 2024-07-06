@@ -26,7 +26,7 @@ if 'phenocluster__dif_int_plot_methods' not in st.session_state:
 # Functions 
 
 # clusters differential expression
-def phenocluster__diff_expr(adata, phenocluster__de_col, phenocluster__de_sel_groups):
+def phenocluster__diff_expr(adata, phenocluster__de_col, phenocluster__de_sel_groups, only_positive):
     sc.tl.rank_genes_groups(adata, groupby = phenocluster__de_col, method="wilcoxon", layer="counts")
     
     if "All" in phenocluster__de_sel_groups:
@@ -36,7 +36,13 @@ def phenocluster__diff_expr(adata, phenocluster__de_col, phenocluster__de_sel_gr
         
     phenocluster__de_results[['pvals', 'pvals_adj']] = phenocluster__de_results[['pvals', 'pvals_adj']].applymap('{:.1e}'.format)
     #st.dataframe(phenocluster__de_results, use_container_width=True)
-    st.session_state['phenocluster__de_results'] = phenocluster__de_results
+    if only_positive:
+        phenocluster__de_results_filt = phenocluster__de_results[phenocluster__de_results['logfoldchanges'] > 0].reset_index(drop=True)
+        st.session_state['phenocluster__de_results'] = phenocluster__de_results_filt
+    else:
+        st.session_state['phenocluster__de_results'] = phenocluster__de_results
+    
+    #st.session_state['phenocluster__de_markers'] = pd.unique(st.session_state['phenocluster__de_results']["names"])
         
 
 # change cluster names
@@ -63,8 +69,14 @@ def phenocluster__plot_diff_intensity(adata, groups, method, n_genes):
         cur_fig = sc.pl.rank_genes_groups_dotplot(adata, n_genes=n_genes, 
                                                       groups=cur_groups)
     elif method == "Heat Map":
-        cur_fig = sc.pl.rank_genes_groups_heatmap(adata, n_genes=n_genes, 
-                                                      groups=cur_groups) 
+        # cur_fig = sc.pl.rank_genes_groups_heatmap(adata, n_genes=n_genes, 
+        #                                               groups=cur_groups) 
+        #sc.pp.normalize_total(adata)
+        #sc.pp.log1p(adata)
+        #sc.pp.scale(adata)
+        adata_sub  = adata[adata.obs['Cluster'].isin(cur_groups)]
+        top_names = pd.unique(st.session_state['phenocluster__de_results'].groupby('group')['names'].apply(lambda x: x.head(n_genes)))
+        cur_fig = sc.pl.heatmap(adata_sub, top_names, groupby="Cluster", swap_axes=False)
     elif method == "Violin Plot":
         cur_fig = sc.pl.rank_genes_groups_stacked_violin(adata, n_genes=n_genes, 
                                                       groups=cur_groups, split = False)
@@ -207,11 +219,13 @@ def main():
         phenocluster__de_groups =  ["All"] +  list(pd.unique(st.session_state['phenocluster__clustering_adata'].obs[st.session_state['phenocluster__de_col']]))
         phenocluster__de_selected_groups = st.multiselect('Select group for differential expression table:', options = phenocluster__de_groups)
         st.session_state['phenocluster__de_sel_groups'] = phenocluster__de_selected_groups
+        st.checkbox('Only Positive Markers', key='phenocluster__de_only_positive')
         # Differential expression
 
         st.button('Run Differential Expression', on_click=phenocluster__diff_expr, args = [st.session_state['phenocluster__clustering_adata'], 
                                                                                             st.session_state['phenocluster__de_col'], 
-                                                                                            st.session_state['phenocluster__de_sel_groups']
+                                                                                            st.session_state['phenocluster__de_sel_groups'],
+                                                                                            st.session_state['phenocluster__de_only_positive']
                                                                                             ])
     if 'phenocluster__de_results' in st.session_state:
         with phenocluster__col2b:

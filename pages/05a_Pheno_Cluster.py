@@ -206,10 +206,13 @@ def run_parc_clust(adata, n_neighbors, dist_std_local, jac_std_global, small_pop
 
 # utag clustering
 # need to make image selection based on the variable
-def run_utag_clust(adata, n_neighbors, resolutions, clustering_method, max_dist, n_principal_components,
+def run_utag_clust(adata, n_neighbors, resolution, clustering_method, max_dist, n_principal_components,
                    random_state, n_jobs, n_iterations, fast, transformer):
     #sc.pp.neighbors(adata, n_neighbors=n_neighbors, n_pcs=0)
     #sc.tl.umap(adata)
+    
+    resolutions = [resolution]
+    print(resolutions)
     adata.obsm['spatial'] = np.array(adata.obs[["Centroid X (µm)_(standardized)", "Centroid Y (µm)_(standardized)"]])
     
     if fast == True:
@@ -230,7 +233,7 @@ def run_utag_clust(adata, n_neighbors, resolutions, clustering_method, max_dist,
         else:
             sc.pp.neighbors(utag_results, n_neighbors=n_neighbors,n_pcs=n_principal_components, random_state=random_state)
 
-        resolution_parameter = resolutions[0]
+        resolution_parameter = resolution
         sc.tl.leiden(utag_results,resolution=resolution_parameter, random_state=random_state,
                 n_iterations=n_iterations, flavor="igraph")
         utag_results.obs['Cluster'] = utag_results.obs['leiden']   
@@ -241,13 +244,13 @@ def run_utag_clust(adata, n_neighbors, resolutions, clustering_method, max_dist,
         max_dist=max_dist,
         normalization_mode='l1_norm',
         apply_clustering=True,
-        clustering_method = clustering_method, 
+        clustering_method = "leiden", 
         resolutions = resolutions,
         leiden_kwargs={"n_iterations": n_iterations, "random_state": random_state},
         pca_kwargs = {"n_comps": n_principal_components},
-        processes = n_jobs
-    )
-        curClusterCol = 'UTAG Label_leiden_'  + str(resolutions[0])
+        processes = n_jobs)
+        
+        curClusterCol = 'UTAG Label_leiden_'  + str(resolution)
         utag_results.obs['Cluster'] = utag_results.obs[curClusterCol]
 
                   
@@ -256,8 +259,9 @@ def run_utag_clust(adata, n_neighbors, resolutions, clustering_method, max_dist,
     adata.obsp["connectivities"] = utag_results.obsp["connectivities"]
     adata.obsm["X_pca"] = utag_results.obsm["X_pca"]
     adata.uns["neighbors"] = utag_results.uns["neighbors"]
+    utag_results.X = adata.X
     
-    return adata
+    return utag_results
 
 def phenocluster__scanpy_umap(adata, n_neighbors, metric, n_principal_components):
     if n_principal_components > 0:
@@ -572,14 +576,14 @@ def main():
                                     Larger values result in more global views of the manifold, while smaller values result in more local data being preserved. 
                                     In general values should be in the range 2 to 100''')
             
-            st.number_input(label = "Clustering resolution", key='phenocluster__resolution',
+            st.number_input(label = "Clustering resolution", key='phenocluster__resolution', step = 0.1,format="%.1f",
                             help = '''A parameter value controlling the coarseness of the clustering. 
                             Higher values lead to more clusters''')
             
-            st.number_input(label = "n_jobs", key='phenocluster__n_jobs',
+            st.number_input(label = "n_jobs", key='phenocluster__n_jobs', step=1,
                 help = '''N threads to use''')
             
-            st.number_input(label = "n_iterations", key='phenocluster__n_iterations',
+            st.number_input(label = "n_iterations", key='phenocluster__n_iterations', step=1,
                 help = '''N iterations to use for leiden clustering''')
             
             if st.session_state['phenocluster__cluster_method'] == "phenograph":
@@ -603,6 +607,8 @@ def main():
                 if st.session_state['phenocluster__scanpy_fast'] == True:
                     st.selectbox('Transformer:', ['Annoy', 'PNNDescent'], key='phenocluster__scanpy_transformer',
                              help = '''Transformer for the approximate nearest neigbours search''')
+                else:
+                    st.session_state["phenocluster__scanpy_transformer"] = None
             
             elif st.session_state['phenocluster__cluster_method'] == "parc":
                 # make parc specific widgets
@@ -633,6 +639,8 @@ def main():
                 if st.session_state['phenocluster__utag_fast'] == True:
                     st.selectbox('Transformer:', ['Annoy', 'PNNDescent'], key='phenocluster__utag_transformer',
                              help = '''Transformer for the approximate nearest neigbours search''')
+                else:
+                    st.session_state["phenocluster__utag_transformer"] = None
             
             # add options if clustering has been run
             if st.button('Run Clustering'):
@@ -675,11 +683,11 @@ def main():
                                                                                             n_principal_components=st.session_state['phenocluster__n_principal_components']
                                                                                             )
                 elif st.session_state['phenocluster__cluster_method'] == "utag":
-                    phenocluster__utag_resolutions = [st.session_state['phenocluster__resolution']]
+                    #phenocluster__utag_resolutions = [st.session_state['phenocluster__resolution']]
                     with st.spinner('Wait for it...'):
                         st.session_state['phenocluster__clustering_adata'] = run_utag_clust(adata=st.session_state['phenocluster__clustering_adata'], 
                                                                                             n_neighbors=st.session_state['phenocluster__n_neighbors_state'], 
-                                                                                            resolutions=phenocluster__utag_resolutions,
+                                                                                            resolution=st.session_state['phenocluster__resolution'],
                                                                                             clustering_method=st.session_state['phenocluster__utag_clustering_method'],
                                                                                             max_dist=st.session_state['phenocluster__utag_max_dist'],
                                                                                             n_principal_components=st.session_state['phenocluster__n_principal_components'],
