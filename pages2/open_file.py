@@ -5,8 +5,6 @@ Python Script which produces the "Open File" page of the Multiplex Analysis Web 
 import os
 import streamlit as st
 import streamlit_utils
-
-# Import relevant libraries
 import app_top_of_page as top
 import streamlit_dataframe_editor as sde
 import utils

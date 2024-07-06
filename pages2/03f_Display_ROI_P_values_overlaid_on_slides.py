@@ -3,9 +3,6 @@ import streamlit as st
 import utils as utils
 import os
 
-import app_top_of_page as top
-import streamlit_dataframe_editor as sde
-
 save_image_ext = 'jpg'
 
 def main():
@@ -23,18 +20,6 @@ def main():
         st.session_state['neighbor_species_index_to_visualize'] = neighbor_species_names.index(st.session_state['neighbor_species_name_to_visualize'])
     def update_neighbor_species_name(neighbor_species_names):
         st.session_state['neighbor_species_name_to_visualize'] = neighbor_species_names[st.session_state['neighbor_species_index_to_visualize']]
-
-    # Set a wide layout
-    st.set_page_config(layout="wide")
-
-    # Run streamlit-dataframe-editor library initialization tasks at the top of the page
-    st.session_state = sde.initialize_session_state(st.session_state)
-
-    # Run Top of Page (TOP) functions
-    st.session_state = top.top_of_page_reqs(st.session_state)
-
-    # Display page heading
-    st.title('ROI P values overlaid on slides')
 
     if os.path.exists(os.path.join('.', 'output', 'images', 'density_pvals_over_slide_spatial_plot')):
 
@@ -103,8 +88,6 @@ def main():
     else:
         st.warning('The component "Plot density P values for each ROI over slide spatial plot" of the workflow does not appear to have been run; please select it on the "Run workflow" page', icon='⚠️')
 
-    # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
-    st.session_state = sde.finalize_session_state(st.session_state)
 
 if __name__ == '__main__':
     main()

@@ -4,24 +4,9 @@ import annotations
 import os
 import streamlit_utils
 
-import app_top_of_page as top
-import streamlit_dataframe_editor as sde
-
 save_image_ext = 'jpg'
 
 def main():
-
-    # Set a wide layout
-    st.set_page_config(layout="wide")
-
-    # Run streamlit-dataframe-editor library initialization tasks at the top of the page
-    st.session_state = sde.initialize_session_state(st.session_state)
-
-    # Run Top of Page (TOP) functions
-    st.session_state = top.top_of_page_reqs(st.session_state)
-
-    # Display page heading
-    st.title('Annotation plots')
 
     if os.path.exists(os.path.join('.', 'output', 'images', 'raw_weights_check')) and os.path.exists(os.path.join('.', 'output', 'images', f'all_annotation_data.{save_image_ext}')) and os.path.exists(os.path.join('.', 'output', 'images', 'weight_heatmaps_on_annot')) and os.path.exists(os.path.join('.', 'output', 'images', 'pixel_plot')) and os.path.exists(os.path.join('.', 'output', 'images', 'analysis_overlaid_on_annotation')) and os.path.exists(os.path.join('.', 'output', 'images', 'dens_pvals_per_annotation')):
 
@@ -165,8 +150,6 @@ def main():
     else:
         st.warning('The component "Average density P values over ROIs for each annotation region type" of the workflow does not appear to have been run; please select it on the "Run workflow" page', icon='⚠️')
 
-    # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
-    st.session_state = sde.finalize_session_state(st.session_state)
 
 if __name__ == '__main__':
     main()

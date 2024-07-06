@@ -1,5 +1,6 @@
-# Multiplex Analysis Web Apps 
-## NCATS-NCI-DMAP
+## Multiplex Analysis Web Apps (MAWA)
+
+### NCI CBIIT
 
 ## Welcome
 Welcome to the Multiple Analysis Web Apps (MAWA) presented by NCATS-NCI-DMAP. This is your one stop resource for data exploration, algorithm tuning, and figure generation. The below is a guide to using this app with suggested workflow, step-by-step instructions, and FAQs

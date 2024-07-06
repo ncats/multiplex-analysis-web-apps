@@ -7,6 +7,28 @@ import streamlit_utils
 import numpy as np
 import subprocess
 import platform_io
+from pages2 import data_import_and_export
+from pages2 import datafile_format_unifier
+from pages2 import open_file
+from pages2 import robust_scatter_plotter
+from pages2 import multiaxial_gating
+from pages2 import thresholded_phenotyping
+from pages2 import adaptive_phenotyping
+from pages2 import Pheno_Cluster_a
+from pages2 import Pheno_Cluster_b
+from pages2 import Tool_parameter_selection
+from pages2 import Run_workflow
+from pages2 import Display_individual_ROI_heatmaps
+from pages2 import Display_average_heatmaps
+from pages2 import Display_average_heatmaps_per_annotation
+from pages2 import Display_ROI_P_values_overlaid_on_slides
+from pages2 import Neighborhood_Profiles
+from pages2 import UMAP_Analyzer
+from pages2 import Clusters_Analyzer
+from pages2 import memory_analyzer
+from pages2 import radial_bins_plots
+from pages2 import radial_profiles_analysis
+from pages2 import preprocessing
 
 
 def welcome_page():
@@ -39,13 +61,56 @@ def main():
 
     # Use the new st.naviation()/st.Page() API to create a multi-page app
     pg = st.navigation({
-        'Home':
-            [st.Page(welcome_page, title="Home", url_path='home')],
-        # 'first section':
-        #     [st.Page(one.main, title="Home", url_path='home'),
-        #      st.Page(two.main, title="Second page", url_path='two')],
-        # 'second section':
-        #     [st.Page(three.main, title="Third page", url_path='three')]
+        'Home 🏠':
+            [
+                st.Page(welcome_page, title="Welcome", url_path='home')
+            ],
+        'File Handling 🗄️':
+            [
+                st.Page(data_import_and_export.main, title="Data Import and Export", url_path='data_import_and_export'),
+                st.Page(datafile_format_unifier.main, title="Datafile Unification", url_path='datafile_unification'),
+                st.Page(open_file.main, title="Open File", url_path='open_file')
+            ],
+        'Scatter Plotter 🌟':
+            [
+                st.Page(robust_scatter_plotter.main, title="Scatter Plotter", url_path='scatter_plotter')
+            ],
+        'Phenotyping 🧬':
+            [
+                st.Page(multiaxial_gating.main, title="Raw Intensities", url_path='raw_intensities'),
+                st.Page(thresholded_phenotyping.main, title="Thresholded Intensities", url_path='thresholded_intensities'),
+                st.Page(adaptive_phenotyping.main, title="Adaptive Phenotyping", url_path='adaptive_phenotyping')
+            ],
+        'Phenotype Clustering Workflow ✨':
+            [
+                st.Page(Pheno_Cluster_a.main, title="Unsupervised Phenotype Clustering", url_path='unsupervised_phenotype_clustering'),
+                st.Page(Pheno_Cluster_b.main, title="Differential Intensity", url_path='differential_intensity')
+            ],
+        'Spatial Interaction Tool 🗺️':
+            [
+                st.Page(Tool_parameter_selection.main, title="Tool Parameter Selection", url_path='tool_parameter_selection'),
+                st.Page(Run_workflow.main, title="Run SIT Workflow", url_path='run_sit_workflow'),
+                st.Page(Display_individual_ROI_heatmaps.main, title="Display Individual ROI Heatmaps", url_path='display_individual_roi_heatmaps'),
+                st.Page(Display_average_heatmaps.main, title="Display Average Heatmaps", url_path='display_average_heatmaps'),
+                st.Page(Display_average_heatmaps_per_annotation.main, title="Display Average Heatmaps per Annotation", url_path='display_average_heatmaps_per_annotation'),
+                st.Page(Display_ROI_P_values_overlaid_on_slides.main, title="Display ROI P Values Overlaid on Slides", url_path='display_roi_p_values_overlaid_on_slides')
+            ],
+        'Neighborhood Profiles Workflow 🌳':
+            [
+                st.Page(Neighborhood_Profiles.main, title="Neighborhood Profiles", url_path='neighborhood_profiles'),
+                st.Page(UMAP_Analyzer.main, title="UMAP Differences", url_path='umap_differences'),
+                st.Page(Clusters_Analyzer.main, title="Clusters Analyzer", url_path='clusters_analyzer')
+            ],
+        'Radial Profiles 🌀':
+            [
+                st.Page(radial_bins_plots.main, title="Radial Bins Plots", url_path='radial_bins_plots'),
+                st.Page(radial_profiles_analysis.main, title="Radial Profiles Analysis", url_path='radial_profiles_analysis')
+            ],
+        'Utilities 🛠️':
+            [
+                st.Page(preprocessing.main, title="Preprocessing", url_path='preprocessing'),
+                st.Page(memory_analyzer.main, title="Memory Analyzer", url_path='memory_analyzer')
+            ]
         })
 
     # Ensure the input/output directories exist

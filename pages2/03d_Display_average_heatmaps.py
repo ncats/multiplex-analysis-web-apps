@@ -3,8 +3,6 @@ import streamlit as st
 import utils as utils
 import os
 
-import app_top_of_page as top
-import streamlit_dataframe_editor as sde
 
 def main():
 
@@ -14,17 +12,6 @@ def main():
     def update_slide_name(slide_names):
         st.session_state['slide_name_to_visualize'] = slide_names[st.session_state['slide_index_to_visualize']]
 
-    # Set a wide layout
-    st.set_page_config(layout="wide")
-
-    # Run streamlit-dataframe-editor library initialization tasks at the top of the page
-    st.session_state = sde.initialize_session_state(st.session_state)
-
-    # Run Top of Page (TOP) functions
-    st.session_state = top.top_of_page_reqs(st.session_state)
-
-    # Display page heading
-    st.title('Average heatmaps per slide')
 
     if os.path.exists(os.path.join('.', 'output', 'images', 'whole_slide_patches')) and os.path.exists(os.path.join('.', 'output', 'images', 'dens_pvals_per_slide')):
 
@@ -75,8 +62,6 @@ def main():
     else:
         st.warning('At least one of the two sets of per-slide plots does not exist; please run all per-slide components of the workflow on the "Run workflow" page', icon='⚠️')
 
-    # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
-    st.session_state = sde.finalize_session_state(st.session_state)
 
 if __name__ == '__main__':
     main()
