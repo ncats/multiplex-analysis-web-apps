@@ -11,9 +11,6 @@ st_key_prefix = 'preprocessing__'
 # Function to initialize the preprocessing section
 def initialize_radial_profiles_preprocessing(df):
 
-    # Preprocessing section
-    st.header('Preprocessing')
-
     # Checkbox for whether to run checks
     key = st_key_prefix + 'run_checks'
     if key not in st.session_state:
