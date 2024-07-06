@@ -77,8 +77,8 @@ def main():
             ],
         'Phenotyping 🧬':
             [
-                st.Page(multiaxial_gating.main, title="Raw Intensities", url_path='raw_intensities'),
-                st.Page(thresholded_phenotyping.main, title="Thresholded Intensities", url_path='thresholded_intensities'),
+                st.Page(multiaxial_gating.main, title="Using Raw Intensities", url_path='using_raw_intensities'),
+                st.Page(thresholded_phenotyping.main, title="Using Thresholded Intensities", url_path='using_thresholded_intensities'),
                 st.Page(adaptive_phenotyping.main, title="Adaptive Phenotyping", url_path='adaptive_phenotyping')
             ],
         'Phenotype Clustering Workflow ✨':
@@ -98,7 +98,7 @@ def main():
         'Neighborhood Profiles Workflow 🌳':
             [
                 st.Page(Neighborhood_Profiles.main, title="Neighborhood Profiles", url_path='neighborhood_profiles'),
-                st.Page(UMAP_Analyzer.main, title="UMAP Differences", url_path='umap_differences'),
+                st.Page(UMAP_Analyzer.main, title="UMAP Differences Analyzer", url_path='umap_differences_analyzer'),
                 st.Page(Clusters_Analyzer.main, title="Clusters Analyzer", url_path='clusters_analyzer')
             ],
         'Radial Profiles 🌀':
