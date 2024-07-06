@@ -33,6 +33,10 @@ import plotly.express as px
 import time
 from utag.segmentation import utag
 
+# ALW moved on 7/5/24 from __name__ == "__main__" to here so that Streamlit's new multipage functionality will run these commands since it just calls main()
+phenocluster__col_0 = st.columns(1)
+phenocluster__col1, phenocluster__col2 = st.columns([1, 6])
+
 def phenocluster__make_adata(df, x_cols, meta_cols):
     mat = df[x_cols]
     meta = df[meta_cols]
@@ -546,8 +550,6 @@ if __name__ == '__main__':
     page_name = 'Unsupervised Phenotype Clustering'
     st.set_page_config(layout='wide', page_title=page_name)
     st.title(page_name)
-    phenocluster__col_0 = st.columns(1)
-    phenocluster__col1, phenocluster__col2 = st.columns([1, 6])
     
     # Run streamlit-dataframe-editor library initialization tasks at the top of the page
     st.session_state = sde.initialize_session_state(st.session_state)

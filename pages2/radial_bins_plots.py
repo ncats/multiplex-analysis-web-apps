@@ -10,7 +10,7 @@ from itertools import cycle, islice
 import plotly.graph_objects as go
 import pandas as pd
 import scipy.spatial
-from pages import multiaxial_gating
+from pages2 import multiaxial_gating
 import utils
 
 # Global variable

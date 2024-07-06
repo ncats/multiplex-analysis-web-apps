@@ -6,7 +6,6 @@ import streamlit as st
 import streamlit_utils
 import pprint
 import platform_io
-import time_cell_interaction_lib as tci  # import the TIME library stored in time_cell_interaction_lib.py
 import utils
 import app_top_of_page as top
 import streamlit_dataframe_editor as sde

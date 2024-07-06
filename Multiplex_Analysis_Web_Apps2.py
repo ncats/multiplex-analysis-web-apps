@@ -71,9 +71,9 @@ def main():
                 st.Page(datafile_format_unifier.main, title="Datafile Unification", url_path='datafile_unification'),
                 st.Page(open_file.main, title="Open File", url_path='open_file')
             ],
-        'Scatter Plotter 🌟':
+        'Coordinate Scatter Plotter 🌟':
             [
-                st.Page(robust_scatter_plotter.main, title="Scatter Plotter", url_path='scatter_plotter')
+                st.Page(robust_scatter_plotter.main, title="Coordinate Scatter Plotter", url_path='coordinate_scatter_plotter')
             ],
         'Phenotyping 🧬':
             [
