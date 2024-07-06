@@ -7,6 +7,10 @@ import streamlit_utils
 import numpy as np
 import subprocess
 import platform_io
+
+# Set a wide layout. This is here because in one of the 22 imports below (at least in my modification to Pheno_cluster_a.py), other Streamlit commands are called, which isn't allowed to happen before this command.
+st.set_page_config(layout="wide")
+
 from pages2 import data_import_and_export
 from pages2 import datafile_format_unifier
 from pages2 import open_file
@@ -55,9 +59,6 @@ def check_for_platform(session_state):
 
 
 def main():
-
-    # Set a wide layout
-    st.set_page_config(layout="wide")
 
     # Use the new st.naviation()/st.Page() API to create a multi-page app
     pg = st.navigation({

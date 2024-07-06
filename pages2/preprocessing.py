@@ -106,7 +106,8 @@ def main():
     df = st.session_state['input_dataset'].data
 
     # Set up preprocessing
-    df = initialize_radial_profiles_preprocessing(df)
+    with st.columns(3)[0]:
+        df = initialize_radial_profiles_preprocessing(df)
 
     # Ensure the main dataframe is updated per the operations above
     st.session_state['input_dataset'].data = df

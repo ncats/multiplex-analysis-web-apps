@@ -14,6 +14,10 @@ import scipy.spatial
 st_key_prefix = 'radial_bins_plots__'
 
 
+def delete_session_state_variable(key_suffix):
+    del st.session_state[st_key_prefix + key_suffix]
+
+
 def draw_single_image_scatter_plot(df, image_to_view, column_to_plot, values_to_plot, color_dict, xy_position_columns=['Cell X Position', 'Cell Y Position'], coordinate_scale_factor=1, annulus_spacing_um=250, use_coordinate_mins_and_maxs=False, xmin_col='Cell X Position', xmax_col='Cell X Position', ymin_col='Cell Y Position', ymax_col='Cell Y Position', units='microns', invert_y_axis=False, opacity=0.7):
 
     # Draw a header
@@ -152,6 +156,9 @@ def initialize_main_settings(df, unique_images):
         column_to_plot = st.selectbox('Select a column by which to color the points:', categorical_columns, key=st_key_prefix + 'column_to_plot')
         column_to_plot_has_changed = (st_key_prefix + 'column_to_plot_prev' not in st.session_state) or (st.session_state[st_key_prefix + 'column_to_plot_prev'] != column_to_plot)
         st.session_state[st_key_prefix + 'column_to_plot_prev'] = column_to_plot
+
+        # Optionally force-update the list of categorical columns
+        st.button('Update categorical columns', help='If you don\'t see the column you want to plot, click this button to update the list of categorical columns.', on_click=delete_session_state_variable, args=('categorical_columns',))
 
         # Get some information about the images in the input dataset
         if st_key_prefix + 'ser_size_of_each_image' not in st.session_state:
