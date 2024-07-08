@@ -9,13 +9,10 @@ from itertools import cycle, islice
 import plotly.graph_objects as go
 import pandas as pd
 import scipy.spatial
+import utils
 
 # Global variable
 st_key_prefix = 'radial_bins_plots__'
-
-
-def delete_session_state_variable(key_suffix):
-    del st.session_state[st_key_prefix + key_suffix]
 
 
 def draw_single_image_scatter_plot(df, image_to_view, column_to_plot, values_to_plot, color_dict, xy_position_columns=['Cell X Position', 'Cell Y Position'], coordinate_scale_factor=1, annulus_spacing_um=250, use_coordinate_mins_and_maxs=False, xmin_col='Cell X Position', xmax_col='Cell X Position', ymin_col='Cell Y Position', ymax_col='Cell Y Position', units='microns', invert_y_axis=False, opacity=0.7):
@@ -139,12 +136,7 @@ def initialize_main_settings(df, unique_images):
 
         # Store columns of certain types
         if st_key_prefix + 'categorical_columns' not in st.session_state:
-            max_num_unique_values = 1000
-            categorical_columns = []
-            for col in df.columns:
-                if df[col].nunique() <= max_num_unique_values:
-                    categorical_columns.append(col)
-            st.session_state[st_key_prefix + 'categorical_columns'] = categorical_columns
+            st.session_state[st_key_prefix + 'categorical_columns'] = utils.get_categorical_columns_including_numeric(df, max_num_unique_values=1000)
         if st_key_prefix + 'numeric_columns' not in st.session_state:
             st.session_state[st_key_prefix + 'numeric_columns'] = df.select_dtypes(include='number').columns
         categorical_columns = st.session_state[st_key_prefix + 'categorical_columns']
@@ -158,7 +150,7 @@ def initialize_main_settings(df, unique_images):
         st.session_state[st_key_prefix + 'column_to_plot_prev'] = column_to_plot
 
         # Optionally force-update the list of categorical columns
-        st.button('Update categorical columns', help='If you don\'t see the column you want to plot, click this button to update the list of categorical columns.', on_click=delete_session_state_variable, args=('categorical_columns',))
+        st.button('Update categorical columns', help='If you don\'t see the column you want to plot, click this button to update the list of categorical columns.', on_click=lambda: st.session_state.pop(st_key_prefix + 'categorical_columns', None))
 
         # Get some information about the images in the input dataset
         if st_key_prefix + 'ser_size_of_each_image' not in st.session_state:

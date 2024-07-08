@@ -1238,3 +1238,11 @@ def fast_neighbors_counts_for_block2(df_image, image_name, coord_column_names, p
 
     # Return the final dataframe of neighbor counts for the current image
     return df_curr_counts
+
+
+def get_categorical_columns_including_numeric(df, max_num_unique_values=1000):
+    categorical_columns = []
+    for col in df.columns:
+        if df[col].nunique() <= max_num_unique_values:
+            categorical_columns.append(col)
+    return categorical_columns

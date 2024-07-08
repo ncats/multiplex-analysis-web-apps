@@ -108,10 +108,6 @@ def get_box_and_whisker_data(df_grouped, df_thresholds, apply_thresh_to_selected
         return return_values, current_index
 
 
-def delete_session_state_variable(key_suffix):
-    del st.session_state[st_key_prefix + key_suffix]
-
-
 def main():
     """
     Main function for the page.
@@ -122,14 +118,13 @@ def main():
         st.warning('Please open a dataset from the Open File page at left.')
         return
     
-    # Ensure the categorical columns have been extracted
-    if 'radial_bins_plots__categorical_columns' not in st.session_state:
-        st.warning('Please run the radial bins *plotting* before performing adaptive phenotyping, only to extract the categorical columns')
-        return
-
     # Get some necessary variables from the session state
     df = st.session_state['input_dataset'].data
-    categorical_columns = st.session_state['radial_bins_plots__categorical_columns']
+
+    # Store columns of certain types
+    if st_key_prefix + 'categorical_columns' not in st.session_state:
+        st.session_state[st_key_prefix + 'categorical_columns'] = utils.get_categorical_columns_including_numeric(df, max_num_unique_values=1000)
+    categorical_columns = st.session_state[st_key_prefix + 'categorical_columns']
 
     # Initialize three columns
     columns = st.columns(3)
@@ -145,11 +140,14 @@ def main():
             st.session_state[key] = []
         columns_for_phenotype_grouping = st.multiselect('Columns for phenotype grouping:', categorical_columns, key=key)
 
+        # Optionally force-update the list of categorical columns
+        st.button('Update phenotype grouping columns 💡', help='If you don\'t see the column you want to group, click this button to update the list of potential phenotype grouping columns.', on_click=lambda: st.session_state.pop(st_key_prefix + 'categorical_columns', None))
+
         # Set the column name that describes the baseline field such as cell type
         key = st_key_prefix + 'column_identifying_baseline_signal'
         if key not in st.session_state:
             st.session_state[key] = categorical_columns[0]
-        column_identifying_baseline_signal = st.selectbox('Column identifying baseline/signal:', categorical_columns, key=key, on_change=delete_session_state_variable, args=('value_identifying_baseline',))
+        column_identifying_baseline_signal = st.selectbox('Column identifying baseline/signal:', categorical_columns, key=key, on_change=lambda: st.session_state.pop(st_key_prefix + 'value_identifying_baseline', None))
 
         # Extract the baseline field value (such as a specific cell type) to be used for determining the thresholds
         available_baseline_signal_values = df[column_identifying_baseline_signal].unique()
@@ -379,7 +377,7 @@ def main():
         if st.button('Perform phenotyping', disabled=phenotyping_button_disabled, on_click=update_phenotyping_sub_options, args=(phenotyping_method_options,)):
 
             # Perform the phenotyping method that applies the selected threshold to the entire dataset
-            # Old: apply_thresh_to_selected_group=False, average_over_all_groups=False, DO have a particular group selected --> "Selected threshold applied to entire dataset"
+            # Here: apply_thresh_to_selected_group=False, average_over_all_groups=False, DO have a particular group selected --> "Selected threshold applied to entire dataset"
             if phenotyping_method == phenotyping_method_options[0]:
 
                 # Get the selected row of df_thresholds, which is a series
@@ -402,7 +400,7 @@ def main():
                 st.write(f'Threshold used for entire dataset: {threshold}')
 
             # Perform the phenotyping method that applies a group-specific threshold to each group
-            # New: apply_thresh_to_selected_group=True, average_over_all_groups=True, DO NOT have a particular group selected --> "Group-specific threshold applied to each group"
+            # Here: apply_thresh_to_selected_group=True, average_over_all_groups=True, DO NOT have a particular group selected --> "Group-specific threshold applied to each group"
             elif phenotyping_method == phenotyping_method_options[1]:
 
                 # Initialize the phenotype column to all-negative
@@ -414,13 +412,12 @@ def main():
 
                     # Obtain the index and dataframe of the group identified by curr_row
                     if isinstance(df_grouped, list):
-                        curr_index = None
                         curr_df = df_grouped[0][1]
                         curr_integer_indices_into_df = np.array(range(len(curr_df)))
                     else:
                         curr_index = df_thresholds.iloc[curr_row].name
                         curr_df = df_grouped.get_group(curr_index)
-                        curr_integer_indices_into_df = df_grouped.indices[curr_index]  # this is just to ensure that the group is in the groupby object
+                        curr_integer_indices_into_df = df_grouped.indices[curr_index]
 
                     # Get the locations of the images in the baseline group
                     images_in_plotting_group_1 = curr_df.loc[curr_df[column_identifying_baseline_signal] == value_identifying_baseline, 'Slide ID'].unique()
@@ -459,7 +456,7 @@ def main():
             # Add the phenotype column to the dataframe
             pheno_colname = f'Phenotype {phenotype_name}'
             df[pheno_colname] = utils.downcast_series_dtype(ser_phenotype)
-            st.success(f'Phenotype column "{pheno_colname}" has been appended to the dataset')
+            st.success(f'Phenotype column "{pheno_colname}" has been appended to (or modified in) the dataset')
             st.write(f'Number of cells in each phenotype group (0 = negative, 1 = positive):')
             st.write(df[pheno_colname].value_counts().reset_index(drop=True))
 
