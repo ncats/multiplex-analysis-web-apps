@@ -7,32 +7,190 @@ import pandas as pd
 import scipy.stats
 import numpy as np
 import plotly.graph_objects as go
-
+import plotly.express as px
 
 # Global variable
 st_key_prefix = 'radial_profiles_plotting__'
 
 
+def get_line_plots(percent_positives, well_id_indices, plot_confidence_intervals, unique_vals_for_series, position_in_percent_positives, series_name, unique_vals_for_x, xaxis_title, alpha=0.1, ci_type='bootstrap'):
+
+    # Potentially permute the axes of percent_positives
+    if position_in_percent_positives == 1:
+        percent_positives_transposed = percent_positives
+    else:
+        percent_positives_transposed = np.transpose(percent_positives, axes=(0, 2, 1))
+
+    # Get the default colors to use for both the main lines and the shaded confidence intervals
+    colors_to_use = get_default_colors(len(unique_vals_for_series))
+    colors_to_use_with_alpha = get_default_colors(len(unique_vals_for_series), alpha=alpha)
+
+    # Initialize the plotly figure
+    fig = go.Figure()
+
+    # For each series...
+    method_used_holder = []
+    bootstrap_flag_holder = []
+    for series_val_index, series_val in enumerate(unique_vals_for_series):
+
+        # Get the percent positives for the current series
+        curr_percent_positives = percent_positives_transposed[well_id_indices, series_val_index, :]
+
+        # Calculate the confidence intervals for the current series
+        confidence_intervals, bootstrap_flag, method_used = get_confidence_intervals(curr_percent_positives, ci_type=ci_type)
+        method_used_holder.append(method_used)
+        bootstrap_flag_holder.append(bootstrap_flag)
+
+        # Optionally plot the confidence intervals
+        if plot_confidence_intervals:
+
+            # Plot the lower bound of the confidence interval
+            fig.add_trace(go.Scatter(x=unique_vals_for_x, y=confidence_intervals[0, :], mode='lines', line=dict(width=0), showlegend=False))
+
+            # Plot the upper bound of the confidence interval with filling to the next Y (the lower bound)
+            fig.add_trace(go.Scatter(x=unique_vals_for_x, y=confidence_intervals[1, :], mode='lines', fill='tonexty', fillcolor=colors_to_use_with_alpha[series_val_index], line=dict(width=0), showlegend=True, name=f'{series_name} {series_val} CI'))  # color format example: 'rgba(0,100,80,0.2)'
+
+    # For each series...
+    for series_val_index, series_val in enumerate(unique_vals_for_series):
+
+        # Get the percent positives for the current series
+        curr_percent_positives = percent_positives_transposed[well_id_indices, series_val_index, :]
+
+        # Calculate the means for the current series
+        y = np.nanmean(curr_percent_positives, axis=0)
+
+        # Plot the means
+        fig.add_trace(go.Scatter(x=unique_vals_for_x, y=y, mode='lines+markers', name=f'{series_name} {series_val}', line=dict(color=colors_to_use[series_val_index]), marker=dict(color=colors_to_use[series_val_index])))
+
+    # Update the layout of the figure
+    fig.update_layout(title=f'Percent positive averaged over all selected wells', xaxis_title=xaxis_title, yaxis_title='Percent positive (%)')
+
+    # Display a warning if we couldn't calculate potentially desired bootstrap confidence intervals for some of the data
+    if np.any(bootstrap_flag_holder):
+        st.warning('Normal confidence intervals were calculated for some of the data')
+        with st.expander('Expand to see which data used normal confidence due to there being fewer than two non-NaN well_ids:', expanded=False):
+            st.dataframe(pd.DataFrame(method_used_holder, index=unique_vals_for_series, columns=unique_vals_for_x))
+
+    # Return the plotly figure
+    return fig
+
+
+def hex_to_rgb(hex_color):
+    # Remove the '#' character and convert the remaining string to an integer using base 16
+    # Then extract each color component
+    hex_color = hex_color.lstrip('#')
+    r, g, b = int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16)
+    return (r, g, b)
+
+
+def get_default_colors(num_colors, alpha=None):
+
+    # Get the color sequence
+    color_sequence = px.colors.qualitative.Plotly
+
+    # Return a list of the first 15 colors, cycling through color_sequence if necessary
+    hex_colors = [color_sequence[i % len(color_sequence)] for i in range(num_colors)]
+
+    if alpha is not None:
+        return [f'rgba{hex_to_rgb(hex_color) + (alpha,)}' for hex_color in hex_colors]
+    else:
+        return hex_colors
+
+
+def get_confidence_intervals(array2d, ci_type='bootstrap'):
+    size_of_second_dim = array2d.shape[1]
+    ci = np.ones((2, size_of_second_dim)) * np.nan
+    method_used = []
+    bootstrap_flag = False
+    for i in range(size_of_second_dim):
+        curr_set_of_data = array2d[:, i]
+        curr_set_of_data = curr_set_of_data[~np.isnan(curr_set_of_data)]  # select out just the non-nan values in curr_set_of_data
+        if (ci_type == 'bootstrap') and (len(curr_set_of_data) < 2):
+            bootstrap_flag = True
+            ci_type_to_use = 'normal'
+        else:
+            ci_type_to_use = ci_type
+        method_used.append(ci_type_to_use)
+        curr_ci = get_confidence_interval(pd.Series(curr_set_of_data), ci_type=ci_type_to_use)
+        ci[:, i] = curr_ci
+    return ci, bootstrap_flag, method_used
+
+
 # Calculate the 95% confidence interval of a series
-def get_confidence_interval(ser, type='bootstrap'):
-    if type == 'normal':
+def get_confidence_interval(ser, ci_type='bootstrap'):
+    assert ci_type in ['normal', 'bootstrap'], 'ci_type must be either "normal" or "bootstrap"'
+    if ci_type == 'normal':
         # This is a common approach but works well primarily when the sample size is large (usually n > 30) and the data distribution is not heavily skewed.
         mean = ser.mean()
         margin_of_error = ser.sem() * 1.96
         return mean - margin_of_error, mean + margin_of_error
-    elif type == 'bootstrap':
+    elif ci_type == 'bootstrap':
         # Largely distribution-independent but sample sizes less than 10 should be interpreted with caution
         res = scipy.stats.bootstrap((ser,), np.mean, confidence_level=0.95)  # calculate the bootstrap confidence interval
         confidence_interval = res.confidence_interval  # extract the confidence interval
         return confidence_interval.low, confidence_interval.high
-    else:
-        return ser.mean()
 
 
 def main():
     """
     Main function for the page.
     """
+
+    ####
+
+    phenotype_columns = [column for column in st.session_state['input_dataset'].data.columns if column.startswith('Phenotype ')]
+
+    df = st.session_state['input_dataset'].data[['Slide ID', 'T', 'REEC', 'well_id', 'Outer radius'] + phenotype_columns]
+
+    st.write(df.sample(100))
+
+    unique_well_ids = sorted(df['well_id'].unique())
+    unique_time_vals = sorted(df['T'].unique())
+    unique_outer_radii = sorted(df['Outer radius'].unique())
+
+    st.write('well_id', df['well_id'].dtype, unique_well_ids)
+    st.write('T', df['T'].dtype, unique_time_vals)
+    st.write('Outer radius', df['Outer radius'].dtype, unique_outer_radii)
+
+    percent_positives = np.ones((len(unique_well_ids), len(unique_time_vals), len(unique_outer_radii))) * np.nan
+
+    tot_len = 0
+    # ser_analysis_holder = []
+    for well_id, df_group in df.groupby('well_id'):
+        well_id_loc = unique_well_ids.index(well_id)
+        st.write(well_id)
+        for (time_val, outer_radius), df_group2 in df_group.groupby(by=['T', 'Outer radius']):
+            time_val_loc = unique_time_vals.index(time_val)
+            outer_radius_loc = unique_outer_radii.index(outer_radius)
+            ser = df_group2['Phenotype SORE6']
+            percent_positive = (ser == 1).sum() / len(ser) * 100
+            # ser_analysis_holder.append({'well_id': well_id, 'T': time_val, 'Outer radius': outer_radius, 'Percent positive': percent_positive})
+            percent_positives[well_id_loc, time_val_loc, outer_radius_loc] = percent_positive
+            tot_len += len(df_group2)
+    st.write(tot_len)
+    # st.write(pd.DataFrame(ser_analysis_holder))
+
+    # Get the number of nans in percent_positives
+    st.write(np.isnan(percent_positives).sum())
+
+    # Print out for what indices in percent_positives there are nans
+    for i in range(len(unique_well_ids)):
+        for j in range(len(unique_time_vals)):
+            for k in range(len(unique_outer_radii)):
+                if np.isnan(percent_positives[i, j, k]):
+                    st.write(unique_well_ids[i], unique_time_vals[j], unique_outer_radii[k])
+
+    well_id_indices = range(len(unique_well_ids))
+
+    plot_confidence_intervals = True
+
+    # For a given list of well_id indices, create a plotly lineplot on the percent_positives array using the radii on the x-axis and the percent positives on the y-axis
+    st.plotly_chart(get_line_plots(percent_positives, well_id_indices, plot_confidence_intervals, unique_time_vals, 1, 'Time', unique_outer_radii, 'Outer radius (um)', alpha=0.1, ci_type='bootstrap'))
+
+    # For a given list of well_id indices, create a plotly lineplot on the percent_positives array using the time values on the x-axis and the percent positives on the y-axis
+    st.plotly_chart(get_line_plots(percent_positives, well_id_indices, plot_confidence_intervals, unique_outer_radii, 2, 'Outer radius', unique_time_vals, 'Time', alpha=0.1, ci_type='bootstrap'))
+
+    ####
 
     # Ensure analysis has been run
     key = 'radial_profiles__' + 'df_analysis_results'
@@ -109,7 +267,7 @@ def main():
     st.write(df_means)
 
     # Calculate the 95% confidence interval for each group
-    df_confidence_interval = grouped_by_T.agg(lambda ser: get_confidence_interval(ser, type='bootstrap'))
+    df_confidence_interval = grouped_by_T.agg(lambda ser: get_confidence_interval(ser, ci_type='bootstrap'))
 
     # Set the columns to just the outer radii
     df_confidence_interval.columns = outer_radii
