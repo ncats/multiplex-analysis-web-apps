@@ -5,10 +5,65 @@ import scipy.stats
 import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
-import time
 
 # Global variable
 st_key_prefix = 'radial_profiles_plotting__'
+
+
+def calculate_significant_differences_between_groups(percent_positives, well_id_indices1, well_id_indices2, unique_time_vals, unique_outer_radii):
+
+    # Initialize the flags array
+    flags = np.ones((len(unique_time_vals), len(unique_outer_radii))) * np.nan
+
+    # For every unique time and outer radius...
+    for itime in range(len(unique_time_vals)):
+        for iradius in range(len(unique_outer_radii)):
+
+            # Get the percent positives for the two groups
+            percent_positives_group1 = percent_positives[well_id_indices1, itime, iradius]
+            percent_positives_group2 = percent_positives[well_id_indices2, itime, iradius]
+
+            # Remove any NaNs
+            percent_positives_group1 = percent_positives_group1[~np.isnan(percent_positives_group1)]
+            percent_positives_group2 = percent_positives_group2[~np.isnan(percent_positives_group2)]
+
+            # If there are fewer than two non-NaN values in either group, skip this iteration
+            if (len(percent_positives_group1) < 2) or (len(percent_positives_group2) < 2):
+                continue
+
+            # Calculate the confidence intervals for the two groups
+            res = scipy.stats.bootstrap((percent_positives_group1, percent_positives_group2), lambda arr1, arr2: arr2.mean(axis=0) - arr1.mean(axis=0), confidence_level=0.95)
+
+            # Determine the flag
+            if res.confidence_interval.low > 0:
+                flags[itime, iradius] = 1
+            elif res.confidence_interval.high < 0:
+                flags[itime, iradius] = -1
+            else:
+                flags[itime, iradius] = 0
+
+    # Create the heatmap
+    heatmap = go.Heatmap(
+        x=unique_outer_radii,
+        y=unique_time_vals,
+        z=flags,
+        colorscale='Jet',
+        zmin=-1,
+        zmax=1
+    )
+
+    # Create a figure and add the heatmap
+    fig = go.Figure(data=[heatmap])
+
+    # Customize layout
+    fig.update_layout(
+        title='Flags Indicating Significant Differences (group2 - group1)',
+        xaxis_title='Outer radius (um)',
+        yaxis_title='Timepoint'
+    )
+
+    # Return the figure
+    return fig
 
 
 def get_heatmap(percent_positives, well_id_indices, unique_time_vals, unique_outer_radii):
@@ -247,18 +302,53 @@ def main():
         # Obtain the wells and their properties (just the REEC for now). This takes 0.10 to 0.15 seconds
         df_to_select = df[['well_id', 'REEC']].drop_duplicates().sort_values(['well_id', 'REEC'])
 
+        # Allow the user to select more than one set of wells
+        key = st_key_prefix + 'select_two_groups_of_wells'
+        if key not in st.session_state:
+            st.session_state[key] = False
+        select_two_groups_of_wells = st.checkbox('Select two groups of wells', key=key)
+
+        # Initialize columns appropriately
+        if select_two_groups_of_wells:
+            group1_column, group2_column = st.columns(2)
+        else:
+            group1_column = st.columns(1)[0]
+
         # Get the user selection from this dataframe
-        st.write('Select the well(s) whose average percent positives we will plot:')
-        selected_rows = st.dataframe(df_to_select, on_select='rerun', hide_index=True)['selection']['rows']
-        ser_selected_well_ids = df_to_select.iloc[selected_rows]['well_id']
+        with group1_column:
+            if not select_two_groups_of_wells:
+                st.write('Select the well(s) whose average percent positives we will plot:')
+            else:
+                st.write('Select the first group of wells:')
+            selected_rows = st.dataframe(df_to_select, on_select='rerun', hide_index=True, key='group1_well_selection__do_not_persist')['selection']['rows']
+            ser_selected_well_ids = df_to_select.iloc[selected_rows]['well_id']
+
+        # If the user wants to select two groups of wells, allow them to select the second group
+        if select_two_groups_of_wells:
+            with group2_column:
+                st.write('Select the second group of wells:')
+                selected_rows = st.dataframe(df_to_select, on_select='rerun', hide_index=True, key='group2_well_selection__do_not_persist')['selection']['rows']
+                ser_selected_well_ids2 = df_to_select.iloc[selected_rows]['well_id']
 
         # Ensure at least one well is selected
         if len(ser_selected_well_ids) == 0:
-            st.warning('No wells selected. Please select them from the left side of the table above.')
+            if not select_two_groups_of_wells:
+                st.warning('No wells selected. Please select them from the left side of the table above.')
+            else:
+                st.warning('No wells selected for the first group. Please select them from the left side of the left table above.')
+            return
+
+        # If the user wants to select two groups of wells, ensure at least one well is selected for the second group
+        if select_two_groups_of_wells and len(ser_selected_well_ids2) == 0:
+            st.warning('No wells selected for the second group. Please select them from the left side of the right table above.')
             return
 
         # Obtain the indices of the selected wells in unique_well_ids
         well_id_indices = [unique_well_ids.index(selected_well_id) for selected_well_id in ser_selected_well_ids]
+
+        # If the user wants to select two groups of wells, obtain the indices of the selected wells in unique_well_ids
+        if select_two_groups_of_wells:
+            well_id_indices2 = [unique_well_ids.index(selected_well_id) for selected_well_id in ser_selected_well_ids2]
 
         # Checkbox for whether to plot confidence intervals
         key = st_key_prefix + 'plot_confidence_intervals'
@@ -299,6 +389,12 @@ def main():
 
         # Display the heatmap
         st.plotly_chart(get_heatmap(percent_positives, well_id_indices, unique_time_vals, unique_outer_radii))
+
+    # Button to compare differences between the two groups of wells
+    if select_two_groups_of_wells and st.button('Assess whether the two group means are different'):
+
+        # Calculate the flags and display the heatmap
+        st.plotly_chart(calculate_significant_differences_between_groups(percent_positives, well_id_indices, well_id_indices2, unique_time_vals, unique_outer_radii))
 
 
 # Run the main function
