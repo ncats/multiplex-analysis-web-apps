@@ -15,6 +15,11 @@ import utils
 st_key_prefix = 'radial_bins_plots__'
 
 
+def remove_keys(key_suffixes):
+    for key_suffix in key_suffixes:
+        st.session_state.pop(st_key_prefix + key_suffix, None)
+
+
 def draw_single_image_scatter_plot(df, image_to_view, column_to_plot, values_to_plot, color_dict, xy_position_columns=['Cell X Position', 'Cell Y Position'], coordinate_scale_factor=1, annulus_spacing_um=250, use_coordinate_mins_and_maxs=False, xmin_col='Cell X Position', xmax_col='Cell X Position', ymin_col='Cell Y Position', ymax_col='Cell Y Position', units='microns', invert_y_axis=False, opacity=0.7):
 
     # Draw a header
@@ -263,7 +268,7 @@ def initialize_radial_bin_calculation(df):
     xy_position_columns = ['Cell X Position', 'Cell Y Position']  # this is set in Open File so should always be the same, no need for a widget
 
     # Calculate radial bins
-    if st.button('Calculate radial bins'):
+    if st.button('Calculate radial bins', on_click=remove_keys, args=(['color_dict', 'value_to_change_color'],)):
         start_time = time.time()
         df = add_radial_bin_to_dataset(df, unique_images, coordinate_scale_factor=coordinate_scale_factor, annulus_spacing_um=annulus_spacing_um, xy_position_columns=xy_position_columns)
         st.session_state['input_dataset'].data = df

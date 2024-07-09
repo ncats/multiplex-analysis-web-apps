@@ -10,15 +10,6 @@ import utils
 st_key_prefix = 'adaptive_phenotyping__'
 
 
-def update_phenotyping_sub_options(phenotyping_method_options):
-    if st.session_state[st_key_prefix + 'phenotyping_method'] == phenotyping_method_options[0]:
-        st.session_state[st_key_prefix + 'apply_thresh_to_selected_group'] = False
-        st.session_state[st_key_prefix + 'average_over_all_groups'] = False
-    else:
-        st.session_state[st_key_prefix + 'apply_thresh_to_selected_group'] = True
-        st.session_state[st_key_prefix + 'average_over_all_groups'] = True
-
-
 def plotly_mean_and_sem(dfs, df_names):
 
     # Create a Plotly figure
@@ -359,7 +350,7 @@ def main():
         phenotyping_method_options = ["Selected threshold applied to entire dataset", "Group-specific threshold applied to each group"]
         if key not in st.session_state:
             st.session_state[key] = phenotyping_method_options[1]
-        phenotyping_method = st.selectbox('Phenotyping method:', phenotyping_method_options, key=key, on_change=update_phenotyping_sub_options, args=(phenotyping_method_options,))
+        phenotyping_method = st.selectbox('Phenotyping method:', phenotyping_method_options, key=key)
 
         # Obtain the current selection
         row_selection_list = group_selection['selection']['rows']
@@ -374,7 +365,7 @@ def main():
             phenotyping_button_disabled = True
 
         # Render the button to perform the phenotyping
-        if st.button('Perform phenotyping', disabled=phenotyping_button_disabled, on_click=update_phenotyping_sub_options, args=(phenotyping_method_options,)):
+        if st.button('Perform phenotyping', disabled=phenotyping_button_disabled):
 
             # Perform the phenotyping method that applies the selected threshold to the entire dataset
             # Here: apply_thresh_to_selected_group=False, average_over_all_groups=False, DO have a particular group selected --> "Selected threshold applied to entire dataset"

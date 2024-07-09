@@ -1,16 +1,66 @@
 # Import relevant libraries
 import streamlit as st
-import app_top_of_page as top
-import streamlit_dataframe_editor as sde
-import image_filter
 import pandas as pd
 import scipy.stats
 import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
+import time
 
 # Global variable
 st_key_prefix = 'radial_profiles_plotting__'
+
+
+def get_heatmap(percent_positives, well_id_indices, unique_time_vals, unique_outer_radii):
+
+    # Create the heatmap
+    heatmap = go.Heatmap(
+        x=unique_outer_radii,
+        y=unique_time_vals,
+        z=np.nanmean(percent_positives[well_id_indices, :, :], axis=0),
+        colorscale='Jet',
+        zmin=0,
+        zmax=100
+    )
+
+    # Create a figure and add the heatmap
+    fig = go.Figure(data=[heatmap])
+
+    # Customize layout
+    fig.update_layout(
+        title='Average Percent Positive Over Selected Wells',
+        xaxis_title='Outer radius (um)',
+        yaxis_title='Timepoint'
+    )
+
+    # Return the figure
+    return fig
+
+
+def calculate_percent_positives(df, phenotype_column_for_analysis, unique_well_ids, unique_time_vals, unique_outer_radii):
+
+    # Create a 3D array to hold the percent positives
+    percent_positives = np.ones((len(unique_well_ids), len(unique_time_vals), len(unique_outer_radii))) * np.nan
+
+    # For each well...
+    for well_id, df_group in df.groupby('well_id'):
+
+        # Get the location of the well_id in the unique_well_ids list
+        well_id_loc = unique_well_ids.index(well_id)
+
+        # For each unique combination of time and outer radius...
+        for (time_val, outer_radius), df_group2 in df_group.groupby(by=['T', 'Outer radius']):
+
+            # Get the location of the time_val and outer_radius in their respective lists
+            time_val_loc = unique_time_vals.index(time_val)
+            outer_radius_loc = unique_outer_radii.index(outer_radius)
+
+            # Calculate the percent positive for the current group
+            ser = df_group2[phenotype_column_for_analysis]
+            percent_positives[well_id_loc, time_val_loc, outer_radius_loc] = (ser == 1).sum() / len(ser) * 100
+
+    # Return the percent positives
+    return percent_positives
 
 
 def get_line_plots(percent_positives, well_id_indices, plot_confidence_intervals, unique_vals_for_series, position_in_percent_positives, series_name, unique_vals_for_x, xaxis_title, alpha=0.1, ci_type='bootstrap'):
@@ -67,7 +117,7 @@ def get_line_plots(percent_positives, well_id_indices, plot_confidence_intervals
 
     # Display a warning if we couldn't calculate potentially desired bootstrap confidence intervals for some of the data
     if np.any(bootstrap_flag_holder):
-        st.warning('Normal confidence intervals were calculated for some of the data')
+        st.write('⚠️ Normal confidence intervals were calculated for some of the data instead of the selected bootstrap method.')
         with st.expander('Expand to see which data used normal confidence due to there being fewer than two non-NaN well_ids:', expanded=False):
             st.dataframe(pd.DataFrame(method_used_holder, index=unique_vals_for_series, columns=unique_vals_for_x))
 
@@ -91,6 +141,7 @@ def get_default_colors(num_colors, alpha=None):
     # Return a list of the first 15 colors, cycling through color_sequence if necessary
     hex_colors = [color_sequence[i % len(color_sequence)] for i in range(num_colors)]
 
+    # Optionally add an alpha value to each color and if so return the rbga values; otherwise return the hex values
     if alpha is not None:
         return [f'rgba{hex_to_rgb(hex_color) + (alpha,)}' for hex_color in hex_colors]
     else:
@@ -136,190 +187,120 @@ def main():
     Main function for the page.
     """
 
-    ####
+    # Ensure the user has loaded a dataset
+    if 'input_dataset' not in st.session_state:
+        st.warning('Please open a dataset from the Open File page at left.')
+        return
 
-    phenotype_columns = [column for column in st.session_state['input_dataset'].data.columns if column.startswith('Phenotype ')]
+    # Save a shortcut to the dataframe
+    df = st.session_state['input_dataset'].data
 
-    df = st.session_state['input_dataset'].data[['Slide ID', 'T', 'REEC', 'well_id', 'Outer radius'] + phenotype_columns]
+    # Obtain the phenotype columns
+    phenotype_columns = [column for column in df.columns if column.startswith('Phenotype ')]
 
-    st.write(df.sample(100))
+    # Ensure phenotype columns exist
+    if len(phenotype_columns) == 0:
+        st.warning('No phenotype columns found in the dataset. Please run the Adaptive Phenotyping page at left.')
+        return
 
+    # Keep only the necessary columns
+    df = df[['Slide ID', 'T', 'REEC', 'well_id', 'Outer radius'] + phenotype_columns]
+
+    # Get the unique values of particular columns of interest
     unique_well_ids = sorted(df['well_id'].unique())
     unique_time_vals = sorted(df['T'].unique())
     unique_outer_radii = sorted(df['Outer radius'].unique())
 
-    st.write('well_id', df['well_id'].dtype, unique_well_ids)
-    st.write('T', df['T'].dtype, unique_time_vals)
-    st.write('Outer radius', df['Outer radius'].dtype, unique_outer_radii)
+    with st.columns(3)[0]:
 
-    percent_positives = np.ones((len(unique_well_ids), len(unique_time_vals), len(unique_outer_radii))) * np.nan
+        # Select a phenotype column on which to perform the analysis
+        key = st_key_prefix + 'phenotype_column_for_analysis'
+        if key not in st.session_state:
+            st.session_state[key] = phenotype_columns[0]
+        phenotype_column_for_analysis = st.selectbox('Select a phenotype column on which to perform the analysis:', phenotype_columns, key=key)
 
-    tot_len = 0
-    # ser_analysis_holder = []
-    for well_id, df_group in df.groupby('well_id'):
-        well_id_loc = unique_well_ids.index(well_id)
-        st.write(well_id)
-        for (time_val, outer_radius), df_group2 in df_group.groupby(by=['T', 'Outer radius']):
-            time_val_loc = unique_time_vals.index(time_val)
-            outer_radius_loc = unique_outer_radii.index(outer_radius)
-            ser = df_group2['Phenotype SORE6']
-            percent_positive = (ser == 1).sum() / len(ser) * 100
-            # ser_analysis_holder.append({'well_id': well_id, 'T': time_val, 'Outer radius': outer_radius, 'Percent positive': percent_positive})
-            percent_positives[well_id_loc, time_val_loc, outer_radius_loc] = percent_positive
-            tot_len += len(df_group2)
-    st.write(tot_len)
-    # st.write(pd.DataFrame(ser_analysis_holder))
+        # Calculate the percent positives
+        if st.button('Calculate the percent positives'):
 
-    # Get the number of nans in percent_positives
-    st.write(np.isnan(percent_positives).sum())
+            # Save the percent_positives array to the session state
+            st.session_state[st_key_prefix + 'percent_positives'] = calculate_percent_positives(df, phenotype_column_for_analysis, unique_well_ids, unique_time_vals, unique_outer_radii)
 
-    # Print out for what indices in percent_positives there are nans
-    for i in range(len(unique_well_ids)):
-        for j in range(len(unique_time_vals)):
-            for k in range(len(unique_outer_radii)):
-                if np.isnan(percent_positives[i, j, k]):
-                    st.write(unique_well_ids[i], unique_time_vals[j], unique_outer_radii[k])
+        # Ensure the percent positives have been calculated
+        key = st_key_prefix + 'percent_positives'
+        if key not in st.session_state:
+            st.warning('Please calculate the percent positives.')
+            return
 
-    well_id_indices = range(len(unique_well_ids))
+        # Save a shortcut to the percent positives
+        percent_positives = st.session_state[key]
 
-    plot_confidence_intervals = True
+        # Get the number of nans in percent_positives and if there are any, print out where they are
+        if np.isnan(percent_positives).sum() > 0:
+            st.write('⚠️ There are NaNs in the percent_positives array.')
+            with st.expander('Expand to see where the NaNs are located (well ID, time, outer radius):', expanded=False):
+                for i in range(len(unique_well_ids)):
+                    for j in range(len(unique_time_vals)):
+                        for k in range(len(unique_outer_radii)):
+                            if np.isnan(percent_positives[i, j, k]):
+                                st.write(unique_well_ids[i], unique_time_vals[j], unique_outer_radii[k])
 
-    # For a given list of well_id indices, create a plotly lineplot on the percent_positives array using the radii on the x-axis and the percent positives on the y-axis
-    st.plotly_chart(get_line_plots(percent_positives, well_id_indices, plot_confidence_intervals, unique_time_vals, 1, 'Time', unique_outer_radii, 'Outer radius (um)', alpha=0.1, ci_type='bootstrap'))
+        # Obtain the wells and their properties (just the REEC for now). This takes 0.10 to 0.15 seconds
+        df_to_select = df[['well_id', 'REEC']].drop_duplicates().sort_values(['well_id', 'REEC'])
 
-    # For a given list of well_id indices, create a plotly lineplot on the percent_positives array using the time values on the x-axis and the percent positives on the y-axis
-    st.plotly_chart(get_line_plots(percent_positives, well_id_indices, plot_confidence_intervals, unique_outer_radii, 2, 'Outer radius', unique_time_vals, 'Time', alpha=0.1, ci_type='bootstrap'))
+        # Get the user selection from this dataframe
+        st.write('Select the well(s) whose average percent positives we will plot:')
+        selected_rows = st.dataframe(df_to_select, on_select='rerun', hide_index=True)['selection']['rows']
+        ser_selected_well_ids = df_to_select.iloc[selected_rows]['well_id']
 
-    ####
+        # Ensure at least one well is selected
+        if len(ser_selected_well_ids) == 0:
+            st.warning('No wells selected. Please select them from the left side of the table above.')
+            return
 
-    # Ensure analysis has been run
-    key = 'radial_profiles__' + 'df_analysis_results'
-    if key not in st.session_state:
-        st.warning('You must run the analysis on the previous page before plotting the results here.')
-        return
+        # Obtain the indices of the selected wells in unique_well_ids
+        well_id_indices = [unique_well_ids.index(selected_well_id) for selected_well_id in ser_selected_well_ids]
 
-    # Save a shortcut to the analysis results dataframe
-    df_analysis_results = st.session_state[key]
+        # Checkbox for whether to plot confidence intervals
+        key = st_key_prefix + 'plot_confidence_intervals'
+        if key not in st.session_state:
+            st.session_state[key] = True
+        plot_confidence_intervals = st.checkbox('Plot confidence intervals (at least two wells must be selected)', key=key)
 
-    # Save a shortcut to the main dataframe
-    df = st.session_state['input_dataset'].data
+        # Set some widget defaults if they don't exist
+        key = st_key_prefix + 'ci_type'
+        if key not in st.session_state:
+            st.session_state[key] = 'bootstrap'
+        ci_type = st.session_state[key]
+        key = st_key_prefix + 'alpha'
+        if key not in st.session_state:
+            st.session_state[key] = 0.2
+        alpha = st.session_state[key]
 
-    # Get the columns with a single unique value in each image
-    key = st_key_prefix + 'columns_with_single_unique_value'
-    if key not in st.session_state:
-        grouped_nunique = df.groupby('Slide ID').agg(lambda x: x.nunique())  # group by 'Slide ID' and calculate nunique for each column within each group
-        max_unique_values = grouped_nunique.max()  # find the maximum number of unique values per column across all groups
-        columns_with_single_unique_value = max_unique_values[max_unique_values == 1].index  # create a mask for columns where the maximum number of unique values is 1
-        st.session_state[key] = columns_with_single_unique_value
-    columns_with_single_unique_value = st.session_state[key]
+        # Allow the user to customize their values if they matter
+        if plot_confidence_intervals:
 
-    # Instantiate the image selector
-    image_selector = image_filter.ImageFilter(df, image_colname='Slide ID', st_key_prefix=st_key_prefix, possible_filtering_columns=columns_with_single_unique_value)
+            # Radio button to select the type of confidence interval
+            ci_type = st.radio('Select the type of confidence interval:', ['bootstrap', 'normal'], key=st_key_prefix + 'ci_type')
 
-    # If the image filter is not ready (which means the filtering dataframe was not generated), return
-    if not image_selector.ready:
-        st.warning('Please prepare the filtering data first')
-        return
+            # Number input for the alpha value
+            alpha = st.number_input('Alpha value:', min_value=0.0, max_value=1.0, key=st_key_prefix + 'alpha')
 
-    # Create the image filter, returning the selected images and the dataframe on which the selection was performed, saving shortcuts to these values
-    st.session_state[st_key_prefix + 'images_in_plotting_group_1'], st.session_state[st_key_prefix + 'df_masked_group_1'] = image_selector.select_images(key='group 1', color='blue', return_df_masked=True)
-    images_in_plotting_group_1 = st.session_state[st_key_prefix + 'images_in_plotting_group_1']
-    df_masked_group_1 = st.session_state[st_key_prefix + 'df_masked_group_1']
+    # Button to generate line plots
+    if st.button('Generate line plots'):
 
-    # If no images were selected, return
-    if len(images_in_plotting_group_1) == 0:
-        st.warning('No images selected in group 1')
-        return
-    
-    # Sort the selected images by their timepoint (probably unnecessary), saving the resulting images and times
-    df_masked_group_1_selected_sorted = df_masked_group_1.loc[images_in_plotting_group_1].sort_values('T')
-    image_names_in_time_order = df_masked_group_1_selected_sorted.index
-    times = df_masked_group_1_selected_sorted['T']
+        # For a given list of well_id indices, create a plotly lineplot on the percent_positives array using the radii on the x-axis and the percent positives on the y-axis
+        st.plotly_chart(get_line_plots(percent_positives, well_id_indices, plot_confidence_intervals, unique_time_vals, 1, 'Time', unique_outer_radii, 'Outer radius (um)', alpha=alpha, ci_type=ci_type))
 
-    # Extract the analysis results (percentages) for the selected images in order
-    df_analysis_results_selected = df_analysis_results.loc[image_names_in_time_order]
+        # For a given list of well_id indices, create a plotly lineplot on the percent_positives array using the time values on the x-axis and the percent positives on the y-axis
+        st.plotly_chart(get_line_plots(percent_positives, well_id_indices, plot_confidence_intervals, unique_outer_radii, 2, 'Bin', unique_time_vals, 'Time', alpha=alpha, ci_type=ci_type))
 
-    # Get the smallest number of annuli across all selected images
-    minimum_number_of_annuli = df_analysis_results_selected.iloc[:, -1].min()
+    # Button to generate heatmaps
+    if st.button('Generate heatmaps'):
 
-    # Combine the analysis dataframe with the corresponding times
-    df_combined = pd.concat([df_analysis_results_selected.iloc[:, :minimum_number_of_annuli], times], axis='columns')
-
-    # Group by the time column
-    grouped_by_T = df_combined.groupby('T')
-
-    # Calculate the mean of each group
-    df_means = grouped_by_T.mean()
-
-    # Extract just the outer radii from the column names and set those to the new column names
-    outer_radii = [float(column.split(' ')[4]) for column in df_means.columns]
-    df_means.columns = outer_radii
-
-    # Sort by index and columns
-    df_means = df_means.sort_index()
-    df_means = df_means[sorted(df_means.columns)]
-
-    # Name the index and column accordingly
-    df_means.index.name = 'Time T'
-    df_means.columns.name = 'Outer radius (um)'
-
-    # Write the means
-    st.write(df_means)
-
-    # Calculate the 95% confidence interval for each group
-    df_confidence_interval = grouped_by_T.agg(lambda ser: get_confidence_interval(ser, ci_type='bootstrap'))
-
-    # Set the columns to just the outer radii
-    df_confidence_interval.columns = outer_radii
-
-    # Sort by index and columns
-    df_confidence_interval = df_confidence_interval.sort_index()
-    df_confidence_interval = df_confidence_interval[sorted(df_confidence_interval.columns)]
-
-    # Name the index and column accordingly
-    df_confidence_interval.index.name = 'Time T'
-    df_confidence_interval.columns.name = 'Outer radius (um)'
-
-    # Write the confidence intervals
-    st.write(df_confidence_interval)
-
-    # Create a heatmap of df_means
-    heatmap = go.Heatmap(
-        x=df_means.columns,  # Column names as x-axis labels
-        y=df_means.index,    # Index as y-axis labels
-        z=df_means.values,    # DataFrame values as heatmap values
-        colorscale='Jet'
-    )
-
-    # Create a figure and add the heatmap
-    fig = go.Figure(data=[heatmap])
-
-    # Customize layout
-    fig.update_layout(
-        title='Heatmap of df_means',
-        xaxis_title='X Axis Title',
-        yaxis_title='Y Axis Title'
-    )
-
-    st.plotly_chart(fig)
+        # Display the heatmap
+        st.plotly_chart(get_heatmap(percent_positives, well_id_indices, unique_time_vals, unique_outer_radii))
 
 
 # Run the main function
 if __name__ == '__main__':
-
-    # Set page settings
-    page_name = 'Radial Profiles - Plotting Aggregated Results'
-    st.set_page_config(layout='wide', page_title=page_name)
-    st.title(page_name)
-
-    # Run streamlit-dataframe-editor library initialization tasks at the top of the page
-    st.session_state = sde.initialize_session_state(st.session_state)
-
-    # Run Top of Page (TOP) functions
-    st.session_state = top.top_of_page_reqs(st.session_state)
-
-    # Call the main function
     main()
-
-    # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
-    st.session_state = sde.finalize_session_state(st.session_state)
