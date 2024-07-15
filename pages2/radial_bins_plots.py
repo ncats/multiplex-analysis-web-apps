@@ -287,6 +287,7 @@ def calculate_annuli_radius_edges(df, annulus_spacing_um=250, xy_position_column
     xy_mid = (xy_min + xy_max) / 2
 
 
+    # st.warning('Hardcoding image centers!')
     # xy_mid.iloc[0] = 10130 / 2 * 0.32
     # xy_mid.iloc[1] = 10130 / 2 * 0.32
 
