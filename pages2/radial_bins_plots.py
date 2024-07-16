@@ -273,7 +273,8 @@ def initialize_radial_bin_calculation(df):
         df = add_radial_bin_to_dataset(df, unique_images, coordinate_scale_factor=coordinate_scale_factor, annulus_spacing_um=annulus_spacing_um, xy_position_columns=xy_position_columns)
         st.session_state['input_dataset'].data = df
         st.write(f'Calculation of radial bins took {int(np.round(time.time() - start_time))} seconds')
-        del st.session_state[st_key_prefix + 'categorical_columns']  # force the categorical columns to be recalculated since we just added one to the dataset
+        if st_key_prefix + 'categorical_columns' in st.session_state:
+            del st.session_state[st_key_prefix + 'categorical_columns']  # force the categorical columns to be recalculated since we just added one to the dataset
 
     # Return the necessary variables
     return df, unique_images, coordinate_scale_factor, annulus_spacing_um, xy_position_columns

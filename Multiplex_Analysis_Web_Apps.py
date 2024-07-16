@@ -18,8 +18,8 @@ from pages2 import robust_scatter_plotter
 from pages2 import multiaxial_gating
 from pages2 import thresholded_phenotyping
 from pages2 import adaptive_phenotyping
-from pages2 import Pheno_Cluster_a
-from pages2 import Pheno_Cluster_b
+# from pages2 import Pheno_Cluster_a
+# from pages2 import Pheno_Cluster_b
 from pages2 import Tool_parameter_selection
 from pages2 import Run_workflow
 from pages2 import Display_individual_ROI_heatmaps
@@ -82,11 +82,11 @@ def main():
                 st.Page(thresholded_phenotyping.main, title="Using Thresholded Intensities", url_path='using_thresholded_intensities'),
                 st.Page(adaptive_phenotyping.main, title="Adaptive Phenotyping", url_path='adaptive_phenotyping')
             ],
-        'Phenotype Clustering Workflow ✨':
-            [
-                st.Page(Pheno_Cluster_a.main, title="Unsupervised Phenotype Clustering", url_path='unsupervised_phenotype_clustering'),
-                st.Page(Pheno_Cluster_b.main, title="Differential Intensity", url_path='differential_intensity')
-            ],
+        # 'Phenotype Clustering Workflow ✨':
+        #     [
+        #         st.Page(Pheno_Cluster_a.main, title="Unsupervised Phenotype Clustering", url_path='unsupervised_phenotype_clustering'),
+        #         st.Page(Pheno_Cluster_b.main, title="Differential Intensity", url_path='differential_intensity')
+        #     ],
         'Spatial Interaction Tool 🗺️':
             [
                 st.Page(Tool_parameter_selection.main, title="Tool Parameter Selection", url_path='tool_parameter_selection'),

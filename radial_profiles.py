@@ -65,6 +65,19 @@ def transform_dataframes_in_chunks(df, image_col, new_index_col, distinct_old_ro
         yield df_image2
 
 
+# Efficiently turn a series of strings (in the format of the ImageJ "Labe" column) into three series of the relevant parts
+def process_label_column(ser_label):
+
+    # Regular expression to capture the three parts
+    pattern = r'^(.*?) - (T=.*?:c:.*/.*? t:.*/.*?) - (.*)$'
+
+    # Extract parts into separate columns
+    extracted_df = ser_label.str.extract(pattern)
+
+    # Return the desired parts
+    return extracted_df[0], extracted_df[1], extracted_df[2]
+
+
 def preprocess_dataset(df, perc_thresh_rawintnorm_column_check=0.01, image_col='Slide ID', nuclear_channel=2, do_z_score_filter=True, z_score_filter_threshold=3, run_checks=False):
 
     # Note the input dataframe df should likely be that loaded from the Open File page
@@ -76,14 +89,13 @@ def preprocess_dataset(df, perc_thresh_rawintnorm_column_check=0.01, image_col='
     # Output the initial dataframe shape
     print('Initial dataframe shape:', df.shape)
 
-    # Show that the "Label" column only ever contains three elements when split by " - "
-    if run_checks:
-        assert list(df['Label'].apply(lambda x: len(x.split(' - '))).unique()) == [3], 'The "Label" column does not contain exactly three elements when split by " - ".'
+    # Determine whether preprocessing has already been performed
+    if 'Label' not in df.columns:
+        print('It appears that the dataset has already been preprocessed because there is no "Label" column. If you would like to re-preprocess the dataset, please reload it from the Open File page.')
+        return
 
-    # Save some data from the "Label" column
-    tif_name = df['Label'].apply(lambda x: x.split(' - ')[0])
-    middle_data = df['Label'].apply(lambda x: x.split(' - ')[1])
-    last_name = df['Label'].apply(lambda x: x.split(' - ')[2])
+    # Efficiently save some data from the "Label" column
+    tif_name, middle_data, last_name = process_label_column(df['Label'])
 
     # Show that the basename of the image name is always the same as the last name
     if run_checks:
@@ -116,7 +128,7 @@ def preprocess_dataset(df, perc_thresh_rawintnorm_column_check=0.01, image_col='
     # Check that the .tif basename is completely contained in the actual input filename
     df_small = df[['input_filename', 'tif_name']].drop_duplicates()
     if run_checks:
-        assert df_small.apply(lambda x: os.path.splitext(x['tif_name'])[0] in x['input_filename'], axis='columns').all(), 'The .tif basename is not completely contained in the actual input filename.'
+        assert df_small.apply(lambda x: os.path.splitext(x['tif_name'])[0].replace('REEEC', 'REEC') in x['input_filename'], axis='columns').all(), 'The .tif basename is not completely contained in the actual input filename.'
 
     # Determine (and remove from the small df) the common suffix in the input_filename field
     ser = df_small['input_filename']

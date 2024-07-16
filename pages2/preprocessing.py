@@ -62,6 +62,11 @@ def initialize_radial_profiles_preprocessing(df):
             run_checks=run_checks
         )
 
+        # If the dataset is None, it's likely preprocessing has already been performed, so display a warning and return
+        if df is None:
+            st.warning('It appears that the dataset has already been preprocessed because there is no "Label" column. If you would like to re-preprocess the dataset, please reload it from the Open File page.')
+            return
+
         # Output the time taken
         st.write(f'Preprocessing took {int(np.round(time.time() - start_time))} seconds')
 

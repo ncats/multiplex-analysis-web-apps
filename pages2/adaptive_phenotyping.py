@@ -451,6 +451,9 @@ def main():
             st.write(f'Number of cells in each phenotype group (0 = negative, 1 = positive):')
             st.write(df[pheno_colname].value_counts().reset_index(drop=True))
 
+    # Ensure the main dataframe is updated per the operations above
+    st.session_state['input_dataset'].data = df
+
 
 # Run the main function
 if __name__ == '__main__':
