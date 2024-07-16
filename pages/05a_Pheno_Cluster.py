@@ -220,7 +220,9 @@ def run_utag_clust(adata, n_neighbors, resolution, clustering_method, max_dist, 
         slide_key="Image ID_(standardized)",
         max_dist=max_dist,
         normalization_mode='l1_norm',
-        apply_clustering=False)
+        apply_clustering=False,
+        parallel = True,
+        processes = n_jobs)
         
         sc.pp.pca(utag_results, n_comps=n_principal_components)
         print("start k graph")
@@ -248,6 +250,7 @@ def run_utag_clust(adata, n_neighbors, resolution, clustering_method, max_dist, 
         resolutions = resolutions,
         leiden_kwargs={"n_iterations": n_iterations, "random_state": random_state},
         pca_kwargs = {"n_comps": n_principal_components},
+        parallel = True,
         processes = n_jobs)
         
         curClusterCol = 'UTAG Label_leiden_'  + str(resolution)
