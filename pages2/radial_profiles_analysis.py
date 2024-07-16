@@ -10,7 +10,7 @@ import plotly.express as px
 st_key_prefix = 'radial_profiles_plotting__'
 
 
-def calculate_significant_differences_between_groups(percent_positives, well_id_indices1, well_id_indices2, unique_time_vals, unique_outer_radii):
+def calculate_significant_differences_between_groups(percent_positives, well_id_indices1, well_id_indices2, unique_time_vals, unique_outer_radii, confidence_level=0.95):
 
     # Initialize the flags array
     flags = np.ones((len(unique_time_vals), len(unique_outer_radii))) * np.nan
@@ -32,7 +32,7 @@ def calculate_significant_differences_between_groups(percent_positives, well_id_
                 continue
 
             # Calculate the confidence intervals for the two groups
-            res = scipy.stats.bootstrap((percent_positives_group1, percent_positives_group2), lambda arr1, arr2: arr2.mean(axis=0) - arr1.mean(axis=0), confidence_level=0.95)
+            res = scipy.stats.bootstrap((percent_positives_group1, percent_positives_group2), lambda arr1, arr2: arr2.mean(axis=0) - arr1.mean(axis=0), confidence_level=confidence_level)
 
             # Determine the flag
             if res.confidence_interval.low > 0:
@@ -390,11 +390,19 @@ def main():
         # Display the heatmap
         st.plotly_chart(get_heatmap(percent_positives, well_id_indices, unique_time_vals, unique_outer_radii))
 
+    # If the user wants to compare two groups of wells, allow them to set the confidence level
+    if select_two_groups_of_wells:
+        with st.columns(3)[0]:
+            key = st_key_prefix + 'confidence_level'
+            if key not in st.session_state:
+                st.session_state[key] = 0.95
+            confidence_level = st.number_input('Confidence level:', min_value=0.0, max_value=1.0, key=key, format='%.2f')
+
     # Button to compare differences between the two groups of wells
-    if select_two_groups_of_wells and st.button('Assess whether the two group means are different'):
+    if select_two_groups_of_wells and st.button('Assess whether the two group means are significantly different'):
 
         # Calculate the flags and display the heatmap
-        st.plotly_chart(calculate_significant_differences_between_groups(percent_positives, well_id_indices, well_id_indices2, unique_time_vals, unique_outer_radii))
+        st.plotly_chart(calculate_significant_differences_between_groups(percent_positives, well_id_indices, well_id_indices2, unique_time_vals, unique_outer_radii, confidence_level=confidence_level))
 
 
 # Run the main function
