@@ -13,7 +13,6 @@ import os
 import matplotlib.pyplot as plt
 import phenograph
 import parc
-from utag import utag
 import numpy as np
 import scanpy.external as sce
 import plotly.express as px
