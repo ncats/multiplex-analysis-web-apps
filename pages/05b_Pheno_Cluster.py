@@ -192,7 +192,7 @@ def phenocluster__add_edit_clusters_to_input_df():
     
     st.session_state['input_dataset'].data["Phenotype_Cluster"] = 'Phenotype ' + st.session_state['phenocluster__clustering_adata'].obs['Edit_Cluster'].astype(str)
     dummies = pd.get_dummies(st.session_state['phenocluster__clustering_adata'].obs['Edit_Cluster'], prefix='Phenotype Cluster').astype(int)
-    #dummies = dummies.replace({1: '+', 0: '-'})
+    dummies = dummies.replace({1: '+', 0: '-'})
     cur_df = pd.concat([st.session_state['input_dataset'].data, dummies], axis=1)
     st.session_state['input_dataset'].data = cur_df
     new_cluster_cols = list(dummies.columns)
