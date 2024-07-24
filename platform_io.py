@@ -231,14 +231,14 @@ class Platform:
     # Write a dataframe of the available inputs on the remote
     def display_available_inputs_df(self):
 
-        st.subheader('Input Data on NIDAP :open_file_folder:')
-        
         # Again, irrelevant for local
         if self.platform == 'local':
             pass
 
         # If on NIDAP...
         elif self.platform == 'nidap':
+
+            st.subheader(':open_file_folder: Available input data on NIDAP')
 
             # If we've never determined the inputs available on the remote (e.g., when the script first starts), do so now
             if self.available_inputs is None:
@@ -266,8 +266,6 @@ class Platform:
     # Load any selected available inputs on the remote to the local machine
     def load_selected_inputs(self):
 
-        st.subheader('Load into MAWA :arrow_forward:')
-        load_button = st.button('Load NIDAP input data into MAWA :arrow_right:')
         # Irrelevant for local
         if self.platform == 'local':
             pass
@@ -275,8 +273,10 @@ class Platform:
         # If on NIDAP...
         elif self.platform == 'nidap':
 
+            st.subheader(':tractor: Load input data into MAWA')
+
             # If a load button is clicked...
-            if load_button:
+            if st.button('Load selected NIDAP input data :arrow_right:'):
 
                 # Import relevant libraries
                 import nidap_io
@@ -373,7 +373,7 @@ class Platform:
     
     # Write a dataframe of the local input files, which we don't want to be editable because we don't want to mess with the local inputs (for now), even though they're basically a local copy
     def display_local_inputs_df(self):
-        st.subheader('Input Data in MAWA :open_file_folder:')
+        st.subheader(':open_file_folder: Input data in MAWA')
         local_inputs = self.get_local_inputs_listing()
         if self.platform == 'local':  # not editable locally because deletion is disabled anyway so there'd be nothing to do with selected files
             make_complex_dataframe_from_file_listing(dirpath=local_input_dir, item_names=local_inputs, editable=False)
