@@ -33,6 +33,10 @@ jobs:
         set -euo pipefail
         unset SUDO_UID SUDO_GID SUDO_USER
         
+        if [ -n "$EXTERNAL_CONNECTIONS_CA_PATH" ]; then
+          export CURL_CA_BUNDLE="${CURL_CA_BUNDLE:-$EXTERNAL_CONNECTIONS_CA_PATH}"
+        fi
+        
         export BUILD_PLUGIN_VERSION=latest
         export CI_PLUGIN_NAME="build.py"
         
