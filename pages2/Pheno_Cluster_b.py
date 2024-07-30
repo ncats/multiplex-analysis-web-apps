@@ -20,9 +20,14 @@ import streamlit_dataframe_editor as sde
 import basic_phenotyper_lib as bpl
 import nidap_dashboard_lib as ndl 
 
-sc.set_figure_params(figsize=(10, 10), fontsize = 16)
-if 'phenocluster__dif_int_plot_methods' not in st.session_state:
-    st.session_state['phenocluster__dif_int_plot_methods'] = ["Rank Plot", "Dot Plot", "Heat Map", "Violin Plot"]
+# ALW moved on 7/5/24 from __name__ == "__main__" to here so that Streamlit's new multipage functionality will run this since it just calls main()
+# @Andrei this or something related is throwing:
+#   deprecation.showPyplotGlobalUse IS NO LONGER SUPPORTED.
+#   The support for global pyplot instances is planned to be removed soon.
+#   Please update <user defined>.
+# Is it needed or can it be replaced?
+st.set_option('deprecation.showPyplotGlobalUse', False)
+
 # Functions 
 
 # clusters differential expression
@@ -357,7 +362,6 @@ if __name__ == '__main__':
     page_name = 'Differential Intensity'
     st.set_page_config(layout='wide', page_title=page_name)
     st.title(page_name)
-    st.set_option('deprecation.showPyplotGlobalUse', False)
     
     # Run streamlit-dataframe-editor library initialization tasks at the top of the page
     st.session_state = sde.initialize_session_state(st.session_state)

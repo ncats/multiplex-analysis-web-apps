@@ -2,29 +2,14 @@
 This is the python script which produces the PHENOTYPING PAGE
 '''
 import streamlit as st
-
-# Import relevant libraries
 import streamlit_utils
-import app_top_of_page as top
-import streamlit_dataframe_editor as sde
 from streamlit_extras.add_vertical_space import add_vertical_space
+
 
 def main():
     '''
     Main function for running the page
     '''
-
-    # Use the whole page width
-    st.set_page_config(page_title="Data Import and Export",
-                       layout="wide")
-
-    # Run streamlit-dataframe-editor library initialization tasks at the top of the page
-    st.session_state = sde.initialize_session_state(st.session_state)
-
-    # Run Top of Page (TOP) functions
-    st.session_state = top.top_of_page_reqs(st.session_state)
-
-    st.title('Data Import and Export')
 
     # Store a copy (not a link) of the platform object for clarity below
     platform = st.session_state['platform']
@@ -94,8 +79,6 @@ def main():
     # and it may have been modified, save it back to Streamlit
     st.session_state['platform'] = platform
 
-    # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
-    st.session_state = sde.finalize_session_state(st.session_state)
 
 if __name__ == '__main__':
     main()

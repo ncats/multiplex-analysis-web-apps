@@ -3,8 +3,6 @@ import os
 import streamlit as st
 import utils as utils
 
-import app_top_of_page as top
-import streamlit_dataframe_editor as sde
 
 def main():
 
@@ -13,18 +11,6 @@ def main():
         st.session_state['roi_index_to_visualize'] = roi_names.index(st.session_state['roi_name_to_visualize'])
     def update_roi_name(roi_names):
         st.session_state['roi_name_to_visualize'] = roi_names[st.session_state['roi_index_to_visualize']]
-
-    # Set a wide layout
-    st.set_page_config(layout="wide")
-
-    # Run streamlit-dataframe-editor library initialization tasks at the top of the page
-    st.session_state = sde.initialize_session_state(st.session_state)
-
-    # Run Top of Page (TOP) functions
-    st.session_state = top.top_of_page_reqs(st.session_state)
-
-    # Display page heading
-    st.title('Individual ROI heatmaps')
 
     if os.path.exists(os.path.join('.', 'output', 'images', 'single_roi_outlines_on_whole_slides')) and os.path.exists(os.path.join('.', 'output', 'images', 'roi_plots')) and os.path.exists(os.path.join('.', 'output', 'images', 'dens_pvals_per_roi')):
 
@@ -81,8 +67,6 @@ def main():
     else:
         st.warning('At least one of the three sets of per-ROI plots does not exist; please run all per-ROI components of the workflow on the "Run workflow" page', icon='⚠️')
 
-    # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
-    st.session_state = sde.finalize_session_state(st.session_state)
 
 if __name__ == '__main__':
     main()

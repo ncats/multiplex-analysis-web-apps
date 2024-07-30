@@ -54,6 +54,8 @@ def main():
 
         # Determine whether we should employ threading
         use_multiprocessing = st.checkbox('Should we use multiple logical CPUs to speed up the calculations?', key='use_multiprocessing')
+        # This isn't actually a good fix because it's only the Squidpy enrichment that shouldn't have multiprocessing, not the entire workflow, but we need to implement that in the future
+        # use_multiprocessing = st.checkbox('Should we use multiple logical CPUs to speed up the calculations?', key='use_multiprocessing', disabled=(st.session_state['settings__analysis__significance_calculation_method'] != 'Poisson (radius)'))
 
         # Get the number of threads to use for the calculations
         num_workers = st.number_input('Select number of threads for calculations:', min_value=1, max_value=os.cpu_count(), step=1, key='num_workers', disabled=(not use_multiprocessing))

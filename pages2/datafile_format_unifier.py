@@ -2,7 +2,6 @@
 import os
 import streamlit as st
 import pandas as pd
-import app_top_of_page as top
 import streamlit_dataframe_editor as sde
 import re
 import utils
@@ -51,16 +50,6 @@ def main():
     """
     Main function for the Datafile Unifier page.
     """
-
-    # Set page settings
-    st.set_page_config(layout='wide', page_title='Datafile Unifier')
-    st.title('Datafile Unifier')
-
-    # Run streamlit-dataframe-editor library initialization tasks at the top of the page
-    st.session_state = sde.initialize_session_state(st.session_state)
-
-    # Run Top of Page (TOP) functions
-    st.session_state = top.top_of_page_reqs(st.session_state)
 
     # Constants
     directory = os.path.join('.', 'input')
@@ -178,8 +167,8 @@ def main():
                         df_holder = []
                         for input_file in input_files:
                             curr_df = pd.read_csv(os.path.join(directory, input_file), sep=sep)
-                            assert 'input_filename' not in curr_df.columns, 'ERROR: "input_filename" is one of the columns but we want to overwrite it'
-                            curr_df['input_filename'] = input_file
+                            if 'input_filename' not in curr_df.columns:
+                                curr_df['input_filename'] = input_file
                             df_holder.append(curr_df)
                         st.session_state['unifier__df'] = utils.downcast_dataframe_dtypes(pd.concat(df_holder, ignore_index=True))
 
@@ -678,8 +667,6 @@ def main():
         st.write(sampled_df)
         st.dataframe(pd.DataFrame(st.session_state['unifier__input_files_actual'], columns=["Input files included in the combined dataset"]), hide_index=True)
 
-    # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
-    st.session_state = sde.finalize_session_state(st.session_state)
 
 # Run the main function
 if __name__ == '__main__':
