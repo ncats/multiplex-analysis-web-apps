@@ -2,17 +2,35 @@
 import streamlit as st
 import subprocess
 
+
 try:
     import parc
-    print("Successfully imported parc!")
 except ImportError:
-    print("Installing parc...")
     subprocess.run("pip install parc", shell=True)
     try:
         import parc
     except ImportError:
        print("Failed to import parc.")
-        
+    
+try:
+    import annoy
+except ImportError:
+    subprocess.run("pip install annoy", shell=True)
+    try:
+        import annoy
+    except ImportError:
+       print("Failed to import annoy.")
+
+try:
+    import sklearn_ann
+except ImportError:
+    subprocess.run("pip install sklearn-ann", shell=True)
+    try:
+        import sklearn_ann
+    except ImportError:
+       print("Failed to import sklearn-ann.") 
+
+
 from ast import arg
 from pyparsing import col
 import streamlit as st
@@ -31,7 +49,6 @@ import scanpy.external as sce
 import plotly.express as px
 import time
 from pynndescent import PyNNDescentTransformer
-import annoy
 from scipy.sparse import csr_matrix
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn_ann.utils import TransformerChecksMixin
@@ -504,7 +521,8 @@ def run_utag_clust(adata, n_neighbors, resolution, clustering_method, max_dist, 
         resolution_parameter = resolution
         sc.tl.leiden(utag_results,resolution=resolution_parameter, random_state=random_state,
                 n_iterations=n_iterations, flavor="igraph")
-        utag_results.obs['Cluster'] = utag_results.obs['leiden']   
+        utag_results.obs['Cluster'] = utag_results.obs['leiden'].copy()
+        adata.uns["leiden"] = utag_results.uns["leiden"].copy() 
         
     else:
         utag_results = utag(adata,
@@ -520,22 +538,27 @@ def run_utag_clust(adata, n_neighbors, resolution, clustering_method, max_dist, 
         processes = n_jobs)
         
         curClusterCol = 'UTAG Label_leiden_'  + str(resolution)
-        utag_results.obs['Cluster'] = utag_results.obs[curClusterCol]
+        utag_results.obs['Cluster'] = utag_results.obs[curClusterCol].copy()
 
-                  
-    adata.obs["Cluster"] = utag_results.obs['Cluster'].astype(str)
-    adata.obsp["distances"] = utag_results.obsp["distances"]
-    adata.obsp["connectivities"] = utag_results.obsp["connectivities"]
-    adata.obsm["X_pca"] = utag_results.obsm["X_pca"]
-    adata.uns["neighbors"] = utag_results.uns["neighbors"]
-    utag_results.X = adata.X
+    cluster_list = list(utag_results.obs['Cluster'])
+    print(pd.unique(cluster_list))    
+    adata.obsp["distances"] = utag_results.obsp["distances"].copy()
+    adata.obsp["connectivities"] = utag_results.obsp["connectivities"].copy()
+    adata.obsm["X_pca"] = utag_results.obsm["X_pca"].copy()
+    adata.uns["neighbors"] = utag_results.uns["neighbors"].copy()
+    adata.varm["PCs"] = utag_results.varm["PCs"].copy()
+    adata.obs["Cluster"] = cluster_list
+    #utag_results.X = adata.X
     
-    return utag_results
+    return adata
 
 def phenocluster__scanpy_umap(adata, n_neighbors, metric, n_principal_components):
-    if n_principal_components > 0:
-        sc.pp.pca(adata, n_comps=n_principal_components)
-    sc.pp.neighbors(adata, n_neighbors=n_neighbors, metric=metric, n_pcs=n_principal_components)
+    if "X_pca" not in adata.obsm:
+            if n_principal_components > 0:
+                sc.pp.pca(adata, n_comps=n_principal_components)
+    if "neighbors" not in adata.uns:
+        print("Finding nearest neigbours")         
+        sc.pp.neighbors(adata, n_neighbors=n_neighbors, metric=metric, n_pcs=n_principal_components)
     sc.tl.umap(adata)
     st.session_state['phenocluster__clustering_adata'] = adata
 
@@ -745,14 +768,16 @@ def phenocluster__add_clusters_to_input_df():
         cur_df = st.session_state['input_dataset'].data
         cur_df = cur_df.drop(columns=st.session_state["phenocluster__phenotype_cluster_cols"])
         st.session_state['input_dataset'].data = cur_df
-    
-    st.session_state['input_dataset'].data["Phenotype_Cluster"] = 'Phenotype ' + st.session_state['phenocluster__clustering_adata'].obs["Cluster"].astype(str)
+    print(pd.unique(st.session_state['phenocluster__clustering_adata'].obs['Cluster']))
+    st.session_state['input_dataset'].data["Phenotype_Cluster"] = 'Phenotype ' + str(st.session_state['phenocluster__clustering_adata'].obs["Cluster"])
+    print(st.session_state['input_dataset'].data["Phenotype_Cluster"])
     dummies = pd.get_dummies(st.session_state['phenocluster__clustering_adata'].obs["Cluster"], prefix='Phenotype Cluster').astype(int)
     dummies = dummies.replace({1: '+', 0: '-'})
     cur_df = pd.concat([st.session_state['input_dataset'].data, dummies], axis=1)
     st.session_state['input_dataset'].data = cur_df
     new_cluster_cols = list(dummies.columns)
     st.session_state["phenocluster__phenotype_cluster_cols"] = new_cluster_cols
+    print(st.session_state["phenocluster__phenotype_cluster_cols"])
 
 # check that only numeric columns are included in the adata.X
 def phenocluster__check_input_dat(input_dat, numeric_cols):
@@ -795,7 +820,7 @@ def main():
             if item not in meta_columns:
                 meta_columns.append(item)
         
-        if st.button('Submuit columns', help = '''Confirm columns selections to create the AnnData object'''):
+        if st.button('Submit columns', help = '''Confirm columns selections to create the AnnData object'''):
             st.session_state['phenocluster__clustering_adata'] = phenocluster__make_adata(st.session_state['input_dataset'].data, 
                                             numeric_cols,
                                             meta_columns)
