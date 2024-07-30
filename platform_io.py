@@ -500,7 +500,7 @@ class Platform:
             st.selectbox('Select available results archive to load:', self.available_archives, key='archive_to_load')
 
             # If the user wants to load the selected archive...
-            if st.button('Load selected (above) results archive :arrow_right:', help='WARNING: This will copy the contents of the selected archive to the results directory and will overwrite currently loaded results; please ensure they are backed up (you can just use the functions on this page)!'):
+            if st.button('Load selected results archive :arrow_right:', help='WARNING: This will copy the contents of the selected archive to the results directory and will overwrite currently loaded results; please ensure they are backed up (you can just use the functions on this page)!'):
 
                 # First delete everything in currently in the output results directory (i.e., all currently loaded data) that's not an output archive
                 delete_selected_files_and_dirs(local_output_dir, self.get_local_results_listing())
@@ -616,7 +616,7 @@ class Platform:
     
     # Write a dataframe of the results in the local output directory, also obviously platform-independent
     def display_local_results_df(self):
-        st.subheader(':open_file_folder: Results loaded in the tool')
+        st.subheader(':open_file_folder: Results in MAWA')
         make_complex_dataframe_from_file_listing(local_output_dir, self.get_local_results_listing(), df_session_state_key_basename='local_results', editable=True)
 
     # Delete selected items from the output results directory
@@ -640,7 +640,7 @@ class Platform:
     # Write a YAML file of the current tool parameters to the loaded results directory
     def write_settings_to_local_results(self):
         st.subheader(':tractor: Write current tool parameters to loaded results')
-        if st.button(':pencil2: Write current tool settings to the results directory', help='Note you can subsequently load these parameters from the "Tool parameter selection" tab at left'):
+        if st.button(':pencil2: Write current tool settings to the results directory'):
             write_current_tool_parameters_to_disk(local_output_dir)
             st.rerun()  # rerun since this potentially changes outputs
 
