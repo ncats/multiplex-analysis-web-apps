@@ -305,7 +305,10 @@ def main():
     Main function for the page.
     """
 
-    df, column_to_plot, values_to_plot, categorical_columns, unique_images = draw_scatter_plot_with_options()
+    if (return_values := draw_scatter_plot_with_options()) is None:
+        return
+
+    df, column_to_plot, values_to_plot, categorical_columns, unique_images = return_values
 
     if 'rsp__get_percent_frequencies' not in st.session_state:
         st.session_state['rsp__get_percent_frequencies'] = False
