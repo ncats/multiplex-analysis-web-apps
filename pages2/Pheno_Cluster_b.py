@@ -21,12 +21,7 @@ import basic_phenotyper_lib as bpl
 import nidap_dashboard_lib as ndl 
 
 # ALW moved on 7/5/24 from __name__ == "__main__" to here so that Streamlit's new multipage functionality will run this since it just calls main()
-# @Andrei this or something related is throwing:
-#   deprecation.showPyplotGlobalUse IS NO LONGER SUPPORTED.
-#   The support for global pyplot instances is planned to be removed soon.
-#   Please update <user defined>.
-# Is it needed or can it be replaced?
-st.set_option('deprecation.showPyplotGlobalUse', False)
+
 
 # Functions 
 

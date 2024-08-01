@@ -34,8 +34,7 @@ import time
 from utag.segmentation import utag
 
 # ALW moved on 7/5/24 from __name__ == "__main__" to here so that Streamlit's new multipage functionality will run these commands since it just calls main()
-phenocluster__col_0 = st.columns(1)
-phenocluster__col1, phenocluster__col2 = st.columns([1, 6])
+
 
 def phenocluster__make_adata(df, x_cols, meta_cols):
     mat = df[x_cols]
@@ -139,8 +138,8 @@ def phenocluster__scanpy_umap(adata, n_neighbors, metric, n_principal_components
     st.session_state['phenocluster__clustering_adata'] = adata
 
 # plot umaps
-def phenocluster__plotly_umaps(adata, umap_cur_col, umap_cur_groups, umap_color_col):
-    with phenocluster__col2:
+def phenocluster__plotly_umaps(adata, umap_cur_col, umap_cur_groups, umap_color_col, plot_col):
+    with plot_col:
         subcol1, subcol2 = st.columns(2)
         for i, umap_cur_group in enumerate(umap_cur_groups):
             if umap_cur_group == "All":
@@ -182,8 +181,8 @@ def phenocluster__plotly_umaps(adata, umap_cur_col, umap_cur_groups, umap_color_
                 subcol2.plotly_chart(fig, use_container_width=True)
 
 # plot spatial
-def spatial_plots_cust_2(adata, umap_cur_col, umap_cur_groups, umap_color_col):
-    with phenocluster__col2:
+def spatial_plots_cust_2(adata, umap_cur_col, umap_cur_groups, umap_color_col, plot_col):
+    with plot_col:
         subcol3, subcol4 = st.columns(2)
         for i, umap_cur_group in enumerate(umap_cur_groups):
             if umap_cur_group == "All":
@@ -324,17 +323,6 @@ def phenocluster__default_session_state():
 def phenocluster__subset_data(adata, subset_col, subset_vals):
     adata_subset = adata[adata.obs[subset_col].isin(subset_vals)]
     st.session_state['phenocluster__clustering_adata'] = adata_subset
-
-# clusters differential expression
-def phenocluster__diff_expr(adata, phenocluster__de_col, phenocluster__de_sel_groups):
-    sc.tl.rank_genes_groups(adata, groupby = phenocluster__de_col, method="wilcoxon", layer="counts")
-    
-    if "All" in phenocluster__de_sel_groups:
-        phenocluster__de_results = sc.get.rank_genes_groups_df(adata, group=None)
-    else:
-        phenocluster__de_results = sc.get.rank_genes_groups_df(adata, group=phenocluster__de_sel_groups)
-    with phenocluster__col2:
-        st.dataframe(phenocluster__de_results, use_container_width=True)
     
 
 # main
@@ -343,202 +331,213 @@ def main():
     Main function for the page.
     """
     #st.write(st.session_state['unifier__df'].head())
-    
+    phenocluster__col_0, phenocluster__col_0a = st.columns([10,1])
+
+    phenocluster__col1, phenocluster__col2 = st.columns([1, 6])
     # set default values
     phenocluster__default_session_state()
-    
     
     
     # make layout with columns    
     # options
     
-    with phenocluster__col_0[0]:
-        
-        numeric_cols = st.multiselect('Select numeric columns for clustering:', options = st.session_state['input_dataset'].data.columns, 
-                    key='phenocluster__X_cols')
-        meta_columns = st.multiselect('Select columns for metadata:', options = st.session_state['input_dataset'].data.columns, 
+    try:
+        with phenocluster__col_0:
+            st.multiselect('Select numeric columns for clustering:', options = st.session_state['input_dataset'].data.columns, 
+                        key='phenocluster__X_cols')
+            
+            st.multiselect('Select columns for metadata:', options = st.session_state['input_dataset'].data.columns, 
                 key='phenocluster__meta_cols')
-        
-        items_to_add = ['Centroid X (µm)_(standardized)', 'Centroid Y (µm)_(standardized)']
-        
-        #meta_columns = st.session_state['phenocluster__meta_cols']
-        # Add the new items if they don't already exist in the list
-        for item in items_to_add:
-            if item not in meta_columns:
-                meta_columns.append(item)
-        
-        if st.button('Submuit columns'):
-            st.session_state['phenocluster__clustering_adata'] = phenocluster__make_adata(st.session_state['input_dataset'].data, 
-                                            numeric_cols,
-                                            meta_columns)
-    
-    if 'phenocluster__clustering_adata' in st.session_state:
-    
-        with phenocluster__col1:
+                    
+                    
+            meta_columns = st.session_state['phenocluster__meta_cols']
+            numeric_cols = st.session_state['phenocluster__X_cols']
+            #Add the new items if they don't already exist in the list
+            items_to_add = ['Centroid X (µm)_(standardized)', 'Centroid Y (µm)_(standardized)']
+            for item in items_to_add:
+                if item not in st.session_state['phenocluster__meta_cols']:
+                    st.session_state['phenocluster__meta_cols'].append(item)
             
-            # subset data
-            st.checkbox('Subset Data:', key='phenocluster__subset_data')
-            if st.session_state['phenocluster__subset_data'] == True:
-                st.session_state['phenocluster__subset_options'] = list(st.session_state['phenocluster__clustering_adata'].obs.columns)
-                phenocluster__subset_col = st.selectbox('Select column for subsetting:', st.session_state['phenocluster__subset_options'])
-                st.session_state["phenocluster__subset_col"] = phenocluster__subset_col 
-                st.session_state['phenocluster__subset_values_options'] = list(pd.unique(st.session_state['phenocluster__clustering_adata'].obs[st.session_state["phenocluster__subset_col"]]))
-                phenocluster__subset_vals = st.multiselect('Select value for subsetting:', options = st.session_state['phenocluster__subset_values_options'], key='phenocluster__subset_vals_1')
-                st.session_state["phenocluster__subset_vals"] = phenocluster__subset_vals 
-                if st.button('Subset Data'):
-                    phenocluster__subset_data(st.session_state['phenocluster__clustering_adata'],
-                                            st.session_state["phenocluster__subset_col"],
-                                            st.session_state["phenocluster__subset_vals"])
+            if st.button('Submuit columns'):
+                st.session_state['phenocluster__clustering_adata'] = phenocluster__make_adata(st.session_state['input_dataset'].data, 
+                                                numeric_cols,
+                                                meta_columns)
+    except:
+        st.warning("container issue")
+        
+    try:
+            
+        if 'phenocluster__clustering_adata' in st.session_state:
+        
+            with phenocluster__col1:
                 
-            # st.button('Subset Data' , on_click=phenocluster__subset_data, args = [st.session_state['phenocluster__clustering_adata'],
-            #                                                                         st.session_state["phenocluster__subset_col"],
-            #                                                                         st.session_state["phenocluster__subset_vals"]
-                                                                                    
-            # ]
-            # )
-                            
-            clusteringMethods = ['phenograph', 'scanpy', 'parc', 'utag']
-            selected_clusteringMethod = st.selectbox('Select Clustering method:', clusteringMethods, 
-                                                    key='clusteringMethods_dropdown') 
+                # subset data
+                st.checkbox('Subset Data:', key='phenocluster__subset_data')
+                if st.session_state['phenocluster__subset_data'] == True:
+                    st.session_state['phenocluster__subset_options'] = list(st.session_state['phenocluster__clustering_adata'].obs.columns)
+                    phenocluster__subset_col = st.selectbox('Select column for subsetting:', st.session_state['phenocluster__subset_options'])
+                    st.session_state["phenocluster__subset_col"] = phenocluster__subset_col 
+                    st.session_state['phenocluster__subset_values_options'] = list(pd.unique(st.session_state['phenocluster__clustering_adata'].obs[st.session_state["phenocluster__subset_col"]]))
+                    phenocluster__subset_vals = st.multiselect('Select value for subsetting:', options = st.session_state['phenocluster__subset_values_options'], key='phenocluster__subset_vals_1')
+                    st.session_state["phenocluster__subset_vals"] = phenocluster__subset_vals 
+                    if st.button('Subset Data'):
+                        phenocluster__subset_data(st.session_state['phenocluster__clustering_adata'],
+                                                st.session_state["phenocluster__subset_col"],
+                                                st.session_state["phenocluster__subset_vals"])
+                    
+                # st.button('Subset Data' , on_click=phenocluster__subset_data, args = [st.session_state['phenocluster__clustering_adata'],
+                #                                                                         st.session_state["phenocluster__subset_col"],
+                #                                                                         st.session_state["phenocluster__subset_vals"]
+                                                                                        
+                # ]
+                # )
+                                
+                clusteringMethods = ['phenograph', 'scanpy', 'parc', 'utag']
+                selected_clusteringMethod = st.selectbox('Select Clustering method:', clusteringMethods, 
+                                                        key='clusteringMethods_dropdown') 
 
-            # Update session state on every change
-            st.session_state['phenocluster__cluster_method'] = selected_clusteringMethod
+                # Update session state on every change
+                st.session_state['phenocluster__cluster_method'] = selected_clusteringMethod
 
-            # default widgets
-            
-            st.number_input(label = "Number of Principal Components", key='phenocluster__n_principal_components', step = 1)
-            
-            st.session_state['phenocluster__n_neighbors_state']  = st.number_input(label = "K Nearest Neighbors", 
-                                    value=st.session_state['phenocluster__n_neighbors_state'])
-            
-            st.number_input(label = "Clustering resolution", key='phenocluster__resolution')
-            
-            if st.session_state['phenocluster__cluster_method'] == "phenograph":
-                # st.session_state['phenocluster__phenograph_k'] = st.number_input(label = "Phenograph k", 
-                #                     value=st.session_state['phenocluster__phenograph_k'])
-                st.selectbox('Phenograph clustering algorithm:', ['louvain', 'leiden'], key='phenocluster__phenograph_clustering_algo')
-                st.number_input(label = "Phenograph min cluster size", key='phenocluster__phenograph_min_cluster_size', step = 1)
-                st.selectbox('Distance metric:', ['euclidean', 'manhattan', 'correlation', 'cosine'], key='phenocluster__metric')
-                st.selectbox('Phenograph nn method:', ['kdtree', 'brute'], key='phenocluster__phenograph_nn_method')
-            
-            elif st.session_state['phenocluster__cluster_method'] == "scanpy":
-                st.selectbox('Distance metric:', ['euclidean', 'manhattan', 'correlation', 'cosine'], key='phenocluster__metric')
-            
-            elif st.session_state['phenocluster__cluster_method'] == "parc":
-                # make parc specific widgets
-                st.number_input(label = "Parc dist std local", key='phenocluster__parc_dist_std_local', step = 1)
-                st.number_input(label = "Parc jac std global", key='phenocluster__parc_jac_std_global', step = 0.01)
-                st.number_input(label = "Minimum cluster size to be considered a separate population",
-                                key='phenocluster__parc_small_pop', step = 1)
-                st.number_input(label = "Random seed", key='phenocluster__random_seed', step = 1)
-                st.number_input(label = "HNSW exploration factor for construction", 
-                                key='phenocluster__hnsw_param_ef_construction', step = 1)
-            elif st.session_state['phenocluster__cluster_method'] == "utag":
-                # make utag specific widgets
-                #st.selectbox('UTAG clustering method:', ['leiden', 'parc'], key='phenocluster__utag_clustering_method')
-                st.number_input(label = "UTAG max dist", key='phenocluster__utag_max_dist', step = 1)
-            
-            # add options if clustering has been run
-            if st.button('Run Clustering'):
-                start_time = time.time()
+                # default widgets
+                
+                st.number_input(label = "Number of Principal Components", key='phenocluster__n_principal_components', step = 1)
+                
+                st.session_state['phenocluster__n_neighbors_state']  = st.number_input(label = "K Nearest Neighbors", 
+                                        value=st.session_state['phenocluster__n_neighbors_state'])
+                
+                st.number_input(label = "Clustering resolution", key='phenocluster__resolution')
+                
                 if st.session_state['phenocluster__cluster_method'] == "phenograph":
-                    with st.spinner('Wait for it...'):
-                        st.session_state['phenocluster__clustering_adata'] = RunPhenographClust(adata=st.session_state['phenocluster__clustering_adata'], n_neighbors=st.session_state['phenocluster__n_neighbors_state'],
-                                                                                                clustering_algo=st.session_state['phenocluster__phenograph_clustering_algo'],
-                                                                                                min_cluster_size=st.session_state['phenocluster__phenograph_min_cluster_size'],
-                                                                                                primary_metric=st.session_state['phenocluster__metric'],
-                                                                                                resolution_parameter=st.session_state['phenocluster__resolution'],
-                                                                                                nn_method=st.session_state['phenocluster__phenograph_nn_method'],
-                                                                                                random_seed=st.session_state['phenocluster__random_seed'],
+                    # st.session_state['phenocluster__phenograph_k'] = st.number_input(label = "Phenograph k", 
+                    #                     value=st.session_state['phenocluster__phenograph_k'])
+                    st.selectbox('Phenograph clustering algorithm:', ['louvain', 'leiden'], key='phenocluster__phenograph_clustering_algo')
+                    st.number_input(label = "Phenograph min cluster size", key='phenocluster__phenograph_min_cluster_size', step = 1)
+                    st.selectbox('Distance metric:', ['euclidean', 'manhattan', 'correlation', 'cosine'], key='phenocluster__metric')
+                    st.selectbox('Phenograph nn method:', ['kdtree', 'brute'], key='phenocluster__phenograph_nn_method')
+                
+                elif st.session_state['phenocluster__cluster_method'] == "scanpy":
+                    st.selectbox('Distance metric:', ['euclidean', 'manhattan', 'correlation', 'cosine'], key='phenocluster__metric')
+                
+                elif st.session_state['phenocluster__cluster_method'] == "parc":
+                    # make parc specific widgets
+                    st.number_input(label = "Parc dist std local", key='phenocluster__parc_dist_std_local', step = 1)
+                    st.number_input(label = "Parc jac std global", key='phenocluster__parc_jac_std_global', step = 0.01)
+                    st.number_input(label = "Minimum cluster size to be considered a separate population",
+                                    key='phenocluster__parc_small_pop', step = 1)
+                    st.number_input(label = "Random seed", key='phenocluster__random_seed', step = 1)
+                    st.number_input(label = "HNSW exploration factor for construction", 
+                                    key='phenocluster__hnsw_param_ef_construction', step = 1)
+                elif st.session_state['phenocluster__cluster_method'] == "utag":
+                    # make utag specific widgets
+                    #st.selectbox('UTAG clustering method:', ['leiden', 'parc'], key='phenocluster__utag_clustering_method')
+                    st.number_input(label = "UTAG max dist", key='phenocluster__utag_max_dist', step = 1)
+                
+                # add options if clustering has been run
+                if st.button('Run Clustering'):
+                    start_time = time.time()
+                    if st.session_state['phenocluster__cluster_method'] == "phenograph":
+                        with st.spinner('Wait for it...'):
+                            st.session_state['phenocluster__clustering_adata'] = RunPhenographClust(adata=st.session_state['phenocluster__clustering_adata'], n_neighbors=st.session_state['phenocluster__n_neighbors_state'],
+                                                                                                    clustering_algo=st.session_state['phenocluster__phenograph_clustering_algo'],
+                                                                                                    min_cluster_size=st.session_state['phenocluster__phenograph_min_cluster_size'],
+                                                                                                    primary_metric=st.session_state['phenocluster__metric'],
+                                                                                                    resolution_parameter=st.session_state['phenocluster__resolution'],
+                                                                                                    nn_method=st.session_state['phenocluster__phenograph_nn_method'],
+                                                                                                    random_seed=st.session_state['phenocluster__random_seed'],
+                                                                                                    n_principal_components=st.session_state['phenocluster__n_principal_components']
+                                                                                                    )
+                    elif st.session_state['phenocluster__cluster_method'] == "scanpy":
+                        with st.spinner('Wait for it...'):
+                            st.session_state['phenocluster__clustering_adata'] = RunNeighbClust(adata=st.session_state['phenocluster__clustering_adata'], 
+                                                                                                n_neighbors=st.session_state['phenocluster__n_neighbors_state'],
+                                                                                                metric=st.session_state['phenocluster__metric'],
+                                                                                                resolution=st.session_state['phenocluster__resolution'],
+                                                                                                random_state=st.session_state['phenocluster__random_seed'],
                                                                                                 n_principal_components=st.session_state['phenocluster__n_principal_components']
                                                                                                 )
-                elif st.session_state['phenocluster__cluster_method'] == "scanpy":
-                    with st.spinner('Wait for it...'):
-                        st.session_state['phenocluster__clustering_adata'] = RunNeighbClust(adata=st.session_state['phenocluster__clustering_adata'], 
-                                                                                            n_neighbors=st.session_state['phenocluster__n_neighbors_state'],
-                                                                                            metric=st.session_state['phenocluster__metric'],
-                                                                                            resolution=st.session_state['phenocluster__resolution'],
-                                                                                            random_state=st.session_state['phenocluster__random_seed'],
-                                                                                            n_principal_components=st.session_state['phenocluster__n_principal_components']
-                                                                                            )
-                #st.session_state['phenocluster__clustering_adata'] = adata
-                elif st.session_state['phenocluster__cluster_method'] == "parc":
-                    with st.spinner('Wait for it...'):                  
-                        st.session_state['phenocluster__clustering_adata'] = run_parc_clust(adata=st.session_state['phenocluster__clustering_adata'], 
-                                                                                            n_neighbors=st.session_state['phenocluster__n_neighbors_state'],
-                                                                                            dist_std_local=st.session_state['phenocluster__parc_dist_std_local'],
-                                                                                            jac_std_global= st.session_state['phenocluster__parc_jac_std_global'],
-                                                                                            small_pop=st.session_state['phenocluster__parc_small_pop'],
-                                                                                            random_seed=st.session_state['phenocluster__random_seed'],
-                                                                                            resolution_parameter=st.session_state['phenocluster__resolution'],
-                                                                                            hnsw_param_ef_construction=st.session_state['phenocluster__hnsw_param_ef_construction'],
-                                                                                            n_principal_components=st.session_state['phenocluster__n_principal_components']
-                                                                                            )
-                elif st.session_state['phenocluster__cluster_method'] == "utag":
-                    phenocluster__utag_resolutions = [st.session_state['phenocluster__resolution']]
-                    with st.spinner('Wait for it...'):
-                        st.session_state['phenocluster__clustering_adata'] = run_utag_clust(adata=st.session_state['phenocluster__clustering_adata'], 
-                                                                                            n_neighbors=st.session_state['phenocluster__n_neighbors_state'], 
-                                                                                            resolutions=phenocluster__utag_resolutions,
-                                                                                            clustering_method=st.session_state['phenocluster__utag_clustering_method'],
-                                                                                            max_dist=st.session_state['phenocluster__utag_max_dist'],
-                                                                                            n_principal_components=st.session_state['phenocluster__n_principal_components']
-                                                                                            )
-                # save clustering result
-                #st.session_state['phenocluster__clustering_adata'].write("input/clust_dat.h5ad")
-                end_time = time.time()
-                execution_time = end_time - start_time
-                rounded_time = round(execution_time, 2)
-                st.write('Execution time: ', rounded_time, 'seconds')       
+                    #st.session_state['phenocluster__clustering_adata'] = adata
+                    elif st.session_state['phenocluster__cluster_method'] == "parc":
+                        with st.spinner('Wait for it...'):                  
+                            st.session_state['phenocluster__clustering_adata'] = run_parc_clust(adata=st.session_state['phenocluster__clustering_adata'], 
+                                                                                                n_neighbors=st.session_state['phenocluster__n_neighbors_state'],
+                                                                                                dist_std_local=st.session_state['phenocluster__parc_dist_std_local'],
+                                                                                                jac_std_global= st.session_state['phenocluster__parc_jac_std_global'],
+                                                                                                small_pop=st.session_state['phenocluster__parc_small_pop'],
+                                                                                                random_seed=st.session_state['phenocluster__random_seed'],
+                                                                                                resolution_parameter=st.session_state['phenocluster__resolution'],
+                                                                                                hnsw_param_ef_construction=st.session_state['phenocluster__hnsw_param_ef_construction'],
+                                                                                                n_principal_components=st.session_state['phenocluster__n_principal_components']
+                                                                                                )
+                    elif st.session_state['phenocluster__cluster_method'] == "utag":
+                        phenocluster__utag_resolutions = [st.session_state['phenocluster__resolution']]
+                        with st.spinner('Wait for it...'):
+                            st.session_state['phenocluster__clustering_adata'] = run_utag_clust(adata=st.session_state['phenocluster__clustering_adata'], 
+                                                                                                n_neighbors=st.session_state['phenocluster__n_neighbors_state'], 
+                                                                                                resolutions=phenocluster__utag_resolutions,
+                                                                                                clustering_method=st.session_state['phenocluster__utag_clustering_method'],
+                                                                                                max_dist=st.session_state['phenocluster__utag_max_dist'],
+                                                                                                n_principal_components=st.session_state['phenocluster__n_principal_components']
+                                                                                                )
+                    # save clustering result
+                    #st.session_state['phenocluster__clustering_adata'].write("input/clust_dat.h5ad")
+                    end_time = time.time()
+                    execution_time = end_time - start_time
+                    rounded_time = round(execution_time, 2)
+                    st.write('Execution time: ', rounded_time, 'seconds')       
+                        
                     
-                
-                # umap
-            if 'Cluster' in st.session_state['phenocluster__clustering_adata'].obs.columns:
-                st.session_state['input_dataset'].data["Phenotype_Cluster"] = st.session_state['phenocluster__clustering_adata'].obs["Cluster"]
-                #st.write(pd.unique(st.session_state['phenocluster__clustering_adata'].obs["Cluster"]))
+                    # umap
+                if 'Cluster' in st.session_state['phenocluster__clustering_adata'].obs.columns:
+                    st.session_state['input_dataset'].data["Phenotype_Cluster"] = st.session_state['phenocluster__clustering_adata'].obs["Cluster"]
+                    #st.write(pd.unique(st.session_state['phenocluster__clustering_adata'].obs["Cluster"]))
 
-                st.session_state['phenocluster__umeta_columns'] = list(st.session_state['phenocluster__clustering_adata'].obs.columns)
-                st.session_state['phenocluster__umap_color_col_index'] = st.session_state['phenocluster__umeta_columns'].index(st.session_state['phenocluster__umap_color_col'])
-                #st.write(st.session_state['phenocluster__umap_color_col_index'])
+                    st.session_state['phenocluster__umeta_columns'] = list(st.session_state['phenocluster__clustering_adata'].obs.columns)
+                    st.session_state['phenocluster__umap_color_col_index'] = st.session_state['phenocluster__umeta_columns'].index(st.session_state['phenocluster__umap_color_col'])
+                    #st.write(st.session_state['phenocluster__umap_color_col_index'])
+                    
+                    # select column for umap coloring
+                    st.session_state['phenocluster__umap_color_col'] = st.selectbox('Select column for groups coloring:', 
+                                                                            st.session_state['phenocluster__umeta_columns'],
+                                                                            index=st.session_state['phenocluster__umap_color_col_index']
+                                                                            )
+                    
+                    # select column for umap subsetting
+                    st.session_state['phenocluster__umap_cur_col'] = st.selectbox('Select column to subset plots:', 
+                                                                            st.session_state['phenocluster__umeta_columns'], key='phenocluster__umap_col_dropdown_subset'
+                                                                            )
+                    
+                    # list of available subsetting options
+                    umap_cur_groups=  ["All"] + list(pd.unique(st.session_state['phenocluster__clustering_adata'].obs[st.session_state['phenocluster__umap_cur_col']]))
+                    umap_sel_groups = st.multiselect('Select groups to be plotted',
+                                                                                    options = umap_cur_groups)
+                    st.session_state['phenocluster__umap_cur_groups'] = umap_sel_groups
+                    
+                    st.button('Make Spatial Plots' , on_click=spatial_plots_cust_2, args = [st.session_state['phenocluster__clustering_adata'], 
+                    st.session_state['phenocluster__umap_cur_col'], 
+                    st.session_state['phenocluster__umap_cur_groups'],
+                    st.session_state['phenocluster__umap_color_col'],
+                    phenocluster__col2
+                    ]
+                            )
+                    
+                    st.button("Compute UMAPs", on_click=phenocluster__scanpy_umap, args = [st.session_state['phenocluster__clustering_adata'],
+                                                                                        st.session_state['phenocluster__n_neighbors_state'],
+                                                                                        st.session_state['phenocluster__metric'],
+                                                                                        st.session_state['phenocluster__n_principal_components']
+                                                                                        ]
+                            )
+                    
+                    st.button('Plot UMAPs' , on_click=phenocluster__plotly_umaps, args = [st.session_state['phenocluster__clustering_adata'], 
+                    st.session_state['phenocluster__umap_cur_col'], 
+                    st.session_state['phenocluster__umap_cur_groups'],
+                    st.session_state['phenocluster__umap_color_col'],
+                    phenocluster__col2
+                    ]
+                            )
+    except:
+        st.warning("container issue")
                 
-                # select column for umap coloring
-                st.session_state['phenocluster__umap_color_col'] = st.selectbox('Select column for groups coloring:', 
-                                                                        st.session_state['phenocluster__umeta_columns'],
-                                                                        index=st.session_state['phenocluster__umap_color_col_index']
-                                                                        )
-                
-                # select column for umap subsetting
-                st.session_state['phenocluster__umap_cur_col'] = st.selectbox('Select column to subset plots:', 
-                                                                        st.session_state['phenocluster__umeta_columns'], key='phenocluster__umap_col_dropdown_subset'
-                                                                        )
-                
-                # list of available subsetting options
-                umap_cur_groups=  ["All"] + list(pd.unique(st.session_state['phenocluster__clustering_adata'].obs[st.session_state['phenocluster__umap_cur_col']]))
-                umap_sel_groups = st.multiselect('Select groups to be plotted',
-                                                                                options = umap_cur_groups)
-                st.session_state['phenocluster__umap_cur_groups'] = umap_sel_groups
-                
-                st.button('Make Spatial Plots' , on_click=spatial_plots_cust_2, args = [st.session_state['phenocluster__clustering_adata'], 
-                st.session_state['phenocluster__umap_cur_col'], 
-                st.session_state['phenocluster__umap_cur_groups'],
-                st.session_state['phenocluster__umap_color_col']
-                ]
-                        )
-                
-                st.button("Compute UMAPs", on_click=phenocluster__scanpy_umap, args = [st.session_state['phenocluster__clustering_adata'],
-                                                                                    st.session_state['phenocluster__n_neighbors_state'],
-                                                                                    st.session_state['phenocluster__metric'],
-                                                                                    st.session_state['phenocluster__n_principal_components']
-                                                                                    ]
-                        )
-                
-                st.button('Plot UMAPs' , on_click=phenocluster__plotly_umaps, args = [st.session_state['phenocluster__clustering_adata'], 
-                st.session_state['phenocluster__umap_cur_col'], 
-                st.session_state['phenocluster__umap_cur_groups'],
-                st.session_state['phenocluster__umap_color_col'],
-                ]
-                        )
-            
                 
             
     
@@ -548,7 +547,7 @@ if __name__ == '__main__':
 
     # Set page settings
     page_name = 'Unsupervised Phenotype Clustering'
-    st.set_page_config(layout='wide', page_title=page_name)
+    #st.set_page_config(layout='wide', page_title=page_name)
     st.title(page_name)
     
     # Run streamlit-dataframe-editor library initialization tasks at the top of the page
