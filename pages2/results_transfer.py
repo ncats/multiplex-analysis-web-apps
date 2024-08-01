@@ -80,7 +80,7 @@ def main():
         zipfile_path = os.path.join(output_dir, st.session_state[key])
 
         # Check if we're on NIDAP
-        on_nidap = st.session_state['platform'] == 'nidap'
+        on_nidap = st.session_state['platform'].platform == 'nidap'
 
         # Add a button to zip (and transfer, if on NIDAP) the selected files
         if st.button('Zip and transfer to NIDAP' if on_nidap else 'Zip'):
