@@ -33,6 +33,7 @@ from pages2 import memory_analyzer
 from pages2 import radial_bins_plots
 from pages2 import radial_profiles_analysis
 from pages2 import preprocessing
+from pages2 import results_transfer
 
 
 def welcome_page():
@@ -110,7 +111,8 @@ def main():
         'Utilities 🛠️':
             [
                 st.Page(preprocessing.main, title="Preprocessing", url_path='preprocessing'),
-                st.Page(memory_analyzer.main, title="Memory Analyzer", url_path='memory_analyzer')
+                st.Page(memory_analyzer.main, title="Memory Analyzer", url_path='memory_analyzer'),
+                st.Page(results_transfer.main, title="Results Transfer", url_path='results_transfer')
             ]
         })
 
