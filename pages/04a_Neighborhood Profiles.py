@@ -297,8 +297,8 @@ def check_feature_approval_callback():
 
         feature_vals = natsorted(st.session_state.udp_full.df[st.session_state.dens_diff_feat_sel].unique())
         if st.session_state.clust_diff_vals_code == 2:
-            options_fals = [feature_vals[1]]
-            options_true = [feature_vals[0]]
+            options_fals = [feature_vals[0]]
+            options_true = [feature_vals[1]]
         elif st.session_state.clust_diff_vals_code > 2 and st.session_state.clust_diff_vals_code <= 15:
             options_fals = feature_vals
             options_true = feature_vals
