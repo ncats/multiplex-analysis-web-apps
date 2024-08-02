@@ -19,6 +19,9 @@ import plotly.express as px
 import streamlit_dataframe_editor as sde
 import basic_phenotyper_lib as bpl
 import nidap_dashboard_lib as ndl 
+import plotnine
+from plotnine import *
+
 
 # ALW moved on 7/5/24 from __name__ == "__main__" to here so that Streamlit's new multipage functionality will run this since it just calls main()
 
@@ -89,9 +92,69 @@ def phenocluster__plot_diff_intensity(adata, groups, method, n_genes, cur_col):
         cur_fig = sc.pl.rank_genes_groups_stacked_violin(adata, n_genes=n_genes, 
                                                       groups=cur_groups, split = False)
         
-        
-    st.session_state['phenocluster__diff_intensity_plot'] = cur_fig  
+def phenocluster__plot_diff_intensity_2(adata, groups, method, n_genes, plot_column):
+    if "All" in groups:
+        cur_groups = list(pd.unique(st.session_state['phenocluster__de_results']["group"]))
+    else:
+        cur_groups = groups
+    norm_adata = adata.copy()
+    sc.pp.normalize_total(norm_adata)
+    sc.pp.log1p(norm_adata)
+    sc.pp.scale(norm_adata)
+    if "Edit_Cluster" in adata.obs.columns:
+        cluster_group = "Edit_Cluster"
+    else:
+        cluster_group = "Cluster"
+    
+    adata_sub  = norm_adata[norm_adata.obs[cluster_group].isin(cur_groups)]
+    top_names = pd.unique(st.session_state['phenocluster__de_results'].groupby('group')['names'].apply(lambda x: x.head(n_genes)))
 
+    with plot_column:
+        if method == "Heat Map":
+            obs_df = adata_sub.to_df().fillna(0)
+            obs_df[cluster_group] = adata_sub.obs[cluster_group]
+            mean_per_group = obs_df.groupby(cluster_group).mean()
+            matrix_avg = mean_per_group.stack().reset_index()
+            matrix_avg.columns = [cluster_group, "Marker", "Intensity"]
+            plot_mat = matrix_avg[matrix_avg["Marker"].isin(top_names)].reset_index(drop=True)
+            plot_mat["Marker"] = pd.Categorical(plot_mat["Marker"], categories=top_names[::-1], ordered=True)
+            plotnine.options.figure_size = (10, 10)
+            plot = (
+                ggplot(plot_mat, aes(cluster_group, "Marker"))
+                + geom_tile(mapping = aes(fill = "Intensity"))
+                + scale_fill_distiller(type = 'div', palette = 'RdYlBu')
+                + theme(axis_text_x=element_text(rotation=0, hjust=0.5, size=28))
+                + theme(axis_text_y=element_text(rotation=0, hjust=1, size=16))
+                + theme(axis_title_x = element_blank(), axis_title_y = element_text(angle=90))
+                + theme(text=element_text(size=16))
+                )
+            
+            st.pyplot(ggplot.draw(plot), use_container_width=True)
+        
+        elif method == "UMAP":
+            obs_df = adata_sub[:, top_names].to_df().reset_index(drop=True)
+            umap_coords = adata_sub.obsm['X_umap']
+            umap_df = pd.DataFrame(umap_coords, columns=['UMAP_1', 'UMAP_2']).reset_index(drop=True)
+            umap_df["Cells_Id"] = umap_df.index
+            obs_df = pd.concat([obs_df, umap_df], axis=1)
+            # Get the column names excluding 'UMAP_1' and 'UMAP_2'
+            columns = top_names
+            # Calculate the number of rows needed for the subplots
+            n_rows = int(np.ceil(len(columns) / 4))
+            # Create a figure with subplots
+            fig, axs = plt.subplots(n_rows, 4, figsize=(20, 5*n_rows))
+            # Flatten the axes array to make it easier to iterate over
+            axs = axs.flatten()
+            for ax, col in zip(axs, columns):
+                plot = sns.scatterplot(data=obs_df, x='UMAP_1', y='UMAP_2', hue=col, palette='viridis', ax=ax)
+                ax.set_title(col)
+                plot.legend(loc='upper left', bbox_to_anchor=(1, 1))
+            # Remove any unused subplots
+            for ax in axs[len(columns):]:
+                ax.remove()
+            plt.tight_layout()
+            st.pyplot(fig, use_container_width=True)
+        
 def data_editor_change_callback():
     '''
     data_editor_change_callback is a callback function for the streamlit data_editor widget
@@ -223,7 +286,7 @@ def main():
     phenocluster__col3b, phenocluster__col4b  = st.columns([2, 6])
     sc.set_figure_params(figsize=(10, 10), fontsize = 16)
     if 'phenocluster__dif_int_plot_methods' not in st.session_state:
-        st.session_state['phenocluster__dif_int_plot_methods'] = ["Rank Plot", "Dot Plot", "Heat Map", "Violin Plot"]
+        st.session_state['phenocluster__dif_int_plot_methods'] = ["Rank Plot", "Dot Plot", "Heat Map", "UMAP", "Violin Plot"]
         
     with phenocluster__col1b:
         # differential expression
@@ -256,16 +319,17 @@ def main():
             #                                   st.session_state['phenocluster__plot_diff_intensity_method'],
             #                                   st.session_state['phenocluster__plot_diff_intensity_n_genes'],
             #                                   phenocluster__col4b)
-            # st.button('Plot Markers', on_click=phenocluster__plot_diff_intensity, args = [st.session_state['phenocluster__clustering_adata'], 
-            #                                                                               st.session_state['phenocluster__de_sel_groups'],
-            #                                                                               st.session_state['phenocluster__plot_diff_intensity_method'],
-            #                                                                               st.session_state['phenocluster__plot_diff_intensity_n_genes']
-            #                                                                               ])   
+            st.button('Plot Markers', on_click=phenocluster__plot_diff_intensity_2, args = [st.session_state['phenocluster__clustering_adata'], 
+                                                                                          st.session_state['phenocluster__de_sel_groups'],
+                                                                                          st.session_state['phenocluster__plot_diff_intensity_method'],
+                                                                                          st.session_state['phenocluster__plot_diff_intensity_n_genes'],
+                                                                                            phenocluster__col4b
+                                                                                          ])   
             
     # make plots for differential intensity markers 
-    if 'phenocluster__diff_intensity_plot' in st.session_state:
-        with phenocluster__col4b:
-            cur_fig = st.session_state['phenocluster__diff_intensity_plot']
+    # if 'phenocluster__diff_intensity_plot' in st.session_state:
+    #     with phenocluster__col4b:
+    #         cur_fig = st.session_state['phenocluster__diff_intensity_plot']
             #st.pyplot(fig = cur_fig, use_container_width = True, clear_figure = False)
     
     phenocluster__col5b, phenocluster__col6b  = st.columns([2, 6])
