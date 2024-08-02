@@ -9,9 +9,8 @@ import shutil
 import pandas as pd
 import streamlit as st
 import streamlit_dataframe_editor as sde
-import streamlit_session_state_management
 import utils
-from pages import memory_analyzer
+from pages2 import memory_analyzer
 
 # Constant
 local_input_dir = os.path.join('.', 'input')
@@ -232,14 +231,14 @@ class Platform:
     # Write a dataframe of the available inputs on the remote
     def display_available_inputs_df(self):
 
-        st.subheader('Input Data on NIDAP :open_file_folder:')
-        
         # Again, irrelevant for local
         if self.platform == 'local':
             pass
 
         # If on NIDAP...
         elif self.platform == 'nidap':
+
+            st.subheader(':open_file_folder: Available input data on NIDAP')
 
             # If we've never determined the inputs available on the remote (e.g., when the script first starts), do so now
             if self.available_inputs is None:
@@ -267,8 +266,6 @@ class Platform:
     # Load any selected available inputs on the remote to the local machine
     def load_selected_inputs(self):
 
-        st.subheader('Load into MAWA :arrow_forward:')
-        load_button = st.button('Load NIDAP input data into MAWA :arrow_right:')
         # Irrelevant for local
         if self.platform == 'local':
             pass
@@ -276,8 +273,10 @@ class Platform:
         # If on NIDAP...
         elif self.platform == 'nidap':
 
+            st.subheader(':tractor: Load input data into MAWA')
+
             # If a load button is clicked...
-            if load_button:
+            if st.button('Load selected NIDAP input data :arrow_right:'):
 
                 # Import relevant libraries
                 import nidap_io
@@ -374,7 +373,7 @@ class Platform:
     
     # Write a dataframe of the local input files, which we don't want to be editable because we don't want to mess with the local inputs (for now), even though they're basically a local copy
     def display_local_inputs_df(self):
-        st.subheader('Input Data in MAWA :open_file_folder:')
+        st.subheader(':open_file_folder: Input data in MAWA')
         local_inputs = self.get_local_inputs_listing()
         if self.platform == 'local':  # not editable locally because deletion is disabled anyway so there'd be nothing to do with selected files
             make_complex_dataframe_from_file_listing(dirpath=local_input_dir, item_names=local_inputs, editable=False)
@@ -501,7 +500,7 @@ class Platform:
             st.selectbox('Select available results archive to load:', self.available_archives, key='archive_to_load')
 
             # If the user wants to load the selected archive...
-            if st.button('Load selected (above) results archive :arrow_right:', help='WARNING: This will copy the contents of the selected archive to the results directory and will overwrite currently loaded results; please ensure they are backed up (you can just use the functions on this page)!'):
+            if st.button('Load selected results archive :arrow_right:', help='WARNING: This will copy the contents of the selected archive to the results directory and will overwrite currently loaded results; please ensure they are backed up (you can just use the functions on this page)!'):
 
                 # First delete everything in currently in the output results directory (i.e., all currently loaded data) that's not an output archive
                 delete_selected_files_and_dirs(local_output_dir, self.get_local_results_listing())
@@ -617,7 +616,7 @@ class Platform:
     
     # Write a dataframe of the results in the local output directory, also obviously platform-independent
     def display_local_results_df(self):
-        st.subheader(':open_file_folder: Results loaded in the tool')
+        st.subheader(':open_file_folder: Results in MAWA')
         make_complex_dataframe_from_file_listing(local_output_dir, self.get_local_results_listing(), df_session_state_key_basename='local_results', editable=True)
 
     # Delete selected items from the output results directory
@@ -641,7 +640,7 @@ class Platform:
     # Write a YAML file of the current tool parameters to the loaded results directory
     def write_settings_to_local_results(self):
         st.subheader(':tractor: Write current tool parameters to loaded results')
-        if st.button(':pencil2: Write current tool settings to the results directory', help='Note you can subsequently load these parameters from the "Tool parameter selection" tab at left'):
+        if st.button(':pencil2: Write current tool settings to the results directory'):
             write_current_tool_parameters_to_disk(local_output_dir)
             st.rerun()  # rerun since this potentially changes outputs
 
