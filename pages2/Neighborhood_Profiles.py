@@ -297,8 +297,8 @@ def check_feature_approval_callback():
 
         feature_vals = natsorted(st.session_state.udp_full.df[st.session_state.dens_diff_feat_sel].unique())
         if st.session_state.clust_diff_vals_code == 2:
-            options_fals = [feature_vals[1]]
-            options_true = [feature_vals[0]]
+            options_fals = [feature_vals[0]]
+            options_true = [feature_vals[1]]
         elif st.session_state.clust_diff_vals_code > 2 and st.session_state.clust_diff_vals_code <= 15:
             options_fals = feature_vals
             options_true = feature_vals
@@ -899,6 +899,10 @@ def main():
 
         npf_fig_big = plt.figure(figsize=(16, 45), facecolor = '#0E1117')
 
+        title_supp = [f'DATASET: {st.session_state.datafile}',
+                 f'FEATURE: {st.session_state.dens_diff_feat_sel}',
+                 f'FALSE Val: {st.session_state.feature_value_fals}, TRUE Val: {st.session_state.feature_value_true}',]
+
         list_figures = [['Average False', None, 'Individual Cluster Plots'],
                         ['Average True', None, 'Individual Cluster Plots'],
                         ['Average False', 'Average True', 'Aggregate Cluster Ratios'],
@@ -960,6 +964,15 @@ def main():
                         axii.set_yscale('log')
             else:
                 axii.set_yscale('log')
+
+        plot_title = ''
+        for i in title_supp:
+            plot_title = plot_title + i + '\n'
+
+        # Super title with more information
+        npf_fig_big.suptitle(t = plot_title, color = '#FAFAFA', x = 0.1, y = 0.9,
+                             horizontalalignment = 'left',
+                             verticalalignment = 'top',)
 
         st.pyplot(fig=npf_fig_big)
 
