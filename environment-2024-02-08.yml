@@ -37,6 +37,3 @@ dependencies:
     - annoy
     - sklearn_ann
     - pynndescent
-    
-
-
