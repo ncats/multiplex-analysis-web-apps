@@ -21,6 +21,7 @@ import basic_phenotyper_lib as bpl
 import nidap_dashboard_lib as ndl 
 import plotnine
 from plotnine import *
+import math
 
 
 # ALW moved on 7/5/24 from __name__ == "__main__" to here so that Streamlit's new multipage functionality will run this since it just calls main()
@@ -155,6 +156,56 @@ def phenocluster__plot_diff_intensity_2(adata, groups, method, n_genes, plot_col
                 ax.remove()
             plt.tight_layout()
             st.pyplot(fig, use_container_width=True)
+        elif method == "Rank Plot":
+            #obs_df = st.session_state['phenocluster__de_results'][st.session_state['phenocluster__de_results']['group'].isin(cur_groups)].reset_index(drop=True)
+            top_n_df = st.session_state['phenocluster__de_results'].groupby('group').head(n_genes).reset_index(drop=True)
+            top_n_df["ranking"]= top_n_df.groupby('group')['names'].cumcount()
+            
+            # Get the unique groups
+            groups = top_n_df['group'].unique()
+
+            # Calculate the number of rows needed for the subplots
+            rows = math.ceil(len(groups) / 2)
+            cols = 2
+
+            # Create a figure with subplots
+            fig, axes = plt.subplots(rows, cols, figsize=(15, 5*rows))
+
+            # Flatten the axes array for easier indexing
+            axes = axes.flatten()
+
+            # For each group, create a scatter plot
+            for i, group in enumerate(groups):
+                df_group = top_n_df[top_n_df['group'] == group]
+                
+                # Create scatter plot
+                sns.scatterplot(x='ranking', y='scores', data=df_group, ax=axes[i], alpha=0)
+                
+                # Add text labels
+                for _, row in df_group.iterrows():
+                    axes[i].text(row['ranking'], row['scores'], row['names'], 
+                                ha='center', va='bottom', rotation='vertical', fontsize=12)  # Increase fontsize here
+                
+                # Set the x-axis range and ticks
+                axes[i].set_xlim(df_group['ranking'].min()-2, df_group['ranking'].max()+2)
+                axes[i].set_xticks(range(int(df_group['ranking'].min()-2), int(df_group['ranking'].max()+2), 2))
+                axes[i].set_ylim(df_group['scores'].min()-2, df_group['scores'].max()+10)
+                
+                # Set titles and labels
+                axes[i].set_title(group, fontsize=16)  # Increase fontsize here
+                axes[i].set_xlabel('ranking', fontsize=14)  # Increase fontsize here
+                axes[i].set_ylabel('scores', fontsize=14)  # Increase fontsize here
+                axes[i].tick_params(axis='x', labelsize=14)  # Increase fontsize here
+                axes[i].tick_params(axis='y', labelsize=14) 
+
+            # Remove any unused subplots
+            for j in range(i+1, len(axes)):
+                fig.delaxes(axes[j])
+
+            # Adjust the layout and show the plot
+            plt.tight_layout()
+            # Show the plot
+            st.pyplot(fig, use_container_width=True)
         
 def data_editor_change_callback():
     '''
@@ -287,7 +338,7 @@ def main():
     phenocluster__col3b, phenocluster__col4b  = st.columns([2, 6])
     sc.set_figure_params(figsize=(10, 10), fontsize = 16)
     if 'phenocluster__dif_int_plot_methods' not in st.session_state:
-        st.session_state['phenocluster__dif_int_plot_methods'] = ["Rank Plot", "Dot Plot", "Heat Map", "UMAP", "Violin Plot"]
+        st.session_state['phenocluster__dif_int_plot_methods'] = ["Rank Plot", "Heat Map", "UMAP"]
         
     with phenocluster__col1b:
         # differential expression
