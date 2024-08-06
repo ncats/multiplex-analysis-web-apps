@@ -97,16 +97,16 @@ def phenocluster__plot_diff_intensity_2(adata, groups, method, n_genes, plot_col
         cur_groups = list(pd.unique(st.session_state['phenocluster__de_results']["group"]))
     else:
         cur_groups = groups
-    norm_adata = adata.copy()
-    sc.pp.normalize_total(norm_adata)
-    sc.pp.log1p(norm_adata)
-    sc.pp.scale(norm_adata)
+    adata_norm = adata.copy()
+    sc.pp.normalize_total(adata_norm)
+    sc.pp.log1p(adata_norm)
+    sc.pp.scale(adata_norm)
     if "Edit_Cluster" in adata.obs.columns:
         cluster_group = "Edit_Cluster"
     else:
         cluster_group = "Cluster"
     
-    adata_sub  = norm_adata[norm_adata.obs[cluster_group].isin(cur_groups)]
+    adata_sub  = adata_norm[adata_norm.obs[cluster_group].isin(cur_groups)]
     top_names = pd.unique(st.session_state['phenocluster__de_results'].groupby('group')['names'].apply(lambda x: x.head(n_genes)))
 
     with plot_column:
@@ -132,8 +132,8 @@ def phenocluster__plot_diff_intensity_2(adata, groups, method, n_genes, plot_col
             st.pyplot(ggplot.draw(plot), use_container_width=True)
         
         elif method == "UMAP":
-            obs_df = adata_sub[:, top_names].to_df().reset_index(drop=True)
-            umap_coords = adata_sub.obsm['X_umap']
+            obs_df = adata_norm[:, top_names].to_df().reset_index(drop=True)
+            umap_coords = adata_norm.obsm['X_umap']
             umap_df = pd.DataFrame(umap_coords, columns=['UMAP_1', 'UMAP_2']).reset_index(drop=True)
             umap_df["Cells_Id"] = umap_df.index
             obs_df = pd.concat([obs_df, umap_df], axis=1)
@@ -146,7 +146,8 @@ def phenocluster__plot_diff_intensity_2(adata, groups, method, n_genes, plot_col
             # Flatten the axes array to make it easier to iterate over
             axs = axs.flatten()
             for ax, col in zip(axs, columns):
-                plot = sns.scatterplot(data=obs_df, x='UMAP_1', y='UMAP_2', hue=col, palette='viridis', ax=ax)
+                plot = sns.scatterplot(data=obs_df, x='UMAP_1', y='UMAP_2', hue=col, 
+                                       palette='viridis', ax=ax, s=8)
                 ax.set_title(col)
                 plot.legend(loc='upper left', bbox_to_anchor=(1, 1))
             # Remove any unused subplots
