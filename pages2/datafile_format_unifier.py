@@ -356,7 +356,6 @@ def main():
 
             if 'unifier__num_roi_columns_actual' not in st.session_state:
                 st.warning('You must press the "Assign ROIs" button even if ROIs are not explicitly defined in the dataset.')
-                return
 
             # If the selected columns to define ROIs have changed since the last time ROIs were defined, display a warning
             if st.session_state['unifier__roi_explicitly_defined']:

@@ -99,8 +99,9 @@ def draw_scatter_plot_with_options():
             max_num_unique_values = 1000
             categorical_columns = []
             for col in df.select_dtypes(include=('category', 'object')).columns:
-                if df[col].nunique() <= max_num_unique_values:
-                    categorical_columns.append(col)
+                if not isinstance(df[col].iloc[0], list):
+                    if df[col].nunique() <= max_num_unique_values:
+                        categorical_columns.append(col)
             st.session_state['rsp__categorical_columns'] = categorical_columns
         if ('rsp__numeric_columns' not in st.session_state) or input_dataset_has_changed:
             st.session_state['rsp__numeric_columns'] = df.select_dtypes(include='number').columns
@@ -293,7 +294,7 @@ def draw_scatter_plot_with_options():
         # Plot the plotly chart in Streamlit
         st.plotly_chart(fig, use_container_width=True)
 
-        # Attempt to get page to not scroll up to the top after the plot is drawn... doesn't seem to work here
+        # Attempt to get page to not scroll up to the top after the plot is drawn... doesn't seem to work here, though note that toggling on the box and whisker plot does prevent this snapping to the top
         st.write(' ')
 
     # Return necessary variables
