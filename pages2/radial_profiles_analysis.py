@@ -258,6 +258,11 @@ def main():
         st.warning('No phenotype columns found in the dataset. Please run the Adaptive Phenotyping page at left.')
         return
 
+    # Make sure all of the columns in ['T', 'REEC', 'well_id', 'Outer radius'] are present in df
+    if not all([col in df.columns for col in ['T', 'REEC', 'well_id', 'Outer radius']]):
+        st.warning('The columns "T", "REEC", "well_id", and "Outer radius" must be present in the dataset.')
+        return
+
     # Keep only the necessary columns
     df = df[['Slide ID', 'T', 'REEC', 'well_id', 'Outer radius'] + phenotype_columns]
 

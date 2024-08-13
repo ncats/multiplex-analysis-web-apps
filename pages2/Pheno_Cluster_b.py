@@ -92,6 +92,13 @@ def phenocluster__plot_diff_intensity(adata, groups, method, n_genes, cur_col):
     elif method == "Violin Plot":
         cur_fig = sc.pl.rank_genes_groups_stacked_violin(adata, n_genes=n_genes, 
                                                       groups=cur_groups, split = False)
+    # elif method == "UMAP" and "X_umap" in adata.obsm.keys():
+    #     adata_sub  = adata[adata.obs['Cluster'].isin(cur_groups)]
+    #     top_names = pd.unique(st.session_state['phenocluster__de_results'].groupby('group')['names'].apply(lambda x: x.head(n_genes)))
+    #     with cur_col:
+    #        cur_fig  = st.pyplot(sc.pl.umap(adata, color=[*top_names], legend_loc="on data",frameon=True,
+    #                    ncols=3, show=True, 
+    #                    wspace = 0.2 ,save  = False), use_container_width = True , clear_figure = True)
         
 def phenocluster__plot_diff_intensity_2(adata, groups, method, n_genes, plot_column):
     if "All" in groups:
@@ -317,7 +324,7 @@ def phenocluster__add_edit_clusters_to_input_df():
     
     st.session_state['input_dataset'].data["Phenotype_Cluster"] = 'Phenotype ' + st.session_state['phenocluster__clustering_adata'].obs['Edit_Cluster'].astype(str)
     dummies = pd.get_dummies(st.session_state['phenocluster__clustering_adata'].obs['Edit_Cluster'], prefix='Phenotype Cluster').astype(int)
-    dummies = dummies.replace({1: '+', 0: '-'})
+    #dummies = dummies.replace({1: '+', 0: '-'})
     cur_df = pd.concat([st.session_state['input_dataset'].data, dummies], axis=1)
     st.session_state['input_dataset'].data = cur_df
     new_cluster_cols = list(dummies.columns)
