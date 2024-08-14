@@ -12,7 +12,7 @@ import seaborn as sns
 import os
 import matplotlib.pyplot as plt
 import phenograph
-import parc
+#import parc
 import numpy as np
 import scanpy.external as sce
 import plotly.express as px
