@@ -7,6 +7,17 @@ import re
 import utils
 
 
+def callback_for_combining_datafiles(filenames):
+
+    # Clear all keys in the session state starting with "unifier__" and not applicable to the selections above the callback button
+    keys_to_delete = [key for key in st.session_state.keys() if (key.startswith("unifier__")) and (key not in ['unifier__input_files', 'unifier__de_datafile_selection', 'unifier__df_datafile_selection', 'unifier__df_datafile_selection_changes_dict', 'unifier__df_datafile_selection_key'])]
+    for key in keys_to_delete:
+        if key in st.session_state:
+            del st.session_state[key]
+
+    generate_guess_for_basename_of_mawa_unified_file(filenames)
+
+
 def generate_guess_for_basename_of_mawa_unified_file(filenames):
     # generate_guess_for_basename_of_mawa_unified_file(df_reconstructed.loc[selected_rows, 'Filename'])
 
@@ -142,42 +153,54 @@ def main():
             else:
                 load_msg = 'Loading and Combining Files...'
             # Create a button to concatenate the selected files
-            if st.button(button_text, help=button_help_message, disabled=load_button_disabled, on_click=generate_guess_for_basename_of_mawa_unified_file, args=(df_reconstructed.loc[selected_rows, 'Filename'],)):
+            if st.button(button_text, help=button_help_message, disabled=load_button_disabled, on_click=callback_for_combining_datafiles, args=(df_reconstructed.loc[selected_rows, 'Filename'],)):
 
                 # Render a progress spinner while the files are being combined
                 with st.spinner(load_msg):
 
                     # Efficiently check if the columns are equal for all input files
-                    columns_equal = True
                     if len(input_files) > 1:
-                        sep = (',' if input_files[0].split('.')[-1] == 'csv' else '\t')
-                        first_file_columns = pd.read_csv(os.path.join(directory, input_files[0]), nrows=0, sep=sep).columns
-                        for input_file in input_files[1:]:
+                        columns_holder = []
+                        for input_file in input_files:
                             sep = (',' if input_file.split('.')[-1] == 'csv' else '\t')
                             current_file_columns = pd.read_csv(os.path.join(directory, input_file), nrows=0, sep=sep).columns
-                            if not first_file_columns.equals(current_file_columns):
-                                st.error('Columns are not equal for files: {} and {}'.format(input_files[0], input_file))
-                                columns_equal = False
-                                break
+                            columns_holder.append(current_file_columns)
 
-                    # If the columns are equal for all input files, concatenate all files into a single dataframe
-                    if columns_equal:
+                        # Check if the columns are equal for all input files
+                        columns_equal = all([columns_holder[0].equals(columns) for columns in columns_holder])
+
+                    else:
+                        columns_equal = True
+
+                    # If the columns are not equal for all input files, display a warning and obtain the common columns
+                    if not columns_equal:
+                        st.warning('The selected input files have different columns. We will take the intersection of the columns for all files.')
+                        common_columns = list(set.intersection(*[set(columns) for columns in columns_holder]))
+                        unique_columns = list(set.union(*[set(columns) for columns in columns_holder]) - set(common_columns))
+                        st.write('Columns excluded from the file combination:', unique_columns)
+                    else:
                         sep = (',' if input_files[0].split('.')[-1] == 'csv' else '\t')
-                        # st.session_state['unifier__df'] = utils.downcast_dataframe_dtypes(pd.concat([pd.read_csv(os.path.join(directory, input_file), sep=sep) for input_file in input_files], ignore_index=True))
-                        df_holder = []
-                        for input_file in input_files:
-                            curr_df = pd.read_csv(os.path.join(directory, input_file), sep=sep)
-                            if 'input_filename' not in curr_df.columns:
-                                curr_df['input_filename'] = input_file
-                            df_holder.append(curr_df)
-                        st.session_state['unifier__df'] = utils.downcast_dataframe_dtypes(pd.concat(df_holder, ignore_index=True))
+                        common_columns = pd.read_csv(os.path.join(directory, input_files[0]), nrows=0, sep=sep).columns
 
-                        # Save the setting used for this operation
-                        st.session_state['unifier__input_files_actual'] = input_files
+                    if len(common_columns) == 0:
+                        st.warning('No common columns found. Please select files with common columns.')
+                        return
+
+                    # Concatenate all files into a single dataframe using the common set of columns
+                    sep = (',' if input_files[0].split('.')[-1] == 'csv' else '\t')
+                    df_holder = []
+                    for input_file in input_files:
+                        curr_df = pd.read_csv(os.path.join(directory, input_file), sep=sep, usecols=common_columns)
+                        if 'input_filename' not in curr_df.columns:
+                            curr_df['input_filename'] = input_file
+                        df_holder.append(curr_df)
+                    st.session_state['unifier__df'] = utils.downcast_dataframe_dtypes(pd.concat(df_holder, ignore_index=True))
+
+                    # Save the setting used for this operation
+                    st.session_state['unifier__input_files_actual'] = input_files
 
                 # Display a success message
-                if columns_equal:
-                    st.success(f'{len(input_files)} files combined')
+                st.success(f'{len(input_files)} files combined')
 
                 # Set a flag to update the dataframe sample at the bottom of the page
                 show_dataframe_updates = True
@@ -199,6 +222,16 @@ def main():
 
             # Display a header for the null row deletion section
             st.markdown('## :two: Delete null rows (optional) ')
+
+            # Allow user to detect null rows
+            if st.button('Detect null rows in each column'):
+                ser_num_of_null_rows_in_each_column = df.isnull().sum()
+                if ser_num_of_null_rows_in_each_column.sum() == 0:
+                    st.success('No null rows detected in the dataset.')
+                else:
+                    st.write('Null values have been detected. Here are the numbers of null rows found in each column. Note they may not matter depending on the column:')
+                    ser_num_of_null_rows_in_each_column.name = 'Number of null rows'
+                    st.write(ser_num_of_null_rows_in_each_column)
 
             # Create an expander for the null row deletion section
             with st.expander('Click to expand:', expanded=False):

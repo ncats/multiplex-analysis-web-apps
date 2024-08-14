@@ -8,6 +8,10 @@ import pandas as pd
 from itertools import cycle, islice
 
 
+def turn_off_plotting():
+    st.session_state['rsp__show_scatter_plot'] = False
+
+
 def update_color_for_value(value_to_change_color):
     st.session_state['rsp__color_dict'][value_to_change_color] = st.session_state['rsp__new_picked_color']
 
@@ -148,7 +152,7 @@ def draw_scatter_plot_with_options():
         # Optionally plot minimum and maximum coordinate fields
         if 'rsp__use_coordinate_mins_and_maxs' not in st.session_state:
             st.session_state['rsp__use_coordinate_mins_and_maxs'] = False
-        use_coordinate_mins_and_maxs = st.checkbox('Use coordinate mins and maxs', key='rsp__use_coordinate_mins_and_maxs')
+        use_coordinate_mins_and_maxs = st.checkbox('Use coordinate mins and maxs', key='rsp__use_coordinate_mins_and_maxs', on_change=turn_off_plotting)
         settings_columns_refined = st.columns(2)
         if 'rsp__x_min_coordinate_column' not in st.session_state:
             st.session_state['rsp__x_min_coordinate_column'] = numeric_columns[0]
@@ -159,13 +163,13 @@ def draw_scatter_plot_with_options():
         if 'rsp__y_max_coordinate_column' not in st.session_state:
             st.session_state['rsp__y_max_coordinate_column'] = numeric_columns[0]
         with settings_columns_refined[0]:
-            xmin_col = st.selectbox('Select a column for the minimum x-coordinate:', numeric_columns, key='rsp__x_min_coordinate_column', disabled=(not use_coordinate_mins_and_maxs))
+            xmin_col = st.selectbox('Select a column for the minimum x-coordinate:', numeric_columns, key='rsp__x_min_coordinate_column', disabled=(not use_coordinate_mins_and_maxs), on_change=turn_off_plotting)
         with settings_columns_refined[1]:
-            xmax_col = st.selectbox('Select a column for the maximum x-coordinate:', numeric_columns, key='rsp__x_max_coordinate_column', disabled=(not use_coordinate_mins_and_maxs))
+            xmax_col = st.selectbox('Select a column for the maximum x-coordinate:', numeric_columns, key='rsp__x_max_coordinate_column', disabled=(not use_coordinate_mins_and_maxs), on_change=turn_off_plotting)
         with settings_columns_refined[0]:
-            ymin_col = st.selectbox('Select a column for the minimum y-coordinate:', numeric_columns, key='rsp__y_min_coordinate_column', disabled=(not use_coordinate_mins_and_maxs))
+            ymin_col = st.selectbox('Select a column for the minimum y-coordinate:', numeric_columns, key='rsp__y_min_coordinate_column', disabled=(not use_coordinate_mins_and_maxs), on_change=turn_off_plotting)
         with settings_columns_refined[1]:
-            ymax_col = st.selectbox('Select a column for the maximum y-coordinate:', numeric_columns, key='rsp__y_max_coordinate_column', disabled=(not use_coordinate_mins_and_maxs))
+            ymax_col = st.selectbox('Select a column for the maximum y-coordinate:', numeric_columns, key='rsp__y_max_coordinate_column', disabled=(not use_coordinate_mins_and_maxs), on_change=turn_off_plotting)
         units = ('coordinate units' if use_coordinate_mins_and_maxs else 'microns')
 
         # Optionally add another filter
