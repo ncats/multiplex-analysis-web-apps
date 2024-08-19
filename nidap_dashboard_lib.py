@@ -639,7 +639,7 @@ def setFigureObjs_UMAPDifferences(session_state):
             udp_ins = udp_true
         else:
             udp_ins = udp_ins_raw
-            session_state.umap_ins_msg = 'Please choose a boolean or numerical feature'
+            session_state.umap_ins_msg = 'Please choose a feature that is either boolean or numerical'
     else:
         udp_ins = udp_ins_raw
 
