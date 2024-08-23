@@ -77,6 +77,29 @@ def init_pheno_cols(df, marker_names, marker_col_prefix):
     # This was previously really slow. Code basically taken from new_phenotyping_lib.py
     marker_cols_first_row = df_markers.iloc[0, :].to_list()  # get just the first row of marker values
     if (0 not in marker_cols_first_row) and (1 not in marker_cols_first_row):
+
+        # Null values in df_markers will break the .map() step so check for and remove them here
+        ser_num_of_null_rows_in_each_column = df_markers.isnull().sum()
+        if ser_num_of_null_rows_in_each_column.sum() != 0:
+
+            # For the time being, import Streamlit so warnings can be rendered. Otherwise, this file does not import streamlit and it should remain that way but this is a minimal fix for the time being
+            import streamlit as st
+
+            st.warning('Null values have been detected in the phenotype columns. Next time, please check for and remove null rows in the datafile unification step (File Handling > Datafile Unification). We are removing them for you now. Here are the numbers of null rows found in each column containing them:')
+            ser_num_of_null_rows_in_each_column.name = 'Number of null rows'
+            st.write(ser_num_of_null_rows_in_each_column[ser_num_of_null_rows_in_each_column != 0])
+
+            # Perform the operation
+            row_count_before = len(df)
+            df = df.dropna(subset=marker_cols)
+            row_count_after = len(df)
+
+            # Display a success message
+            st.write(f'{row_count_before - row_count_after} rows deleted')
+
+            # Update df_markers
+            df_markers = df[marker_cols]
+
         df_markers = df_markers.map(lambda x: {'+': '1', '-': '0'}[x[-1]])
     df['mark_bits'] = df_markers.astype(str).apply(''.join, axis='columns')  # efficiently create a series of strings that are the columns (in string format) concatenated together
 
