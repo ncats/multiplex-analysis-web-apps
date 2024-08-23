@@ -23,7 +23,7 @@ import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected 
 from benchmark_collector import benchmark_collector # Benchmark Collector Class
 import PlottingTools as umPT
 import utils
-
+from natsort import natsorted
 class NeighborhoodProfiles:
     '''
     Organization of the methods and attributes that are required to run
@@ -511,20 +511,26 @@ class UMAPDensityProcessing():
             int: 100: Feature is a numerical range and can be split by finding the median
         '''
 
-        col = self.df[feature]
-        dtypes = col.dtype
-        n_uni = col.nunique()
+        col = self.df[feature] # Column in question
+        dtypes = col.dtype     # Column Type
+        n_uni  = col.nunique() # Number of unique values
 
+        # If only 1 unique value, then the feature cannot be split
         if n_uni <= 1:
             return 0
+        # If exactly 2 values, then the value can be easily split.
         elif n_uni == 2:
             return 2
+        # If more than 2 values but less than 15, then the values
+        # can be easily split by two chosen values
         elif n_uni > 2 and n_uni <= 15:
             return n_uni
         else:
             if dtypes == 'category' or dtypes == 'object':
                 return 0
             else:
+                # If there are more than 15 unique values, and the values are numerical,
+                # then the Feature can be split by the median
                 return 100
 
     def filter_by_lineage(self, display_toggle, drop_val, default_val):
@@ -545,7 +551,7 @@ class UMAPDensityProcessing():
             elif display_toggle == 'Markers':
                 self.df = self.df.loc[self.df['species_name_short'].str.contains(drop_val), :]
 
-    def split_df_by_feature(self, feature, val_fals, val_true, val_code):
+    def split_df_by_feature(self, feature, val_fals=None, val_true=None, val_code=None):
         '''
         split_df_by_feature takes in a feature from a dataframe
         and first identifies if the feature is boolean, if it contains 
@@ -562,21 +568,69 @@ class UMAPDensityProcessing():
 
         Args:
             feature (str): Feature to split the dataframe by
+            val_fals (int): Value to use for the false condition
+            val_true (int): Value to use for the true condition
+            val_code (int): Code to use for the split
 
         Returns:
             split_dict (dict): Dictionary of the outcomes of splitting
-             the dataframe
+            the dataframe with the following parameters
+                appro_feat (bool): True if the feature is appropriate for splitting
+                df_umap_fals (Pandas dataframe): Dataframe of the false condition
+                df_umap_true (Pandas dataframe): Dataframe of the true condition
+                fals_msg (str): Message for the false condition
+                true_msg (str): Message for the true condition
         '''
 
+        # Set up the dictionary for the split
         split_dict = dict()
 
-        if val_code == 100:
+        # Check the feature values
+        if val_code is None:
+            val_code = self.check_feature_values(feature)
+
+        # Set default values for the false and true conditions
+        if val_fals is None:
+            # Get the unique values of the feature
+            feat_vals_uniq = natsorted(self.df[feature].unique())
+
+            if val_code == 0:
+                val_fals = None
+                val_true = None
+            elif val_code == 100:
+                # Get the median value of the feature
+                median_val = np.round(self.df[feature].median(), decimals = 2)
+
+                val_fals = median_val
+                val_true = median_val
+            elif val_code == 2:
+                val_fals = feat_vals_uniq[0]
+                val_true = feat_vals_uniq[1]
+            else:
+                # We can later make this more sophisticated
+                # but this is only ever reached if the feature values
+                # are not otherwise previously identified.
+                # I dont think think this will be too much of a problem.
+                # If we need more specificity on this in the future, it can
+                # be easily added.
+                val_fals = feat_vals_uniq[0]
+                val_true = feat_vals_uniq[1]
+
+        if val_code == 0:
+            split_dict['appro_feat'] = False
+            split_dict['df_umap_fals'] = None
+            split_dict['df_umap_true'] = None
+            split_dict['fals_msg']   = 'Feature is inappropriate for splitting'
+            split_dict['true_msg']   = 'Feature is inappropriate for splitting'
+        elif val_code == 100:
             median = val_fals
+            split_dict['appro_feat'] = True
             split_dict['df_umap_fals'] = self.df.loc[self.df[feature] <= median, :]
             split_dict['df_umap_true'] = self.df.loc[self.df[feature] > median, :]
             split_dict['fals_msg']   = f'<= {median:.2f}'
             split_dict['true_msg']   = f'> {median:.2f}'
         else:
+            split_dict['appro_feat'] = True
             split_dict['df_umap_fals'] = self.df.loc[self.df[feature] == val_fals, :]
             split_dict['df_umap_true'] = self.df.loc[self.df[feature] == val_true, :]
             split_dict['fals_msg']   = f'= {val_fals}'
