@@ -229,9 +229,9 @@ def main():
                 if ser_num_of_null_rows_in_each_column.sum() == 0:
                     st.success('No null rows detected in the dataset.')
                 else:
-                    st.write('Null values have been detected. Here are the numbers of null rows found in each column. Note they may not matter depending on the column:')
+                    st.write('Null values have been detected. Here are the numbers of null rows found in the columns containing them. Note they may not matter depending on the column:')
                     ser_num_of_null_rows_in_each_column.name = 'Number of null rows'
-                    st.write(ser_num_of_null_rows_in_each_column)
+                    st.write(ser_num_of_null_rows_in_each_column[ser_num_of_null_rows_in_each_column != 0])
 
             # Create an expander for the null row deletion section
             with st.expander('Click to expand:', expanded=False):
