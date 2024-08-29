@@ -761,11 +761,19 @@ def calculate_neighbor_counts_with_possible_chunking(center_coords=None, neighbo
     return neighbor_counts
 
 
-def calculate_neighbor_counts_with_kdtree(center_coords, neighbor_coords, radius):
+def calculate_neighbor_counts_with_kdtree(center_coords, neighbor_coords, radius, tol=1e-9):
+    radius = radius - tol  # to essentially make the check [0, radius) instead of [0, radius]
     center_tree = scipy.spatial.KDTree(center_coords)
     neighbor_tree = scipy.spatial.KDTree(neighbor_coords)
     indexes = center_tree.query_ball_tree(neighbor_tree, r=radius)
     return np.array([len(neighbors_list) for neighbors_list in indexes])  # (num_centers,)
+
+    # Using this matches the cdist method but is not elegant, but using "tol" above gets the same result more efficiently
+    # neighbor_counts = []
+    # for i, neighbors_list in enumerate(indexes):
+    #     count = sum(np.linalg.norm(neighbor_coords[idx] - center_coords[i]) < radius for idx in neighbors_list)
+    #     neighbor_counts.append(count)
+    # return np.array(neighbor_counts)  # (num_centers,)
 
 
 def dataframe_insert_possibly_existing_column(df, column_position, column_name, srs_column_values):

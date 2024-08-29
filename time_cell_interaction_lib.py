@@ -2814,7 +2814,7 @@ def roi_checks_and_output(x_roi, y_roi, do_printing=True, do_main_printing=True)
     return(x_range, y_range, min_coordinate_spacing)
 
 
-def calculate_metrics_from_coords(min_coord_spacing, input_coords=None, neighbors_eq_centers=False, ncenters_roi=1300, nneighbors_roi=220, nbootstrap_resamplings=0, rad_range=(2.2, 5.1), use_theoretical_counts=False, roi_edge_buffer_mult=1, roi_x_range=(1.0, 100.0), roi_y_range=(0.5, 50.0), silent=False, log_file_data=None, keep_unnecessary_calculations=False, neighbor_counts_method='cdist avoiding oom'):
+def calculate_metrics_from_coords(min_coord_spacing, input_coords=None, neighbors_eq_centers=False, ncenters_roi=1300, nneighbors_roi=220, nbootstrap_resamplings=0, rad_range=(2.2, 5.1), use_theoretical_counts=False, roi_edge_buffer_mult=1, roi_x_range=(1.0, 100.0), roi_y_range=(0.5, 50.0), silent=False, log_file_data=None, keep_unnecessary_calculations=False, neighbor_counts_method='kdtree'):
     '''
     Given a set of coordinates (whether actual coordinates or ones to be simulated), calculate the P values and Z scores.
 
@@ -2929,9 +2929,9 @@ def calculate_metrics_from_coords(min_coord_spacing, input_coords=None, neighbor
             if neighbor_counts_method == 'pure cdist':
                 dist_mat = scipy.spatial.distance.cdist(coords_centers[valid_centers, :], coords_neighbors, 'euclidean')  # calculate the distances between the valid centers and all the neighbors
                 nneighbors = ((dist_mat >= rad_range[0]) & (dist_mat < rad_range[1])).sum(axis=1)  # count the number of neighbors in the slice around every valid center
-            elif neighbor_counts_method == 'cdist avoiding oom':
+            elif neighbor_counts_method == 'cdist avoiding oom':  # returns number of points in [0, radius)
                 nneighbors = utils.calculate_neighbor_counts_with_possible_chunking(center_coords=coords_centers[valid_centers, :], neighbor_coords=coords_neighbors, radii=radii, single_dist_mat_cutoff_in_mb=200, verbose=False)[:, 0]  # (num_centers,)
-            elif neighbor_counts_method == 'kdtree':
+            elif neighbor_counts_method == 'kdtree':  # returns number of points in [0, radius) (with the "tol" correction within)
                 nneighbors = utils.calculate_neighbor_counts_with_kdtree(center_coords=coords_centers[valid_centers, :], neighbor_coords=coords_neighbors, radius=radii[1])
             if (neighbors_eq_centers) and (rad_range[0] < tol):
                 nneighbors = nneighbors - 1  # we're always going to count the center as a neighbor of itself in this case, so account for this; see also physical notebook notes on 1/7/21
