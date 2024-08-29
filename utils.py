@@ -760,6 +760,14 @@ def calculate_neighbor_counts_with_possible_chunking(center_coords=None, neighbo
     # Return the neighbor counts
     return neighbor_counts
 
+
+def calculate_neighbor_counts_with_kdtree(center_coords, neighbor_coords, radius):
+    center_tree = scipy.spatial.KDTree(center_coords)
+    neighbor_tree = scipy.spatial.KDTree(neighbor_coords)
+    indexes = center_tree.query_ball_tree(neighbor_tree, r=radius)
+    return np.array([len(neighbors_list) for neighbors_list in indexes])  # (num_centers,)
+
+
 def dataframe_insert_possibly_existing_column(df, column_position, column_name, srs_column_values):
     """
     Alternative to df.insert() that replaces the column values if the column already exists, but otherwise uses df.insert() to add the column to the dataframe.

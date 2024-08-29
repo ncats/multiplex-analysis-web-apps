@@ -2925,14 +2925,14 @@ def calculate_metrics_from_coords(min_coord_spacing, input_coords=None, neighbor
                 print('NOTE: Using artificial distribution')
             nneighbors = scipy.stats.poisson.rvs(nexpected, size=(nvalid_centers,))
         else:
+            print(f'Using neighbor_counts_method: {neighbor_counts_method}')
             if neighbor_counts_method == 'pure cdist':
                 dist_mat = scipy.spatial.distance.cdist(coords_centers[valid_centers, :], coords_neighbors, 'euclidean')  # calculate the distances between the valid centers and all the neighbors
                 nneighbors = ((dist_mat >= rad_range[0]) & (dist_mat < rad_range[1])).sum(axis=1)  # count the number of neighbors in the slice around every valid center
             elif neighbor_counts_method == 'cdist avoiding oom':
                 nneighbors = utils.calculate_neighbor_counts_with_possible_chunking(center_coords=coords_centers[valid_centers, :], neighbor_coords=coords_neighbors, radii=radii, single_dist_mat_cutoff_in_mb=200, verbose=False)[:, 0]  # (num_centers,)
             elif neighbor_counts_method == 'kdtree':
-                # nneighbors = utils.calculate_neighbor_counts_with_kdtree(center_coords=coords_centers[valid_centers, :], neighbor_coords=coords_neighbors, radii=radii)
-                pass
+                nneighbors = utils.calculate_neighbor_counts_with_kdtree(center_coords=coords_centers[valid_centers, :], neighbor_coords=coords_neighbors, radius=radii[1])
             if (neighbors_eq_centers) and (rad_range[0] < tol):
                 nneighbors = nneighbors - 1  # we're always going to count the center as a neighbor of itself in this case, so account for this; see also physical notebook notes on 1/7/21
 
