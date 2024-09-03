@@ -1,7 +1,28 @@
 # Import relevant libraries
 import streamlit as st
 import subprocess
+import platform
 
+def is_conda_package_installed(package_name):
+    try:
+        output = subprocess.check_output("conda list " + package_name, shell=True)
+        if package_name in output.decode():
+            print(package_name + " is installed.")
+        else:
+            try:
+                subprocess.run(f"mamba install -y {package_name}", shell=True)
+            except:
+                try:
+                    subprocess.run(f"mamba install -y {package_name}", shell=True)
+                except:
+                    print("Failed to install " + package_name)
+                    
+    except subprocess.CalledProcessError:
+        pass
+
+if platform.system() == 'Linux':
+    is_conda_package_installed(package_name="gcc_linux-64")
+    is_conda_package_installed(package_name="gxx_linux-64")
 
 try:
     import parc
