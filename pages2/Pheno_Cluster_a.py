@@ -13,7 +13,7 @@ def is_conda_package_installed(package_name):
                 subprocess.run(f"mamba install -y {package_name}", shell=True)
             except:
                 try:
-                    subprocess.run(f"mamba install -y {package_name}", shell=True)
+                    subprocess.run(f"conda install -y {package_name}", shell=True)
                 except:
                     print("Failed to install " + package_name)
                     
@@ -23,6 +23,15 @@ def is_conda_package_installed(package_name):
 if platform.system() == 'Linux':
     is_conda_package_installed(package_name="gcc_linux-64")
     is_conda_package_installed(package_name="gxx_linux-64")
+
+try:
+    import hnswlib
+except ImportError:
+    subprocess.run("pip install hnswlib", shell=True)
+    try:
+        import hnswlib
+    except ImportError:
+       print("Failed to import hnswlib.") 
 
 try:
     import parc
@@ -52,16 +61,6 @@ except ImportError:
         import sklearn_ann
     except ImportError:
        print("Failed to import sklearn-ann.") 
-
-try:
-    import hnswlib
-except ImportError:
-    subprocess.run("pip install hnswlib", shell=True)
-    try:
-        import hnswlib
-    except ImportError:
-       print("Failed to import hnswlib.") 
-
 
 from ast import arg
 from pyparsing import col
@@ -93,6 +92,7 @@ import scipy
 import squidpy as sq
 import leidenalg
 import igraph as ig
+from scipy import stats
 from igraph.community import _community_leiden
 community_leiden = _community_leiden
 
@@ -1092,13 +1092,30 @@ def knngraph_full_2(self):  # , neighbor_array, distance_array):
         #graph = graph_transpose + graph - prod_matrix
         return graph , prod_matrix
 
-def phenocluster__make_adata(df, x_cols, meta_cols):
+def phenocluster__make_adata(df, x_cols, meta_cols, 
+                             z_normalize, normalize_total, 
+                             log_normalize, select_high_var_features, n_features):
+    
+    print(select_high_var_features)
+    print(n_features)
+    
     mat = df[x_cols]
     meta = df[meta_cols]
     adata = ad.AnnData(mat)
     adata.obs = meta
     adata.layers["counts"] = adata.X.copy()
     #adata.write("input/clust_dat.h5ad")
+    if normalize_total:
+        sc.pp.normalize_total(adata)
+    if log_normalize:
+        sc.pp.log1p(adata)
+    if z_normalize:
+        sc.pp.scale(adata)
+        
+    if select_high_var_features:
+        sc.pp.highly_variable_genes(adata, n_top_genes=n_features, flavor='cell_ranger')
+        adata = adata[:, adata.var.highly_variable].copy()
+    print(adata.shape)
     return adata
 
 # scanpy clustering
@@ -1132,7 +1149,7 @@ def RunNeighbClust(adata, n_neighbors, metric, resolution, random_state, n_princ
 def RunPhenographClust(adata, n_neighbors, clustering_algo, min_cluster_size, 
                        primary_metric, resolution_parameter, nn_method, random_seed, n_principal_components,
                        n_jobs, n_iterations, fast):
-    
+    print(adata.shape)
     if fast == True:
         print("fast phenograph selected")
         sc.pp.pca(adata, n_comps=n_principal_components)
@@ -1415,6 +1432,9 @@ def phenocluster__default_session_state():
         
     if 'phenocluster__n_iterations' not in st.session_state:
         st.session_state['phenocluster__n_iterations'] = 5
+        
+    if 'phenocluster__n_features' not in st.session_state:
+        st.session_state['phenocluster__n_features'] = 0
 
     # phenograph options
     if 'phenocluster__n_neighbors_state' not in st.session_state:
@@ -1488,6 +1508,12 @@ def phenocluster__default_session_state():
 def phenocluster__subset_data(adata, subset_col, subset_vals):
     adata_subset = adata[adata.obs[subset_col].isin(subset_vals)]
     st.session_state['phenocluster__clustering_adata'] = adata_subset
+    
+def phenocluster_select_high_var_features(adata, n_features):
+    sc.pp.highly_variable_features(adata, n_top_features=n_features)
+    adata = adata[:, adata.var.highly_variable]
+    print(adata)
+    return adata
    
 def phenocluster__add_clusters_to_input_df():
     if "phenocluster__phenotype_cluster_cols" in st.session_state:
@@ -1549,11 +1575,25 @@ def main():
             for item in items_to_add:
                 if item not in st.session_state['phenocluster__meta_cols']:
                     st.session_state['phenocluster__meta_cols'].append(item)
+                    
+            st.toggle("Z-score normalize columns", key='phenocluster__zscore_normalize')
+            st.toggle("Normalize total intensity", key='phenocluster__normalize_total_intensity')
+            st.toggle("Log normalize", key='phenocluster__log_normalize')
+            st.toggle("Select high variance features", key='phenocluster__select_high_var_features')
+            if st.session_state['phenocluster__select_high_var_features'] == True:
+                st.number_input(label = "Number of features", key='phenocluster__n_features', step = 1)
+                
             
-            if st.button('Submuit columns'):
+            if st.button('Submit columns'):
                 st.session_state['phenocluster__clustering_adata'] = phenocluster__make_adata(st.session_state['input_dataset'].data, 
                                                 numeric_cols,
-                                                meta_columns)
+                                                meta_columns,
+                                                z_normalize = st.session_state['phenocluster__zscore_normalize'],
+                                                normalize_total = st.session_state['phenocluster__normalize_total_intensity'],
+                                                log_normalize = st.session_state['phenocluster__log_normalize'],
+                                                select_high_var_features = st.session_state['phenocluster__select_high_var_features'],
+                                                n_features = st.session_state['phenocluster__n_features']
+                                                )
     except:
         st.warning("container issue")
         
