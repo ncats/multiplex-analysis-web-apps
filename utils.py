@@ -762,6 +762,7 @@ def calculate_neighbor_counts_with_possible_chunking(center_coords=None, neighbo
 
 
 def calculate_neighbor_counts_with_kdtree(center_coords, neighbor_coords, radius, tol=1e-9):
+    # NOTE FOR FUTURE: Probably reconsider using scipy.spatial.KDTree.count_neighbors() since that may align with the statistic of interest in both Poisson and permutation methods, i.e., the sum of the neighbor counts over all centers. Perhaps force that to work because that may really perfectly match the statistic of interest. E.g., note in calculate_density_metrics() that the full output of this function (num_centers,) is not used but is rather summed, which I believe would be the output of count_neighbors(). I.e., query_ball_tree() returns extra, unused information. I would need to make sure there would never be memory issues though, e.g., if an entire large slide were to run count_neighbors() at once. If there are P phenotypes, we'd still have to build 2P trees and call count_neighbors P^2 times per ROI, so both timing and memory usage should be tested thoroughly.
     radius = radius - tol  # to essentially make the check [0, radius) instead of [0, radius]
     center_tree = scipy.spatial.KDTree(center_coords)
     neighbor_tree = scipy.spatial.KDTree(neighbor_coords)
