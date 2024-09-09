@@ -1137,6 +1137,8 @@ def RunNeighbClust(adata, n_neighbors, metric, resolution, random_state, n_princ
         if n_principal_components > 0:
             sc.pp.pca(adata, n_comps=n_principal_components)
             sc.pp.neighbors(adata, n_neighbors=n_neighbors, metric=metric, n_pcs=n_principal_components, random_state=random_state)
+        else:
+            sc.pp.neighbors(adata, n_neighbors=n_neighbors, metric=metric, n_pcs=0, random_state=random_state)
             
     sc.tl.leiden(adata,resolution=resolution, random_state=random_state, n_iterations=n_iterations, flavor="igraph")
     adata.obs['Cluster'] = adata.obs['leiden']
@@ -1220,9 +1222,9 @@ def run_parc_clust(adata, n_neighbors, dist_std_local, jac_std_global, small_pop
                                     hnsw_param_ef_construction=hnsw_param_ef_construction,
                                     partition_type="RBConfigurationVP",
                                     n_iter_leiden=n_iterations, num_threads=n_jobs)
-            parc_results.run_PARC()
-            adata.obs['Cluster'] = parc_results.labels
-            adata.obs['Cluster'] = adata.obs['Cluster'].astype(str)
+        parc_results.run_PARC()
+        adata.obs['Cluster'] = parc_results.labels
+        adata.obs['Cluster'] = adata.obs['Cluster'].astype(str)
     #sc.tl.umap(adata)
     adata.obsm['spatial'] = np.array(adata.obs[["Centroid X (µm)_(standardized)", "Centroid Y (µm)_(standardized)"]])
     return adata
