@@ -1374,7 +1374,7 @@ def spatial_plots_cust_2(adata, umap_cur_col, umap_cur_groups, umap_color_col, p
                     text="Spatial " + umap_cur_group,
                     x=0.5, # Center the title
                     xanchor='center',
-                    yanchor='top'
+                    yanchor='top',
                 ),
                 legend=dict(
                     orientation="h",
@@ -1382,7 +1382,10 @@ def spatial_plots_cust_2(adata, umap_cur_col, umap_cur_groups, umap_color_col, p
                     y=-0.2,
                     xanchor="right",
                     x=1
-                )
+                ),
+                xaxis=dict(
+                    scaleanchor="y",
+                    scaleratio=1)
             )
             if i % 2 == 0:
                 subcol3.plotly_chart(fig, use_container_width=True)
