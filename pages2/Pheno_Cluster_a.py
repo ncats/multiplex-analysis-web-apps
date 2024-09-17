@@ -1609,7 +1609,7 @@ def main():
             with phenocluster__col1:
                 
                 # subset data
-                st.checkbox('Subset Data:', key='phenocluster__subset_data', help = '''Subset data based on a variable''')
+                st.checkbox('Subset Data', key='phenocluster__subset_data', help = '''Subset data based on a variable''')
                 if st.session_state['phenocluster__subset_data'] == True:
                     st.session_state['phenocluster__subset_options'] = list(st.session_state['phenocluster__clustering_adata'].obs.columns)
                     phenocluster__subset_col = st.selectbox('Select column for subsetting:', st.session_state['phenocluster__subset_options'])
@@ -1665,12 +1665,12 @@ def main():
                                 help='''Distance metric to define nearest neighbors.''')
                     st.selectbox('Phenograph nn method:', ['kdtree', 'brute'], key='phenocluster__phenograph_nn_method',
                                 help = '''Whether to use brute force or kdtree for nearest neighbor search.''')
-                    st.checkbox('Fast:', key='phenocluster__fast', help = '''Use aproximate nearest neigbour search''')
+                    st.checkbox('Fast', key='phenocluster__fast', help = '''Use aproximate nearest neigbour search''')
                 
                 elif st.session_state['phenocluster__cluster_method'] == "scanpy":
                     st.selectbox('Distance metric:', ['euclidean', 'manhattan', 'correlation', 'cosine'], key='phenocluster__metric',
                                 help='''Distance metric to define nearest neighbors.''')
-                    st.checkbox('Fast:', key='phenocluster__scanpy_fast', help = '''Use aproximate nearest neigbour search''')
+                    st.checkbox('Fast', key='phenocluster__scanpy_fast', help = '''Use aproximate nearest neigbour search''')
                     if st.session_state['phenocluster__scanpy_fast'] == True:
                         st.selectbox('Transformer:', ['Annoy', 'PNNDescent'], key='phenocluster__scanpy_transformer',
                                 help = '''Transformer for the approximate nearest neigbours search''')
@@ -1696,14 +1696,14 @@ def main():
                                     key='phenocluster__hnsw_param_ef_construction', step = 1,
                                     help = '''Higher value increases accuracy of index construction. 
                                     Even for several 100,000s of cells 150-200 is adequate''')
-                    st.checkbox('Fast:', key='phenocluster__fast', help = '''Use aproximate nearest neigbour search''')
+                    st.checkbox('Fast', key='phenocluster__fast', help = '''Use aproximate nearest neigbour search''')
                 elif st.session_state['phenocluster__cluster_method'] == "utag":
                     # make utag specific widgets
                     #st.selectbox('UTAG clustering method:', ['leiden', 'parc'], key='phenocluster__utag_clustering_method')
                     st.number_input(label = "UTAG max dist", key='phenocluster__utag_max_dist', step = 1,
                                     help = '''Threshold euclidean distance to determine whether a pair of cell is adjacent in graph structure. 
                                     Recommended values are between 10 to 100 depending on magnification.''')
-                    st.checkbox('Fast:', key='phenocluster__utag_fast', help = '''Use aproximate nearest neigbour search''')
+                    st.checkbox('Fast', key='phenocluster__utag_fast', help = '''Use aproximate nearest neigbour search''')
                     if st.session_state['phenocluster__utag_fast'] == True:
                         st.selectbox('Transformer:', ['Annoy', 'PNNDescent'], key='phenocluster__utag_transformer',
                                 help = '''Transformer for the approximate nearest neigbours search''')
