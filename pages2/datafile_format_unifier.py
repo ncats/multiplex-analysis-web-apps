@@ -218,20 +218,28 @@ def main():
         # In the first column...
         with main_columns[0]:
 
-            # ---- 2. (Optional) Drop null rows from the dataset --------------------------------------------------------------------------------------------------------------------------------
+            # ---- 2. Drop null rows from the dataset --------------------------------------------------------------------------------------------------------------------------------
 
             # Display a header for the null row deletion section
-            st.markdown('## :two: Delete null rows (optional) ')
+            st.markdown('## :two: Delete null rows ')
+
+            st.write('**Instructions:** You must press the button below to make sure there are no null data in columns you will want to use downstream! If you see null data in the columns you want to use, you must delete the rows with null data in those columns by expanding the "Click to expand:" dropdown below and following the directions therein. Once you\'ve done this, feel free to press this button again to make sure you\'ve deleted all null rows in the columns you care about.')
 
             # Allow user to detect null rows
+            if 'unifier__null_detection_button_has_been_pressed' not in st.session_state:
+                st.session_state['unifier__null_detection_button_has_been_pressed'] = False
             if st.button('Detect null rows in each column'):
                 ser_num_of_null_rows_in_each_column = df.isnull().sum()
                 if ser_num_of_null_rows_in_each_column.sum() == 0:
                     st.success('No null rows detected in the dataset.')
                 else:
-                    st.write('Null values have been detected. Here are the numbers of null rows found in the columns containing them. Note they may not matter depending on the column:')
+                    st.write('Null values have been detected. Here are the numbers of null rows found in the columns containing them. Note they may not matter depending on the column. See instructions above:')
                     ser_num_of_null_rows_in_each_column.name = 'Number of null rows'
                     st.write(ser_num_of_null_rows_in_each_column[ser_num_of_null_rows_in_each_column != 0])
+                st.session_state['unifier__null_detection_button_has_been_pressed'] = True
+
+            if not st.session_state['unifier__null_detection_button_has_been_pressed']:
+                st.warning('You must press the "Detect null rows in each column" button above (and delete any relevant null data; see instructions above the button) before proceeding to the next steps!')
 
             # Create an expander for the null row deletion section
             with st.expander('Click to expand:', expanded=False):

@@ -85,7 +85,7 @@ def init_pheno_cols(df, marker_names, marker_col_prefix):
             # For the time being, import Streamlit so warnings can be rendered. Otherwise, this file does not import streamlit and it should remain that way but this is a minimal fix for the time being
             import streamlit as st
 
-            st.warning('Null values have been detected in the phenotype columns. Next time, please check for and remove null rows in the datafile unification step (File Handling > Datafile Unification). We are removing them for you now. Here are the numbers of null rows found in each column containing them:')
+            st.warning('Null values have been detected in the phenotype columns. Next time, please check for and remove null rows in the datafile unification step (File Handling > Datafile Unification). We are removing them for you now but it would be *much* better to do this in the Datafile Unifier now! Otherwise, downstream functionality may not work. Here are the numbers of null rows found in each column containing them:')
             ser_num_of_null_rows_in_each_column.name = 'Number of null rows'
             st.write(ser_num_of_null_rows_in_each_column[ser_num_of_null_rows_in_each_column != 0])
 
