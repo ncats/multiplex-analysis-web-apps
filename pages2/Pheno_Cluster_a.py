@@ -1137,6 +1137,8 @@ def RunNeighbClust(adata, n_neighbors, metric, resolution, random_state, n_princ
         if n_principal_components > 0:
             sc.pp.pca(adata, n_comps=n_principal_components)
             sc.pp.neighbors(adata, n_neighbors=n_neighbors, metric=metric, n_pcs=n_principal_components, random_state=random_state)
+        else:
+            sc.pp.neighbors(adata, n_neighbors=n_neighbors, metric=metric, n_pcs=0, random_state=random_state)
             
     sc.tl.leiden(adata,resolution=resolution, random_state=random_state, n_iterations=n_iterations, flavor="igraph")
     adata.obs['Cluster'] = adata.obs['leiden']
@@ -1220,9 +1222,9 @@ def run_parc_clust(adata, n_neighbors, dist_std_local, jac_std_global, small_pop
                                     hnsw_param_ef_construction=hnsw_param_ef_construction,
                                     partition_type="RBConfigurationVP",
                                     n_iter_leiden=n_iterations, num_threads=n_jobs)
-            parc_results.run_PARC()
-            adata.obs['Cluster'] = parc_results.labels
-            adata.obs['Cluster'] = adata.obs['Cluster'].astype(str)
+        parc_results.run_PARC()
+        adata.obs['Cluster'] = parc_results.labels
+        adata.obs['Cluster'] = adata.obs['Cluster'].astype(str)
     #sc.tl.umap(adata)
     adata.obsm['spatial'] = np.array(adata.obs[["Centroid X (µm)_(standardized)", "Centroid Y (µm)_(standardized)"]])
     return adata
@@ -1372,7 +1374,7 @@ def spatial_plots_cust_2(adata, umap_cur_col, umap_cur_groups, umap_color_col, p
                     text="Spatial " + umap_cur_group,
                     x=0.5, # Center the title
                     xanchor='center',
-                    yanchor='top'
+                    yanchor='top',
                 ),
                 legend=dict(
                     orientation="h",
@@ -1380,7 +1382,10 @@ def spatial_plots_cust_2(adata, umap_cur_col, umap_cur_groups, umap_color_col, p
                     y=-0.2,
                     xanchor="right",
                     x=1
-                )
+                ),
+                xaxis=dict(
+                    scaleanchor="y",
+                    scaleratio=1)
             )
             if i % 2 == 0:
                 subcol3.plotly_chart(fig, use_container_width=True)
@@ -1604,7 +1609,7 @@ def main():
             with phenocluster__col1:
                 
                 # subset data
-                st.checkbox('Subset Data:', key='phenocluster__subset_data', help = '''Subset data based on a variable''')
+                st.checkbox('Subset Data', key='phenocluster__subset_data', help = '''Subset data based on a variable''')
                 if st.session_state['phenocluster__subset_data'] == True:
                     st.session_state['phenocluster__subset_options'] = list(st.session_state['phenocluster__clustering_adata'].obs.columns)
                     phenocluster__subset_col = st.selectbox('Select column for subsetting:', st.session_state['phenocluster__subset_options'])
@@ -1660,12 +1665,12 @@ def main():
                                 help='''Distance metric to define nearest neighbors.''')
                     st.selectbox('Phenograph nn method:', ['kdtree', 'brute'], key='phenocluster__phenograph_nn_method',
                                 help = '''Whether to use brute force or kdtree for nearest neighbor search.''')
-                    st.checkbox('Fast:', key='phenocluster__fast', help = '''Use aproximate nearest neigbour search''')
+                    st.checkbox('Fast', key='phenocluster__fast', help = '''Use aproximate nearest neigbour search''')
                 
                 elif st.session_state['phenocluster__cluster_method'] == "scanpy":
                     st.selectbox('Distance metric:', ['euclidean', 'manhattan', 'correlation', 'cosine'], key='phenocluster__metric',
                                 help='''Distance metric to define nearest neighbors.''')
-                    st.checkbox('Fast:', key='phenocluster__scanpy_fast', help = '''Use aproximate nearest neigbour search''')
+                    st.checkbox('Fast', key='phenocluster__scanpy_fast', help = '''Use aproximate nearest neigbour search''')
                     if st.session_state['phenocluster__scanpy_fast'] == True:
                         st.selectbox('Transformer:', ['Annoy', 'PNNDescent'], key='phenocluster__scanpy_transformer',
                                 help = '''Transformer for the approximate nearest neigbours search''')
@@ -1691,14 +1696,14 @@ def main():
                                     key='phenocluster__hnsw_param_ef_construction', step = 1,
                                     help = '''Higher value increases accuracy of index construction. 
                                     Even for several 100,000s of cells 150-200 is adequate''')
-                    st.checkbox('Fast:', key='phenocluster__fast', help = '''Use aproximate nearest neigbour search''')
+                    st.checkbox('Fast', key='phenocluster__fast', help = '''Use aproximate nearest neigbour search''')
                 elif st.session_state['phenocluster__cluster_method'] == "utag":
                     # make utag specific widgets
                     #st.selectbox('UTAG clustering method:', ['leiden', 'parc'], key='phenocluster__utag_clustering_method')
                     st.number_input(label = "UTAG max dist", key='phenocluster__utag_max_dist', step = 1,
                                     help = '''Threshold euclidean distance to determine whether a pair of cell is adjacent in graph structure. 
                                     Recommended values are between 10 to 100 depending on magnification.''')
-                    st.checkbox('Fast:', key='phenocluster__utag_fast', help = '''Use aproximate nearest neigbour search''')
+                    st.checkbox('Fast', key='phenocluster__utag_fast', help = '''Use aproximate nearest neigbour search''')
                     if st.session_state['phenocluster__utag_fast'] == True:
                         st.selectbox('Transformer:', ['Annoy', 'PNNDescent'], key='phenocluster__utag_transformer',
                                 help = '''Transformer for the approximate nearest neigbours search''')
