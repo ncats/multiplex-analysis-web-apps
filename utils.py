@@ -143,8 +143,13 @@ def get_paths_for_slides():
             if slide_name in slide_filename:
                 corresp_slide_filename.append(os.path.join(plots_dir, 'whole_slide_patches', slide_filename))
                 corresp_slide_filename_patched.append(os.path.join(plots_dir, 'whole_slide_patches', '{}-patched{}'.format(os.path.splitext(slide_filename)[0], file_extension)))
+            else:
+                corresp_slide_filename.append(None)
+                corresp_slide_filename_patched.append(None)
             if slide_name in heatmap_filename:
                 corresp_heatmap_filename.append(os.path.join(plots_dir, 'dens_pvals_per_slide', heatmap_filename))
+            else:
+                corresp_heatmap_filename.append(None)
 
     # Add these paths to the main paths dataframe
     df_paths['slide'] = corresp_slide_filename
