@@ -56,11 +56,10 @@ def main():
         with display_col1:
             st.image(df_paths_per_roi.loc[st.session_state['roi_name_to_visualize'], 'roi'])
             image_path_entry = df_paths_per_roi.loc[st.session_state['roi_name_to_visualize'], 'heatmap']
-            # if isinstance(image_path_entry, str):
             if image_path_entry != '':
                 st.image(image_path_entry)
             else:
-                st.write('No heatmap data available')
+                st.info('No heatmap data are available for this ROI')
         with display_col2:
             st.image(df_paths_per_roi.loc[st.session_state['roi_name_to_visualize'], 'outline'])
 

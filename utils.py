@@ -135,26 +135,16 @@ def get_paths_for_slides():
     df_paths = pd.DataFrame([os.path.splitext(x)[0] for x in slides_listing], columns=['slide_name']).set_index('slide_name')
 
     # Determine the filenames of each of the image types corresponding to each slide name
-    corresp_slide_filename = []
-    corresp_slide_filename_patched = []
-    corresp_heatmap_filename = []
     for slide_name in df_paths.index:
-        for slide_filename, heatmap_filename in zip(slides_listing, heatmaps_listing):
+        for slide_filename in slides_listing:
             if slide_name in slide_filename:
-                corresp_slide_filename.append(os.path.join(plots_dir, 'whole_slide_patches', slide_filename))
-                corresp_slide_filename_patched.append(os.path.join(plots_dir, 'whole_slide_patches', '{}-patched{}'.format(os.path.splitext(slide_filename)[0], file_extension)))
-            else:
-                corresp_slide_filename.append(None)
-                corresp_slide_filename_patched.append(None)
+                df_paths.loc[slide_name, 'slide'] = os.path.join(plots_dir, 'whole_slide_patches', slide_filename)
+                df_paths.loc[slide_name, 'slide_patched'] = os.path.join(plots_dir, 'whole_slide_patches', '{}-patched{}'.format(os.path.splitext(slide_filename)[0], file_extension))
+                break
+        for heatmap_filename in heatmaps_listing:
             if slide_name in heatmap_filename:
-                corresp_heatmap_filename.append(os.path.join(plots_dir, 'dens_pvals_per_slide', heatmap_filename))
-            else:
-                corresp_heatmap_filename.append(None)
-
-    # Add these paths to the main paths dataframe
-    df_paths['slide'] = corresp_slide_filename
-    df_paths['slide_patched'] = corresp_slide_filename_patched
-    df_paths['heatmap'] = corresp_heatmap_filename
+                df_paths.loc[slide_name, 'heatmap'] = os.path.join(plots_dir, 'dens_pvals_per_slide', heatmap_filename)
+                break
 
     # Add columns containing the patient "case" ID and the slide "condition", in order to aid in sorting the data
     cases = []
@@ -168,6 +158,14 @@ def get_paths_for_slides():
 
     # Sort the data by case, then by condition, then by the slide string
     df_paths = df_paths.sort_values(by=['case', 'condition', 'slide_name'])
+
+    # # Delete rows in df_paths where 'slide', 'slide_patched', or 'heatmap' is None
+    # print(df_paths)
+    # num_rows_before = len(df_paths)
+    # df_paths = df_paths.dropna(subset=['slide', 'slide_patched', 'heatmap'])
+    # print(df_paths)
+    # num_rows_after = len(df_paths)
+    # print(f'Deleted {num_rows_before - num_rows_after} rows from df_paths where "slide", "slide_patched", or "heatmap" was None.')
 
     # Return the paths dataframe
     return df_paths

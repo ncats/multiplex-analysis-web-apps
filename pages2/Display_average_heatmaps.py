@@ -53,7 +53,11 @@ def main():
 
         # Display the three images for the currently selected slide
         with display_col1:
-            st.image(df_paths_per_slide.loc[st.session_state['slide_name_to_visualize'], 'heatmap'])
+            image_path_entry = df_paths_per_slide.loc[st.session_state['slide_name_to_visualize'], 'heatmap']
+            if not isinstance(image_path_entry, float):
+                st.image(image_path_entry)
+            else:
+                st.info('No heatmap data are available for this slide')
             st.radio('Display slide patching at right?', ['not patched', 'patched'], key='display_slide_patching')
         with display_col2:
             slide_suffix = ('' if st.session_state['display_slide_patching'] == 'not patched' else '_patched')
