@@ -135,21 +135,16 @@ def get_paths_for_slides():
     df_paths = pd.DataFrame([os.path.splitext(x)[0] for x in slides_listing], columns=['slide_name']).set_index('slide_name')
 
     # Determine the filenames of each of the image types corresponding to each slide name
-    corresp_slide_filename = []
-    corresp_slide_filename_patched = []
-    corresp_heatmap_filename = []
     for slide_name in df_paths.index:
-        for slide_filename, heatmap_filename in zip(slides_listing, heatmaps_listing):
+        for slide_filename in slides_listing:
             if slide_name in slide_filename:
-                corresp_slide_filename.append(os.path.join(plots_dir, 'whole_slide_patches', slide_filename))
-                corresp_slide_filename_patched.append(os.path.join(plots_dir, 'whole_slide_patches', '{}-patched{}'.format(os.path.splitext(slide_filename)[0], file_extension)))
+                df_paths.loc[slide_name, 'slide'] = os.path.join(plots_dir, 'whole_slide_patches', slide_filename)
+                df_paths.loc[slide_name, 'slide_patched'] = os.path.join(plots_dir, 'whole_slide_patches', '{}-patched{}'.format(os.path.splitext(slide_filename)[0], file_extension))
+                break
+        for heatmap_filename in heatmaps_listing:
             if slide_name in heatmap_filename:
-                corresp_heatmap_filename.append(os.path.join(plots_dir, 'dens_pvals_per_slide', heatmap_filename))
-
-    # Add these paths to the main paths dataframe
-    df_paths['slide'] = corresp_slide_filename
-    df_paths['slide_patched'] = corresp_slide_filename_patched
-    df_paths['heatmap'] = corresp_heatmap_filename
+                df_paths.loc[slide_name, 'heatmap'] = os.path.join(plots_dir, 'dens_pvals_per_slide', heatmap_filename)
+                break
 
     # Add columns containing the patient "case" ID and the slide "condition", in order to aid in sorting the data
     cases = []
@@ -163,6 +158,14 @@ def get_paths_for_slides():
 
     # Sort the data by case, then by condition, then by the slide string
     df_paths = df_paths.sort_values(by=['case', 'condition', 'slide_name'])
+
+    # # Delete rows in df_paths where 'slide', 'slide_patched', or 'heatmap' is None
+    # print(df_paths)
+    # num_rows_before = len(df_paths)
+    # df_paths = df_paths.dropna(subset=['slide', 'slide_patched', 'heatmap'])
+    # print(df_paths)
+    # num_rows_after = len(df_paths)
+    # print(f'Deleted {num_rows_before - num_rows_after} rows from df_paths where "slide", "slide_patched", or "heatmap" was None.')
 
     # Return the paths dataframe
     return df_paths
@@ -759,6 +762,23 @@ def calculate_neighbor_counts_with_possible_chunking(center_coords=None, neighbo
 
     # Return the neighbor counts
     return neighbor_counts
+
+
+def calculate_neighbor_counts_with_kdtree(center_coords, neighbor_coords, radius, tol=1e-9):
+    # NOTE FOR FUTURE: Probably reconsider using scipy.spatial.KDTree.count_neighbors() since that may align with the statistic of interest in both Poisson and permutation methods, i.e., the sum of the neighbor counts over all centers. Perhaps force that to work because that may really perfectly match the statistic of interest. E.g., note in calculate_density_metrics() that the full output of this function (num_centers,) is not used but is rather summed, which I believe would be the output of count_neighbors(). I.e., query_ball_tree() returns extra, unused information. I would need to make sure there would never be memory issues though, e.g., if an entire large slide were to run count_neighbors() at once. If there are P phenotypes, we'd still have to build 2P trees and call count_neighbors P^2 times per ROI, so both timing and memory usage should be tested thoroughly.
+    radius = radius - tol  # to essentially make the check [0, radius) instead of [0, radius]
+    center_tree = scipy.spatial.KDTree(center_coords)
+    neighbor_tree = scipy.spatial.KDTree(neighbor_coords)
+    indexes = center_tree.query_ball_tree(neighbor_tree, r=radius)
+    return np.array([len(neighbors_list) for neighbors_list in indexes])  # (num_centers,)
+
+    # Using this matches the cdist method but is not elegant, but using "tol" above gets the same result more efficiently
+    # neighbor_counts = []
+    # for i, neighbors_list in enumerate(indexes):
+    #     count = sum(np.linalg.norm(neighbor_coords[idx] - center_coords[i]) < radius for idx in neighbors_list)
+    #     neighbor_counts.append(count)
+    # return np.array(neighbor_counts)  # (num_centers,)
+
 
 def dataframe_insert_possibly_existing_column(df, column_position, column_name, srs_column_values):
     """

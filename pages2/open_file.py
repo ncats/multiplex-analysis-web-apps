@@ -73,14 +73,9 @@ def main():
                 st.session_state['opener__selected_input_file'] = None
         st.selectbox('Select an available input file to load:', options=available_input_files, key='opener__selected_input_file', disabled=st.session_state['opener__load_from_datafile_unifier'])
 
-        # Create a number input for the number of microns per coordinate unit
+        # Set the number of microns per coordinate unit
         if 'opener__microns_per_coordinate_unit' not in st.session_state:
             st.session_state['opener__microns_per_coordinate_unit'] = 1.0
-        if st.session_state['opener__load_from_datafile_unifier']:
-            help_message = 'Remember that the dataset coordinates were converted to microns in the Datafile Unifier.'
-        else:
-            help_message = None
-        st.number_input('Enter the number of microns per coordinate unit in the input file:', min_value=0.0, key='opener__microns_per_coordinate_unit', format='%.4f', step=0.0001, disabled=st.session_state['opener__load_from_datafile_unifier'], help=help_message)
 
         # Determine the input datafile or input dataframe
         if st.session_state['opener__load_from_datafile_unifier']:
