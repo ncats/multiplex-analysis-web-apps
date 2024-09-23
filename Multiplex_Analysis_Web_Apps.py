@@ -11,26 +11,27 @@ import streamlit as st
 # Set a wide layout. This is here because in one of the 22 imports below (at least in my modification to Pheno_cluster_a.py), other Streamlit commands are called, which isn't allowed to happen before this command.
 # st.set_page_config(layout="wide")
 
+# Note if any of the following imports having "  # slow" are not commented out, there is a delay in running the forking test
 from pages2 import data_import_and_export
 from pages2 import datafile_format_unifier
-from pages2 import open_file
-from pages2 import robust_scatter_plotter
-from pages2 import multiaxial_gating
-from pages2 import thresholded_phenotyping
-from pages2 import adaptive_phenotyping
-from pages2 import Pheno_Cluster_a
-from pages2 import Pheno_Cluster_b
-from pages2 import Tool_parameter_selection
-from pages2 import Run_workflow
+# from pages2 import open_file  # slow
+# from pages2 import robust_scatter_plotter  # slow
+# from pages2 import multiaxial_gating  # slow
+# from pages2 import thresholded_phenotyping  # slow
+# from pages2 import adaptive_phenotyping  # slow
+# from pages2 import Pheno_Cluster_a  # slow
+# from pages2 import Pheno_Cluster_b  # slow
+# from pages2 import Tool_parameter_selection  # slow
+# from pages2 import Run_workflow  # slow
 from pages2 import Display_individual_ROI_heatmaps
 from pages2 import Display_average_heatmaps
 from pages2 import Display_average_heatmaps_per_annotation
 from pages2 import Display_ROI_P_values_overlaid_on_slides
-from pages2 import Neighborhood_Profiles
-from pages2 import UMAP_Analyzer
-from pages2 import Clusters_Analyzer
-from pages2 import memory_analyzer
-from pages2 import radial_bins_plots
+# from pages2 import Neighborhood_Profiles  # slow
+# from pages2 import UMAP_Analyzer  # slow
+# from pages2 import Clusters_Analyzer  # slow
+# from pages2 import memory_analyzer  # slow
+# from pages2 import radial_bins_plots  # slow
 from pages2 import radial_profiles_analysis
 from pages2 import preprocessing
 from pages2 import results_transfer
