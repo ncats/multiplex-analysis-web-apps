@@ -17,19 +17,19 @@ from pages2 import datafile_format_unifier
 from pages2 import open_file
 from pages2 import robust_scatter_plotter
 from pages2 import multiaxial_gating
-from pages2 import thresholded_phenotyping  # slow
+from pages2 import thresholded_phenotyping  # slow due to things ultimately importing umap
 from pages2 import adaptive_phenotyping
-# from pages2 import Pheno_Cluster_a  # slow
-# from pages2 import Pheno_Cluster_b  # slow
+from pages2 import Pheno_Cluster_a  # "slow" for forking test initialization
+from pages2 import Pheno_Cluster_b  # "slow" for forking test initialization
 from pages2 import Tool_parameter_selection
 from pages2 import Run_workflow
 from pages2 import Display_individual_ROI_heatmaps
 from pages2 import Display_average_heatmaps
 from pages2 import Display_average_heatmaps_per_annotation
 from pages2 import Display_ROI_P_values_overlaid_on_slides
-# from pages2 import Neighborhood_Profiles  # slow
-# from pages2 import UMAP_Analyzer  # slow
-# from pages2 import Clusters_Analyzer  # slow
+from pages2 import Neighborhood_Profiles  # slow due to things ultimately importing umap
+from pages2 import UMAP_Analyzer  # slow due to things ultimately importing umap
+from pages2 import Clusters_Analyzer  # slow due to things ultimately importing umap
 from pages2 import memory_analyzer
 from pages2 import radial_bins_plots
 from pages2 import radial_profiles_analysis
