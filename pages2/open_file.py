@@ -5,7 +5,7 @@ Python Script which produces the "Open File" page of the Multiplex Analysis Web 
 import os
 import streamlit as st
 import streamlit_utils
-import app_top_of_page as top
+# import app_top_of_page as top
 import streamlit_dataframe_editor as sde
 import utils
 
@@ -179,8 +179,8 @@ if __name__ == '__main__':
     # Run streamlit-dataframe-editor library initialization tasks at the top of the page
     st.session_state = sde.initialize_session_state(st.session_state)
 
-    # Run Top of Page (TOP) functions
-    st.session_state = top.top_of_page_reqs(st.session_state)
+    # # Run Top of Page (TOP) functions
+    # st.session_state = top.top_of_page_reqs(st.session_state)
 
     main()
 
