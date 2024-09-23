@@ -20,9 +20,9 @@ from pages2 import multiaxial_gating
 # from pages2 import thresholded_phenotyping  # slow
 from pages2 import adaptive_phenotyping
 # from pages2 import Pheno_Cluster_a  # slow
-from pages2 import Pheno_Cluster_b  # slow
-# from pages2 import Tool_parameter_selection  # slow
-# from pages2 import Run_workflow  # slow
+# from pages2 import Pheno_Cluster_b  # slow
+from pages2 import Tool_parameter_selection
+from pages2 import Run_workflow
 from pages2 import Display_individual_ROI_heatmaps
 from pages2 import Display_average_heatmaps
 from pages2 import Display_average_heatmaps_per_annotation
@@ -30,8 +30,8 @@ from pages2 import Display_ROI_P_values_overlaid_on_slides
 # from pages2 import Neighborhood_Profiles  # slow
 # from pages2 import UMAP_Analyzer  # slow
 # from pages2 import Clusters_Analyzer  # slow
-# from pages2 import memory_analyzer  # slow
-# from pages2 import radial_bins_plots  # slow
+from pages2 import memory_analyzer
+from pages2 import radial_bins_plots
 from pages2 import radial_profiles_analysis
 from pages2 import preprocessing
 from pages2 import results_transfer

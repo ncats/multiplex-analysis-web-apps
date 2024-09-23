@@ -10,12 +10,8 @@ from streamlit_extras.add_vertical_space import add_vertical_space
 import matplotlib.pyplot as plt
 import pandas as pd
 from natsort import natsorted
-
-# Import relevant libraries
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
 import basic_phenotyper_lib as bpl  # Useful functions for phenotyping collections of cells
-import app_top_of_page as top
-import streamlit_dataframe_editor as sde
 from neighborhood_profiles import NeighborhoodProfiles, UMAPDensityProcessing
 
 def get_spatialUMAP(spatial_umap, bc, umap_subset_per_fit, umap_subset_toggle, umap_subset_per):
@@ -977,19 +973,4 @@ def main():
         st.pyplot(fig=npf_fig_big)
 
 if __name__ == '__main__':
-
-    # Set a wide layout
-    st.set_page_config(page_title="Neighborhood Profiles",
-                       layout="wide")
-    st.title('Neighborhood Profiles')
-
-    # Run streamlit-dataframe-editor library initialization tasks at the top of the page
-    st.session_state = sde.initialize_session_state(st.session_state)
-
-    # Run Top of Page (TOP) functions
-    st.session_state = top.top_of_page_reqs(st.session_state)
-
     main()
-
-    # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
-    st.session_state = sde.finalize_session_state(st.session_state)
