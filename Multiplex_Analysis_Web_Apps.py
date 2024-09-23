@@ -9,7 +9,7 @@ import streamlit as st
 # import platform_io
 
 # Set a wide layout. This is here because in one of the 22 imports below (at least in my modification to Pheno_cluster_a.py), other Streamlit commands are called, which isn't allowed to happen before this command.
-st.set_page_config(layout="wide")
+# st.set_page_config(layout="wide")
 
 # from pages2 import data_import_and_export
 # from pages2 import datafile_format_unifier
