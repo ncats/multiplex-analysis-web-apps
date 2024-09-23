@@ -8,8 +8,7 @@ from streamlit_extras.add_vertical_space import add_vertical_space
 
 # Import relevant libraries
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
-import basic_phenotyper_lib as bpl  # Useful functions for phenotyping collections of cells
-import app_top_of_page as top
+# import basic_phenotyper_lib as bpl  # Useful functions for phenotyping collections of cells
 import streamlit_dataframe_editor as sde
 
 def data_editor_change_callback():
@@ -312,19 +311,4 @@ def main():
                 st.toast(f'Added {st.session_state.imgFileSuffixText} to export list ')
 
 if __name__ == '__main__':
-
-    # Set a wide layout
-    st.set_page_config(page_title="Manual Phenotyping on Thresholded Intensities",
-                       layout="wide")
-    st.title('Manual Phenotyping on Thresholded Intensities')
-
-    # Run streamlit-dataframe-editor library initialization tasks at the top of the page
-    st.session_state = sde.initialize_session_state(st.session_state)
-
-    # Run Top of Page (TOP) functions
-    st.session_state = top.top_of_page_reqs(st.session_state)
-
     main()
-
-    # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
-    st.session_state = sde.finalize_session_state(st.session_state)
