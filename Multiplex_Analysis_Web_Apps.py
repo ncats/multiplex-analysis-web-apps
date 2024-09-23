@@ -19,8 +19,8 @@ from pages2 import robust_scatter_plotter
 from pages2 import multiaxial_gating
 # from pages2 import thresholded_phenotyping  # slow
 from pages2 import adaptive_phenotyping
-from pages2 import Pheno_Cluster_a  # slow
-# from pages2 import Pheno_Cluster_b  # slow
+# from pages2 import Pheno_Cluster_a  # slow
+from pages2 import Pheno_Cluster_b  # slow
 # from pages2 import Tool_parameter_selection  # slow
 # from pages2 import Run_workflow  # slow
 from pages2 import Display_individual_ROI_heatmaps
