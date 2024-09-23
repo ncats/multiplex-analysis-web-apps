@@ -7,7 +7,7 @@ import streamlit as st
 from streamlit_extras.add_vertical_space import add_vertical_space
 
 # Import relevant libraries
-import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
+# import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
 # import basic_phenotyper_lib as bpl  # Useful functions for phenotyping collections of cells
 import streamlit_dataframe_editor as sde
 
