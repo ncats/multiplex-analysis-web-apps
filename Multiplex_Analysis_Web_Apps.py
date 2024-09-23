@@ -17,7 +17,7 @@ from pages2 import datafile_format_unifier
 from pages2 import open_file
 from pages2 import robust_scatter_plotter
 from pages2 import multiaxial_gating
-# from pages2 import thresholded_phenotyping  # slow
+from pages2 import thresholded_phenotyping  # slow
 from pages2 import adaptive_phenotyping
 # from pages2 import Pheno_Cluster_a  # slow
 # from pages2 import Pheno_Cluster_b  # slow

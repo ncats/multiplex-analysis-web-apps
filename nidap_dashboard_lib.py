@@ -10,16 +10,14 @@ from copy import copy
 import numpy as np
 import pandas as pd
 import altair as alt
+alt.data_transformers.disable_max_rows()
 from natsort import natsorted
 from pathlib import Path
 from datetime import datetime
-alt.data_transformers.disable_max_rows()
-
-# Import relevant libraries
 import basic_phenotyper_lib as bpl                  # Useful functions for cell phenotyping
 from foundry_IO_lib import foundry_IO_lib           # Foundry Input/Output Class
 from benchmark_collector import benchmark_collector # Benchmark Collector Class
-from neighborhood_profiles import NeighborhoodProfiles, UMAPDensityProcessing
+# from neighborhood_profiles import NeighborhoodProfiles, UMAPDensityProcessing
 import PlottingTools as umPT
 
 def identify_col_type(col):
