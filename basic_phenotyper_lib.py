@@ -8,7 +8,7 @@ import time
 import math
 import numpy as np
 import pandas as pd
-# import umap  # slow 
+import umap  # slow 
 import warnings
 warnings.simplefilter(action='ignore', category= FutureWarning)
 warnings.filterwarnings("ignore", message=".*The 'nopython' keyword.*")

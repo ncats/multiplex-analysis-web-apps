@@ -17,7 +17,7 @@ from datetime import datetime
 import basic_phenotyper_lib as bpl                  # Useful functions for cell phenotyping
 from foundry_IO_lib import foundry_IO_lib           # Foundry Input/Output Class
 from benchmark_collector import benchmark_collector # Benchmark Collector Class
-from neighborhood_profiles import NeighborhoodProfiles, UMAPDensityProcessing
+from neighborhood_profiles import NeighborhoodProfiles, UMAPDensityProcessing  # slow because this imports umap
 import PlottingTools as umPT
 
 def identify_col_type(col):

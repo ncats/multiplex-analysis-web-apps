@@ -14,7 +14,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.cluster import KMeans # K-Means
-# import umap
+import umap  # slow
 from scipy import ndimage as ndi
 
 import basic_phenotyper_lib as bpl  # Useful functions for cell phenotyping
