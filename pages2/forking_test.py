@@ -5,7 +5,7 @@ import os
 
 def workder(n):
     print(f'Worker {n} started in process {os.getpid()}')
-    time.sleep(3)
+    time.sleep(0.5)
     print(f'Worker {n} finished in process {os.getpid()}')
 
 
@@ -22,6 +22,7 @@ def main():
         start_time = time.time()
         st.write('Forking test button pressed')
         
+        multiprocessing.set_start_method('forkserver', force=True)
         with multiprocessing.Pool(st.session_state['nworkers']) as pool:
             pool.map(workder, range(st.session_state['num_tasks']))
 
