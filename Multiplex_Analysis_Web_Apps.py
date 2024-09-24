@@ -8,32 +8,31 @@ import numpy as np
 import subprocess
 import platform_io
 
-# Set a wide layout. This is here because in one of the 22 imports below (at least in my modification to Pheno_cluster_a.py), other Streamlit commands are called, which isn't allowed to happen before this command.
-st.set_page_config(layout="wide")
-
+# Note if any of the following imports having "  # slow" are not commented out, there is a delay in running the forking test
 from pages2 import data_import_and_export
 from pages2 import datafile_format_unifier
 from pages2 import open_file
 from pages2 import robust_scatter_plotter
 from pages2 import multiaxial_gating
-from pages2 import thresholded_phenotyping
+from pages2 import thresholded_phenotyping  # slow due to things ultimately importing umap
 from pages2 import adaptive_phenotyping
-from pages2 import Pheno_Cluster_a
-from pages2 import Pheno_Cluster_b
+from pages2 import Pheno_Cluster_a  # "slow" for forking test initialization
+from pages2 import Pheno_Cluster_b  # "slow" for forking test initialization
 from pages2 import Tool_parameter_selection
 from pages2 import Run_workflow
 from pages2 import Display_individual_ROI_heatmaps
 from pages2 import Display_average_heatmaps
 from pages2 import Display_average_heatmaps_per_annotation
 from pages2 import Display_ROI_P_values_overlaid_on_slides
-from pages2 import Neighborhood_Profiles
-from pages2 import UMAP_Analyzer
-from pages2 import Clusters_Analyzer
+from pages2 import Neighborhood_Profiles  # slow due to things ultimately importing umap
+from pages2 import UMAP_Analyzer  # slow due to things ultimately importing umap
+from pages2 import Clusters_Analyzer  # slow due to things ultimately importing umap
 from pages2 import memory_analyzer
 from pages2 import radial_bins_plots
 from pages2 import radial_profiles_analysis
 from pages2 import preprocessing
 from pages2 import results_transfer
+# from pages2 import forking_test
 
 
 def welcome_page():
@@ -60,6 +59,8 @@ def check_for_platform(session_state):
 
 
 def main():
+
+    st.set_page_config(layout="wide")
 
     # Use the new st.naviation()/st.Page() API to create a multi-page app
     pg = st.navigation({
@@ -112,7 +113,8 @@ def main():
             [
                 st.Page(preprocessing.main, title="Preprocessing", url_path='preprocessing'),
                 st.Page(memory_analyzer.main, title="Memory Analyzer", url_path='memory_analyzer'),
-                st.Page(results_transfer.main, title="Results Transfer", url_path='results_transfer')
+                st.Page(results_transfer.main, title="Results Transfer", url_path='results_transfer'),
+                # st.Page(forking_test.main, title="Forking Test", url_path='forking_test')
             ]
         })
 

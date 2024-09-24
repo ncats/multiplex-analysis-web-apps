@@ -8,17 +8,14 @@ import time
 import math
 import numpy as np
 import pandas as pd
-import umap
+import umap  # slow 
 import warnings
-import multiprocessing as mp
 warnings.simplefilter(action='ignore', category= FutureWarning)
 warnings.filterwarnings("ignore", message=".*The 'nopython' keyword.*")
 pd.options.mode.chained_assignment = None  # default='warn'
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.cluster import KMeans # K-Means
-
-from benchmark_collector import benchmark_collector # Benchmark Collector Class
 from SpatialUMAP import SpatialUMAP
 import PlottingTools as umPT
 import utils

@@ -1,73 +1,12 @@
 # Import relevant libraries
 import streamlit as st
-import subprocess
-import platform
-
-def is_conda_package_installed(package_name):
-    try:
-        output = subprocess.check_output("conda list " + package_name, shell=True)
-        if package_name in output.decode():
-            print(package_name + " is installed.")
-        else:
-            try:
-                subprocess.run(f"mamba install -y {package_name}", shell=True)
-            except:
-                try:
-                    subprocess.run(f"conda install -y {package_name}", shell=True)
-                except:
-                    print("Failed to install " + package_name)
-                    
-    except subprocess.CalledProcessError:
-        pass
-
-if platform.system() == 'Linux':
-    is_conda_package_installed(package_name="gcc_linux-64")
-    is_conda_package_installed(package_name="gxx_linux-64")
-
-try:
-    import hnswlib
-except ImportError:
-    subprocess.run("pip install hnswlib", shell=True)
-    try:
-        import hnswlib
-    except ImportError:
-       print("Failed to import hnswlib.") 
-
-try:
-    import parc
-    from parc import PARC
-except ImportError:
-    subprocess.run("pip install parc", shell=True)
-    try:
-        import parc
-        from parc import PARC
-    except ImportError:
-       print("Failed to import parc.")
-    
-try:
-    import annoy
-except ImportError:
-    subprocess.run("pip install annoy", shell=True)
-    try:
-        import annoy
-    except ImportError:
-       print("Failed to import annoy.")
-
-try:
-    import sklearn_ann
-except ImportError:
-    subprocess.run("pip install sklearn-ann", shell=True)
-    try:
-        import sklearn_ann
-    except ImportError:
-       print("Failed to import sklearn-ann.") 
-
+import hnswlib
+import parc
+from parc import PARC
+import annoy
+import sklearn_ann
 from ast import arg
 from pyparsing import col
-import streamlit as st
-import app_top_of_page as top
-import streamlit_dataframe_editor as sde
-import streamlit as st 
 import pandas as pd
 import anndata as ad
 import scanpy as sc
@@ -1841,22 +1780,6 @@ def main():
 
 # Run the main function
 if __name__ == '__main__':
-
-    # Set page settings
-    page_name = 'Unsupervised Phenotype Clustering'
-    #st.set_page_config(layout='wide', page_title=page_name)
-    st.title(page_name)
-    
-    # Run streamlit-dataframe-editor library initialization tasks at the top of the page
-    st.session_state = sde.initialize_session_state(st.session_state)
-
-    # Run Top of Page (TOP) functions
-    st.session_state = top.top_of_page_reqs(st.session_state)
-
-    # Call the main function
     main()
-
-    # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
-    st.session_state = sde.finalize_session_state(st.session_state)
     
 # need to make differential expression on another page 

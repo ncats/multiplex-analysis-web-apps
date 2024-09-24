@@ -35,7 +35,7 @@ dependencies:
     - parmap
     - setuptools-scm
     - annoy
-    - sklearn_ann
+    - sklearn-ann
     - pynndescent
     - plotnine
     

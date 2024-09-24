@@ -3,11 +3,7 @@ This is script which creates the UMAP Differences Analyzer page (MAWA).
 '''
 import streamlit as st
 from streamlit_extras.add_vertical_space import add_vertical_space
-
-# Import relevant libraries
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
-import app_top_of_page as top
-import streamlit_dataframe_editor as sde
 
 def reset_phenotype_selection():
     '''
@@ -120,19 +116,4 @@ def main():
             st.pyplot(st.session_state.UMAPFigDiff2_Dens)
 
 if __name__ == '__main__':
-
-    #Set a wide layout
-    st.set_page_config(page_title="UMAP Differences Analyzer",
-                       layout="wide")
-    st.title('UMAP Differences Analyzer')
-
-    # Run streamlit-dataframe-editor library initialization tasks at the top of the page
-    st.session_state = sde.initialize_session_state(st.session_state)
-
-    # Run Top of Page (TOP) functions
-    st.session_state = top.top_of_page_reqs(st.session_state)
-
     main()
-
-    # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
-    st.session_state = sde.finalize_session_state(st.session_state)

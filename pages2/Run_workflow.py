@@ -5,8 +5,7 @@ import numpy as np
 import time_cell_interaction_lib as tci  # import the TIME library stored in time_cell_interaction_lib.py
 import time
 import streamlit_utils
-import app_top_of_page as top
-import streamlit_dataframe_editor as sde
+
 
 def main():
     '''
@@ -215,18 +214,4 @@ def main():
 
 # Call the main function
 if __name__ == '__main__':
-
-    # Set a wide layout and display the page heading
-    st.set_page_config(layout="wide")
-    st.title('Run workflow')
-
-    # Run streamlit-dataframe-editor library initialization tasks at the top of the page
-    st.session_state = sde.initialize_session_state(st.session_state)
-
-    # Run Top of Page (TOP) functions
-    st.session_state = top.top_of_page_reqs(st.session_state)
-
     main()
-
-    # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
-    st.session_state = sde.finalize_session_state(st.session_state)
