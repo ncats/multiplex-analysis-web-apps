@@ -7,6 +7,9 @@ import streamlit_utils
 import numpy as np
 import subprocess
 import platform_io
+import install_missing_packages
+
+install_missing_packages.live_package_installation()
 
 # Note if any of the following imports having "  # slow" are not commented out, there is a delay in running the forking test
 from pages2 import data_import_and_export
