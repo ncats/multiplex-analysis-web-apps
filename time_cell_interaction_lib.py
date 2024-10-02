@@ -1824,7 +1824,7 @@ class TIMECellInteraction:
                         dpi=dpi,
                         plots_dir=savedir,
                         plot_real_data=plot_real_data,
-                        entity_name=slide_name,
+                        entity_name=slide_name.replace(' ', '_'),
                         img_file_suffix=img_file_suffix,
                         entity=entity,
                         entity_index=-1,
@@ -2242,7 +2242,7 @@ class TIMECellInteraction:
                         dpi=settings__plotting__pval_dpi,
                         plots_dir=plots_dir,
                         plot_real_data=plot_real_data,
-                        entity_name=entity_name,
+                        entity_name=entity_name.replace(' ', '_'),
                         img_file_suffix='',
                         entity=entity,
                         entity_index=-1,
@@ -4102,7 +4102,7 @@ def plot_single_density_pvals(argument_tuple):
 
     # Define the ROI-specific variables from the main df_density_pvals_arrays parameter
     log_dens_pvals_arr = df_density_pvals_arrays.loc[entity_index, 'log_dens_pvals_arr']
-    entity_name = df_density_pvals_arrays.loc[entity_index, 'roi_name']
+    entity_name = df_density_pvals_arrays.loc[entity_index, 'roi_name'].replace(' ', '_')  # this is probably the place to replace spaces with underscores
     entity = 'roi'
 
     # Plot the heatmaps for the current set of data
@@ -4143,7 +4143,7 @@ def plot_single_roi(args_as_single_tuple):
 
     # Assign the data for the current ROI to useful variables
     roi_name = df_data_by_roi.loc[roi_index, 'unique_roi']  # df_data_by_roi.loc[roi_index, 'roi_name']
-    roi_fig_filename = 'roi_plot_{}_{}.{}'.format(roi_name, roi_index, save_image_ext)
+    roi_fig_filename = 'roi_plot_{}_{}.{}'.format(roi_name.replace(' ', '_'), roi_index, save_image_ext)
     roi_fig_pathname = os.path.join(savedir, roi_fig_filename)
 
     # If the image file doesn't already exist...
