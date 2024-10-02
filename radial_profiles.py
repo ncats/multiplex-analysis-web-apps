@@ -19,7 +19,7 @@ def common_suffix(ser):
 # Create a function to check for duplicate columns
 def has_duplicate_columns(df, sample_size=1000):
     print('NOTE: Sampling is being performed, so if this returns True, consider increasing the sample_size parameter (or manually check for duplicates). If it returns False, you know that there are no duplicate columns in the DataFrame and do not need to stress about the sampling.')
-    df = df.sample(n=sample_size)
+    df = utils.sample_df_without_replacement_by_number(df=df, n=sample_size)
     df_transposed = df.T
     df_deduplicated = df_transposed.drop_duplicates().T
     return len(df.columns) != len(df_deduplicated.columns)  # if they're the same length (has_duplicate_columns() returns False), you know there are no duplicate columns

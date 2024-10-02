@@ -980,7 +980,7 @@ def main():
 
         # Print out a five-row sample of the main dataframe
         st.write('Augmented dataset sample:')
-        st.dataframe(st.session_state['mg__df'].sample(5), hide_index=True)
+        st.dataframe(utils.sample_df_without_replacement_by_number(df=st.session_state['mg__df'], n=5), hide_index=True)
 
         # if st.button('Save dataset to `output` folder'):
         #     st.session_state['mg__df'].to_csv('./output/saved_dataset.csv')

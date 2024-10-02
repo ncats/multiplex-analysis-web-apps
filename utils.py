@@ -1266,3 +1266,8 @@ def get_categorical_columns_including_numeric(df, max_num_unique_values=1000):
         if df[col].nunique() <= max_num_unique_values:
             categorical_columns.append(col)
     return categorical_columns
+
+
+def sample_df_without_replacement_by_number(df, n, seed=None):
+    n = min(n, len(df))
+    return df.sample(n=n, replace=False, random_state=seed)

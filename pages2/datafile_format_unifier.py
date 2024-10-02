@@ -705,7 +705,7 @@ def main():
         st.header('Sample of unified dataframe')
         resample_dataframe = st.button('Refresh dataframe sample')
         if ('sampled_df' not in st.session_state) or resample_dataframe or show_dataframe_updates:
-            sampled_df = df.sample(100).sort_index()
+            sampled_df = utils.sample_df_without_replacement_by_number(df=df, n=100).sort_index()
             st.session_state['sampled_df'] = sampled_df
         sampled_df = st.session_state['sampled_df']
         st.write(sampled_df)

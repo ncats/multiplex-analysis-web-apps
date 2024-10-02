@@ -163,7 +163,7 @@ def main():
     st.header('Dataframe sample')
     resample_dataframe = st.button('Refresh dataframe sample')
     if ('opener__sampled_df' not in st.session_state) or resample_dataframe or show_dataframe_updates:
-        st.session_state['opener__sampled_df'] = df.sample(min(num_rows_to_sample, len(df))).sort_index()
+        st.session_state['opener__sampled_df'] = utils.sample_df_without_replacement_by_number(df=df, n=num_rows_to_sample).sort_index()
     st.write(st.session_state['opener__sampled_df'])
 
 # Run the main function
