@@ -97,7 +97,7 @@ def draw_scatter_plot_with_options():
             df = st.session_state['df']
 
         # Store columns of certain types
-        if ('rsp__categorical_columns' not in st.session_state) or input_dataset_has_changed:
+        if ('rsp__categorical_columns' not in st.session_state) or input_dataset_has_changed or st.button('Re-extract columns from dataset'):
             max_num_unique_values = 1000
             categorical_columns = []
             for col in df.select_dtypes(include=('category', 'object')).columns:
@@ -113,7 +113,7 @@ def draw_scatter_plot_with_options():
         # Choose a column to plot
         if ('rsp__column_to_plot' not in st.session_state) or input_dataset_has_changed:
             st.session_state['rsp__column_to_plot'] = categorical_columns[0]
-        column_to_plot = st.selectbox('Select a column by which to color the points:', categorical_columns, key='rsp__column_to_plot')
+        column_to_plot = st.selectbox('Select a column by which to color the points:', categorical_columns, key='rsp__column_to_plot', help='If you don\'t see the column you want, you may need to re-extract the columns from the dataset using the button above.')
         column_to_plot_has_changed = ('rsp__column_to_plot_prev' not in st.session_state) or (st.session_state['rsp__column_to_plot_prev'] != column_to_plot) or input_dataset_has_changed
         st.session_state['rsp__column_to_plot_prev'] = column_to_plot
 
