@@ -47,6 +47,41 @@ def set_filename_corresp_to_roi(df_paths, roi_name, curr_colname, curr_dir, curr
     # Return the updated paths dataframe
     return df_paths
 
+def get_extraction_func(start, end, split=False, strip=None):
+    if not split:
+        if start != '':
+            func0 = lambda item: item.split(start)[1].split(end)[0]
+        else:
+            func0 = lambda item: item.split(end)[0]
+    else:
+        func0 = lambda item: '_'.join(item.split(start)[1].split(end)[:-1])
+    if strip:
+        func = lambda item: func0(item).removesuffix(strip)
+    else:
+        func = func0
+    return func
+
+def get_slides_or_rois_in_image_dir(image_dir, images_path):
+    if image_dir == 'dens_pvals_per_roi':
+        func = get_extraction_func('density_pvals-real-', '-slice_')
+    elif image_dir == 'dens_pvals_per_slide':
+        func = get_extraction_func('density_pvals-real-', '-slice_')
+    elif image_dir == 'roi_plots':
+        func = get_extraction_func('roi_plot_', '_', split=True)
+    elif image_dir == 'single_roi_outlines_on_whole_slides':
+        func = get_extraction_func('', '.')
+    elif image_dir == 'whole_slide_patches':
+        func = get_extraction_func('', '.', strip='-patched')
+    return [func(image_name) for image_name in os.listdir(os.path.join(images_path, image_dir))]
+
+def get_slide_from_roi(roi: str, unique_slides: list[str]) -> str | None:
+    slide_portion = roi.split('_[')[0]
+    for slide in unique_slides:
+        if slide_portion in slide:
+            return slide
+    print(f'WARNING: No slide found for ROI: {roi}')
+    return None
+
 def get_paths_for_rois():
     """Get the pathnames for all three types of ROI-based analyses.
 
@@ -86,11 +121,17 @@ def get_paths_for_rois():
         df_paths = set_filename_corresp_to_roi(df_paths=df_paths, roi_name=roi_name, curr_colname='heatmap', curr_dir=heatmaps_dir, curr_dir_listing=heatmaps_dir_listing)
         df_paths = set_filename_corresp_to_roi(df_paths=df_paths, roi_name=roi_name, curr_colname='outline', curr_dir=outlines_dir, curr_dir_listing=outlines_dir_listing)
 
+    if 'whole_slide_patches' not in os.listdir(plots_dir):
+        print(f'WARNING: No directory named "whole_slide_patches" found in {plots_dir}.')
+        return None
+
+    detected_unique_slides = sorted(set(get_slides_or_rois_in_image_dir('whole_slide_patches', plots_dir)), key=lambda x: int(x.split('-')[0][:-1]))
+
     # Add columns containing the patient "case" ID and the slide "condition", in order to aid in sorting the data
     cases = []
     conditions = []
     for roi_name in df_paths.index:
-        slide_id = roi_name.split('-')[0]
+        slide_id = get_slide_from_roi(roi_name, detected_unique_slides).split('-')[0]  # this assumes that the roi name is contained in the slide name. For old datasets or when patching was performed, this wasn't necessary and we could just use roi_name.split('-')[0] because it contained the case and condition, but in a recent dataset, the pre-defined ROIs did not adhere to this format so we had to determine the slide corresponding to the current ROI in order to determine the case/condition
         cases.append(int(slide_id[:-1]))
         conditions.append(slide_id[-1])
     df_paths['case'] = cases

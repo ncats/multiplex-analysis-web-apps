@@ -28,7 +28,11 @@ def main():
 
         # Run the image path collection, assigning the result to the session state
         if ('df_paths_per_roi' not in st.session_state) or collect_image_paths:
-            st.session_state['df_paths_per_roi'] = utils.get_paths_for_rois()
+            if (df_paths_per_roi := utils.get_paths_for_rois()) is None:
+                st.error('Error extracting image paths from disk because it appears that whole slide ROI outline images were not generated. Check that box on the Run SIT Workflow page, click the "Run workflow" button, and return here')
+                return
+            else:
+                st.session_state['df_paths_per_roi'] = df_paths_per_roi
             image_paths_extracted = True
             st.session_state['roi_name_to_visualize'] = list(st.session_state['df_paths_per_roi'].index)[0]
             update_roi_index(list(st.session_state['df_paths_per_roi'].index))
