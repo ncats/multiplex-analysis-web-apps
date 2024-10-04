@@ -12,7 +12,6 @@ import pytz
 from datetime import datetime
 import anndata
 import time
-from typing import Union
 import pickle
 
 def set_filename_corresp_to_roi(df_paths, roi_name, curr_colname, curr_dir, curr_dir_listing):
