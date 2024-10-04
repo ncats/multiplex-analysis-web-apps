@@ -12,6 +12,7 @@ import pytz
 from datetime import datetime
 import anndata
 import time
+from typing import Union
 
 def set_filename_corresp_to_roi(df_paths, roi_name, curr_colname, curr_dir, curr_dir_listing):
     """Update the path in a main paths-holding dataframe corresponding to a particular ROI in a particular directory.
@@ -74,7 +75,7 @@ def get_slides_or_rois_in_image_dir(image_dir, images_path):
         func = get_extraction_func('', '.', strip='-patched')
     return [func(image_name) for image_name in os.listdir(os.path.join(images_path, image_dir))]
 
-def get_slide_from_roi(roi: str, unique_slides: list[str]) -> str | None:
+def get_slide_from_roi(roi: str, unique_slides: list[str]) -> Union[str, None]:
     slide_portion = roi.split('_[')[0]
     for slide in unique_slides:
         if slide_portion in slide:
