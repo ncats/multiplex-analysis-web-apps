@@ -91,7 +91,9 @@ def get_paths_for_rois():
 
     with open(os.path.join(pickle_dir, pickle_file), 'rb') as f:
         initial_data = pickle.load(f)
-    ser_slide_per_roi = initial_data['df_data_by_roi'].set_index('unique_roi')['unique_slide']
+    df_data_by_roi = initial_data['df_data_by_roi']
+    df_data_by_roi['unique_roi'] = df_data_by_roi['unique_roi'].replace(' ', '_', regex=True)
+    ser_slide_per_roi = df_data_by_roi.set_index('unique_roi')['unique_slide']
 
     # Add columns containing the patient "case" ID and the slide "condition", in order to aid in sorting the data
     cases = []
