@@ -97,7 +97,7 @@ def draw_scatter_plot_with_options():
             df = st.session_state['df']
 
         # Store columns of certain types
-        if ('rsp__categorical_columns' not in st.session_state) or input_dataset_has_changed or st.button('Re-extract columns from dataset'):
+        if st.button('Re-extract columns from dataset') or ('rsp__categorical_columns' not in st.session_state) or input_dataset_has_changed:
             max_num_unique_values = 1000
             categorical_columns = []
             for col in df.select_dtypes(include=('category', 'object')).columns:
