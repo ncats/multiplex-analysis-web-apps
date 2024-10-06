@@ -268,7 +268,18 @@ class Platform:
 
         # Irrelevant for local
         if self.platform == 'local':
-            pass
+            st.subheader(':tractor: Load local input file(s)')
+            uploaded_files = st.file_uploader(
+                "Choose input file(s):", accept_multiple_files=True
+            )
+            if uploaded_files:
+                st.write(f'You have uploaded {len(uploaded_files)} file(s):')
+                st.dataframe([uploaded_file.name for uploaded_file in uploaded_files])
+                if st.button('Write files to disk'):
+                    for uploaded_file in uploaded_files:
+                        with open(os.path.join('input', uploaded_file.name), 'wb') as f:
+                            f.write(uploaded_file.getbuffer())
+                    st.success('Files successfully written to input directory')
 
         # If on NIDAP...
         elif self.platform == 'nidap':
