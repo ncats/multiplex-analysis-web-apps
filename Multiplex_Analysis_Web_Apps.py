@@ -1,5 +1,8 @@
 import streamlit as st
 import os
+
+st.write(os.listdir('.'))
+
 from streamlit_extras.app_logo import add_logo
 import streamlit_session_state_management
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
