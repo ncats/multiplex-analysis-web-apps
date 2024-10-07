@@ -35,6 +35,7 @@ from pages2 import radial_bins_plots
 from pages2 import radial_profiles_analysis
 from pages2 import preprocessing
 from pages2 import results_transfer
+from pages2 import file_cleanup
 # from pages2 import forking_test
 
 
@@ -117,6 +118,7 @@ def main():
                 st.Page(preprocessing.main, title="Preprocessing", url_path='preprocessing'),
                 st.Page(memory_analyzer.main, title="Memory Analyzer", url_path='memory_analyzer'),
                 st.Page(results_transfer.main, title="Results Transfer", url_path='results_transfer'),
+                st.Page(file_cleanup.main, title="File Cleanup", url_path='file_cleanup'),
                 # st.Page(forking_test.main, title="Forking Test", url_path='forking_test')
             ]
         })
