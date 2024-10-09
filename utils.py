@@ -12,6 +12,7 @@ import pytz
 from datetime import datetime
 import anndata
 import time
+import pickle
 
 def set_filename_corresp_to_roi(df_paths, roi_name, curr_colname, curr_dir, curr_dir_listing):
     """Update the path in a main paths-holding dataframe corresponding to a particular ROI in a particular directory.
@@ -63,6 +64,8 @@ def get_paths_for_rois():
     # Obtain the directory holding the subdirectories containing various types of plots (in this case, three types)
     # plots_dir = os.path.join(os.getcwd(), '..', 'results', 'webpage', 'slices_1x{}'.format(radius_in_microns), 'real')
     plots_dir = os.path.join('.', 'output', 'images')
+    pickle_dir = os.path.join('.', 'output', 'checkpoints')
+    pickle_file = 'initial_data.pkl'
 
     # Obtain the paths to the subdirectories
     outlines_dir = os.path.join(plots_dir, 'single_roi_outlines_on_whole_slides')
@@ -86,11 +89,17 @@ def get_paths_for_rois():
         df_paths = set_filename_corresp_to_roi(df_paths=df_paths, roi_name=roi_name, curr_colname='heatmap', curr_dir=heatmaps_dir, curr_dir_listing=heatmaps_dir_listing)
         df_paths = set_filename_corresp_to_roi(df_paths=df_paths, roi_name=roi_name, curr_colname='outline', curr_dir=outlines_dir, curr_dir_listing=outlines_dir_listing)
 
+    with open(os.path.join(pickle_dir, pickle_file), 'rb') as f:
+        initial_data = pickle.load(f)
+    df_data_by_roi = initial_data['df_data_by_roi']
+    df_data_by_roi['unique_roi'] = df_data_by_roi['unique_roi'].replace(' ', '_', regex=True)
+    ser_slide_per_roi = df_data_by_roi.set_index('unique_roi')['unique_slide']
+
     # Add columns containing the patient "case" ID and the slide "condition", in order to aid in sorting the data
     cases = []
     conditions = []
     for roi_name in df_paths.index:
-        slide_id = roi_name.split('-')[0]
+        slide_id = ser_slide_per_roi[roi_name].split('-')[0]  # this is a more reliable way to get the slide ID
         cases.append(int(slide_id[:-1]))
         conditions.append(slide_id[-1])
     df_paths['case'] = cases
