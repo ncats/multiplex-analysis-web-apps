@@ -654,7 +654,7 @@ class HALO(Native):
         df = df.rename(dict(zip(phenotype_columns, ['Phenotype {}'.format(x.strip()) for x in phenotype_columns])), axis='columns')
 
         # For each phenotype column, convert zeros and ones to -'s and +'s
-        for col in df.filter(regex='^Phenotype\ '):
+        for col in df.filter(regex='^Phenotype '):
             df[col] = df[col].map({0: '-', 1: '+'})
 
         # Attribute assignments from variables
@@ -762,7 +762,7 @@ class REEC(Native):
         df = df.rename(dict(zip(phenotype_columns, ['Phenotype {}'.format(marker.strip()) for marker in markers])), axis='columns')
 
         # For each phenotype column, convert zeros and ones to -'s and +'s
-        for col in df.filter(regex='^Phenotype\ '):
+        for col in df.filter(regex='^Phenotype '):
             df[col] = df[col].map({0: '-', 1: '+'})
 
         # Attribute assignments from variables
@@ -1017,7 +1017,7 @@ class QuPath(Native):
             df = df.drop('Phenotype Other', axis='columns')
 
         # For each phenotype column, convert zeros and ones to -'s and +'s
-        for col in df.filter(regex='^Phenotype\ '):
+        for col in df.filter(regex='^Phenotype '):
             df[col] = df[col].map({0: '-', 1: '+'})
 
         # Attribute assignments from variables
@@ -1126,7 +1126,7 @@ class Steinbock(Native):
         df = self.data
 
         # For each phenotype column, convert zeros and ones to -'s and +'s
-        for col in df.filter(regex='^Phenotype\ '):
+        for col in df.filter(regex='^Phenotype '):
             df[col] = df[col].map({0: '-', 1: '+'})
 
         # Attribute assignments from variables
