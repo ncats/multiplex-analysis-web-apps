@@ -120,7 +120,8 @@ def main():
     print(f"Output user directory: {st.session_state['output_user_dir']}")
     print(f"Saved states user directory: {st.session_state['saved_states_user_dir']}")
     print(f"Number of CPUs for SIT: {st.session_state['num_cpus_for_sit']}")
-    print(subprocess.run(['uname', '-a'], capture_output=True, text=True, check=True).stdout.strip())
+    for key, value in os.environ.items():
+        print(f"{key}: {value}")
 
     # # Allow the user to delete their user directories, just uncomment if so
     # if st.button('Delete user directories'):
