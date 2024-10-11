@@ -99,28 +99,25 @@ def get_user_dirs_for_platform(input_top_dir: str, output_top_dir: str, saved_st
         return (input_top_dir, output_top_dir, saved_states_top_dir)
         
 
+def create_directory(dirname: str, debug: bool=DEBUG) -> None:
+    if not os.path.exists(dirname):
+        os.makedirs(dirname)
+        if debug:
+            st.success(f"Directory {dirname} created.")
+    else:
+        if debug:
+            st.warning(f"Directory {dirname} already exists.")
+
+
 def set_up_user_directories(input_top_dir: str, output_top_dir: str, saved_states_top_dir: str, debug: bool=DEBUG) -> None:
     try:
         st.session_state['input_user_dir'], st.session_state['output_user_dir'], st.session_state['saved_states_user_dir'] = get_user_dirs_for_platform(input_top_dir, output_top_dir, saved_states_top_dir)
 
-        # Create directories if they do not exist
-        if not os.path.exists(st.session_state['output_user_dir']):
-            os.makedirs(st.session_state['output_user_dir'])
-            if debug:
-                st.success(f"Output directory {st.session_state['output_user_dir']} created.")
-        else:
-            if debug:
-                st.warning(f"Output directory {st.session_state['output_user_dir']} already exists.")
-
+        # Create and set up directories if they do not exist
+        create_directory(st.session_state['input_user_dir'])
+        create_directory(st.session_state['output_user_dir'])
         set_up_output_directory(st.session_state['output_user_dir'])
-        
-        if not os.path.exists(st.session_state['saved_states_user_dir']):
-            os.makedirs(st.session_state['saved_states_user_dir'])
-            if debug:
-                st.success(f"Saved states directory {st.session_state['saved_states_user_dir']} created.")
-        else:
-            if debug:
-                st.warning(f"Saved states directory {st.session_state['saved_states_user_dir']} already exists.")
+        create_directory(st.session_state['saved_states_user_dir'])
     except Exception as e:
         if debug:
             st.error(f"Error during initialization: {e}")
