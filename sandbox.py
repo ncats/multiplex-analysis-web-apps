@@ -75,7 +75,7 @@ def platform_is_streamlit_community_cloud():
     '''
     Check if the Streamlit application is operating on the Streamlit Community Cloud
     '''
-    return os.getenv('STREAMLIT_SERVER_HEADLESS') == 'true'
+    return os.getenv('HOSTNAME') == 'streamlit'
 
 
 def check_for_platform(session_state):
