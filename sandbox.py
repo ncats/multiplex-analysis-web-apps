@@ -7,7 +7,10 @@ import platform_io
 import numpy as np
 
 
-def create_unique_user_directory(base_path: str, debug: bool=False) -> str:
+DEBUG = True
+
+
+def create_unique_user_directory(base_path: str, debug: bool=DEBUG) -> str:
     """
     Create a unique temporary directory within the base path.
 
@@ -28,7 +31,7 @@ def create_unique_user_directory(base_path: str, debug: bool=False) -> str:
         raise
 
 
-def delete_directory_recursively(directory_path: str, debug: bool=False) -> None:
+def delete_directory_recursively(directory_path: str, debug: bool=DEBUG) -> None:
     """
     Recursively delete a directory and all its contents.
 
@@ -49,7 +52,7 @@ def delete_directory_recursively(directory_path: str, debug: bool=False) -> None
         raise
 
 
-def set_up_output_directory(output_user_dir: str, debug: bool=False) -> None:
+def set_up_output_directory(output_user_dir: str, debug: bool=DEBUG) -> None:
     os.makedirs(os.path.join(output_user_dir, 'checkpoints', 'neighborhood_profiles'), exist_ok=True)
     if not os.path.exists(os.path.join(output_user_dir, 'MAWA_Suite_Benchmarking.csv')):
         with open(os.path.join(output_user_dir, 'MAWA_Suite_Benchmarking.csv'), 'w') as f:
@@ -96,7 +99,7 @@ def get_user_dirs_for_platform(input_top_dir: str, output_top_dir: str, saved_st
         return (input_top_dir, output_top_dir, saved_states_top_dir)
         
 
-def set_up_user_directories(input_top_dir: str, output_top_dir: str, saved_states_top_dir: str, debug: bool=False) -> None:
+def set_up_user_directories(input_top_dir: str, output_top_dir: str, saved_states_top_dir: str, debug: bool=DEBUG) -> None:
     try:
         st.session_state['input_user_dir'], st.session_state['output_user_dir'], st.session_state['saved_states_user_dir'] = get_user_dirs_for_platform(input_top_dir, output_top_dir, saved_states_top_dir)
 
@@ -124,7 +127,7 @@ def set_up_user_directories(input_top_dir: str, output_top_dir: str, saved_state
         raise
 
 
-def delete_user_directories(debug: bool=False) -> None:
+def delete_user_directories(debug: bool=DEBUG) -> None:
     # Remove directories from session state and delete them from the filesystem
     if 'input_user_dir' in st.session_state:
         delete_directory_recursively(st.session_state.pop('input_user_dir'))
