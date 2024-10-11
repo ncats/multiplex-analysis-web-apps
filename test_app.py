@@ -7,6 +7,7 @@ import streamlit_utils
 import install_missing_packages
 import sandbox
 import subprocess
+import utils
 
 install_missing_packages.live_package_installation()
 
@@ -116,11 +117,14 @@ def main():
     if 'num_cpus_for_sit' not in st.session_state:
         st.session_state['num_cpus_for_sit'] = sandbox.get_num_cpus_for_sit()
 
+    print('****')
+    print(utils.get_timestamp(pretty=True))
     print(f"Input user directory: {st.session_state['input_user_dir']}")
     print(f"Output user directory: {st.session_state['output_user_dir']}")
     print(f"Saved states user directory: {st.session_state['saved_states_user_dir']}")
     print(f"Number of CPUs for SIT: {st.session_state['num_cpus_for_sit']}")
     print(f'input_user_dir in session state: {"input_user_dir" in st.session_state}')
+    print('****')
     # for key, value in os.environ.items():
     #     print(f"{key}: {value}")
 
