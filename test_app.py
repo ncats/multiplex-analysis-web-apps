@@ -123,7 +123,6 @@ def main():
     print(f"Output user directory: {st.session_state['output_user_dir']}")
     print(f"Saved states user directory: {st.session_state['saved_states_user_dir']}")
     print(f"Number of CPUs for SIT: {st.session_state['num_cpus_for_sit']}")
-    print(f'input_user_dir in session state: {"input_user_dir" in st.session_state}')
     print('****')
     # for key, value in os.environ.items():
     #     print(f"{key}: {value}")
