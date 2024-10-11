@@ -4,10 +4,8 @@ from streamlit_extras.app_logo import add_logo
 import streamlit_session_state_management
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
 import streamlit_utils
-import numpy as np
-import subprocess
-import platform_io
 import install_missing_packages
+import sandbox
 
 install_missing_packages.live_package_installation()
 
@@ -42,23 +40,6 @@ def welcome_page():
     # Markdown text
     intro_markdown = ndl.read_markdown_file('markdown/MAWA_WelcomePage.md')
     st.markdown(intro_markdown, unsafe_allow_html=True)
-
-
-def platform_is_nidap():
-    '''
-    Check if the Streamlit application is operating on NIDAP
-    '''
-    return np.any(['nidap.nih.gov' in x for x in subprocess.run('conda config --show channels', shell=True, capture_output=True).stdout.decode().split('\n')[1:-1]])
-
-
-def check_for_platform(session_state):
-    '''
-    Set the platform parameters based on the platform the Streamlit app is running on
-    '''
-    # Initialize the platform object
-    if 'platform' not in session_state:
-        session_state['platform'] = platform_io.Platform(platform=('nidap' if platform_is_nidap() else 'local'))
-    return session_state
 
 
 def main():
@@ -167,7 +148,7 @@ def main():
                 streamlit_utils.write_python_session_memory_usage()
 
     # Check the platform
-    st.session_state = check_for_platform(st.session_state)
+    st.session_state = sandbox.check_for_platform(st.session_state)
 
     # Format tooltips
     tooltip_style = """

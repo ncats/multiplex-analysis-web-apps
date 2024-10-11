@@ -4,10 +4,8 @@ from streamlit_extras.app_logo import add_logo
 import streamlit_session_state_management
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
 import streamlit_utils
-import numpy as np
-import subprocess
-import platform_io
 import install_missing_packages
+import sandbox
 
 install_missing_packages.live_package_installation()
 
@@ -35,7 +33,6 @@ from pages2 import radial_bins_plots
 from pages2 import radial_profiles_analysis
 from pages2 import preprocessing
 from pages2 import results_transfer
-from pages2 import file_cleanup
 # from pages2 import forking_test
 
 
@@ -43,23 +40,6 @@ def welcome_page():
     # Markdown text
     intro_markdown = ndl.read_markdown_file('markdown/MAWA_WelcomePage.md')
     st.markdown(intro_markdown, unsafe_allow_html=True)
-
-
-def platform_is_nidap():
-    '''
-    Check if the Streamlit application is operating on NIDAP
-    '''
-    return np.any(['nidap.nih.gov' in x for x in subprocess.run('conda config --show channels', shell=True, capture_output=True).stdout.decode().split('\n')[1:-1]])
-
-
-def check_for_platform(session_state):
-    '''
-    Set the platform parameters based on the platform the Streamlit app is running on
-    '''
-    # Initialize the platform object
-    if 'platform' not in session_state:
-        session_state['platform'] = platform_io.Platform(platform=('nidap' if platform_is_nidap() else 'local'))
-    return session_state
 
 
 def main():
@@ -118,18 +98,31 @@ def main():
                 st.Page(preprocessing.main, title="Preprocessing", url_path='preprocessing'),
                 st.Page(memory_analyzer.main, title="Memory Analyzer", url_path='memory_analyzer'),
                 st.Page(results_transfer.main, title="Results Transfer", url_path='results_transfer'),
-                st.Page(file_cleanup.main, title="File Cleanup", url_path='file_cleanup'),
                 # st.Page(forking_test.main, title="Forking Test", url_path='forking_test')
             ]
         })
 
-    # Ensure the input/output directories exist
-    input_path = './input'
-    if not os.path.exists(input_path):
-        os.makedirs(input_path)
-    output_path = './output'
-    if not os.path.exists(output_path):
-        os.makedirs(output_path)
+    # Set the top directories, which may or may not be the actual input, output, and saved states directories for the session (instead, they could be subdirectories in those top directories)
+    input_top_dir = os.path.join('.', 'input')
+    output_top_dir = os.path.join('.', 'output')
+    saved_states_top_dir = os.path.join('.', 'saved_streamlit_session_states')
+
+    # Creates session state keys input_user_dir, output_user_dir, saved_states_user_dir. These should be the directories used in MAWA for filesystem interaction
+    if 'input_user_dir' not in st.session_state:
+        sandbox.set_up_user_directories(input_top_dir, output_top_dir, saved_states_top_dir)
+
+    # Creates session state key num_cpus_for_sit
+    if 'num_cpus_for_sit' not in st.session_state:
+        st.session_state['num_cpus_for_sit'] = sandbox.get_num_cpus_for_sit()
+
+    print(f"Input user directory: {st.session_state['input_user_dir']}")
+    print(f"Output user directory: {st.session_state['output_user_dir']}")
+    print(f"Saved states user directory: {st.session_state['saved_states_user_dir']}")
+    print(f"Number of CPUs for SIT: {st.session_state['num_cpus_for_sit']}")
+
+    # # Allow the user to delete their user directories, just uncomment if so
+    # if st.button('Delete user directories'):
+    #     delete_user_directories()
 
     # For widget persistence, we need always copy the session state to itself, being careful with widgets that cannot be persisted, like st.data_editor() (where we use the "__do_not_persist" suffix to avoid persisting it)
     for key in st.session_state.keys():
@@ -169,7 +162,7 @@ def main():
                 streamlit_utils.write_python_session_memory_usage()
 
     # Check the platform
-    st.session_state = check_for_platform(st.session_state)
+    st.session_state = sandbox.check_for_platform(st.session_state)
 
     # Format tooltips
     tooltip_style = """
