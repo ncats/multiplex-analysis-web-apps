@@ -1,6 +1,6 @@
 ---
 layout: default
-title: Tutorials
+title: Learning Resources
 nav_order: 10
 has_children: true
 ---

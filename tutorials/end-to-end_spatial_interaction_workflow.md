@@ -1,7 +1,7 @@
 ---
 layout: default
-parent: Tutorials
-nav_order: 1
+parent: Learning Resources
+nav_order: 2
 ---
 
 # End-to-End Spatial Interaction Workflow
