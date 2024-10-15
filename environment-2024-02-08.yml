@@ -34,4 +34,10 @@ dependencies:
     - parc
     - parmap
     - setuptools-scm
+    - annoy
+    - sklearn-ann
+    - pynndescent
+    - plotnine
+    
+
 

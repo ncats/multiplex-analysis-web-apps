@@ -3,11 +3,7 @@ This is script which creates the UMAP Differences Analyzer page (MAWA).
 '''
 import streamlit as st
 from streamlit_extras.add_vertical_space import add_vertical_space
-
-# Import relevant libraries
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
-import app_top_of_page as top
-import streamlit_dataframe_editor as sde
 
 def reset_phenotype_selection():
     '''
@@ -20,6 +16,9 @@ def main():
     '''
     Main function for running the page
     '''
+
+    # Make a generic check to avoid neeeding to hunt down individual checks
+    rdy_to_plot = st.session_state.cluster_completed
 
     # Toggles for different figures
     fig_toggle = st.columns([1, 1, 2])
@@ -41,7 +40,7 @@ def main():
     elif st.session_state.lineageDisplayToggle == 'Markers':
         st.session_state.umaplineages = st.session_state.umapMarks
 
-    if st.session_state.umap_completed:
+    if rdy_to_plot:
         st.session_state = ndl.setFigureObjs_UMAPDifferences(st.session_state)
     else:
         st.warning('No spatial UMAP analysis detected. Please complete Neighborhood Profiles')
@@ -71,12 +70,12 @@ def main():
 
     # FULL UMAP
     with umap_viz[0]:
-        if st.session_state.umap_completed:
+        if rdy_to_plot:
             st.pyplot(st.session_state.UMAPFig)
 
     # Inspection UMAP
     with umap_viz[1]:
-        if st.session_state.umap_completed:
+        if rdy_to_plot:
             st.pyplot(st.session_state.UMAPFigInsp)
 
     # Difference Measures
@@ -100,12 +99,12 @@ def main():
     diff_umap_col = st.columns(3)
     with diff_umap_col[0]:
         st.header('UMAP A')
-        if st.session_state.umap_completed:
+        if rdy_to_plot:
             st.pyplot(st.session_state.UMAPFigDiff0_Dens)
             st.pyplot(st.session_state.UMAPFigDiff0_Clus)
     with diff_umap_col[1]:
         st.header('UMAP B')
-        if st.session_state.umap_completed:
+        if rdy_to_plot:
             st.pyplot(st.session_state.UMAPFigDiff1_Dens)
             st.pyplot(st.session_state.UMAPFigDiff1_Clus)
     with diff_umap_col[2]:
@@ -113,23 +112,8 @@ def main():
         st.write('###')
         st.write('###')
         st.header('UMAP A - UMAP B')
-        if st.session_state.umap_completed:
+        if rdy_to_plot:
             st.pyplot(st.session_state.UMAPFigDiff2_Dens)
 
 if __name__ == '__main__':
-
-    #Set a wide layout
-    st.set_page_config(page_title="UMAP Differences Analyzer",
-                       layout="wide")
-    st.title('UMAP Differences Analyzer')
-
-    # Run streamlit-dataframe-editor library initialization tasks at the top of the page
-    st.session_state = sde.initialize_session_state(st.session_state)
-
-    # Run Top of Page (TOP) functions
-    st.session_state = top.top_of_page_reqs(st.session_state)
-
     main()
-
-    # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
-    st.session_state = sde.finalize_session_state(st.session_state)

@@ -6,7 +6,7 @@ import subprocess
 import numpy as np
 import platform_io
 import streamlit as st
-from st_pages import show_pages_from_config, add_indentation
+# from st_pages import show_pages_from_config, add_indentation
 from streamlit_extras.app_logo import add_logo
 import streamlit_session_state_management
 import streamlit_utils
