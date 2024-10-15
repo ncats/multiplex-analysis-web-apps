@@ -13,4 +13,4 @@ nav_order: 1
 - Session 3: Pairwise spatial analysis using hypothesis testing.
 - Session 4: Neighborhood analysis using spatial UMAP.
 
-Feel free to [reach out to us](mailto:andrew.weisman@nih.gov) for questions, comments, or concerns!
+Feel free to [reach out to us](mailto:andrew.weisman@nih.gov) with questions, comments, or concerns!
