@@ -280,15 +280,15 @@ beautifulsoup4==4.12.3
 botocore==1.31.17
 cloudpickle==3.1.0
 colorcet==3.1.0
-dask==2024.9.1
-dask-expr==1.1.15
+dask==2024.10.0
+dask-expr==1.1.16
 dask-image==2024.5.3
 datashader==0.16.3
 dill==0.3.9
-distributed==2024.9.1
+distributed==2024.10.0
 docrep==0.3.2
 entrypoints==0.4
-faker==30.3.0
+faker==30.6.0
 fasteners==0.19
 favicon==0.7.0
 frozenlist==1.4.1
@@ -297,7 +297,7 @@ geopandas==1.0.1
 hnswlib==0.8.0
 htbuilder==0.6.2
 igraph==0.11.6
-imageio==2.35.1
+imageio==2.36.0
 importlib-resources==6.4.5
 inflect==7.4.0
 jmespath==1.0.1
@@ -377,7 +377,7 @@ xarray-dataclasses==1.8.0
 xarray-datatree==0.0.14
 xarray-schema==0.0.3
 xarray-spatial==0.4.0
-yarl==1.14.0
+yarl==1.15.5
 zarr==2.18.3
 zict==3.0.0
 
@@ -403,7 +403,7 @@ fe451c34 - noarch @ tar.bz2 @ ri.artifacts.repository.bundle.jupyter-default-env
 [pip-indices]
 ri.artifacts.repository.artifactory.external-python-pypi
 ri.foundry-sdk-asset-bundle.main.artifacts.repository
-ri.stemma.main.repository.ff83a94d-9a62-44b7-a114-93337d236a26
+ri.stemma.main.repository.062d3269-905c-468d-9237-6135eaed3e4f
 
 [conda lock version]
-v3 - 309f097080e7833860fccbd9149fb098b87414099e527b6ae19c0745c3a458e0
+v3 - 309f097080e7833860fccbd9149fb098de820d4bc177442aae44cd8e1ffc94a7
