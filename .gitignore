@@ -146,6 +146,42 @@ cython_debug/
 events.out.tfevents.*
 model.ckpt*
 
+# Deleted files
+.Trash-5001/
+
+# Data outputs
+data/
+*.bmp
+*.csv
+*.dat
+*.db
+*.dbf
+*.doc
+*.docx
+*.gif
+*.gz
+*.h5
+*.html
+*.jpeg
+*.jpg
+*.mp3
+*.npy
+*.onnx
+*.pb
+*.pdf
+*.pkl
+*.png
+*.ppt
+*.pptx
+*.RData
+*.rds
+*.sqlite
+*.svg
+*.tar
+*.xls
+*.xlsx
+*.zip
+
 # Andrew	
 input
 output
