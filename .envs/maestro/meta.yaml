@@ -1,0 +1,50 @@
+package:
+  name: '{{ PACKAGE_NAME }}'
+  version: '{{ PACKAGE_VERSION }}'
+source:
+  path: ../src
+requirements:
+  run:
+  - gcc_linux-64
+  - gxx_linux-64
+  - clang
+  - numba
+  - scanpy
+  - ipykernel
+  - pip
+  - foundry-transforms-lib-python
+  - pandas
+  - polars
+  - dash
+  - streamlit
+  - tensorboard
+  pip:
+  - phenograph
+  - anndata
+  - matplotlib
+  - natsort
+  - numpy
+  - palantir-sdk
+  - plotly
+  - scipy
+  - seaborn
+  - scikit-image
+  - scikit-learn
+  - split-file-reader
+  - squidpy
+  - streamlit-extras
+  - tqdm
+  - umap-learn
+  - pyyaml
+  - st-pages
+  - streamlit-javascript
+  - dill
+  - pympler
+  - objsize
+  - parc
+  - parmap
+  - setuptools-scm
+  - annoy
+  - sklearn-ann
+  - pynndescent
+  - plotnine

@@ -68,7 +68,7 @@ def install_with_pip(packages):
 
 def live_package_installation():
     packages_to_install = ['hnswlib', 'parc', 'sklearn_ann', 'annoy', 'pyNNDescent']  # last two probably only needed for published dashboards
-    installers_to_use = ['mamba', 'conda', 'pip']
+    installers_to_use = ['mamba', 'pip']
 
     for package in packages_to_install:
         try:
