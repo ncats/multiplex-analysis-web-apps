@@ -181,6 +181,7 @@ data/
 *.xls
 *.xlsx
 *.zip
+*.tar.gz
 
 # Andrew	
 input
@@ -190,4 +191,3 @@ saved_streamlit_session_states/
 
 # Andrei
 .DS_Store
-*.tar.gz
