@@ -190,3 +190,4 @@ saved_streamlit_session_states/
 
 # Andrei
 .DS_Store
+*.tar.gz
