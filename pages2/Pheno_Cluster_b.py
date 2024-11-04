@@ -96,19 +96,21 @@ def phenocluster__plot_diff_intensity(adata, groups, method, n_genes, cur_col):
     #                    ncols=3, show=True, 
     #                    wspace = 0.2 ,save  = False), use_container_width = True , clear_figure = True)
         
-def phenocluster__plot_diff_intensity_2(adata, groups, method, n_genes, plot_column):
+def phenocluster__plot_diff_intensity_2(adata, groups, method, n_genes, 
+                                        plot_column, normalize_total,
+                                        log_normalize, z_normalize, 
+                                        cluster_group):
     if "All" in groups:
         cur_groups = list(pd.unique(st.session_state['phenocluster__de_results']["group"]))
     else:
         cur_groups = groups
     adata_norm = adata.copy()
-    sc.pp.normalize_total(adata_norm)
-    sc.pp.log1p(adata_norm)
-    sc.pp.scale(adata_norm)
-    if "Edit_Cluster" in adata.obs.columns:
-        cluster_group = "Edit_Cluster"
-    else:
-        cluster_group = "Cluster"
+    if normalize_total:
+        sc.pp.normalize_total(adata_norm)
+    if log_normalize:
+        sc.pp.log1p(adata_norm)
+    if z_normalize:
+        sc.pp.scale(adata_norm)
     
     adata_sub  = adata_norm[adata_norm.obs[cluster_group].isin(cur_groups)]
     top_names = pd.unique(st.session_state['phenocluster__de_results'].groupby('group')['names'].apply(lambda x: x.head(n_genes)))
@@ -122,18 +124,18 @@ def phenocluster__plot_diff_intensity_2(adata, groups, method, n_genes, plot_col
             matrix_avg.columns = [cluster_group, "Marker", "Intensity"]
             plot_mat = matrix_avg[matrix_avg["Marker"].isin(top_names)].reset_index(drop=True)
             plot_mat["Marker"] = pd.Categorical(plot_mat["Marker"], categories=top_names[::-1], ordered=True)
-            plotnine.options.figure_size = (10, 10)
+            plotnine.options.figure_size = (5, 4)
             plot = (
                 ggplot(plot_mat, aes(cluster_group, "Marker"))
                 + geom_tile(mapping = aes(fill = "Intensity"))
                 + scale_fill_distiller(type = 'div', palette = 'RdYlBu')
-                + theme(axis_text_x=element_text(rotation=0, hjust=0.5, size=28))
-                + theme(axis_text_y=element_text(rotation=0, hjust=1, size=16))
+                + theme(axis_text_x=element_text(rotation=0, hjust=0.5, size=8))
+                + theme(axis_text_y=element_text(rotation=0, hjust=1, size=8))
                 + theme(axis_title_x = element_blank(), axis_title_y = element_text(angle=90))
-                + theme(text=element_text(size=16))
+                + theme(text=element_text(size=8))
                 )
             
-            st.pyplot(ggplot.draw(plot), use_container_width=True)
+            st.pyplot(ggplot.draw(plot), use_container_width=False)
         
         elif method == "UMAP":
             obs_df = adata_norm[:, top_names].to_df().reset_index(drop=True)
@@ -151,9 +153,10 @@ def phenocluster__plot_diff_intensity_2(adata, groups, method, n_genes, plot_col
             axs = axs.flatten()
             for ax, col in zip(axs, columns):
                 plot = sns.scatterplot(data=obs_df, x='UMAP_1', y='UMAP_2', hue=col, 
-                                       palette='viridis', ax=ax, s=8)
+                                       palette='viridis', ax=ax, s=3)
                 ax.set_title(col)
                 plot.legend(loc='upper left', bbox_to_anchor=(1, 1))
+                ax.set_aspect('equal', 'box')
             # Remove any unused subplots
             for ax in axs[len(columns):]:
                 ax.remove()
@@ -264,7 +267,10 @@ def phenocluster__plotly_umaps_b(adata, umap_cur_col, umap_cur_groups, umap_colo
                     y=-0.2,
                     xanchor="right",
                     x=1
-                )
+                ),
+                xaxis=dict(
+                    scaleanchor="y",
+                    scaleratio=1)
             )
             if i % 2 == 0:
                 subcol1.plotly_chart(fig, use_container_width=True)
@@ -305,7 +311,10 @@ def spatial_plots_cust_2b(adata, umap_cur_col, umap_cur_groups, umap_color_col, 
                     y=-0.2,
                     xanchor="right",
                     x=1
-                )
+                ),
+                xaxis=dict(
+                    scaleanchor="y",
+                    scaleratio=1)
             )
             if i % 2 == 0:
                 subcol3.plotly_chart(fig, use_container_width=True)
@@ -368,6 +377,9 @@ def main():
             st.number_input(label = "Number of markers to plot", 
                                 key = 'phenocluster__plot_diff_intensity_n_genes',
                                 step = 1)
+            st.toggle("Normalize total intensity", key='phenocluster__plot_normalize_total_intensity')
+            st.toggle("Log normalize", key='phenocluster__plot_log_normalize')
+            st.toggle("Z-score normalize columns", key='phenocluster__plot_zscore_normalize')
             
             # phenocluster__plot_diff_intensity(st.session_state['phenocluster__clustering_adata'], 
             #                                   st.session_state['phenocluster__de_sel_groups'],
@@ -378,7 +390,11 @@ def main():
                                                                                           st.session_state['phenocluster__de_sel_groups'],
                                                                                           st.session_state['phenocluster__plot_diff_intensity_method'],
                                                                                           st.session_state['phenocluster__plot_diff_intensity_n_genes'],
-                                                                                            phenocluster__col4b
+                                                                                            phenocluster__col4b,
+                                                                                            st.session_state['phenocluster__plot_normalize_total_intensity'],
+                                                                                            st.session_state['phenocluster__plot_log_normalize'],
+                                                                                            st.session_state['phenocluster__plot_zscore_normalize'],
+                                                                                            st.session_state['phenocluster__de_col']
                                                                                           ])   
             
     # make plots for differential intensity markers 
