@@ -18,9 +18,11 @@ requirements:
   - dash
   - streamlit
   - tensorboard
+  - requests=2.27.1
   pip:
+  - streamlit-extras
   - phenograph
-  - anndata
+  - anndata==0.10.9
   - matplotlib
   - natsort
   - numpy
@@ -32,7 +34,6 @@ requirements:
   - scikit-learn
   - split-file-reader
   - squidpy
-  - streamlit-extras
   - tqdm
   - umap-learn
   - pyyaml
@@ -48,3 +49,16 @@ requirements:
   - sklearn-ann
   - pynndescent
   - plotnine
+  - dask==2024.9.1
+  - dask-expr==1.1.15
+  - distributed==2024.9.1
+  - faker==30.3.0
+  - frozenlist==1.4.1
+  - igraph==0.11.6
+  - imageio==2.35.1
+  - mizani==0.11.4
+  - pymdown-extensions==10.11.2
+  - typeguard==4.3.0
+  - xarray==2024.9.0
+  - xarray-datatree==0.0.14
+  - yarl==1.14.0
