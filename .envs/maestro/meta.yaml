@@ -12,7 +12,8 @@ requirements:
   - scanpy
   - ipykernel
   - pip
-  - foundry-transforms-lib-python
+  - foundry-data-sidecar-api>=0.745.0
+  - foundry-transforms-lib-python>=0.757.0
   - pandas
   - polars
   - dash
