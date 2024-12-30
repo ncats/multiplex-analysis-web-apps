@@ -5,9 +5,10 @@ required for phenotyping
 '''
 
 import time
+import math
 import numpy as np
 import pandas as pd
-import umap
+import umap  # slow 
 import warnings
 warnings.simplefilter(action='ignore', category= FutureWarning)
 warnings.filterwarnings("ignore", message=".*The 'nopython' keyword.*")
@@ -15,10 +16,9 @@ pd.options.mode.chained_assignment = None  # default='warn'
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.cluster import KMeans # K-Means
-
-from benchmark_collector import benchmark_collector # Benchmark Collector Class
 from SpatialUMAP import SpatialUMAP
 import PlottingTools as umPT
+import utils
 
 def preprocess_df(df_orig, marker_names, marker_col_prefix, bc):
     '''Perform some preprocessing on our dataset to apply tranforms
@@ -74,6 +74,29 @@ def init_pheno_cols(df, marker_names, marker_col_prefix):
     # This was previously really slow. Code basically taken from new_phenotyping_lib.py
     marker_cols_first_row = df_markers.iloc[0, :].to_list()  # get just the first row of marker values
     if (0 not in marker_cols_first_row) and (1 not in marker_cols_first_row):
+
+        # Null values in df_markers will break the .map() step so check for and remove them here
+        ser_num_of_null_rows_in_each_column = df_markers.isnull().sum()
+        if ser_num_of_null_rows_in_each_column.sum() != 0:
+
+            # For the time being, import Streamlit so warnings can be rendered. Otherwise, this file does not import streamlit and it should remain that way but this is a minimal fix for the time being
+            import streamlit as st
+
+            st.warning('Null values have been detected in the phenotype columns. Next time, please check for and remove null rows in the datafile unification step (File Handling > Datafile Unification). We are removing them for you now but it would be *much* better to do this in the Datafile Unifier now! Otherwise, downstream functionality may not work. Here are the numbers of null rows found in each column containing them:')
+            ser_num_of_null_rows_in_each_column.name = 'Number of null rows'
+            st.write(ser_num_of_null_rows_in_each_column[ser_num_of_null_rows_in_each_column != 0])
+
+            # Perform the operation
+            row_count_before = len(df)
+            df = df.dropna(subset=marker_cols)
+            row_count_after = len(df)
+
+            # Display a success message
+            st.write(f'{row_count_before - row_count_after} rows deleted')
+
+            # Update df_markers
+            df_markers = df[marker_cols]
+
         df_markers = df_markers.map(lambda x: {'+': '1', '-': '0'}[x[-1]])
     df['mark_bits'] = df_markers.astype(str).apply(''.join, axis='columns')  # efficiently create a series of strings that are the columns (in string format) concatenated together
 
@@ -506,6 +529,7 @@ def setup_Spatial_UMAP(df, marker_names, pheno_order, smallest_image_size):
         df (Pandas dataframe): Dataframe containing the data
         marker_names (list): List of marker names
         pheno_order (list): List of phenotype order
+        smallest_image_size (int): The size of the smallest image in the dataset
     
     Returns:
         SpatialUMAP: SpatialUMAP object
@@ -553,6 +577,7 @@ def setup_Spatial_UMAP(df, marker_names, pheno_order, smallest_image_size):
     # default cluster values
     spatial_umap.cells['clust_label'] = 'No Cluster'
 
+    spatial_umap.elbow_fig = None
     spatial_umap.smallest_image_size = smallest_image_size
 
     # sets flags for analysis processing
@@ -563,7 +588,7 @@ def setup_Spatial_UMAP(df, marker_names, pheno_order, smallest_image_size):
 
     return spatial_umap
 
-def perform_density_calc(spatial_umap, bc, cpu_pool_size = 1, area_threshold = 0.001):
+def perform_density_calc(spatial_umap, bc, calc_areas, cpu_pool_size = 1, area_threshold = 0.001):
     '''
     Calculate the cell counts, cell areas,
     perform the cell densities and cell proportions analyses.
@@ -596,7 +621,7 @@ def perform_density_calc(spatial_umap, bc, cpu_pool_size = 1, area_threshold = 0
     # get the areas of cells and save to pickle file
     print(f'\nStarting Cell Areas process with area threshold of {area_threshold}')
     bc.startTimer()
-    spatial_umap.get_areas(area_threshold, pool_size=cpu_pool_size)
+    spatial_umap.get_areas(calc_areas, area_threshold, pool_size=cpu_pool_size)
     bc.printElapsedTime(f'Calculating Areas for {len(spatial_umap.cells)} cells')
 
     # calculate density based on counts of cells / area of each arc examine
@@ -630,119 +655,140 @@ def perform_spatialUMAP(spatial_umap, bc, umap_subset_per_fit, umap_subset_toggl
     spatial_umap.set_train_test(n_fit=n_fit, n_tra = n_tra, groupby_label = 'TMA_core_id', seed=54321, umap_subset_toggle = umap_subset_toggle)
 
     # fit umap on training cells
-    bc.startTimer()
     print('Fitting Model')
     spatial_umap.umap_fit = umap.UMAP().fit(spatial_umap.density[spatial_umap.cells['umap_train'].values].reshape((spatial_umap.cells['umap_train'].sum(), -1)))
-    bc.printElapsedTime(f'      Fitting {np.sum(spatial_umap.cells["umap_train"] == 1)} points to a model')
+    bc.printElapsedTime(f'      Fitting {np.sum(spatial_umap.cells["umap_train"] == 1)} points to a model', split = True)
 
     # Transform test cells based on fitted model
-    bc.startTimer()
     print('Transforming Data')
     spatial_umap.umap_test = spatial_umap.umap_fit.transform(spatial_umap.density[spatial_umap.cells['umap_test'].values].reshape((spatial_umap.cells['umap_test'].sum(), -1)))
-    bc.printElapsedTime(f'      Transforming {np.sum(spatial_umap.cells["umap_test"] == 1)} points with the model')
+    bc.printElapsedTime(f'      Transforming {np.sum(spatial_umap.cells["umap_test"] == 1)} points with the model', split = True)
 
     spatial_umap.umap_completed = True
 
     return spatial_umap
 
-def KMeans_calc(umap_data, n_clusters = 5):
+def kmeans_calc(clust_data, n_clusters = 5, random_state = None):
     '''
-    Perform KMeans clustering on the spatial UMAP data
+    Perform KMeans clustering on sets of 2D data
 
     Args:
-        spatial_umap (spatial_umap): spatial_umap object
+        clust_data (numpy array): Data to be clustered
         nClus (int): Number of clusters to use
+        random_state (int): Random state to use
     
     Returns:
         kmeans_obj: KMeans obj created from KMeans
     '''
+
+    print(f'Starting KMeans Calculation for {n_clusters} clusters')
     # Create KMeans object for a chosen cluster
     kmeans_obj = KMeans(n_clusters = n_clusters,
                         init ='k-means++',
                         max_iter = 300,
-                        n_init = 10,
-                        random_state = 42)
-    # Fit the data to the KMeans object
-    kmeans_obj.fit(umap_data)
+                        n_init = 50,
+                        random_state = random_state)
 
-    cluster_dict = dict()
-    cluster_dict[0] = 'No Cluster'
-    for i in range(n_clusters):
-        cluster_dict[i+1] = f'Cluster{i+1}'
+    # Fit the data to the KMeans object
+    kmeans_obj.fit(clust_data)
+
+    print(f'...Completed KMeans Calculation for {n_clusters} clusters')
 
     return kmeans_obj
 
-def measure_possible_clust(spatial_umap, clust_minmax):
-    '''
-    method for measuring the within-cluster sum of squares for
-    a range of cluster values
-
-    Args:
-        spatial_umap (spatial_umap): spatial_umap object
-        clust_minmax (list): List of min and max cluster values to use
-
-    Returns:
-        clust_range (list): List of cluster values
-        wcss (list): List of within-cluster sum of squares
-    '''
-    clust_range = range(clust_minmax[0], clust_minmax[1])
-    wcss = [] # Within-Cluster Sum of Squares
-    for n_clusters in clust_range:
-        # Perform clustering for chosen
-        kmeans_obj = KMeans_calc(spatial_umap.umap_test, n_clusters)
-        # Append Within-Cluster Sum of Squares measurement
-        wcss.append(kmeans_obj.inertia_)
-    return list(clust_range), wcss
-
-def perform_clusteringUMAP(spatial_umap, n_clusters):
+def umap_clustering(spatial_umap, n_clusters, clust_minmax, cpu_pool_size = 8):
     '''
     perform clustering for the UMAP data using KMeans
 
     Args:
         spatial_umap (spatial_umap): spatial_umap object
         n_clusters (int): Number of clusters to use
+        clust_minmax (tuple): Tuple of min and max clusters to use
 
     Returns:
         spatial_umap: spatial_umap object with the clustering performed
     '''
     # Reset the cluster labels just in case
     spatial_umap.df_umap.loc[:, 'clust_label'] = -1
-    spatial_umap.df_umap.loc[:, 'cluster'] = -1
-    spatial_umap.df_umap.loc[:, 'Cluster'] = -1
 
-    # Perform clustering
-    kmeans_obj = KMeans_calc(spatial_umap.umap_test, n_clusters)
+    clust_range = range(clust_minmax[0], clust_minmax[1]+1)
 
-    # Add cluster label column to cells dataframe
-    spatial_umap.df_umap.loc[:, 'clust_label'] = kmeans_obj.labels_
-    spatial_umap.df_umap.loc[:, 'cluster'] = kmeans_obj.labels_
-    spatial_umap.df_umap.loc[:, 'Cluster'] = kmeans_obj.labels_
+    kwargs_list = []
+    for clust in clust_range:
+        kwargs_list.append(
+            (
+                spatial_umap.umap_test,
+                clust
+            )
+        )
+
+    results = utils.execute_data_parallelism_potentially(kmeans_calc,
+                                                         kwargs_list,
+                                                         nworkers = cpu_pool_size,
+                                                         task_description='KMeans Clustering',
+                                                         use_starmap=True)
+    # mp_start_method = mp.get_start_method()
+    # # Create a pool of worker processes
+    # with mp.get_context(mp_start_method).Pool(processes=cpu_pool_size) as pool:
+    #     results = pool.starmap(kmeans_calc, kwargs_list)
+
+    wcss = [x.inertia_ for x in results]
+
+    # Create WCSS Elbow Plot
+    spatial_umap.elbow_fig = draw_wcss_elbow_plot(clust_range, wcss, n_clusters)
+
+    # Identify the kmeans obj that matches the selected cluster number
+    kmeans_obj_targ = results[n_clusters-1]
+
+    spatial_umap.cluster_dict = dict()
+    for i in range(n_clusters):
+        spatial_umap.cluster_dict[i+1] = f'Cluster {i+1}'
+    spatial_umap.cluster_dict[0] = 'No Cluster'
+
+    spatial_umap.palette_dict = dict()
+    for i in range(n_clusters):
+        spatial_umap.palette_dict[f'Cluster {i+1}'] = sns.color_palette('tab20')[i]
+    spatial_umap.palette_dict['No Cluster'] = 'white'
+
+    # Assign values to cluster_label column in df_umap
+    spatial_umap.df_umap.loc[:, 'clust_label'] = [spatial_umap.cluster_dict[key] for key in (kmeans_obj_targ.labels_+1)]
 
     # After assigning cluster labels, perform mean calculations
     spatial_umap.mean_measures()
 
     return spatial_umap
 
-def draw_wcss_elbow_plot(clust_range, wcss, selClus):
+def draw_wcss_elbow_plot(clust_range, wcss, sel_clus):
+    '''
+    Calculate possible clusters and plot the elbow plot
 
-    SlBgC  = '#0E1117'  # Streamlit Background Color
-    SlTC   = '#FAFAFA'  # Streamlit Text Color
-    Sl2BgC = '#262730'  # Streamlit Secondary Background Color
+    Args:
+        clust_range (list): List of cluster values
+        wcss (list): List of within-cluster sum of squares
+        sel_clus (int): Selected cluster value
+    '''
 
-    fig = plt.figure(figsize = (5,5), facecolor = SlBgC)
-    ax = fig.add_subplot(1,1,1, facecolor = SlBgC)
-    ax.set_xlabel('Number of Clusters', fontsize = 10, color = SlTC)
-    ax.set_ylabel('WCSS', fontsize = 10, color = SlTC)
-    # ax.set_xticks(np.linspace(0, 21, 22))
+    # Streamlit Theming
+    slc_bg   = '#0E1117'  # Streamlit Background Color
+    slc_text = '#FAFAFA'  # Streamlit Text Color
+    slc_bg2  = '#262730'  # Streamlit Secondary Background Color
+
+    fig = plt.figure(figsize = (5,5), facecolor = slc_bg)
+    ax = fig.add_subplot(1,1,1, facecolor = slc_bg)
+    ax.set_xlabel('Number of Clusters', fontsize = 10, color = slc_text)
+    ax.set_ylabel('WCSS', fontsize = 10, color = slc_text)
+    ax.set_xlim(0, clust_range[-1])
+    ax.set_xticks(np.linspace(0, clust_range[-1], clust_range[-1]+1))
+
     plt.plot(clust_range, wcss)
-    plt.axvline(selClus, linestyle='--', color='r')
+    # plt.axvline(sel_clus, linestyle='--', color='r')
 
-    ax.spines['left'].set_color(SlTC)
-    ax.spines['bottom'].set_color(SlTC)
-    ax.spines['top'].set_color(SlBgC)
-    ax.spines['right'].set_color(SlBgC)
-    ax.tick_params(axis='x', colors=SlTC, which='both')
-    ax.tick_params(axis='y', colors=SlTC, which='both')
+    ax.spines['left'].set_color(slc_text)
+    ax.spines['bottom'].set_color(slc_text)
+    ax.spines['top'].set_color(slc_bg)
+    ax.spines['right'].set_color(slc_bg)
+    ax.tick_params(axis='x', colors=slc_text, which='both')
+    ax.tick_params(axis='y', colors=slc_text, which='both')
     return fig
 
 def createHeatMap(df, phenoList, title, normAxis = None):
@@ -754,7 +800,7 @@ def createHeatMap(df, phenoList, title, normAxis = None):
 
     for clust_label, group in df.groupby('clust_label'):
         clust_value_counts = group['Lineage'].value_counts()
-        clust_value_counts.name = f'Cluster {clust_label}'
+        clust_value_counts.name = f'{clust_label}'
 
         heatMapDf = pd.concat([heatMapDf, pd.DataFrame([clust_value_counts])])
 
@@ -839,7 +885,7 @@ def neighProfileDraw(spatial_umap, ax, sel_clus, cmp_clus = None, cmp_style = No
 
     maxdens_df   = 1.05*max(dens_df_mean_base['density_mean'] + dens_df_mean_base['density_sem'])
     dens_df_mean_sel = dens_df_mean_base.loc[dens_df_mean_base['clust_label'] == sel_clus, :].reset_index(drop=True)
-    ylim = [0, maxdens_df]
+    ylim = [1, maxdens_df]
     dens_df_mean = dens_df_mean_sel.copy()
     cluster_title = f'{sel_clus}'
 
@@ -872,6 +918,9 @@ def neighProfileDraw(spatial_umap, ax, sel_clus, cmp_clus = None, cmp_style = No
             cluster_title = f'{sel_clus} / {cmp_clus}'
     else:
         cmp_style = None
+
+    if not np.all([math.isfinite(x) for x in ylim]):
+        ylim = [1, 10]
 
     umPT.plot_mean_neighborhood_profile(ax = ax,
                                         dist_bin = spatial_umap.dist_bin_um,

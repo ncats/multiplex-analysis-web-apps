@@ -6,10 +6,7 @@ import streamlit as st
 import streamlit_utils
 import pprint
 import platform_io
-import time_cell_interaction_lib as tci  # import the TIME library stored in time_cell_interaction_lib.py
 import utils
-import app_top_of_page as top
-import streamlit_dataframe_editor as sde
 import dataset_formats
 import copy
 
@@ -160,6 +157,9 @@ def update_dependencies_of_analysis_significance_calculation_method():
     else:
         st.session_state['analysis_neighbor_radius_is_disabled'] = False
         st.session_state['analysis_n_neighs_is_disabled'] = True
+    # This isn't actually a good fix because it's only the Squidpy enrichment that shouldn't have multiprocessing, not the entire workflow, but we need to implement that in the future
+    # if st.session_state['settings__analysis__significance_calculation_method'] != 'Poisson (radius)':
+    #     st.session_state['use_multiprocessing'] = False
 
 
 def set_session_state_key(settings, str1, str2):
@@ -556,18 +556,4 @@ def main():
 
 # Call the main function
 if __name__ == '__main__':
-
-    # Set page settings
-    st.set_page_config(layout="wide", page_title='Tool parameter selection')
-    st.title('Tool parameter selection')
-
-    # Run streamlit-dataframe-editor library initialization tasks at the top of the page
-    st.session_state = sde.initialize_session_state(st.session_state)
-
-    # Run Top of Page (TOP) functions
-    st.session_state = top.top_of_page_reqs(st.session_state)
-
     main()
-
-    # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
-    st.session_state = sde.finalize_session_state(st.session_state)

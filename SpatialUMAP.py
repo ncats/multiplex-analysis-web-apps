@@ -45,6 +45,12 @@ class SpatialUMAP:
     area_downsample: Downsample rate of area? Not exactly sure.
 
     '''
+
+    @staticmethod
+    def get_dataframes(results):
+        for df in results:
+            yield df
+
     @staticmethod
     def construct_arcs(dist_bin_px):
         '''
@@ -71,7 +77,7 @@ class SpatialUMAP:
         '''Processing the cell_area information'''
 
         # Print the image name
-        print(f'Calculating neighborhood area for image {region_id} ({len(idx)} cells)...')
+        # print(f'Calculating neighborhood area for image {region_id} (cells)...')
 
         # Record the start time
         start_time = time.time()
@@ -90,7 +96,7 @@ class SpatialUMAP:
             region_area_df = pd.concat([region_area_df, pd.DataFrame(data = {'idx': idx_i, 'area': areas})], axis=0)
 
         # Print the time taken to calculate the neighbor counts for the current image
-        print(f'  ...finished calculating neighborhood areas for image {region_id} ({len(idx)} cells) in {time.time() - start_time:.2f} seconds')
+        # print(f'  ...finished calculating neighborhood areas for image {region_id} (cells) in {time.time() - start_time:.2f} seconds')
 
         # return i and areas
         return region_area_df
@@ -105,7 +111,7 @@ class SpatialUMAP:
         counts = np.diff(np.matmul(counts.astype(int), cell_labels.astype(int)), axis=0)
         # return index and counts
         return counts
-    
+
     def per_image_cell_counts_euc(self, image, cell_positions, cell_labels, targ_labels, dist_bin_px):
         '''
         per_image_cell_counts_euc() returns the number of cells within a given image
@@ -116,7 +122,7 @@ class SpatialUMAP:
             targ_labels (np.array): labels of the cells to be counted
             dist_bin_px (np.array): distance bins in pixels
         '''
-        
+
         start_time = time.time()
         print(f'Starting analysis for image {image}')
         # calculate pairwise distances between all cells in the image
@@ -215,9 +221,9 @@ class SpatialUMAP:
 
         # Create a pool of worker processes
         with mp.Pool(processes=cpu_pool_size) as pool:
-            results = pool.starmap(utils.fast_neighbors_counts_for_block, kwargs_list)
+            results = pool.starmap(utils.fast_neighbors_counts_for_block2, kwargs_list)
 
-        df_density_matrix = pd.concat(results)
+        df_density_matrix = pd.concat(self.get_dataframes(results))
         full_array = None
         for ii, phenotype in enumerate(phenotypes):
             cols2Use = [f'{phenotype} in {x}' for x in range_strings]
@@ -268,10 +274,11 @@ class SpatialUMAP:
         # Mean Densities
         self.dens_df = pd.DataFrame()
         self.prop_df = pd.DataFrame()
-        self.dens_df_mean = pd.DataFrame(data = {'clust_label': ['No Cluster'], 
+        self.dens_df_mean = pd.DataFrame(data = {'clust_label': ['No Cluster'],
                                                  'phenotype': ['Other'], 
                                                  'dist_bin': [25], 
-                                                 'density_mean': [0]})
+                                                 'density_mean': [0],
+                                                 'density_sem': [0]})
         self.dens_df_se = pd.DataFrame()
         self.maxdens_df = pd.DataFrame()
 
@@ -411,7 +418,7 @@ class SpatialUMAP:
         '''
         self.counts = self.calculate_density_matrix_for_all_images(cpu_pool_size)
 
-    def get_areas(self, area_threshold, pool_size=2, save_file=None, plots_directory=None):
+    def get_areas(self, calc_areas, area_threshold, pool_size=2, save_file=None, plots_directory=None):
         '''
         get_areas begins the process of identifying the
         cell areas surrounding each given cell in a dataset
@@ -419,7 +426,13 @@ class SpatialUMAP:
         self.clear_areas()
         self.cells['area_filter'] = False
 
-        self.process_region_areas(pool_size)
+        if calc_areas:
+            self.start_pool(pool_size)
+            self.process_region_areas(pool_size, area_threshold=area_threshold, plots_directory=plots_directory)
+            self.close_pool()
+        else:
+            areas = self.arcs_masks.sum(axis=(0, 1))[np.newaxis, ...]
+            self.areas = np.tile(areas, (self.cells.shape[0], 1))
 
         if save_file is not None:
             pd.DataFrame(self.areas, columns=self.dist_bin_um).to_csv(save_file, index=False)

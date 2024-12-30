@@ -2,10 +2,20 @@
 import os
 import streamlit as st
 import pandas as pd
-import app_top_of_page as top
 import streamlit_dataframe_editor as sde
 import re
 import utils
+
+
+def callback_for_combining_datafiles(filenames):
+
+    # Clear all keys in the session state starting with "unifier__" and not applicable to the selections above the callback button
+    keys_to_delete = [key for key in st.session_state.keys() if (key.startswith("unifier__")) and (key not in ['unifier__input_files', 'unifier__de_datafile_selection', 'unifier__df_datafile_selection', 'unifier__df_datafile_selection_changes_dict', 'unifier__df_datafile_selection_key'])]
+    for key in keys_to_delete:
+        if key in st.session_state:
+            del st.session_state[key]
+
+    generate_guess_for_basename_of_mawa_unified_file(filenames)
 
 
 def generate_guess_for_basename_of_mawa_unified_file(filenames):
@@ -52,19 +62,9 @@ def main():
     Main function for the Datafile Unifier page.
     """
 
-    # Set page settings
-    st.set_page_config(layout='wide', page_title='Datafile Unifier')
-    st.title('Datafile Unifier')
-
-    # Run streamlit-dataframe-editor library initialization tasks at the top of the page
-    st.session_state = sde.initialize_session_state(st.session_state)
-
-    # Run Top of Page (TOP) functions
-    st.session_state = top.top_of_page_reqs(st.session_state)
-
     # Constants
     directory = os.path.join('.', 'input')
-    extensions = ('.csv', '.tsv')
+    valid_extensions = ('.csv', '.tsv', '.txt')
 
     # Initialization
     show_dataframe_updates = False
@@ -91,20 +91,20 @@ def main():
         st.header(':one: Select datafile(s)')
 
         # Retrieve list of files with the given extensions in the requested directory
-        files = list_files(directory, extensions)
+        files = list_files(directory, valid_extensions)
 
         # If no files are found, write a message to the user
         if len(files) == 0:
-            st.warning('No ".csv" or ".tsv" files found in the `input` directory.')
+            st.warning(f'No files with extensions {valid_extensions} found in the `input` directory.')
 
         # If files are found, display them in a dataframe editor
         else:
             # Write messages to the user
             num_files = len(files)
             if num_files == 1:
-                st.write('Detected 1 ".csv" or ".tsv" file in the `input` directory.')
+                st.write(f'Detected 1 file with any of the extensions {valid_extensions} in the `input` directory.')
             else:
-                st.write(f'Detected {num_files} ".csv" and ".tsv" files in the `input` directory.')
+                st.write(f'Detected {num_files} files with any of the extensions {valid_extensions} in the `input` directory.')
             st.write('Select 1 or more files to load into the MAWA Datafile Unifier.')
             st.write('Note: Double-click any cell to see the full filename.')
 
@@ -153,42 +153,54 @@ def main():
             else:
                 load_msg = 'Loading and Combining Files...'
             # Create a button to concatenate the selected files
-            if st.button(button_text, help=button_help_message, disabled=load_button_disabled, on_click=generate_guess_for_basename_of_mawa_unified_file, args=(df_reconstructed.loc[selected_rows, 'Filename'],)):
+            if st.button(button_text, help=button_help_message, disabled=load_button_disabled, on_click=callback_for_combining_datafiles, args=(df_reconstructed.loc[selected_rows, 'Filename'],)):
 
                 # Render a progress spinner while the files are being combined
                 with st.spinner(load_msg):
 
                     # Efficiently check if the columns are equal for all input files
-                    columns_equal = True
                     if len(input_files) > 1:
-                        sep = (',' if input_files[0].split('.')[-1] == 'csv' else '\t')
-                        first_file_columns = pd.read_csv(os.path.join(directory, input_files[0]), nrows=0, sep=sep).columns
-                        for input_file in input_files[1:]:
+                        columns_holder = []
+                        for input_file in input_files:
                             sep = (',' if input_file.split('.')[-1] == 'csv' else '\t')
                             current_file_columns = pd.read_csv(os.path.join(directory, input_file), nrows=0, sep=sep).columns
-                            if not first_file_columns.equals(current_file_columns):
-                                st.error('Columns are not equal for files: {} and {}'.format(input_files[0], input_file))
-                                columns_equal = False
-                                break
+                            columns_holder.append(current_file_columns)
 
-                    # If the columns are equal for all input files, concatenate all files into a single dataframe
-                    if columns_equal:
+                        # Check if the columns are equal for all input files
+                        columns_equal = all([columns_holder[0].equals(columns) for columns in columns_holder])
+
+                    else:
+                        columns_equal = True
+
+                    # If the columns are not equal for all input files, display a warning and obtain the common columns
+                    if not columns_equal:
+                        st.warning('The selected input files have different columns. We will take the intersection of the columns for all files.')
+                        common_columns = list(set.intersection(*[set(columns) for columns in columns_holder]))
+                        unique_columns = list(set.union(*[set(columns) for columns in columns_holder]) - set(common_columns))
+                        st.write('Columns excluded from the file combination:', unique_columns)
+                    else:
                         sep = (',' if input_files[0].split('.')[-1] == 'csv' else '\t')
-                        # st.session_state['unifier__df'] = utils.downcast_dataframe_dtypes(pd.concat([pd.read_csv(os.path.join(directory, input_file), sep=sep) for input_file in input_files], ignore_index=True))
-                        df_holder = []
-                        for input_file in input_files:
-                            curr_df = pd.read_csv(os.path.join(directory, input_file), sep=sep)
-                            assert 'input_filename' not in curr_df.columns, 'ERROR: "input_filename" is one of the columns but we want to overwrite it'
-                            curr_df['input_filename'] = input_file
-                            df_holder.append(curr_df)
-                        st.session_state['unifier__df'] = utils.downcast_dataframe_dtypes(pd.concat(df_holder, ignore_index=True))
+                        common_columns = pd.read_csv(os.path.join(directory, input_files[0]), nrows=0, sep=sep).columns
 
-                        # Save the setting used for this operation
-                        st.session_state['unifier__input_files_actual'] = input_files
+                    if len(common_columns) == 0:
+                        st.warning('No common columns found. Please select files with common columns.')
+                        return
+
+                    # Concatenate all files into a single dataframe using the common set of columns
+                    sep = (',' if input_files[0].split('.')[-1] == 'csv' else '\t')
+                    df_holder = []
+                    for input_file in input_files:
+                        curr_df = pd.read_csv(os.path.join(directory, input_file), sep=sep, usecols=common_columns)
+                        if 'input_filename' not in curr_df.columns:
+                            curr_df['input_filename'] = input_file
+                        df_holder.append(curr_df)
+                    st.session_state['unifier__df'] = utils.downcast_dataframe_dtypes(pd.concat(df_holder, ignore_index=True))
+
+                    # Save the setting used for this operation
+                    st.session_state['unifier__input_files_actual'] = input_files
 
                 # Display a success message
-                if columns_equal:
-                    st.success(f'{len(input_files)} files combined')
+                st.success(f'{len(input_files)} files combined')
 
                 # Set a flag to update the dataframe sample at the bottom of the page
                 show_dataframe_updates = True
@@ -206,10 +218,28 @@ def main():
         # In the first column...
         with main_columns[0]:
 
-            # ---- 2. (Optional) Drop null rows from the dataset --------------------------------------------------------------------------------------------------------------------------------
+            # ---- 2. Drop null rows from the dataset --------------------------------------------------------------------------------------------------------------------------------
 
             # Display a header for the null row deletion section
-            st.markdown('## :two: Delete null rows (optional) ')
+            st.markdown('## :two: Delete null rows ')
+
+            st.write('**Instructions:** You must press the button below to make sure there are no null data in columns you will want to use downstream! If you see null data in the columns you want to use, you must delete the rows with null data in those columns by expanding the "Click to expand:" dropdown below and following the directions therein. Once you\'ve done this, feel free to press this button again to make sure you\'ve deleted all null rows in the columns you care about.')
+
+            # Allow user to detect null rows
+            if 'unifier__null_detection_button_has_been_pressed' not in st.session_state:
+                st.session_state['unifier__null_detection_button_has_been_pressed'] = False
+            if st.button('Detect null rows in each column'):
+                ser_num_of_null_rows_in_each_column = df.isnull().sum()
+                if ser_num_of_null_rows_in_each_column.sum() == 0:
+                    st.success('No null rows detected in the dataset.')
+                else:
+                    st.write('Null values have been detected. Here are the numbers of null rows found in the columns containing them. Note they may not matter depending on the column. See instructions above:')
+                    ser_num_of_null_rows_in_each_column.name = 'Number of null rows'
+                    st.write(ser_num_of_null_rows_in_each_column[ser_num_of_null_rows_in_each_column != 0])
+                st.session_state['unifier__null_detection_button_has_been_pressed'] = True
+
+            if not st.session_state['unifier__null_detection_button_has_been_pressed']:
+                st.warning('You must press the "Detect null rows in each column" button above (and delete any relevant null data; see instructions above the button) before proceeding to the next steps!')
 
             # Create an expander for the null row deletion section
             with st.expander('Click to expand:', expanded=False):
@@ -364,6 +394,9 @@ def main():
 
                 # Set a flag to update the dataframe sample at the bottom of the page
                 show_dataframe_updates = True
+
+            if 'unifier__num_roi_columns_actual' not in st.session_state:
+                st.warning('You must press the "Assign ROIs" button even if ROIs are not explicitly defined in the dataset.')
 
             # If the selected columns to define ROIs have changed since the last time ROIs were defined, display a warning
             if st.session_state['unifier__roi_explicitly_defined']:
@@ -672,14 +705,12 @@ def main():
         st.header('Sample of unified dataframe')
         resample_dataframe = st.button('Refresh dataframe sample')
         if ('sampled_df' not in st.session_state) or resample_dataframe or show_dataframe_updates:
-            sampled_df = df.sample(100).sort_index()
+            sampled_df = utils.sample_df_without_replacement_by_number(df=df, n=100).sort_index()
             st.session_state['sampled_df'] = sampled_df
         sampled_df = st.session_state['sampled_df']
         st.write(sampled_df)
         st.dataframe(pd.DataFrame(st.session_state['unifier__input_files_actual'], columns=["Input files included in the combined dataset"]), hide_index=True)
 
-    # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
-    st.session_state = sde.finalize_session_state(st.session_state)
 
 # Run the main function
 if __name__ == '__main__':

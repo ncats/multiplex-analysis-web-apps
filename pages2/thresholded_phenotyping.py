@@ -5,11 +5,8 @@ import os
 import pandas as pd
 import streamlit as st
 from streamlit_extras.add_vertical_space import add_vertical_space
-
-# Import relevant libraries
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
 import basic_phenotyper_lib as bpl  # Useful functions for phenotyping collections of cells
-import app_top_of_page as top
 import streamlit_dataframe_editor as sde
 
 def data_editor_change_callback():
@@ -25,11 +22,7 @@ def data_editor_change_callback():
     # Create Phenotypes Summary Table based on 'phenotype' column in df
     st.session_state.pheno_summ = bpl.init_pheno_summ(st.session_state.df)
 
-    # Perform filtering
-    st.session_state.df_filt = ndl.perform_filtering(st.session_state)
-
-    # Set Figure Objects based on updated df
-    st.session_state = ndl.setFigureObjs(st.session_state, st.session_state.pointstSliderVal_Sel)
+    filter_and_plot(plot_by_slider = True)
 
 def slide_id_prog_left_callback():
     '''
@@ -59,7 +52,7 @@ def slide_id_callback():
     st.session_state['selSlide ID'] = st.session_state['uniSlide ID'][st.session_state['idxSlide ID']]
     filter_and_plot()
 
-def filter_and_plot():
+def filter_and_plot(plot_by_slider = False):
     '''
     function to update the filtering and the figure plotting
     '''
@@ -72,11 +65,18 @@ def filter_and_plot():
     if st.session_state['idxSlide ID'] == st.session_state['numSlide ID']-1:
         st.session_state.prog_right_disabeled = True
 
+    if plot_by_slider:
+        slider_val = st.session_state.point_slider_val
+    else:
+        slider_val = None
+
     # Filtered dataset
     df_filt = ndl.perform_filtering(st.session_state)
 
     # Update and reset Figure Objects
-    st.session_state = ndl.setFigureObjs(st.session_state, df_filt)
+    st.session_state = ndl.set_figure_objs(session_state = st.session_state,
+                                           df_plot = df_filt,
+                                           slider_val = slider_val)
 
 def marker_multiselect_callback():
     '''
@@ -263,12 +263,9 @@ def main():
 
         plot_slide = st.columns(2)
         with plot_slide[0]:
-            with st.form('Plotting Num'):
-                st.slider('How many points to plot (%)', 0, 100, key = 'pointstSliderVal_Sel')
-                update_pixels_button = st.form_submit_button('Update Scatterplot')
-                if update_pixels_button:
-                    st.session_state = ndl.setFigureObjs(st.session_state,
-                                                         st.session_state.pointstSliderVal_Sel)
+            st.slider('How many points to plot (%)', 0, 100, key = 'point_slider_val',
+                        on_change = filter_and_plot, kwargs = {"plot_by_slider": True})
+
 
         with plot_slide[1]:
             if st.session_state.calcSliderVal < 100:
@@ -279,7 +276,8 @@ def main():
             st.write(f'Drawing {st.session_state.drawnPoints} points')
             st.checkbox('Omit drawing cells with all negative markers',
                         key = 'selhas_pos_mark',
-                        on_change=filter_and_plot)
+                        on_change=filter_and_plot,
+                        kwargs = {"plot_by_slider": True})
 
         image_prog_col = st.columns([3, 1, 1, 2])
         with image_prog_col[0]:
@@ -311,19 +309,4 @@ def main():
                 st.toast(f'Added {st.session_state.imgFileSuffixText} to export list ')
 
 if __name__ == '__main__':
-
-    # Set a wide layout
-    st.set_page_config(page_title="Manual Phenotyping on Thresholded Intensities",
-                       layout="wide")
-    st.title('Manual Phenotyping on Thresholded Intensities')
-
-    # Run streamlit-dataframe-editor library initialization tasks at the top of the page
-    st.session_state = sde.initialize_session_state(st.session_state)
-
-    # Run Top of Page (TOP) functions
-    st.session_state = top.top_of_page_reqs(st.session_state)
-
     main()
-
-    # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
-    st.session_state = sde.finalize_session_state(st.session_state)

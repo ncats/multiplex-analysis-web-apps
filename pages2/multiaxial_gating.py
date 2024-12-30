@@ -7,11 +7,62 @@ import os
 import numpy as np
 import utils
 from scipy.stats import gaussian_kde
-import app_top_of_page as top
 import streamlit_dataframe_editor as sde
+import random
+import string
+import image_filter
 
 
-def generate_box_and_whisker(apply_another_filter, df, column_for_filtering, another_filter_column, values_on_which_to_filter, images_in_plotting_group_1, images_in_plotting_group_2, all_cells=True):
+def generate_random_string(length=10):
+    # Define the characters that will be used
+    characters = string.ascii_letters + string.digits
+    # Generate a random string of the specified length
+    random_string = ''.join(random.choice(characters) for i in range(length))
+    return random_string
+
+
+def reset_x_axis_range(use_groups_for_plotting, kde_or_hist_to_plot_full):
+    if not use_groups_for_plotting:
+        st.session_state['mg__histogram_x_range'] = [kde_or_hist_to_plot_full['Value'].min(), kde_or_hist_to_plot_full['Value'].max()]
+    else:
+        st.session_state['mg__histogram_x_range'] = [min(kde_or_hist_to_plot_full[0]['Value'].min(), kde_or_hist_to_plot_full[1]['Value'].min()), max(kde_or_hist_to_plot_full[0]['Value'].max(), kde_or_hist_to_plot_full[1]['Value'].max())]
+    st.session_state['mg__random_string'] = generate_random_string()
+
+
+def plotly_chart_histogram_callback():
+    plotly_chart_key = ('mg__plotly_chart_histogram_' + st.session_state['mg__random_string'] + '__do_not_persist')
+    if plotly_chart_key in st.session_state:
+        if st.session_state[plotly_chart_key]['selection']['box']:
+            x_range = sorted(st.session_state[plotly_chart_key]['selection']['box'][0]['x'])
+            if st.session_state['mg__histogram_box_selection_function'] == 'Positivity identification':
+                st.session_state['mg__selected_value_range'] = tuple(x_range)
+                st.session_state['mg__min_selection_value'] = x_range[0]
+            else:
+                st.session_state['mg__histogram_x_range'] = x_range
+                st.session_state['mg__random_string'] = generate_random_string()
+
+
+def plotly_chart_summary_callback():
+    if 'mg__plotly_chart_summary__do_not_persist' in st.session_state:
+        if st.session_state['mg__plotly_chart_summary__do_not_persist']['selection']['points']:
+            selected_z_score = st.session_state['mg__plotly_chart_summary__do_not_persist']['selection']['points'][0]['x']
+            df_summary_contents = st.session_state['mg__df_summary_contents'].set_index('Z score')
+            df_selected_threshold = df_summary_contents.loc[selected_z_score, 'Threshold']
+            selected_value_range = st.session_state['mg__selected_value_range']
+            st.session_state['mg__selected_value_range'] = (df_selected_threshold, selected_value_range[1])
+            st.session_state['mg__min_selection_value'] = df_selected_threshold
+
+
+def df_summary_callback():
+    if 'mg__df_summary__do_not_persist' in st.session_state:
+        if st.session_state['mg__df_summary__do_not_persist']['selection']['rows']:
+            df_selected_threshold = st.session_state['mg__df_summary_contents'].iloc[st.session_state['mg__df_summary__do_not_persist']['selection']['rows'][0]]['Threshold']
+            selected_value_range = st.session_state['mg__selected_value_range']
+            st.session_state['mg__selected_value_range'] = (df_selected_threshold, selected_value_range[1])
+            st.session_state['mg__min_selection_value'] = df_selected_threshold
+
+
+def generate_box_and_whisker(apply_another_filter, df, column_for_filtering, another_filter_column, values_on_which_to_filter, images_in_plotting_group_1, images_in_plotting_group_2, all_cells=True, mean_for_zscore_calc=None, std_for_zscore_calc=None, return_figure_and_summary=True):
 
     # If we're ready to apply a filter, then create it
     if not apply_another_filter:
@@ -28,12 +79,17 @@ def generate_box_and_whisker(apply_another_filter, df, column_for_filtering, ano
 
     # From those data, get the values corresponding to -1 to 10 standard deviations above the mean
     z_scores = np.arange(-1, 11)
-    thresholds = ser_for_z_score.mean() + z_scores * ser_for_z_score.std()
+    if mean_for_zscore_calc is None:
+        mean_for_zscore_calc = ser_for_z_score.mean()
+    if std_for_zscore_calc is None:
+        std_for_zscore_calc = ser_for_z_score.std()
+    thresholds = mean_for_zscore_calc + z_scores * std_for_zscore_calc
 
     # Initialize the positive percentages holders
     group_1_holder = []
     group_2_holder = []
-    data_for_box_plot_holder = []
+    if return_figure_and_summary:
+        data_for_box_plot_holder = []
 
     # For each threshold...
     for threshold, z_score in zip(thresholds, z_scores):
@@ -68,8 +124,9 @@ def generate_box_and_whisker(apply_another_filter, df, column_for_filtering, ano
             df_group_2_pos_perc['Z score'] = z_score
             df_group_1_pos_perc['Group'] = 'Baseline'
             df_group_2_pos_perc['Group'] = 'Signal'
-            data_for_box_plot_holder.append(df_group_1_pos_perc)
-            data_for_box_plot_holder.append(df_group_2_pos_perc)
+            if return_figure_and_summary:
+                data_for_box_plot_holder.append(df_group_1_pos_perc)
+                data_for_box_plot_holder.append(df_group_2_pos_perc)
 
             # Name each series the value of the current threshold
             ser_group_1_pos_perc.name = threshold
@@ -81,15 +138,17 @@ def generate_box_and_whisker(apply_another_filter, df, column_for_filtering, ano
 
     # If we want the positive percentage of all the cells in each group...
     if all_cells:
+
+        if return_figure_and_summary:
     
-        # Create a plotly figure
-        fig = go.Figure()
+            # Create a plotly figure
+            fig = go.Figure()
 
-        # Plot positive percentage in whole dataset vs. threshold for group 1
-        fig.add_trace(go.Scatter(x=z_scores, y=group_1_holder, mode='lines+markers', name='Baseline'))
+            # Plot positive percentage in whole dataset vs. threshold for group 1
+            fig.add_trace(go.Scatter(x=z_scores, y=group_1_holder, mode='lines+markers', name='Baseline'))
 
-        # Plot positive percentage in whole dataset vs. threshold for group 2
-        fig.add_trace(go.Scatter(x=z_scores, y=group_2_holder, mode='lines+markers', name='Signal'))
+            # Plot positive percentage in whole dataset vs. threshold for group 2
+            fig.add_trace(go.Scatter(x=z_scores, y=group_2_holder, mode='lines+markers', name='Signal'))
 
         # Create the summary dataframe
         df_summary = pd.DataFrame({'Z score': z_scores, 'Threshold': thresholds, 'Positive percentage (all cells) for baseline group': group_1_holder, 'Positive percentage (all cells) for signal group': group_2_holder})
@@ -98,7 +157,8 @@ def generate_box_and_whisker(apply_another_filter, df, column_for_filtering, ano
     else:
 
         # Create the dataframe holding all the data for the desired box plot
-        df_box_plot = pd.concat(data_for_box_plot_holder, axis='rows')
+        if return_figure_and_summary:
+            df_box_plot = pd.concat(data_for_box_plot_holder, axis='rows')
 
         # Create a dataframe from the positive percentages for each image in each group
         df_group_1_pos_perc = pd.concat(group_1_holder, axis='columns')
@@ -108,25 +168,25 @@ def generate_box_and_whisker(apply_another_filter, df, column_for_filtering, ano
         avg_group_1 = df_group_1_pos_perc.mean()
         avg_group_2 = df_group_2_pos_perc.mean()
 
-        # Plot the positive percentage in each image vs. threshold for both groups
-        # fig = go.Figure()
-        # fig.add_trace(go.Scatter(x=avg_group_1.index, y=avg_group_1.values, mode='lines+markers', name='Baseline'))
-        # fig.add_trace(go.Scatter(x=avg_group_2.index, y=avg_group_2.values, mode='lines+markers', name='Signal'))
-
         # Create the desired box plot
-        fig = px.box(df_box_plot, x='Z score', y='Positive %', color='Group', points='all')
+        if return_figure_and_summary:
+            fig = px.box(df_box_plot, x='Z score', y='Positive %', color='Group', points='all')
 
         # Create the summary dataframe
         df_summary = pd.DataFrame({'Z score': z_scores, 'Threshold': thresholds, 'Positive % (avg. over images) for baseline group': avg_group_1.values, 'Positive % (avg. over images) for signal group': avg_group_2.values})
 
     # Update the layout of the plot
-    fig.update_layout(title='Positive percentage vs. baseline Z score',
-                    xaxis_title='Baseline Z score',
-                    yaxis_title='Positive percentage',
-                    legend_title='Group')
+    if return_figure_and_summary:
+        fig.update_layout(title='Positive percentage vs. baseline Z score',
+                        xaxis_title='Baseline Z score',
+                        yaxis_title='Positive percentage',
+                        legend_title='Group')
 
     # Return the plot, the Z scores, and the thresholds
-    return fig, df_summary
+    if return_figure_and_summary:
+        return fig, df_summary
+    else:
+        return df_summary
 
 
 def reset_values_on_which_to_filter_another_column():
@@ -202,6 +262,8 @@ def update_dependencies_of_filtering_widgets():
         st.session_state['mg__curr_column_range'] = (curr_series.min(), curr_series.max())
         st.session_state['mg__selected_value_range'] = st.session_state['mg__curr_column_range']  # initialize the selected range to the entire range
         st.session_state['mg__min_selection_value'] = st.session_state['mg__curr_column_range'][0]  # initialize the minimum selection value to the minimum of the range
+        st.session_state['mg__histogram_x_range'] = list(st.session_state['mg__curr_column_range'])
+        st.session_state['mg__random_string'] = generate_random_string()
     else:
         st.session_state['mg__selected_column_type'] = 'categorical'
         st.session_state['mg__curr_column_unique_values'] = curr_series.unique()
@@ -451,6 +513,9 @@ def main():
     Main function for running the page
     '''
 
+    # Global variable
+    st_key_prefix = 'mg__'
+
     # If 'input_dataset' isn't in the session state, print an error message and return
     if 'input_dataset' not in st.session_state:
         st.error('An input dataset has not yet been opened. Please do so using the "Open File" page in the sidebar.')
@@ -601,15 +666,26 @@ def main():
 
             # If extra settings are to be displayed, create widgets for selecting particular images to define two groups
             if st.session_state['mg__extra_settings']:
-                st.multiselect('Images in baseline group:', options=df['Slide ID'].unique().tolist(), key='mg__images_in_plotting_group_1')
-                st.multiselect('Images in signal group:', options=df['Slide ID'].unique().tolist(), key='mg__images_in_plotting_group_2')
+
+                # Instantiate the object
+                image_selector = image_filter.ImageFilter(df, image_colname='Slide ID', st_key_prefix=st_key_prefix)
+
+                # If the image filter is not ready (which means the filtering dataframe was not generated), return
+                if not image_selector.ready:
+                    return
+
+                # Create two image filters
+                st.session_state['mg__images_in_plotting_group_1'] = image_selector.select_images(key='baseline', color='blue')
+                st.session_state['mg__images_in_plotting_group_2'] = image_selector.select_images(key='signal', color='red')
+
+                # Define other keys which are no longer relevant but we are leaving in so the rest of the code does not break
                 if 'mg__filter_on_another_column' not in st.session_state:
                     st.session_state['mg__filter_on_another_column'] = False
-                st.checkbox('Filter on another column', key='mg__filter_on_another_column')
-                st.selectbox('Select another column on which to filter the plots:', df.select_dtypes('category').columns, key='mg__another_filter_column', disabled=(not st.session_state['mg__filter_on_another_column']), on_change=reset_values_on_which_to_filter_another_column)
+                if 'mg__another_filter_column' not in st.session_state:
+                    st.session_state['mg__another_filter_column'] = None  # otherwise, df.select_dtypes('category').columns[0]
                 if 'mg__values_on_which_to_filter' not in st.session_state:
                     reset_values_on_which_to_filter_another_column()
-                st.multiselect('Values on which to filter:', df[st.session_state['mg__another_filter_column']].unique(), key='mg__values_on_which_to_filter', disabled=(not st.session_state['mg__filter_on_another_column']))
+
             else:
                 st.session_state['mg__images_in_plotting_group_1'] = []
                 st.session_state['mg__images_in_plotting_group_2'] = []
@@ -749,27 +825,39 @@ def main():
                         # Get the lowest-intensity "positive" intensity/marker
                         intensity_cutoff = srs_marker_column_values[positive_loc].index[0]
 
+                if 'mg__histogram_box_selection_function' not in st.session_state:
+                    st.session_state['mg__histogram_box_selection_function'] = 'Positivity identification'
+                st.radio('Histogram box selection function:', ['Positivity identification', 'Zoom'], key='mg__histogram_box_selection_function')
+
+                st.button('Reset x-axis zoom', on_click=reset_x_axis_range, args=(use_groups_for_plotting, kde_or_hist_to_plot_full))
+
                 # Plot the Plotly figure in Streamlit
                 fig = go.Figure()
+
                 if not use_groups_for_plotting:
-                    fig.add_trace(go.Scatter(x=kde_or_hist_to_plot_full['Value'], y=kde_or_hist_to_plot_full['Density'], fill='tozeroy', mode='none', fillcolor='rgba(255, 0, 0, 0.25)', name='All selected images', hovertemplate=' '))
+                    fig.add_trace(go.Scatter(x=kde_or_hist_to_plot_full['Value'], y=kde_or_hist_to_plot_full['Density'], fill='tozeroy', mode='markers', marker=dict(color='rgba(255, 0, 0, 0.25)', size=1), fillcolor='rgba(255, 0, 0, 0.25)', name='All selected images', hovertemplate=' '))
                     fig.add_trace(go.Scatter(x=df_to_plot_selected['Value'], y=df_to_plot_selected['Density'], fill='tozeroy', mode='none', fillcolor='rgba(255, 0, 0, 0.5)', name='Selection', hoverinfo='skip'))
                     if intensity_cutoff is not None:
                         fig.add_vline(x=intensity_cutoff, line_color='green', line_width=3, line_dash="dash", annotation_text="Previous threshold: ~{}".format((intensity_cutoff)), annotation_font_size=18, annotation_font_color="green")
                     fig.update_layout(hovermode='x unified', xaxis_title='Column value', yaxis_title='Density')
                     fig.update_layout(legend=dict(yanchor="top", y=1.2, xanchor="left", x=0.01, orientation="h"))
                 else:
-                    fig.add_trace(go.Scatter(x=kde_or_hist_to_plot_full[0]['Value'], y=kde_or_hist_to_plot_full[0]['Density'], fill='tozeroy', mode='none', fillcolor='rgba(0, 255, 255, 0.25)', name='Baseline group', hovertemplate=' '))
+                    fig.add_trace(go.Scatter(x=kde_or_hist_to_plot_full[0]['Value'], y=kde_or_hist_to_plot_full[0]['Density'], fill='tozeroy', mode='markers', marker=dict(color='rgba(0, 255, 255, 0.25)', size=1), fillcolor='rgba(0, 255, 255, 0.25)', name='Baseline group', hovertemplate=' '))
                     fig.add_trace(go.Scatter(x=df_to_plot_selected[0]['Value'], y=df_to_plot_selected[0]['Density'], fill='tozeroy', mode='none', fillcolor='rgba(0, 255, 255, 0.5)', name='Baseline selection', hoverinfo='skip'))
-                    fig.add_trace(go.Scatter(x=kde_or_hist_to_plot_full[1]['Value'], y=kde_or_hist_to_plot_full[1]['Density'], fill='tozeroy', mode='none', fillcolor='rgba(255, 0, 0, 0.25)', name='Signal group', hovertemplate=' '))
+                    fig.add_trace(go.Scatter(x=kde_or_hist_to_plot_full[1]['Value'], y=kde_or_hist_to_plot_full[1]['Density'], fill='tozeroy', mode='markers', marker=dict(color='rgba(255, 0, 0, 0.25)', size=1), fillcolor='rgba(255, 0, 0, 0.25)', name='Signal group', hovertemplate=' '))
                     fig.add_trace(go.Scatter(x=df_to_plot_selected[1]['Value'], y=df_to_plot_selected[1]['Density'], fill='tozeroy', mode='none', fillcolor='rgba(255, 0, 0, 0.5)', name='Signal selection', hoverinfo='skip'))
                     if intensity_cutoff is not None:
                         fig.add_vline(x=intensity_cutoff, line_color='green', line_width=3, line_dash="dash", annotation_text="Previous threshold: ~{}".format((intensity_cutoff)), annotation_font_size=18, annotation_font_color="green")
                     fig.update_layout(hovermode='x unified', xaxis_title='Column value', yaxis_title='Density')
                     fig.update_layout(legend=dict(yanchor="top", y=1.2, xanchor="left", x=0.01, orientation="h"))
 
+                if 'mg__histogram_x_range' not in st.session_state:
+                    reset_x_axis_range(use_groups_for_plotting, kde_or_hist_to_plot_full)
+
+                fig.update_xaxes(range=st.session_state['mg__histogram_x_range'])
+
                 # Set Plotly chart in streamlit
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, on_select=plotly_chart_histogram_callback, key=('mg__plotly_chart_histogram_' + st.session_state['mg__random_string'] + '__do_not_persist'), selection_mode='box')
 
                 # Set the selection dictionary for the current filter to pass on to the current phenotype definition
                 selection_dict = {'column_for_filtering': column_for_filtering, 'selected_min_val': selected_min_val, 'selected_max_val': selected_max_val, 'selected_column_values': None}
@@ -822,9 +910,28 @@ def main():
                     if 'mg__positive_percentage_per_image' not in st.session_state:
                         st.session_state['mg__positive_percentage_per_image'] = True
                     st.checkbox('Calculate positive percentages separately for each image', key='mg__positive_percentage_per_image')
-                    fig, df_summary = generate_box_and_whisker(apply_another_filter, df_batch_normalized, column_for_filtering, st.session_state['mg__another_filter_column'], st.session_state['mg__values_on_which_to_filter'], st.session_state['mg__images_in_plotting_group_1'], st.session_state['mg__images_in_plotting_group_2'], all_cells=(not st.session_state['mg__positive_percentage_per_image']))
-                    st.plotly_chart(fig)
-                    st.dataframe(df_summary, hide_index=True)
+
+                    if 'mg__specify_mean_for_zscore_calc' not in st.session_state:
+                        st.session_state['mg__specify_mean_for_zscore_calc'] = False
+                    if st.checkbox('Specify mean for Z-score calculation', key='mg__specify_mean_for_zscore_calc'):
+                        if 'mg__mean_for_zscore_calc' not in st.session_state:
+                            st.session_state['mg__mean_for_zscore_calc'] = df_batch_normalized[column_for_filtering].mean()
+                        st.number_input('Mean for Z-score calculation:', key='mg__mean_for_zscore_calc')
+                    if 'mg__specify_std_for_zscore_calc' not in st.session_state:
+                        st.session_state['mg__specify_std_for_zscore_calc'] = False
+                    if st.checkbox('Specify standard deviation for Z-score calculation', key='mg__specify_std_for_zscore_calc'):
+                        if 'mg__std_for_zscore_calc' not in st.session_state:
+                            st.session_state['mg__std_for_zscore_calc'] = df_batch_normalized[column_for_filtering].std()
+                        st.number_input('Standard deviation for Z-score calculation:', min_value=0.0, key='mg__std_for_zscore_calc')
+                    if not st.session_state['mg__specify_mean_for_zscore_calc']:
+                        st.session_state['mg__mean_for_zscore_calc'] = None
+                    if not st.session_state['mg__specify_std_for_zscore_calc']:
+                        st.session_state['mg__std_for_zscore_calc'] = None
+
+                    fig, df_summary = generate_box_and_whisker(apply_another_filter, df_batch_normalized, column_for_filtering, st.session_state['mg__another_filter_column'], st.session_state['mg__values_on_which_to_filter'], st.session_state['mg__images_in_plotting_group_1'], st.session_state['mg__images_in_plotting_group_2'], all_cells=(not st.session_state['mg__positive_percentage_per_image']), mean_for_zscore_calc=st.session_state['mg__mean_for_zscore_calc'], std_for_zscore_calc=st.session_state['mg__std_for_zscore_calc'])
+                    st.session_state['mg__df_summary_contents'] = df_summary
+                    st.plotly_chart(fig, on_select=plotly_chart_summary_callback, key='mg__plotly_chart_summary__do_not_persist')
+                    st.dataframe(df_summary, hide_index=True, key="mg__df_summary__do_not_persist", on_select=df_summary_callback, selection_mode=["single-row"])
 
             # Add the current column filter to the current phenotype assignment
             st.button(':star2: Add column filter to current phenotype :star2:', use_container_width=True, on_click=update_dependencies_of_button_for_adding_column_filter_to_current_phenotype, kwargs=selection_dict, disabled=add_column_button_disabled)
@@ -873,7 +980,7 @@ def main():
 
         # Print out a five-row sample of the main dataframe
         st.write('Augmented dataset sample:')
-        st.dataframe(st.session_state['mg__df'].sample(5), hide_index=True)
+        st.dataframe(utils.sample_df_without_replacement_by_number(df=st.session_state['mg__df'], n=5), hide_index=True)
 
         # if st.button('Save dataset to `output` folder'):
         #     st.session_state['mg__df'].to_csv('./output/saved_dataset.csv')
@@ -909,18 +1016,4 @@ def main():
 
 # Call the main function
 if __name__ == '__main__':
-
-    # Set page settings
-    st.set_page_config(layout='wide', page_title='Manual Phenotyping on Raw Intensities')
-    st.title('Manual Phenotyping on Raw Intensities')
-
-    # Run streamlit-dataframe-editor library initialization tasks at the top of the page
-    st.session_state = sde.initialize_session_state(st.session_state)
-
-    # Run Top of Page (TOP) functions
-    st.session_state = top.top_of_page_reqs(st.session_state)
-
     main()
-
-    # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
-    st.session_state = sde.finalize_session_state(st.session_state)

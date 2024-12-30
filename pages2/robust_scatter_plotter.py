@@ -1,11 +1,13 @@
 # Import relevant libraries
 import streamlit as st
-import app_top_of_page as top
-import streamlit_dataframe_editor as sde
 import plotly.graph_objects as go
 import plotly.express as px
 import pandas as pd
 from itertools import cycle, islice
+
+
+def turn_off_plotting():
+    st.session_state['rsp__show_scatter_plot'] = False
 
 
 def update_color_for_value(value_to_change_color):
@@ -60,10 +62,7 @@ def go_to_next_image(unique_images):
         st.session_state['rsp__image_to_view'] = unique_images[current_index]
 
 
-def main():
-    """
-    Main function for the page.
-    """
+def draw_scatter_plot_with_options():
 
     # Define the main settings columns
     settings_columns_main = st.columns(3)
@@ -79,19 +78,33 @@ def main():
         st.session_state['rsp__data_to_plot_prev'] = data_to_plot
 
         # If they want to plot phenotyped data, ensure they've performed phenotyping
+        if (data_to_plot == 'Input data') and ('input_dataset' not in st.session_state):
+            st.warning('If you\'d like to plot the input data, please open a file first.')
+            return
+
+        # If they want to plot phenotyped data, ensure they've performed phenotyping
         if (data_to_plot == 'Phenotyped data') and (len(st.session_state['df']) == 1):
             st.warning('If you\'d like to plot the phenotyped data, please perform phenotyping first.')
             return
         
         # Set the shortcut to the dataframe of interest
         if data_to_plot == 'Input data':
+            if 'input_dataset' not in st.session_state:
+                st.warning('Please open a dataset first using the Open File page at left.')
+                return
             df = st.session_state['input_dataset'].data
         else:
             df = st.session_state['df']
 
         # Store columns of certain types
-        if ('rsp__categorical_columns' not in st.session_state) or input_dataset_has_changed:
-            st.session_state['rsp__categorical_columns'] = df.select_dtypes(include=('category', 'object')).columns
+        if st.button('Re-extract columns from dataset') or ('rsp__categorical_columns' not in st.session_state) or input_dataset_has_changed:
+            max_num_unique_values = 1000
+            categorical_columns = []
+            for col in df.select_dtypes(include=('category', 'object')).columns:
+                if not isinstance(df[col].iloc[0], list):
+                    if df[col].nunique() <= max_num_unique_values:
+                        categorical_columns.append(col)
+            st.session_state['rsp__categorical_columns'] = categorical_columns
         if ('rsp__numeric_columns' not in st.session_state) or input_dataset_has_changed:
             st.session_state['rsp__numeric_columns'] = df.select_dtypes(include='number').columns
         categorical_columns = st.session_state['rsp__categorical_columns']
@@ -100,7 +113,7 @@ def main():
         # Choose a column to plot
         if ('rsp__column_to_plot' not in st.session_state) or input_dataset_has_changed:
             st.session_state['rsp__column_to_plot'] = categorical_columns[0]
-        column_to_plot = st.selectbox('Select a column by which to color the points:', categorical_columns, key='rsp__column_to_plot')
+        column_to_plot = st.selectbox('Select a column by which to color the points:', categorical_columns, key='rsp__column_to_plot', help='If you don\'t see the column you want, you may need to re-extract the columns from the dataset using the button above.')
         column_to_plot_has_changed = ('rsp__column_to_plot_prev' not in st.session_state) or (st.session_state['rsp__column_to_plot_prev'] != column_to_plot) or input_dataset_has_changed
         st.session_state['rsp__column_to_plot_prev'] = column_to_plot
 
@@ -119,6 +132,11 @@ def main():
         # Display the number of cells in the selected image
         st.write(f'Number of cells in image: {ser_size_of_each_image.loc[image_to_view]}')
 
+        # Allow sampling of the scatter plot
+        if 'rsp__sample_percent' not in st.session_state:
+            st.session_state['rsp__sample_percent'] = 100
+        sample_percent = st.number_input('Sample percent:', min_value=1, max_value=100, step=1, key='rsp__sample_percent')
+
         # Optionally navigate through the images using Previous and Next buttons
         cols = st.columns(2)
         with cols[0]:
@@ -132,7 +150,7 @@ def main():
         # Optionally plot minimum and maximum coordinate fields
         if 'rsp__use_coordinate_mins_and_maxs' not in st.session_state:
             st.session_state['rsp__use_coordinate_mins_and_maxs'] = False
-        use_coordinate_mins_and_maxs = st.checkbox('Use coordinate mins and maxs', key='rsp__use_coordinate_mins_and_maxs')
+        use_coordinate_mins_and_maxs = st.checkbox('Use coordinate mins and maxs', key='rsp__use_coordinate_mins_and_maxs', on_change=turn_off_plotting)
         settings_columns_refined = st.columns(2)
         if 'rsp__x_min_coordinate_column' not in st.session_state:
             st.session_state['rsp__x_min_coordinate_column'] = numeric_columns[0]
@@ -143,13 +161,13 @@ def main():
         if 'rsp__y_max_coordinate_column' not in st.session_state:
             st.session_state['rsp__y_max_coordinate_column'] = numeric_columns[0]
         with settings_columns_refined[0]:
-            xmin_col = st.selectbox('Select a column for the minimum x-coordinate:', numeric_columns, key='rsp__x_min_coordinate_column', disabled=(not use_coordinate_mins_and_maxs))
+            xmin_col = st.selectbox('Select a column for the minimum x-coordinate:', numeric_columns, key='rsp__x_min_coordinate_column', disabled=(not use_coordinate_mins_and_maxs), on_change=turn_off_plotting)
         with settings_columns_refined[1]:
-            xmax_col = st.selectbox('Select a column for the maximum x-coordinate:', numeric_columns, key='rsp__x_max_coordinate_column', disabled=(not use_coordinate_mins_and_maxs))
+            xmax_col = st.selectbox('Select a column for the maximum x-coordinate:', numeric_columns, key='rsp__x_max_coordinate_column', disabled=(not use_coordinate_mins_and_maxs), on_change=turn_off_plotting)
         with settings_columns_refined[0]:
-            ymin_col = st.selectbox('Select a column for the minimum y-coordinate:', numeric_columns, key='rsp__y_min_coordinate_column', disabled=(not use_coordinate_mins_and_maxs))
+            ymin_col = st.selectbox('Select a column for the minimum y-coordinate:', numeric_columns, key='rsp__y_min_coordinate_column', disabled=(not use_coordinate_mins_and_maxs), on_change=turn_off_plotting)
         with settings_columns_refined[1]:
-            ymax_col = st.selectbox('Select a column for the maximum y-coordinate:', numeric_columns, key='rsp__y_max_coordinate_column', disabled=(not use_coordinate_mins_and_maxs))
+            ymax_col = st.selectbox('Select a column for the maximum y-coordinate:', numeric_columns, key='rsp__y_max_coordinate_column', disabled=(not use_coordinate_mins_and_maxs), on_change=turn_off_plotting)
         units = ('coordinate units' if use_coordinate_mins_and_maxs else 'microns')
 
         # Optionally add another filter
@@ -213,7 +231,7 @@ def main():
             filter_loc = pd.Series(True, index=df.index)
 
         # Filter the DataFrame to include only the selected image and filter
-        df_selected_image_and_filter = df[(df['Slide ID'] == image_to_view) & filter_loc]
+        df_selected_image_and_filter = df[(df['Slide ID'] == image_to_view) & filter_loc].sample(frac=sample_percent / 100)
 
         # Group the DataFrame for the selected image by unique value of the column to plot
         selected_image_grouped_by_value = df_selected_image_and_filter.groupby(column_to_plot)
@@ -233,6 +251,8 @@ def main():
                 # If value is a string, replace '(plus)' with '+' and '(dash)' with '-', since it could likely be a phenotype with those substitutions
                 if isinstance(value_to_plot, str):
                     value_str_cleaned = value_to_plot.replace('(plus)', '+').replace('(dash)', '-')
+                else:
+                    value_str_cleaned = value_to_plot
 
                 # Add the object index to the label
                 df_group['hover_label'] = 'Index: ' + df_group.index.astype(str)
@@ -276,29 +296,53 @@ def main():
         # Plot the plotly chart in Streamlit
         st.plotly_chart(fig, use_container_width=True)
 
+        # Attempt to get page to not scroll up to the top after the plot is drawn... doesn't seem to work here, though note that toggling on the box and whisker plot does prevent this snapping to the top
+        st.write(' ')
+
+    # Return necessary variables
+    return df, column_to_plot, values_to_plot, categorical_columns, unique_images
+
+
+def main():
+    """
+    Main function for the page.
+    """
+
+    if (return_values := draw_scatter_plot_with_options()) is None:
+        return
+
+    df, column_to_plot, values_to_plot, categorical_columns, unique_images = return_values
+
     if 'rsp__get_percent_frequencies' not in st.session_state:
         st.session_state['rsp__get_percent_frequencies'] = False
     if st.toggle('Get percent frequencies of coloring column for entire dataset', key='rsp__get_percent_frequencies'):
         vc = df[column_to_plot].value_counts()
-        st.dataframe((df[column_to_plot].value_counts() / vc.sum() * 100).astype(int).reset_index())
+        st.dataframe((vc / vc.sum() * 100).astype(int).reset_index())
 
-        
+    if 'rsp__generate_box_and_whisker_plot' not in st.session_state:
+        st.session_state['rsp__generate_box_and_whisker_plot'] = False
+    if st.toggle('Generate box and whisker plot', key='rsp__generate_box_and_whisker_plot'):
+        with st.columns(3)[0]:
+            if 'rsp__box_and_whisker_plot_value' not in st.session_state:
+                st.session_state['rsp__box_and_whisker_plot_value'] = values_to_plot[0]
+            box_and_whisker_plot_value = st.selectbox('Select a value in the selected coloring column to analyze:', values_to_plot, key='rsp__box_and_whisker_plot_value')
+            if 'rsp__column_identifying_trace' not in st.session_state:
+                st.session_state['rsp__column_identifying_trace'] = categorical_columns[0]
+            column_identifying_trace = st.selectbox('Select a column to identify different values/traces to plot:', categorical_columns, key='rsp__column_identifying_trace')
+            match_loc = df[column_to_plot] == box_and_whisker_plot_value
+            percent_match_holder = []
+            trace_value_holder = []
+            for image in unique_images:
+                image_loc = df['Slide ID'] == image
+                set_trace_values = set(df.loc[image_loc, column_identifying_trace])
+                assert len(set_trace_values) == 1, 'There should only be one value for the column identifying the trace'
+                trace_value_holder.append(set_trace_values.pop())
+                percent_match_holder.append((image_loc & match_loc).sum() / image_loc.sum() * 100)
+            df_boxplot = pd.DataFrame({'Image': unique_images, 'Percent': percent_match_holder, 'Trace': trace_value_holder})
+            fig = px.box(df_boxplot, x='Trace', y='Percent', title=f'Box and whisker plot for {box_and_whisker_plot_value}', points='all')
+            st.plotly_chart(fig, use_container_width=True)
+
+
 # Run the main function
 if __name__ == '__main__':
-
-    # Set page settings
-    page_name = 'Coordinate Scatter Plotter'
-    st.set_page_config(layout='wide', page_title=page_name)
-    st.title(page_name)
-
-    # Run streamlit-dataframe-editor library initialization tasks at the top of the page
-    st.session_state = sde.initialize_session_state(st.session_state)
-
-    # Run Top of Page (TOP) functions
-    st.session_state = top.top_of_page_reqs(st.session_state)
-
-    # Call the main function
     main()
-
-    # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
-    st.session_state = sde.finalize_session_state(st.session_state)

@@ -11,3 +11,8 @@ dependencies:
     - dill
     - pympler
     - objsize
+    - PhenoGraph
+    - parmap
+    - setuptools-scm
+    - scanpy
+    - plotnine

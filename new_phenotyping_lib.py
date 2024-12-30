@@ -73,6 +73,9 @@ def map_species_to_possibly_compound_phenotypes(df, phenotype_identification_fil
     # Get prefixed column names for the individual phenotypes in order to avoid possible duplication of columns
     phenotype_colnames = ['phenotype ' + x for x in full_phenotype_list]
 
+    # Determine all the species integers in the dataframe
+    species_int_not_in_id_file = df[species_int_colname].unique()
+
     # For each row in the biologists' phenotype specification file...
     num_updated_rows = 0
     for spec_row in df_phenotype_spec.iterrows():
@@ -98,6 +101,17 @@ def map_species_to_possibly_compound_phenotypes(df, phenotype_identification_fil
         df.loc[curr_df_indexes, phenotype_colnames] = [int(x) for x in phenotype_str_list]  # new line
         df.loc[curr_df_indexes, 'phenotype_int'] = curr_phenotype_int
         num_updated_rows = num_updated_rows + len(curr_df_indexes)
+
+        # Remove the current species integer from the list of all species integers in the dataframe
+        species_int_not_in_id_file = species_int_not_in_id_file[species_int_not_in_id_file != curr_species_int]
+
+    # Filter out species with integer IDs that do not appear to be present in the phenotype identification file
+    if len(species_int_not_in_id_file) > 0:
+        print(f'Filtering out species with integer IDs {species_int_not_in_id_file} because they do not appear to be present in the phenotype iD file {phenotype_identification_file}...')
+        num_rows_before = len(df)
+        df = df[~df[species_int_colname].isin(species_int_not_in_id_file)].copy()
+        num_rows_after = len(df)
+        print(f'Filtered out {num_rows_before - num_rows_after} rows')
 
     # Ensure the total number of rows modified equals the size of the dataframe itself
     assert num_updated_rows == len(df), 'ERROR: Not a one-to-one mapping of the rows'

@@ -101,6 +101,7 @@ def load_input_dataset(datafile_path_or_df, coord_units_in_microns, input_datase
             'datafile_path': None,
             'coord_units_in_microns': coord_units_in_microns
         }
+    metadata['preprocessing'] = None
 
     # Load and standardize the input datafile into the session state
     dataset_obj = utils.load_and_standardize_input_datafile(datafile_path_or_df, coord_units_in_microns)

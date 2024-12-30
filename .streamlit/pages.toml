@@ -34,6 +34,21 @@ name = "Main"
 icon = ""
 
 [[pages]]
+name = "Phenotype Clustering Workflow ✨"
+icon = ""
+is_section = true
+
+[[pages]]
+path = "pages/05a_Pheno_Cluster.py"
+name = "Phenotype Clustering"
+icon = ""
+
+[[pages]]
+path = "pages/05b_Pheno_Cluster.py"
+name = "Clusters Differential Expression"
+icon = ""
+
+[[pages]]
 name = "Phenotyping 🖊️"
 icon = ""
 is_section = true
@@ -113,12 +128,17 @@ path = "pages/memory_analyzer.py"
 name = "Memory Analyzer"
 icon = ""
 
-# [[pages]]
-# name = "In Development"
-# icon = ""
-# is_section = true
+[[pages]]
+name = "Radial Profiles"
+icon = ""
+is_section = true
 
-# [[pages]]
-# path = "pages/macro_radial_density.py"
-# name = "Macro Radial Density"
-# icon = ""
+[[pages]]
+path = "pages/radial_profiles_app.py"
+name = "Calculations"
+icon = ""
+
+[[pages]]
+path = "pages/radial_profiles_app_plotting_aggregated_results.py"
+name = "Plots"
+icon = ""

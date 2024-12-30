@@ -30,3 +30,14 @@ dependencies:
     - dill
     - pympler
     - objsize
+    - PhenoGraph
+    - parc
+    - parmap
+    - setuptools-scm
+    - annoy
+    - sklearn-ann
+    - pynndescent
+    - plotnine
+    
+
+

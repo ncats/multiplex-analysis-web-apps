@@ -5,8 +5,7 @@ import numpy as np
 import time_cell_interaction_lib as tci  # import the TIME library stored in time_cell_interaction_lib.py
 import time
 import streamlit_utils
-import app_top_of_page as top
-import streamlit_dataframe_editor as sde
+
 
 def main():
     '''
@@ -54,6 +53,8 @@ def main():
 
         # Determine whether we should employ threading
         use_multiprocessing = st.checkbox('Should we use multiple logical CPUs to speed up the calculations?', key='use_multiprocessing')
+        # This isn't actually a good fix because it's only the Squidpy enrichment that shouldn't have multiprocessing, not the entire workflow, but we need to implement that in the future
+        # use_multiprocessing = st.checkbox('Should we use multiple logical CPUs to speed up the calculations?', key='use_multiprocessing', disabled=(st.session_state['settings__analysis__significance_calculation_method'] != 'Poisson (radius)'))
 
         # Get the number of threads to use for the calculations
         num_workers = st.number_input('Select number of threads for calculations:', min_value=1, max_value=os.cpu_count(), step=1, key='num_workers', disabled=(not use_multiprocessing))
@@ -213,18 +214,4 @@ def main():
 
 # Call the main function
 if __name__ == '__main__':
-
-    # Set a wide layout and display the page heading
-    st.set_page_config(layout="wide")
-    st.title('Run workflow')
-
-    # Run streamlit-dataframe-editor library initialization tasks at the top of the page
-    st.session_state = sde.initialize_session_state(st.session_state)
-
-    # Run Top of Page (TOP) functions
-    st.session_state = top.top_of_page_reqs(st.session_state)
-
     main()
-
-    # Run streamlit-dataframe-editor library finalization tasks at the bottom of the page
-    st.session_state = sde.finalize_session_state(st.session_state)
