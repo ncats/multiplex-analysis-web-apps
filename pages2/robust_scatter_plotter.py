@@ -259,7 +259,7 @@ def draw_scatter_plot_with_options():
 
                 # Works but doesn't scale the shapes
                 if not use_coordinate_mins_and_maxs:
-                    fig.add_trace(go.Scatter(x=df_group['Cell X Position'], y=df_group['Cell Y Position'], mode='markers', name=value_str_cleaned, marker_color=color_dict[value_to_plot], hovertemplate=df_group['hover_label']))
+                    fig.add_trace(go.Scattergl(x=df_group['Cell X Position'], y=df_group['Cell Y Position'], mode='markers', name=value_str_cleaned, marker_color=color_dict[value_to_plot], hovertemplate=df_group['hover_label']))
 
                 # Works really well
                 else:
