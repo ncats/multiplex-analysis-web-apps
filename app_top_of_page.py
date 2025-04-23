@@ -70,7 +70,7 @@ def platform_is_nidap():
     '''
     Check if the Streamlit application is operating on NIDAP
     '''
-    return np.any(['nidap.nih.gov' in x for x in subprocess.run('conda config --show channels', shell=True, capture_output=True).stdout.decode().split('\n')[1:-1]])
+    return np.any(['foundry-artifacts' in x for x in subprocess.run('conda config --show channels', shell=True, capture_output=True).stdout.decode().split('\n')[1:-1]])
 
 def check_for_platform(session_state):
     '''
