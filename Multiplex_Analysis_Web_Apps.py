@@ -1,11 +1,15 @@
-import streamlit as st
+'''
+Top level Streamlit Application for MAWA
+'''
 import os
+import subprocess
+
+import streamlit as st
 from streamlit_extras.app_logo import add_logo
 import streamlit_session_state_management
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
 import streamlit_utils
 import numpy as np
-import subprocess
 import platform_io
 import install_missing_packages
 
@@ -39,6 +43,9 @@ from pages2 import results_transfer
 
 
 def welcome_page():
+    '''
+    First page displayed when the app opens
+    '''
     # Markdown text
     intro_markdown = ndl.read_markdown_file('markdown/MAWA_WelcomePage.md')
     st.markdown(intro_markdown, unsafe_allow_html=True)
@@ -189,6 +196,7 @@ def main():
     st.session_state['previous_page_name'] = st.session_state['current_page_name']
 
 
-# Needed for rendering pages which use multiprocessing (https://docs.python.org/3/library/multiprocessing.html#the-spawn-and-forkserver-start-methods)
+# Needed for rendering pages which use multiprocessing
+# (https://docs.python.org/3/library/multiprocessing.html#the-spawn-and-forkserver-start-methods)
 if __name__ == '__main__':
     main()
