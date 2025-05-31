@@ -42,6 +42,15 @@ def main():
                  options = ['No Norm', 'Norm within Clusters', 'Norm within Phenotypes'],
                  key = 'NormHeatRadio',
                  horizontal = True)
+        st.toggle('Subset Heatmap by Feature', value = False, key = 'toggle_heatmap_filter_feat')
+        if st.session_state['toggle_heatmap_filter_feat']:
+            nei_feat_filt_col = st.columns([2,2])
+            with nei_feat_filt_col[0]:
+                st.selectbox('Feature', options = st.session_state.umapOutcomes, key='heatmap_filter_feat')
+            with nei_feat_filt_col[1]:
+                selected_feat = st.session_state['heatmap_filter_feat']
+                unique_values = st.session_state.spatial_umap.df_umap[selected_feat].unique()
+                st.selectbox('Value', options = unique_values, key='heatmap_filter_value')
         if st.session_state.umap_completed:
             st.pyplot(st.session_state.heatmapfig)
 
