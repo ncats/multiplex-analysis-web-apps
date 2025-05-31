@@ -334,6 +334,9 @@ class NeighborhoodProfiles:
         return w, df_umap
 
     def setup_spectrogram_settings(self):
+        '''
+        Set up the spectrogram settings for the UMAP data
+        '''
         self.xx = np.linspace(np.min(self.df_umap['X']), np.max(self.df_umap['X']), self.n_bins + 1)
         self.yy = np.linspace(np.min(self.df_umap['Y']), np.max(self.df_umap['Y']), self.n_bins + 1)
 
@@ -534,7 +537,8 @@ class UMAPDensityProcessing():
 
     def filter_by_lineage(self, display_toggle, drop_val, default_val):
         '''
-        Function for filtering UMAP function based on Phenotypes or Markers
+        Function for filtering UMAP function based on lineage. Sometimes
+        the intended lineage is the phenotype and sometimes it is the marker.
 
         Args:
             display_toggle (str): Toggle to display as Phenotypes or Markers
@@ -826,6 +830,9 @@ class UMAPDensityProcessing():
             clust_range (list): List of cluster values
             wcss (list): List of within-cluster sum of squares
             sel_clus (int): Selected cluster value
+
+        Returns:
+            fig: Matplotlib figure object
         '''
 
         # Streamlit Theming
@@ -850,3 +857,4 @@ class UMAPDensityProcessing():
         ax.tick_params(axis='x', colors=slc_text, which='both')
         ax.tick_params(axis='y', colors=slc_text, which='both')
         return fig
+    

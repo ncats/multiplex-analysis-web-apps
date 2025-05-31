@@ -746,11 +746,14 @@ def set_figure_objs_clusters_analyzer(session_state):
     else:
         norm_axis = None
 
-    session_state.heatmapfig = bpl.createHeatMap(df_umap, session_state.pheno_summ['phenotype'], title, norm_axis)
+    session_state.heatmapfig = bpl.draw_heatmap_fig(df_umap,
+                                                    pheno_list=session_state.pheno_summ['phenotype'],
+                                                    title=title,
+                                                    norm_axis=norm_axis)
 
     ### Incidence Line Graph ###
     # Filter by the lineage
-    df_umap = filterLineage4UMAP(df_umap, session_state.lineageDisplayToggle_clus, session_state.defLineageOpt, session_state.inciPhenoSel)
+    df_umap = filter_by_lineage(df_umap, session_state.lineageDisplayToggle_clus, session_state.defLineageOpt, session_state.inciPhenoSel)
 
     # Set up incidence dataframe
     comp_thresh = None
@@ -800,25 +803,33 @@ def set_figure_objs_clusters_analyzer(session_state):
     inci_title = ['Incidence by Cluster']
 
     # Draw Incidence Figure
-    session_state.inciFig = bpl.drawIncidenceFigure(inci_df, inci_title,
-                                                    phenotype  = session_state.inciPhenoSel,
-                                                    feature    = session_state.inciOutcomeSel,
-                                                    displayas  = session_state.Inci_Value_display,
+    session_state.inci_fig = bpl.draw_incidence_fig(inci_df, inci_title,
+                                                    phenotype   = session_state.inciPhenoSel,
+                                                    feature     = session_state.inciOutcomeSel,
+                                                    displayas   = session_state.Inci_Value_display,
                                                     comp_thresh = comp_thresh)
 
     return session_state
 
-def filterLineage4UMAP(df, display_toggle, defVal, dropVal):
+def filter_by_lineage(df, display_toggle, def_val, drop_val):
     '''
-    Function for filtering UMAP function based on Phenotypes or Markers
-    '''
-    if dropVal != defVal:
-        if display_toggle == 'Phenotypes':
-            df = df.loc[df['Lineage'] == dropVal, :]
-        elif display_toggle == 'Markers':
-            df = df.loc[df['species_name_short'].str.contains(dropVal), :]
+    Function for filtering UMAP function based on lineage. Sometimes
+    the intended lineage is the phenotype and sometimes it is the marker.
 
-    return df
+    Args:
+        df: DataFrame to filter
+        display_toggle: Toggle for displaying by Phenotypes or Markers
+        def_val: Default value for filtering
+        drop_val: Value to drop
+
+    Returns:
+        df: Filtered DataFrame
+    '''
+    if drop_val != def_val:
+        if display_toggle == 'Phenotypes':
+            return df.loc[df['Lineage'] == drop_val, :]
+        elif display_toggle == 'Markers':
+            return df.loc[df['species_name_short'].str.contains(drop_val), :]
 
 def drawAltairObj(df, title, sortOrder, fig, ax = None, legendCol='phenotype'):
     """

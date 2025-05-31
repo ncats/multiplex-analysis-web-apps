@@ -6,19 +6,20 @@ required for phenotyping
 
 import time
 import math
+import warnings
 import numpy as np
 import pandas as pd
-import umap  # slow 
-import warnings
-warnings.simplefilter(action='ignore', category= FutureWarning)
-warnings.filterwarnings("ignore", message=".*The 'nopython' keyword.*")
-pd.options.mode.chained_assignment = None  # default='warn'
+import umap  # slow
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.cluster import KMeans # K-Means
 from SpatialUMAP import SpatialUMAP
 import PlottingTools as umPT
 import utils
+
+warnings.simplefilter(action='ignore', category= FutureWarning)
+warnings.filterwarnings("ignore", message=".*The 'nopython' keyword.*")
+pd.options.mode.chained_assignment = None  # default='warn'
 
 def preprocess_df(df_orig, marker_names, marker_col_prefix, bc):
     '''Perform some preprocessing on our dataset to apply tranforms
@@ -432,9 +433,9 @@ def scatter_plot(df, fig, ax, figTitle, xVar, yVar, hueVar, hueOrder, xLim = Non
     for i in figTitle:
         plot_title = plot_title + i + '\n'
 
-    SlBgC  = '#0E1117'  # Streamlit Background Color
-    SlTC   = '#FAFAFA'  # Streamlit Text Color
-    Sl2BgC = '#262730'  # Streamlit Secondary Background Color
+    slc_bg   = '#0E1117'  # Streamlit Background Color
+    slc_text = '#FAFAFA'  # Streamlit Text Color
+    slc_bg2 = '#262730'  # Streamlit Secondary Background Color
 
     # Create the scatter plot
     sns.scatterplot(df,
@@ -454,9 +455,9 @@ def scatter_plot(df, fig, ax, figTitle, xVar, yVar, hueVar, hueOrder, xLim = Non
     ax.set_frame_on(False) # Turn off the Frame
 
     if xVar == 'Cell X Position':
-        ax.set_title(plot_title, fontsize = 14, color = SlTC, ha='left', x=x, wrap=True)
-        ax.set_xlabel('Centroid X ('r'$\mu m)$', fontsize = 14, color = SlTC)
-        ax.set_ylabel('Centroid Y ('r'$\mu m)$', fontsize = 14, color = SlTC)
+        ax.set_title(plot_title, fontsize = 14, color = slc_text, ha='left', x=x, wrap=True)
+        ax.set_xlabel('Centroid X ('r'$\mu m)$', fontsize = 14, color = slc_text)
+        ax.set_ylabel('Centroid Y ('r'$\mu m)$', fontsize = 14, color = slc_text)
         ax.set_aspect(1)       # Set the Aspect Ratio
     else:
         ax.set_xlabel('')
@@ -490,15 +491,15 @@ def scatter_plot(df, fig, ax, figTitle, xVar, yVar, hueVar, hueOrder, xLim = Non
               markerscale = lgd_markscale,
               borderaxespad = 0,
               ncols = 4,
-              facecolor = Sl2BgC,
-              edgecolor = Sl2BgC,
-              labelcolor = SlTC)
+              facecolor = slc_bg2,
+              edgecolor = slc_bg2,
+              labelcolor = slc_text)
 
     if clusters_label:
-        ax.text(0.80*xLim[1], yLim[0], 'Clusters', c = SlTC, fontsize = 25)
+        ax.text(0.80*xLim[1], yLim[0], 'Clusters', c = slc_text, fontsize = 25)
 
     if feat is not None:
-        ax.text(xLim[0], 0.93*yLim[1], feat, c = SlTC, fontsize = 30)
+        ax.text(xLim[0], 0.93*yLim[1], feat, c = slc_text, fontsize = 30)
 
     # Save the figure to disk
     if saveFlag:
@@ -766,6 +767,9 @@ def draw_wcss_elbow_plot(clust_range, wcss, sel_clus):
         clust_range (list): List of cluster values
         wcss (list): List of within-cluster sum of squares
         sel_clus (int): Selected cluster value
+
+    Returns:
+        fig: Matplotlib figure object
     '''
 
     # Streamlit Theming
@@ -791,67 +795,76 @@ def draw_wcss_elbow_plot(clust_range, wcss, sel_clus):
     ax.tick_params(axis='y', colors=slc_text, which='both')
     return fig
 
-def createHeatMap(df, phenoList, title, normAxis = None):
+def draw_heatmap_fig(df, pheno_list, title, norm_axis = None):
     '''
     Create a heatmap of the phenotypes and clusters
+
+    Args:
+        df:
+        pheno_list:
+        title:
+        norm_axis:
+
+    Returns:
+        fig: Matplotlib figure
     '''
     # Create heatmap df
-    heatMapDf = pd.DataFrame()
+    heatmap_df = pd.DataFrame()
 
     for clust_label, group in df.groupby('clust_label'):
         clust_value_counts = group['Lineage'].value_counts()
         clust_value_counts.name = f'{clust_label}'
 
-        heatMapDf = pd.concat([heatMapDf, pd.DataFrame([clust_value_counts])])
+        heatmap_df = pd.concat([heatmap_df, pd.DataFrame([clust_value_counts])])
 
     # Fix the NA
-    heatMapDf[heatMapDf.isna()] = 0
-    heatMapDf = heatMapDf.astype('int')
+    heatmap_df[heatmap_df.isna()] = 0
+    heatmap_df = heatmap_df.astype('int')
 
     # Rearrange Columsn in order of prevalences
-    heatMapDf = heatMapDf.loc[:, phenoList]
+    heatmap_df = heatmap_df.loc[:, pheno_list]
 
-    if normAxis == 0:
-        heatMapTitle = 'Phenotype/Cluster Heatmap: Normalized within Clusters'
-        heatMapDf = round(heatMapDf.div(heatMapDf.sum(axis=1), axis=0), 3)
+    if norm_axis == 0:
+        heatmap_title = 'Phenotype/Cluster Heatmap: Normalized within Clusters'
+        heatmap_df = round(heatmap_df.div(heatmap_df.sum(axis=1), axis=0), 3)
         vmin = 0
         vmax = 1
-    elif normAxis == 1:
-        heatMapTitle = 'Phenotype/Cluster Heatmap: Normalized within Phenotypes'
-        heatMapDf = round(heatMapDf.div(heatMapDf.sum(axis=0), axis=1), 3)
+    elif norm_axis == 1:
+        heatmap_title = 'Phenotype/Cluster Heatmap: Normalized within Phenotypes'
+        heatmap_df = round(heatmap_df.div(heatmap_df.sum(axis=0), axis=1), 3)
         vmin = 0
         vmax = 1
     else:
-        heatMapTitle = 'Phenotype/Cluster Heatmap: '
-        vmin = heatMapDf.min().min()
-        vmax = heatMapDf.max().max()
-    title.append(heatMapTitle)
+        heatmap_title = 'Phenotype/Cluster Heatmap: '
+        vmin = heatmap_df.min().min()
+        vmax = heatmap_df.max().max()
+    title.append(heatmap_title)
 
-    figTitle = wrapTitleText(title)
+    fig_title = wrapTitleText(title)
     plot_title = ''
-    for i in figTitle:
+    for i in fig_title:
         plot_title = plot_title + i + '\n'
 
     # Define Output Variables
-    phenotypes = heatMapDf.columns
-    clusters = heatMapDf.index
+    phenotypes = heatmap_df.columns
+    clusters = heatmap_df.index
 
     # Theme Styles
-    SlBgC  = '#0E1117'  # Streamlit Background Color
-    SlTC   = '#FAFAFA'  # Streamlit Text Color
-    Sl2BgC = '#262730'  # Streamlit Secondary Background Color
+    slc_bg   = '#0E1117'  # Streamlit Background Color
+    slc_text = '#FAFAFA'  # Streamlit Text Color
+    slc_bg2  = '#262730'  # Streamlit Secondary Background Color
 
-    fig = plt.figure(figsize = (12,12), facecolor = SlBgC)
-    ax = fig.add_subplot(1,1,1, facecolor = SlBgC) 
-    im = ax.imshow(heatMapDf, cmap = 'inferno', vmin = vmin, vmax = vmax)
+    fig = plt.figure(figsize = (12,12), facecolor = slc_bg)
+    ax = fig.add_subplot(1,1,1, facecolor = slc_bg)
+    im = ax.imshow(heatmap_df, cmap = 'inferno', vmin = vmin, vmax = vmax)
 
     bbox = ax.get_yticklabels()[-1].get_window_extent()
     x, _ = ax.transAxes.inverted().transform([bbox.x0, bbox.y0])
 
     # Show all ticks and label them with the respective list entries
-    ax.set_title(plot_title, fontsize = 20, loc = 'left', color = SlTC, x=3*x, wrap=True)
-    ax.set_xticks(np.arange(len(phenotypes)), labels = phenotypes, fontsize = 14, color = SlTC)
-    ax.set_yticks(np.arange(len(clusters)), labels = clusters, fontsize = 14, color = SlTC)
+    ax.set_title(plot_title, fontsize = 20, loc = 'left', color = slc_text, x=3*x, wrap=True)
+    ax.set_xticks(np.arange(len(phenotypes)), labels = phenotypes, fontsize = 14, color = slc_text)
+    ax.set_yticks(np.arange(len(clusters)), labels = clusters, fontsize = 14, color = slc_text)
 
     # Rotate the tick labels and set their alignment.
     plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
@@ -860,7 +873,7 @@ def createHeatMap(df, phenoList, title, normAxis = None):
     # Loop over data dimensions and create text annotations.
     for i, cluster in enumerate(range(len(clusters))):
         for j, phenotype in enumerate(range(len(phenotypes))):
-            value = heatMapDf.iloc[cluster, phenotype]
+            value = heatmap_df.iloc[cluster, phenotype]
             if value >= 0.85*vmax:
                 text_color = 'b'
             else:
@@ -1026,19 +1039,31 @@ def UMAPdraw_density(d, bins, w, n_pad, vlim, feat = None, diff = False, legendt
 
     return umap_fig
 
-def drawIncidenceFigure(df, figTitle, phenotype = 'All Phenotypes', feature = 'Cell Counts', displayas = 'Counts Difference', comp_thresh = None, figsize=(12,12)):
+def draw_incidence_fig(df, fig_title, phenotype = 'All Phenotypes', feature = 'Cell Counts', displayas = 'Counts Difference', comp_thresh = None, figsize=(12,12)):
     '''
     Draws the line plot figure which describes the incideces of a 
     selected features
+
+    Args:
+        df (pd.DataFrame): DataFrame containing the data to plot
+        fig_title (str): Title of the figure
+        phenotype (str): Phenotype to display
+        feature (str): Feature to display
+        displayas (str): How to display the data (Counts Difference, Ratios, Percentages)
+        comp_thresh (float): Comparison threshold
+        figsize (tuple): Size of the figure
+
+    Returns:
+        inci_fig (MATPLOTLIB Figure Obj): Incidence figure
     '''
 
     slc_bg   = '#0E1117'  # Streamlit Background Color
     slc_text = '#FAFAFA'  # Streamlit Text Color
     slc_bg2  = '#262730'  # Streamlit Secondary Background Color
 
-    figTitle = wrapTitleText(figTitle)
+    fig_title = wrapTitleText(fig_title)
     plot_title = ''
-    for i in figTitle:
+    for i in fig_title:
         plot_title = plot_title + i + '\n'
 
     inci_fig = plt.figure(figsize=figsize, facecolor = slc_bg)
