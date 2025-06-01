@@ -1040,27 +1040,32 @@ def UMAPdraw_density(d, bins, w, n_pad, vlim, feat = None, diff = False, legendt
 
     return umap_fig
 
-def draw_incidence_fig(df, fig_title, phenotype = 'All Phenotypes', feature = 'Cell Counts', displayas = 'Counts Difference', comp_thresh = None):
+def draw_incidence_fig(inci_df, fig_title, phenotype = 'All Phenotypes', feature = 'Cell Counts', displayas = 'Counts Difference', comp_thresh = None, show_raw_counts= False):
     '''
     Draws the line plot figure which describes the incideces of a 
     selected features
 
     Args:
-        df (pd.DataFrame): DataFrame containing the data to plot
+        inci_df (pd.DataFrame): DataFrame containing the incidence data
         fig_title (str): Title of the figure
         phenotype (str): Phenotype to display
         feature (str): Feature to display
         displayas (str): How to display the data (Counts Difference, Ratios, Percentages)
         comp_thresh (float): Comparison threshold
-        figsize (tuple): Size of the figure
+        show_raw_counts (bool): Whether to show raw counts
 
     Returns:
         inci_fig (MATPLOTLIB Figure Obj): Incidence figure
     '''
 
+    inci_fig = go.Figure()
+
     slc_bg   = '#0E1117'  # Streamlit Background Color
     slc_text = '#FAFAFA'  # Streamlit Text Color
     slc_bg2  = '#262730'  # Streamlit Secondary Background Color
+    slc_ylw  = '#F6EB61'  # Streamlit Yellow Color
+    slc_red  = '#FF4B4B'  # Streamlit Red Color
+
 
     if comp_thresh is not None:
         up_tag = f' >= {comp_thresh}'
@@ -1072,13 +1077,21 @@ def draw_incidence_fig(df, fig_title, phenotype = 'All Phenotypes', feature = 'C
     anno2 = False
     if feature != 'Cell Counts':
 
-        df = df[displayas]
+        df = inci_df[displayas]
 
         dfmin = df.loc[(df != np.nan)].min()
         dfmax = df.loc[(df != np.nan)].max()
         up_limit = max(-1*dfmin, dfmax)
         if displayas == 'Count Differences':
             anno2 = True
+
+            df_up = inci_df['featureCount1']
+            df_dn = inci_df['featureCount0']
+
+            dfmin = df_dn.loc[(df_dn != np.nan)].min()
+            dfmax = df_up.loc[(df_up != np.nan)].max()
+            up_limit = max(-1*dfmin, dfmax)
+
             if up_limit < 2:
                 up_limit = 2
             ylim = [-1.05*up_limit, 1.05*up_limit]
@@ -1104,36 +1117,87 @@ def draw_incidence_fig(df, fig_title, phenotype = 'All Phenotypes', feature = 'C
             hover_template = '<b>Cluster:</b> %{x}<br><b>Percentage:</b> %{y}<extra></extra>'
             outcome_suff = ' (%)'
     else:
-        df = df['counts']
-
+        df = inci_df['counts']
+        
         dfmin = df.min()
         dfmax = df.max()
         up_limit = max(-1*dfmin, dfmax)
         limrange = dfmax-dfmin
         liminc = limrange/8
-        ylim = [dfmin-(liminc*0.1), dfmax + (liminc*0.1)]
+        ylim = [0, dfmax*1.05]
 
         feature_pos = [1, up_limit*.95]
         feature_text = f'{feature}'
         hover_template = '<b>Cluster:</b> %{x}<br><b>Count:</b> %{y}<extra></extra>'
         outcome_suff = ' (Counts)'
 
-    fig = go.Figure()
+    if feature != 'Cell Counts':
+        if displayas == 'Count Differences':
+            if show_raw_counts:
+                inci_fig.add_trace(go.Bar(
+                    x=df_up.index,
+                    y=df_up.values,
+                    name=f"{phenotype}{up_tag}",
+                    marker=dict(color=slc_ylw),
+                    hovertemplate=hover_template,
+                    hoverlabel=dict(
+                    bgcolor=slc_ylw,
+                    bordercolor=slc_ylw,
+                    font=dict(color=slc_bg)
+                    ),
+                    opacity=0.65,
+                    offsetgroup='1',
+                    showlegend=False,
+                    text=[f"<b>{int(y):,}</b>" for y in df_up.values],
+                    textposition='inside',
+                    textfont=dict(color=slc_bg, size=14)
+                ))
+                inci_fig.add_trace(go.Bar(
+                    x=df_dn.index,
+                    y=-df_dn.values,
+                    name=f"{phenotype}{dn_tag}",
+                    marker=dict(color=slc_red),
+                    hovertemplate=hover_template,
+                    hoverlabel=dict(
+                    bgcolor=slc_red,
+                    bordercolor=slc_red,
+                    font=dict(color=slc_text)
+                    ),
+                    opacity=0.65,
+                    offsetgroup='1',
+                    showlegend=False,
+                    text=[f"<b>{int(y):,}</b>" for y in df_dn.values],
+                    textposition='inside',
+                    textfont=dict(color=slc_bg, size=14)
+                ))
 
-    fig.add_trace(go.Scatter(
-        x=df.index,
-        y=df.values,
-        mode='lines+markers',
-        name=phenotype,
-        line=dict(color='#0E86D4', width=2.5),  # Streamlit blue, set line width
-        marker=dict(color='#0E86D4', size=14),  # Set marker size
-        hovertemplate=hover_template,
-        hoverlabel=dict(
-            bgcolor='#0E86D4',
-            bordercolor='#0E86D4',
-            font=dict(color=slc_text)
-        )
-    ))
+        inci_fig.add_trace(go.Scatter(
+            x=df.index,
+            y=df.values,
+            mode='lines+markers',
+            name=phenotype,
+            line=dict(color='#0E86D4', width=2.5),
+            marker=dict(color='#0E86D4', size=14),
+            hovertemplate=hover_template,
+            hoverlabel=dict(
+                bgcolor='#0E86D4',
+                bordercolor='#0E86D4',
+                font=dict(color=slc_text)
+            )
+        ))
+    else:
+        inci_fig.add_trace(go.Bar(
+            x=df.index,
+            y=df.values,
+            name=phenotype,
+            marker=dict(color='#0E86D4'),
+            hovertemplate=hover_template,
+            hoverlabel=dict(
+                bgcolor='#0E86D4',
+                bordercolor='#0E86D4',
+                font=dict(color=slc_text)
+            )
+        ))
 
     annotations = [
         dict(
@@ -1163,7 +1227,7 @@ def draw_incidence_fig(df, fig_title, phenotype = 'All Phenotypes', feature = 'C
             )
         )
 
-    fig.update_layout(
+    inci_fig.update_layout(
         title=dict(
             text=fig_title,
             font=dict(size=25),
@@ -1218,4 +1282,4 @@ def draw_incidence_fig(df, fig_title, phenotype = 'All Phenotypes', feature = 'C
         ]
     )
 
-    return fig
+    return inci_fig

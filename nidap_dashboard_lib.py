@@ -807,7 +807,8 @@ def set_figure_objs_clusters_analyzer(session_state):
                                                     phenotype   = session_state.inciPhenoSel,
                                                     feature     = session_state.inciOutcomeSel,
                                                     displayas   = session_state.Inci_Value_display,
-                                                    comp_thresh = comp_thresh)
+                                                    comp_thresh = comp_thresh,
+                                                    show_raw_counts = session_state.inci_fig_show_raw_counts)
 
     return session_state
 

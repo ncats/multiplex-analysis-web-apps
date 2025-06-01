@@ -72,8 +72,13 @@ def main():
             inci_radio_disabled = True
         else:
             inci_radio_disabled = False
-        st.radio('Display As:', options = ('Count Differences', 'Percentages', 'Ratios'),
-                 key = 'Inci_Value_display', horizontal=True, disabled = inci_radio_disabled)
+
+        inci_sel_col = st.columns(2)
+        with inci_sel_col[0]:
+            st.radio('Display As:', options = ('Count Differences', 'Percentages', 'Ratios'),
+                     key = 'Inci_Value_display', horizontal=True, disabled = inci_radio_disabled)
+        with inci_sel_col[1]:
+            st.toggle('Show Raw Counts', key='inci_fig_show_raw_counts', value=False, disabled=inci_radio_disabled)
 
         if st.session_state.umap_completed:
             st.plotly_chart(st.session_state.inci_fig)
