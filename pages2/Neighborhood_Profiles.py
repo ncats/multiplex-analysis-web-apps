@@ -797,7 +797,8 @@ def main():
                                 value = 10000, step = 10,)
             with nei_sett_col[3]:
                 st.checkbox('Log Scale', key = 'nei_pro_toggle_log_scale', value = True)
-            st.toggle('Subset Neighbourhood Profiles by Feature', value = False, key = 'toggle_NeiPro_filter_feat')
+            st.toggle('Subset Neighbourhood Profiles by Feature', value = False,
+                      key = 'toggle_NeiPro_filter_feat', disabled=~st.session_state.umap_completed)
             if st.session_state['toggle_NeiPro_filter_feat']:
                 nei_feat_filt_col = st.columns([2,2])
                 with nei_feat_filt_col[0]:
