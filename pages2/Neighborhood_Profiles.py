@@ -115,9 +115,9 @@ def apply_umap(umap_style):
     st.session_state.bc.set_value_df('time_to_run_UMAP', st.session_state.bc.elapsedTime())
 
     # List of possible UMAP Lineages as defined by the completed UMAP
-    st.session_state.umapPheno = [st.session_state.defLineageOpt]
+    st.session_state.umapPheno = [st.session_state.def_lineage_opt]
     st.session_state.umapPheno.extend(st.session_state.pheno_summ['phenotype'])
-    st.session_state.umapMarks = [st.session_state.defLineageOpt]
+    st.session_state.umapMarks = [st.session_state.def_lineage_opt]
     st.session_state.umapMarks.extend(st.session_state.spatial_umap.markers)
     st.session_state.umapMarks.extend(['Other'])
 
@@ -128,9 +128,9 @@ def apply_umap(umap_style):
     st.session_state.dens_diff_feat_sel = st.session_state.outcomes[0]
 
     # List of possible outcome variables as defined by the config yaml files
-    st.session_state.umapOutcomes = [st.session_state.defumapOutcomes]
+    st.session_state.umapOutcomes = [st.session_state.def_umap_feature]
     st.session_state.umapOutcomes.extend(st.session_state.outcomes)
-    st.session_state.inciOutcomes = [st.session_state.definciOutcomes]
+    st.session_state.inciOutcomes = [st.session_state.def_inci_feature]
     st.session_state.inciOutcomes.extend(st.session_state.outcomes)
 
     # creates the df_umap dataframe for plotting
@@ -596,7 +596,10 @@ def main():
                 st.toggle('Load pre-generated UMAP',
                           value = False, key = 'load_generated_umap_toggle',)
 
+        # Main Neighborhood Profiles Columns for the buttons and UMAP preview
         npf_cols = st.columns([2, 3])
+
+        # Analysis Buttons
         with npf_cols[0]:
             butt_cols = st.columns(2)
             with butt_cols[0]:
@@ -636,6 +639,7 @@ def main():
                         else:
                             st.write(':white_check_mark: Clustering Analysis Completed')
 
+            # If UMAP is completed, display the clustering settings
             if st.session_state.umap_completed:
                 with st.expander('Clustering Settings', expanded = True):
                     st.toggle('Perform Clustering on UMAP Density Difference',
@@ -647,7 +651,7 @@ def main():
                     clust_exp_col = st.columns(2)
                     with clust_exp_col[0]:
 
-                        # Run Clustering Normally
+                        # Perform clustering on split features
                         if st.session_state['toggle_clust_diff'] is True:
                             st.selectbox('Feature', options = st.session_state.spatial_umap.outcomes,
                                          key = 'dens_diff_feat_sel',
@@ -659,6 +663,7 @@ def main():
                             st.number_input('Number of Clusters for False Condition', min_value = 1, max_value = 10, value = 3, step = 1, key = 'num_clus_0')
                             if st.session_state.elbow_fig_0 is not None:
                                 st.pyplot(st.session_state.elbow_fig_0)
+                        # Perform clustering normally
                         else:
                             st.number_input('Number of K-means clusters',
                                     min_value=st.session_state.clust_minmax[0],
@@ -683,7 +688,7 @@ def main():
                                         values exhibit greater variability of the observations within the
                                         cluster.''')
 
-        # UMAP Density Difference Analysis
+        # UMAP Density Preview
         with npf_cols[1]:
 
             # As long as the UMAP is completed, perform the density difference analysis

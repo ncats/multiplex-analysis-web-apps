@@ -82,31 +82,31 @@ class NeighborhoodProfiles:
         self.lineageDisplayToggle_clus = 'Phenotypes'
 
         # Unfiltered dropdown default options
-        self.defLineageOpt    = 'All Phenotypes'
-        self.defumapOutcomes  = 'No Outcome'
-        self.definciOutcomes  = 'Cell Counts'
+        self.def_lineage_opt  = 'All Phenotypes' # Default Lineage Option
+        self.def_umap_feature = 'No Outcome'     # Default Feature selection for UMAP analysis
+        self.def_inci_feature = 'Cell Counts'    # Default Feature selection for Incidence analysis
 
         # Default UMAP dropdown options
-        self.umapPheno    = [self.defLineageOpt]
-        self.umapMarks    = [self.defLineageOpt]
-        self.umaplineages = [self.defLineageOpt]
-        self.umapOutcomes = [self.defumapOutcomes]
+        self.umapPheno    = [self.def_lineage_opt]
+        self.umapMarks    = [self.def_lineage_opt]
+        self.umaplineages = [self.def_lineage_opt]
+        self.umapOutcomes = [self.def_umap_feature]
 
-        # Default Incidence dropdown options
-        self.inciOutcomes = [self.definciOutcomes]
+        # Default feature dropdown options for Incidence analysis
+        self.inciOutcomes = [self.def_inci_feature]
 
         # Default UMAPInspect settings
-        self.umapInspect_Ver = self.defLineageOpt
-        self.umapInspect_Feat = self.defumapOutcomes
+        self.umapInspect_Ver = self.def_lineage_opt
+        self.umapInspect_Feat = self.def_umap_feature
 
         # Default UMAP differences settings
-        self.diffUMAPSel_Ver  = self.defLineageOpt
-        self.diffUMAPSel_Feat = self.defumapOutcomes
+        self.diffUMAPSel_Ver  = self.def_lineage_opt
+        self.diffUMAPSel_Feat = self.def_umap_feature
 
         # Default Incidence settings
-        self.inciPhenoSel   = self.defLineageOpt
-        self.inciOutcomeSel = self.definciOutcomes
-        self.Inci_Value_display = 'Count Differences'
+        self.inci_pheno_sel = self.def_lineage_opt  # Incidence Phenotype Selection
+        self.inci_featu_sel = self.def_inci_feature # Incidence Feature Selection
+        self.inci_value_dis = 'Count Differences'   # Incidence Value Displayed
 
     def setup_spatial_umap(self, df, marker_names, pheno_order, smallest_image_size):
         '''
@@ -200,16 +200,16 @@ class NeighborhoodProfiles:
         # Setup the session_state default parameters
 
         # List of possible UMAP Lineages as defined by the completed UMAP
-        session_state.umapPheno = [session_state.defLineageOpt]
+        session_state.umapPheno = [session_state.def_lineage_opt]
         session_state.umapPheno.extend(session_state.pheno_summ['phenotype'])
-        session_state.umapMarks = [session_state.defLineageOpt]
+        session_state.umapMarks = [session_state.def_lineage_opt]
         session_state.umapMarks.extend(self.spatial_umap.markers)
         session_state.umapMarks.extend(['Other'])
 
         # List of possible outcome variables as defined by the config yaml files
-        session_state.umapOutcomes = [session_state.defumapOutcomes]
+        session_state.umapOutcomes = [session_state.def_umap_feature]
         session_state.umapOutcomes.extend(self.outcomes)
-        session_state.inciOutcomes = [session_state.definciOutcomes]
+        session_state.inciOutcomes = [session_state.def_inci_feature]
         session_state.inciOutcomes.extend(self.outcomes)
 
         # Perform possible cluster variations with the completed UMAP
@@ -285,6 +285,19 @@ class NeighborhoodProfiles:
         self.spatial_umap.df_umap.loc[:, 'clust_label'] = kmeans_obj.labels_
         self.spatial_umap.df_umap.loc[:, 'cluster'] = kmeans_obj.labels_
         self.spatial_umap.df_umap.loc[:, 'Cluster'] = kmeans_obj.labels_
+
+        self.spatial_umap.cluster_dict = dict()
+        for i in range(n_clusters):
+            self.spatial_umap.cluster_dict[i+1] = f'Cluster {i+1}'
+        self.spatial_umap.cluster_dict[0] = 'No Cluster'
+
+        self.spatial_umap.palette_dict = dict()
+        for i in range(n_clusters):
+            self.spatial_umap.palette_dict[f'Cluster {i+1}'] = sns.color_palette('tab20')[i]
+        self.spatial_umap.palette_dict['No Cluster'] = 'white'
+
+        # Assign values to cluster_label column in df_umap
+        self.spatial_umap.df_umap.loc[:, 'clust_label'] = [self.spatial_umap.cluster_dict[key] for key in (kmeans_obj.labels_+1)]
 
         # After assigning the cluster labels, perform mean measure calculations
         self.spatial_umap.mean_measures()

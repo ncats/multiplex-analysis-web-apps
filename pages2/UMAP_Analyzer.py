@@ -9,8 +9,8 @@ def reset_phenotype_selection():
     '''
     Quick function to reset the UMAP differences visualizations
     '''
-    st.session_state.umapInspect_Ver = st.session_state.defLineageOpt
-    st.session_state.diffUMAPSel_Ver = st.session_state.defLineageOpt
+    st.session_state.umapInspect_Ver = st.session_state.def_lineage_opt
+    st.session_state.diffUMAPSel_Ver = st.session_state.def_lineage_opt
 
 def main():
     '''

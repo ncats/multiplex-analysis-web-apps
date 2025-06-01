@@ -172,31 +172,31 @@ def reset_neigh_profile_settings(session_state):
     session_state.lineageDisplayToggle_clus = 'Phenotypes'
 
     # Unfiltered dropdown default options
-    session_state.defLineageOpt    = 'All Phenotypes'
-    session_state.defumapOutcomes  = 'phenotype'
-    session_state.definciOutcomes  = 'Cell Counts'
+    session_state.def_lineage_opt  = 'All Phenotypes' # Default Lineage Option
+    session_state.def_umap_feature = 'phenotype'      # Default Feature selection for UMAP analysis
+    session_state.def_inci_feature = 'Cell Counts'    # Default Feature selection for Incidence analysis
 
     # Default UMAP dropdown options
-    session_state.umapPheno = [session_state.defLineageOpt]
-    session_state.umapMarks = [session_state.defLineageOpt]
-    session_state.umaplineages = [session_state.defLineageOpt]
-    session_state.umapOutcomes = [session_state.defumapOutcomes]
+    session_state.umapPheno = [session_state.def_lineage_opt]
+    session_state.umapMarks = [session_state.def_lineage_opt]
+    session_state.umaplineages = [session_state.def_lineage_opt]
+    session_state.umapOutcomes = [session_state.def_umap_feature]
 
     # Default Incidence dropdown options
-    session_state.outcomes     = [session_state.defumapOutcomes]
-    session_state.inciOutcomes = [session_state.definciOutcomes]
+    session_state.outcomes     = [session_state.def_umap_feature]
+    session_state.inciOutcomes = [session_state.def_inci_feature]
 
     # Default UMAPInspect settings
-    session_state.umapInspect_Ver = session_state.defLineageOpt
-    session_state.umapInspect_Feat = session_state.defumapOutcomes
+    session_state.umapInspect_Ver = session_state.def_lineage_opt
+    session_state.umapInspect_Feat = session_state.def_umap_feature
 
     # Default UMAP differences settings
-    session_state.diffUMAPSel_Ver  = session_state.defLineageOpt
-    session_state.diffUMAPSel_Feat = session_state.defumapOutcomes
+    session_state.diffUMAPSel_Ver  = session_state.def_lineage_opt
+    session_state.diffUMAPSel_Feat = session_state.def_umap_feature
 
     # Default Incidence settings
-    session_state.inciPhenoSel   = session_state.defLineageOpt
-    session_state.inciOutcomeSel = session_state.definciOutcomes
+    session_state.inciPhenoSel   = session_state.def_lineage_opt
+    session_state.inciOutcomeSel = session_state.def_inci_feature
     session_state.Inci_Value_display = 'Count Differences'
 
     # Default Cluster_Dict()
@@ -614,10 +614,10 @@ def setFigureObjs_UMAPDifferences(session_state):
     session_state.umap_ins_msg = None
 
     udp_ins_raw = copy(udp_full)
-    udp_ins_raw.filter_by_lineage(session_state.lineageDisplayToggle, session_state.umapInspect_Ver, session_state.defLineageOpt)
+    udp_ins_raw.filter_by_lineage(session_state.lineageDisplayToggle, session_state.umapInspect_Ver, session_state.def_lineage_opt)
 
     # Filter by Feature for Inspection
-    if session_state.umapInspect_Feat != session_state.defumapOutcomes:
+    if session_state.umapInspect_Feat != session_state.def_umap_feature:
 
         split_dict_full_ins = udp_ins_raw.split_df_by_feature(session_state.umapInspect_Feat)
         if split_dict_full_ins['appro_feat']:
@@ -664,10 +664,10 @@ def setFigureObjs_UMAPDifferences(session_state):
     session_state.umap_diff_msg = None
 
     udp_diff_raw = copy(udp_full)
-    udp_diff_raw.filter_by_lineage(session_state.lineageDisplayToggle, session_state.diffUMAPSel_Ver, session_state.defLineageOpt)
+    udp_diff_raw.filter_by_lineage(session_state.lineageDisplayToggle, session_state.diffUMAPSel_Ver, session_state.def_lineage_opt)
 
     # Filter by Feature for Inspection
-    if session_state.diffUMAPSel_Feat != session_state.defumapOutcomes:
+    if session_state.diffUMAPSel_Feat != session_state.def_umap_feature:
         split_dict_full_diff = udp_diff_raw.split_df_by_feature(session_state.diffUMAPSel_Feat)
 
         if split_dict_full_diff['appro_feat']:
@@ -753,7 +753,7 @@ def set_figure_objs_clusters_analyzer(session_state):
 
     ### Incidence Line Graph ###
     # Filter by the lineage
-    df_umap = filter_by_lineage(df_umap, session_state.lineageDisplayToggle_clus, session_state.defLineageOpt, session_state.inciPhenoSel)
+    df_umap = filter_by_lineage(df_umap, session_state.lineageDisplayToggle_clus, session_state.def_lineage_opt, session_state.inciPhenoSel)
 
     # Set up incidence dataframe
     comp_thresh = None
@@ -764,7 +764,7 @@ def set_figure_objs_clusters_analyzer(session_state):
     inci_df['featureCount0'] = 0 # False Condition
 
     # Not Cell Counts
-    if session_state.inciOutcomeSel != session_state.definciOutcomes:
+    if session_state.inciOutcomeSel != session_state.def_inci_feature:
         col = df_umap[session_state.inciOutcomeSel]
         if identify_col_type(col) == 'not_bool':
             comp_thresh = 0
@@ -827,9 +827,11 @@ def filter_by_lineage(df, display_toggle, def_val, drop_val):
     '''
     if drop_val != def_val:
         if display_toggle == 'Phenotypes':
-            return df.loc[df['Lineage'] == drop_val, :]
+            df = df.loc[df['Lineage'] == drop_val, :]
         elif display_toggle == 'Markers':
-            return df.loc[df['species_name_short'].str.contains(drop_val), :]
+            df = df.loc[df['species_name_short'].str.contains(drop_val), :]
+
+    return df
 
 def drawAltairObj(df, title, sortOrder, fig, ax = None, legendCol='phenotype'):
     """

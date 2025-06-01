@@ -1087,19 +1087,16 @@ def draw_incidence_fig(df, fig_title, phenotype = 'All Phenotypes', feature = 'C
             if up_limit < 2:
                 up_limit = 2
             ax.set_ylim([-1.05*up_limit, 1.05*up_limit])
-            plt.axhline(y = 0, color = slc_text, linestyle = 'dashed', alpha = 0.7)
             ax.text(0.5, up_limit*.95, f'{feature}{up_tag}', c = slc_text, fontsize = 30, alpha = 0.3)
             ax.text(0.5, -up_limit*.95, f'{feature}{dn_tag}', c = slc_text, fontsize = 30, alpha = 0.3)
             outcome_suff = ' (Counts)'
         elif displayas == 'Ratios':
             ax.set_ylim([-1.05*up_limit, 1.05*up_limit])
-            plt.axhline(y = 0, color = slc_text, linestyle = 'dashed', alpha = 0.7)
             ax.text(0.5, up_limit*.95, f'{feature}{up_tag}', c = slc_text, fontsize = 30, alpha = 0.3)
             ax.text(0.5, -up_limit*.95, f'{feature}{dn_tag}', c = slc_text, fontsize = 30, alpha = 0.3)
             outcome_suff = ' Ratio (log10)'
         elif displayas == 'Percentages':
             ax.set_ylim([-1.05, 1.05*up_limit])
-            plt.axhline(y = 0, color = slc_text, linestyle = 'dashed', alpha = 0.7)
             ax.text(0.5, up_limit*.95, f'{feature}{up_tag}', c = slc_text, fontsize = 30, alpha = 0.3)
             outcome_suff = ' (%)'
 
@@ -1113,9 +1110,9 @@ def draw_incidence_fig(df, fig_title, phenotype = 'All Phenotypes', feature = 'C
         liminc = limrange/8
         ax.set_ylim([dfmin-(liminc*0.1), dfmax + (liminc*0.1)])
         ax.text(0.5, up_limit*.95, f'{feature}', c = slc_text, fontsize = 30, alpha = 0.3)
-        plt.axhline(y = 0, color = slc_text, linestyle = 'dashed', alpha = 0.7)
         outcome_suff = ' (Counts)'
 
+    plt.axhline(y = 0, color = slc_text, linestyle = 'dashed', alpha = 0.7)
     umPT.plot_incidence_line(ax, df, phenotype)
 
     # Reset xticks after
