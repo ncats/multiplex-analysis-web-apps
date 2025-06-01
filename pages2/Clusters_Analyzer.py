@@ -46,7 +46,7 @@ def main():
                  key = 'NormHeatRadio',
                  horizontal = True)
         st.toggle('Subset Heatmap by Feature', value = False,
-                  key = 'toggle_heatmap_filter_feat', disabled=~st.session_state.umap_completed)
+                  key = 'toggle_heatmap_filter_feat', disabled= not st.session_state.umap_completed)
         if st.session_state['toggle_heatmap_filter_feat']:
             nei_feat_filt_col = st.columns([2,2])
             with nei_feat_filt_col[0]:
