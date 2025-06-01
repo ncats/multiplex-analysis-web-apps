@@ -3,13 +3,13 @@ Top level Streamlit Application for MAWA
 '''
 import os
 import subprocess
+import numpy as np
 
 import streamlit as st
 from streamlit_extras.app_logo import add_logo
 import streamlit_session_state_management
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
 import streamlit_utils
-import numpy as np
 import platform_io
 import install_missing_packages
 
@@ -126,7 +126,7 @@ def main():
                 st.Page(results_transfer.main, title="Results Transfer", url_path='results_transfer'),
                 # st.Page(forking_test.main, title="Forking Test", url_path='forking_test')
             ]
-        })
+        }, expanded=True)
 
     # Ensure the input/output directories exist
     input_path = './input'
