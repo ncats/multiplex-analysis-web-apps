@@ -57,9 +57,9 @@ def main():
                 unique_values = st.session_state.spatial_umap.df_umap[selected_feat].unique()
                 st.selectbox('Value', options = unique_values, key='heatmap_filter_value')
 
-    ### INCIDENCE PLOT SETTINGS ###
+    ### INCIDENCE FIGURE SETTINGS ###
     with clust_sett_col[1]:
-        st.header('Incidence Lineplot')
+        st.header('Incidence Figure')
 
         inci_sel_col = st.columns(2)
         # Feature Select Box
@@ -83,7 +83,7 @@ def main():
             st.toggle('Show Raw Counts', key='inci_fig_show_raw_counts',
                       value=False, disabled=inci_radio_disabled)
 
-    # Make the figures for the Heatmap and Incidence Plot
+    # Make the figures for the Heatmap and Incidence Figure
     if st.session_state.umap_completed:
         st.session_state = ndl.set_figure_objs_clusters_analyzer(st.session_state)
 
