@@ -206,7 +206,7 @@ def reset_neigh_profile_settings(session_state):
     session_state.compare_clusters_as = 'Difference'
     session_state.palette_dict = 'bwr'
 
-    # Clustering 
+    # Clustering
     session_state.elbow_fig_0 = None
     session_state.elbow_fig_1 = None
 
@@ -746,7 +746,13 @@ def set_figure_objs_clusters_analyzer(session_state):
     else:
         norm_axis = None
 
-    session_state.heatmapfig = bpl.draw_heatmap_fig(df_umap,
+    if session_state.toggle_heatmap_filter_feat:
+        title.append(f'Filtered for data where {session_state.heatmap_filter_feat} = {session_state.heatmap_filter_value}')
+        df_umap_filt = df_umap[df_umap[session_state.heatmap_filter_feat] == session_state.heatmap_filter_value]
+    else:
+        df_umap_filt = df_umap
+
+    session_state.heatmapfig = bpl.draw_heatmap_fig(df_umap_filt,
                                                     pheno_list=session_state.pheno_summ['phenotype'],
                                                     title=title,
                                                     norm_axis=norm_axis)

@@ -11,6 +11,14 @@ def reset_phenotype_selection():
     '''
     st.session_state.inciPhenoSel = st.session_state.def_lineage_opt
 
+def reset_heatmap_feature_values():
+    '''
+    Quick callback function to reset the heatmap feature values
+    '''
+    selected_feat = st.session_state['heatmap_filter_feat']
+    unique_values = st.session_state.spatial_umap.df_umap[selected_feat].unique()
+    st.session_state.heatmap_filter_value = unique_values[0]
+
 def main():
     '''
     Main function for running the page
@@ -27,17 +35,11 @@ def main():
     elif st.session_state.lineageDisplayToggle_clus == 'Markers':
         st.session_state.cluslineages = st.session_state.umapMarks
 
-    # Make the figures for the Heatmap and Incidence Plot
-    if st.session_state.umap_completed:
-        st.session_state = ndl.set_figure_objs_clusters_analyzer(st.session_state)
-    else:
-        st.warning('No spatial UMAP analysis detected. Please complete Neighborhood Profiles')
-
     # Clustering Columns
-    clusterfigs = st.columns(2)
+    clust_sett_col = st.columns(2)
 
-    ### HEATMAP ###
-    with clusterfigs[0]:
+    ### HEATMAP SETTINGS ###
+    with clust_sett_col[0]:
         st.header('Phenotype/Cluster Heatmap')
         st.radio("Normalize Heatmap",
                  options = ['No Norm', 'Norm within Clusters', 'Norm within Phenotypes'],
@@ -47,16 +49,15 @@ def main():
         if st.session_state['toggle_heatmap_filter_feat']:
             nei_feat_filt_col = st.columns([2,2])
             with nei_feat_filt_col[0]:
-                st.selectbox('Feature', options = st.session_state.umapOutcomes, key='heatmap_filter_feat')
+                st.selectbox('Feature', options = st.session_state.umapOutcomes,
+                             key='heatmap_filter_feat', on_change=reset_heatmap_feature_values)
             with nei_feat_filt_col[1]:
                 selected_feat = st.session_state['heatmap_filter_feat']
                 unique_values = st.session_state.spatial_umap.df_umap[selected_feat].unique()
                 st.selectbox('Value', options = unique_values, key='heatmap_filter_value')
-        if st.session_state.umap_completed:
-            st.pyplot(st.session_state.heatmapfig)
 
-    ### INCIDENCE PLOT ###
-    with clusterfigs[1]:
+    ### INCIDENCE PLOT SETTINGS ###
+    with clust_sett_col[1]:
         st.header('Incidence Lineplot')
 
         inci_sel_col = st.columns(2)
@@ -78,10 +79,21 @@ def main():
             st.radio('Display As:', options = ('Count Differences', 'Percentages', 'Ratios'),
                      key = 'Inci_Value_display', horizontal=True, disabled = inci_radio_disabled)
         with inci_sel_col[1]:
-            st.toggle('Show Raw Counts', key='inci_fig_show_raw_counts', value=False, disabled=inci_radio_disabled)
+            st.toggle('Show Raw Counts', key='inci_fig_show_raw_counts',
+                      value=False, disabled=inci_radio_disabled)
 
-        if st.session_state.umap_completed:
+    # Make the figures for the Heatmap and Incidence Plot
+    if st.session_state.umap_completed:
+        st.session_state = ndl.set_figure_objs_clusters_analyzer(st.session_state)
+
+        # Clustering Columns
+        cluster_figs = st.columns(2)
+        with cluster_figs[0]:
+            st.pyplot(st.session_state.heatmapfig)
+        with cluster_figs[1]:
             st.plotly_chart(st.session_state.inci_fig)
+    else:
+        st.warning('No spatial UMAP analysis detected. Please complete Neighborhood Profiles')
 
 if __name__ == '__main__':
     main()
