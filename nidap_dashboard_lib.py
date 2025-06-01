@@ -800,7 +800,7 @@ def set_figure_objs_clusters_analyzer(session_state):
                 inci_df.loc[clust_label, 'counts'] = group['Slide ID'].count()
 
     # Title
-    inci_title = ['Incidence by Cluster']
+    inci_title = 'Incidence by Cluster'
 
     # Draw Incidence Figure
     session_state.inci_fig = bpl.draw_incidence_fig(inci_df, inci_title,

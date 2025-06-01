@@ -76,7 +76,7 @@ def main():
                  key = 'Inci_Value_display', horizontal=True, disabled = inci_radio_disabled)
 
         if st.session_state.umap_completed:
-            st.pyplot(st.session_state.inci_fig)
+            st.plotly_chart(st.session_state.inci_fig)
 
 if __name__ == '__main__':
     main()

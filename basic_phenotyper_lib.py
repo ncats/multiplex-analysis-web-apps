@@ -10,6 +10,7 @@ import warnings
 import numpy as np
 import pandas as pd
 import umap  # slow
+import plotly.graph_objects as go
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.cluster import KMeans # K-Means
@@ -1039,7 +1040,7 @@ def UMAPdraw_density(d, bins, w, n_pad, vlim, feat = None, diff = False, legendt
 
     return umap_fig
 
-def draw_incidence_fig(df, fig_title, phenotype = 'All Phenotypes', feature = 'Cell Counts', displayas = 'Counts Difference', comp_thresh = None, figsize=(12,12)):
+def draw_incidence_fig(df, fig_title, phenotype = 'All Phenotypes', feature = 'Cell Counts', displayas = 'Counts Difference', comp_thresh = None):
     '''
     Draws the line plot figure which describes the incideces of a 
     selected features
@@ -1061,14 +1062,6 @@ def draw_incidence_fig(df, fig_title, phenotype = 'All Phenotypes', feature = 'C
     slc_text = '#FAFAFA'  # Streamlit Text Color
     slc_bg2  = '#262730'  # Streamlit Secondary Background Color
 
-    fig_title = wrapTitleText(fig_title)
-    plot_title = ''
-    for i in fig_title:
-        plot_title = plot_title + i + '\n'
-
-    inci_fig = plt.figure(figsize=figsize, facecolor = slc_bg)
-    ax = inci_fig.add_subplot(1, 1, 1, facecolor = slc_bg)
-
     if comp_thresh is not None:
         up_tag = f' >= {comp_thresh}'
         dn_tag = f' < {comp_thresh}'
@@ -1076,6 +1069,7 @@ def draw_incidence_fig(df, fig_title, phenotype = 'All Phenotypes', feature = 'C
         up_tag = ' = 1'
         dn_tag = ' = 0'
 
+    anno2 = False
     if feature != 'Cell Counts':
 
         df = df[displayas]
@@ -1084,22 +1078,31 @@ def draw_incidence_fig(df, fig_title, phenotype = 'All Phenotypes', feature = 'C
         dfmax = df.loc[(df != np.nan)].max()
         up_limit = max(-1*dfmin, dfmax)
         if displayas == 'Count Differences':
+            anno2 = True
             if up_limit < 2:
                 up_limit = 2
-            ax.set_ylim([-1.05*up_limit, 1.05*up_limit])
-            ax.text(0.5, up_limit*.95, f'{feature}{up_tag}', c = slc_text, fontsize = 30, alpha = 0.3)
-            ax.text(0.5, -up_limit*.95, f'{feature}{dn_tag}', c = slc_text, fontsize = 30, alpha = 0.3)
+            ylim = [-1.05*up_limit, 1.05*up_limit]
+            feature_pos = [1, up_limit*.95]
+            feature_text = f'{feature}{up_tag}'
+            feature_pos2 = [1, -up_limit*.95]
+            feature_text2 =f'{feature}{dn_tag}'
+            hover_template = '<b>Cluster:</b> %{x}<br><b>Count Difference:</b> %{y}<extra></extra>'
             outcome_suff = ' (Counts)'
         elif displayas == 'Ratios':
-            ax.set_ylim([-1.05*up_limit, 1.05*up_limit])
-            ax.text(0.5, up_limit*.95, f'{feature}{up_tag}', c = slc_text, fontsize = 30, alpha = 0.3)
-            ax.text(0.5, -up_limit*.95, f'{feature}{dn_tag}', c = slc_text, fontsize = 30, alpha = 0.3)
+            anno2 = True
+            ylim = [-1.05*up_limit, 1.05*up_limit]
+            feature_pos = [1, up_limit*.95]
+            feature_text = f'{feature}{up_tag}'
+            feature_pos2 = [1, -up_limit*.95]
+            feature_text2 =f'{feature}{dn_tag}'
+            hover_template = '<b>Cluster:</b> %{x}<br><b>Ratio:</b> %{y}<extra></extra>'
             outcome_suff = ' Ratio (log10)'
         elif displayas == 'Percentages':
-            ax.set_ylim([-1.05, 1.05*up_limit])
-            ax.text(0.5, up_limit*.95, f'{feature}{up_tag}', c = slc_text, fontsize = 30, alpha = 0.3)
+            ylim = [-1.05, 1.05*up_limit]
+            feature_pos = [1, up_limit*.95]
+            feature_text = f'{feature}{up_tag}'
+            hover_template = '<b>Cluster:</b> %{x}<br><b>Percentage:</b> %{y}<extra></extra>'
             outcome_suff = ' (%)'
-
     else:
         df = df['counts']
 
@@ -1108,17 +1111,111 @@ def draw_incidence_fig(df, fig_title, phenotype = 'All Phenotypes', feature = 'C
         up_limit = max(-1*dfmin, dfmax)
         limrange = dfmax-dfmin
         liminc = limrange/8
-        ax.set_ylim([dfmin-(liminc*0.1), dfmax + (liminc*0.1)])
-        ax.text(0.5, up_limit*.95, f'{feature}', c = slc_text, fontsize = 30, alpha = 0.3)
+        ylim = [dfmin-(liminc*0.1), dfmax + (liminc*0.1)]
+
+        feature_pos = [1, up_limit*.95]
+        feature_text = f'{feature}'
+        hover_template = '<b>Cluster:</b> %{x}<br><b>Count:</b> %{y}<extra></extra>'
         outcome_suff = ' (Counts)'
 
-    plt.axhline(y = 0, color = slc_text, linestyle = 'dashed', alpha = 0.7)
-    umPT.plot_incidence_line(ax, df, phenotype)
+    fig = go.Figure()
 
-    # Reset xticks after
-    ax.set_xticks(df.index)
-    ax.set_title(plot_title, fontsize = 20, loc = 'left', color = slc_text)
-    ax.set_xlabel('Cluster #', fontsize = 14, color = slc_text)
-    ax.set_ylabel(f'{feature}{outcome_suff}', fontsize = 14, color = slc_text)
+    fig.add_trace(go.Scatter(
+        x=df.index,
+        y=df.values,
+        mode='lines+markers',
+        name=phenotype,
+        line=dict(color='#0E86D4', width=2.5),  # Streamlit blue, set line width
+        marker=dict(color='#0E86D4', size=14),  # Set marker size
+        hovertemplate=hover_template,
+        hoverlabel=dict(
+            bgcolor='#0E86D4',
+            bordercolor='#0E86D4',
+            font=dict(color=slc_text)
+        )
+    ))
 
-    return inci_fig
+    annotations = [
+        dict(
+            x=feature_pos[0],
+            y=feature_pos[1],
+            text=feature_text,
+            showarrow=False,
+            font=dict(size=40, color=slc_text),
+            xanchor='center',
+            yanchor='bottom',
+            opacity=0.3,
+        )
+    ]
+
+    # Add a second annotation if anno2 is True
+    if anno2:
+        annotations.append(
+            dict(
+                x=feature_pos2[0],
+                y=feature_pos2[1],
+                text=feature_text2,
+                showarrow=False,
+                font=dict(size=40, color=slc_text),
+                xanchor='center',
+                yanchor='bottom',
+                opacity=0.3,
+            )
+        )
+
+    fig.update_layout(
+        title=dict(
+            text=fig_title,
+            font=dict(size=25),
+            x=0.08,  # Align title to the left (vertical axis)
+            xanchor='left'
+        ),
+        xaxis_title="Cluster #",
+        yaxis_title=f'{feature}{outcome_suff}',
+        plot_bgcolor=slc_bg,
+        paper_bgcolor=slc_bg,
+        font=dict(color=slc_text, size=14),
+        xaxis=dict(showgrid=True, gridcolor=slc_bg2, showline=False, zeroline=False),
+        yaxis=dict(
+            showgrid=True,
+            gridcolor=slc_bg2,
+            showline=False,
+            zeroline=False,
+            range=ylim
+        ),
+        width=2000,
+        height=1000,
+        legend=dict(
+            title=None,
+            bgcolor=slc_bg2,
+            bordercolor=slc_bg2,
+            borderwidth=1,
+            orientation='v',
+            x=0.85,
+            y=1,
+            xanchor='left',
+            yanchor='top'
+        ),
+        showlegend=True,
+        annotations=annotations,
+        shapes=[
+            dict(
+                type='line',
+                xref='paper',
+                x0=0,
+                x1=1,
+                yref='y',
+                y0=0,
+                y1=0,
+                line=dict(
+                    color=slc_text,
+                    width=2,
+                    dash='dash'
+                ),
+                opacity=0.7,
+                layer='below'
+            )
+        ]
+    )
+
+    return fig
