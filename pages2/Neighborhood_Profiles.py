@@ -69,7 +69,7 @@ def init_spatial_umap():
         area_filter = st.session_state['area_filter_per']
 
     st.session_state.bc.startTimer()
-    with st.spinner('Calculating Cell Counts and Areas'):
+    with st.spinner('Calculating Cell Counts and Areas', show_time=True):
         st.session_state.spatial_umap = bpl.setup_Spatial_UMAP(st.session_state.df,
                                                                st.session_state.marker_multi_sel,
                                                                st.session_state.phenoOrder,
@@ -103,7 +103,7 @@ def apply_umap(umap_style):
                                                         st.session_state.umap_subset_toggle,
                                                         st.session_state.umap_subset_per)
     else:
-        with st.spinner('Calculating UMAP'):
+        with st.spinner('Calculating UMAP', show_time=True):
             st.session_state.spatial_umap = bpl.perform_spatialUMAP(st.session_state.spatial_umap,
                                                                     st.session_state.bc,
                                                                     st.session_state.umap_subset_per_fit,
@@ -160,7 +160,7 @@ def set_clusters():
     '''
     st.session_state.bc.startTimer()
 
-    with st.spinner('Calculating Clusters'):
+    with st.spinner('Calculating Clusters', show_time=True):
         # If clustering is to be performed on the UMAP density difference
         if st.session_state['toggle_clust_diff'] and st.session_state['appro_feat']:
 
