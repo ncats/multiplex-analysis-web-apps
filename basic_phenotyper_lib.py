@@ -885,10 +885,23 @@ def draw_heatmap_fig(df, pheno_list, title, norm_axis = None):
 
     return fig
 
-def neighProfileDraw(spatial_umap, ax, sel_clus, cmp_clus = None, cmp_style = None, hide_other = False, hide_no_cluster = False, legend_flag = True):
+def draw_neigh_profile_fig(spatial_umap, ax, sel_clus, cmp_clus = None, cmp_style = None, hide_other = False, hide_no_cluster = False, legend_flag = True):
     '''
-    neighProfileDraw is the method that draws the neighborhood profile
+    draw_neigh_profile_fig is the method that draws the neighborhood profile
     line plots
+
+    Args:
+        spatial_umap: The spatial UMAP object containing the data to plot
+        ax: The matplotlib axis to draw the plot on
+        sel_clus: The selected cluster to highlight
+        cmp_clus: The cluster to compare against (optional)
+        cmp_style: The comparison style to use (optional)
+        hide_other: Whether to hide other phenotypes (optional)
+        hide_no_cluster: Whether to hide cells with no cluster (optional)
+        legend_flag: Whether to show the legend (optional)
+
+    Returns:
+        None
     '''
 
     dens_df_mean_base = spatial_umap.dens_df_mean
