@@ -535,6 +535,16 @@ def diff_density_perform_clustering():
     # Create the Cluster Scatterplot
     filter_and_plot()
 
+def reset_neipro_feature_values():
+    '''
+    Quick callback function to reset the feature values used
+    filter the Neighborhood Profiles figure
+    '''
+
+    selected_feat = st.session_state['NeiPro_filter_feat']
+    unique_values = st.session_state.spatial_umap.df_umap[selected_feat].unique()
+    st.session_state.NeiPro_filter_value = unique_values[0]
+
 def main():
     '''
     Main function for running the page
@@ -802,7 +812,8 @@ def main():
             if st.session_state['toggle_NeiPro_filter_feat']:
                 nei_feat_filt_col = st.columns([2,2])
                 with nei_feat_filt_col[0]:
-                    st.selectbox('Feature', options = st.session_state.umapOutcomes, key='NeiPro_filter_feat')
+                    st.selectbox('Feature', options = st.session_state.umapOutcomes,
+                                 key='NeiPro_filter_feat', on_change=reset_neipro_feature_values)
                 with nei_feat_filt_col[1]:
                     selected_feat = st.session_state['NeiPro_filter_feat']
                     unique_values = st.session_state.spatial_umap.df_umap[selected_feat].unique()
