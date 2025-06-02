@@ -837,10 +837,11 @@ def main():
 
             # Cluster Select Widgets
             with cluster_sel_col[0]:
-                sel_npf_fig  = st.selectbox('Select a cluster to view', list_clusters)
-                sel_npf_fig2 = None
+                st.selectbox('Select a cluster to view', list_clusters, key='sel_npf_fig')
                 if st.session_state['toggle_compare_clusters']:
-                    sel_npf_fig2 = st.selectbox('Select a cluster to compare', list_clusters)
+                    st.selectbox('Select a cluster to compare', list_clusters, key='sel_npf_fig2')
+                else:
+                    st.session_state['sel_npf_fig2'] = None
 
             if st.session_state.cluster_completed and st.session_state.appro_feat:
 
@@ -849,8 +850,8 @@ def main():
 
                 bpl.neighProfileDraw(st.session_state.spatial_umap,
                                      ax = ax,
-                                     sel_clus = sel_npf_fig,
-                                     cmp_clus = sel_npf_fig2,
+                                     sel_clus = st.session_state['sel_npf_fig'],
+                                     cmp_clus = st.session_state['sel_npf_fig2'],
                                      cmp_style=st.session_state['compare_clusters_as'],
                                      hide_other = st.session_state['toggle_hide_other'],
                                      hide_no_cluster = st.session_state['toggle_hide_no_cluster'])
@@ -861,7 +862,7 @@ def main():
                 if st.session_state['toggle_manual_y_axis_scaling_main']:
                     ax.set_ylim(st.session_state['y_axis_min_main'], st.session_state['y_axis_max_main'])
 
-                if sel_npf_fig == sel_npf_fig2:
+                if st.session_state['sel_npf_fig'] == st.session_state['sel_npf_fig2']:
                     st.markdown('## Please choose two different clusters to compare')
                 else:
                     # Display the Neighborhood Profile

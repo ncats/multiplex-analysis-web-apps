@@ -203,7 +203,7 @@ def reset_neigh_profile_settings(session_state):
     session_state.cluster_dict = {0: 'No Cluster'}
 
     # Neighborhood Profiles Line Plot Settings
-    session_state.compare_clusters_as = 'Difference'
+    session_state.compare_clusters_as = 'Ratio'
     session_state.palette_dict = 'bwr'
 
     # Clustering
