@@ -4,7 +4,7 @@ title: Home
 ---
 
 <h1 class="fs-9">Multiplex Analysis Web Apps</h1>
-<p class="fs-6 fw-300">Last Updated: May 9th, 2024</p>
+<p class="fs-6 fw-300">Last Updated: June 4th, 2025</p>
 <hr />
 
 ![](./assets/images/Clusters_Homepg.png)
