@@ -11,15 +11,12 @@ aux_links:
 # Plugins
 plugins:
   - jekyll-feed
-  - jekyll-sitemap
-  - jekyll-spaceship
+  - jekyll-gist
+  - jekyll-paginate
+  - jekyll-remote-theme
+  - jekyll-scholar
 
-jekyll-spaceship:
-  mathjax-processor:
-    src:
-      - https://polyfill.io/v3/polyfill.min.js?features=es6
-      - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
-    config:
-      tex:
-        inlineMath: [['$', '$'], ['\\(', '\\)']]
-        displayMath: [['$$', '$$'], ['\\[', '\\]']]
+kramdown:
+  math_engine: katex
+  math_engine_opts:
+    output: mathml
