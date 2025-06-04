@@ -1,14 +1,19 @@
-remote_theme: just-the-docs/just-the-docs
 title: Multiplex Analysis Web Apps
+description: Documenation for the Multiplex Analysis Web Apps (MAWA)
 # logo: "/assets/images/mawa_logo-full.png"  # set a path/url to a logo that will be displayed instead of the title... appears tiny because I think it's expecting an image of text and therefore setting the height, which I currently can't change per https://stackoverflow.com/questions/59811176/changing-logo-svg-file-on-jekyll-github-reducing-pixel-size-does-not-appear-to because I'm using the theme as a remote
-color_scheme: light
+theme: minima
 
 # Aux links for the upper right navigation
 aux_links:
   "MAWA on GitHub":
     - "https://github.com/ncats/multiplex-analysis-web-apps"
 
-# Still enable LaTeX
+# Plugins
+plugins:
+  - jekyll-feed
+  - jekyll-sitemap
+
+# Markdown processor
 markdown: kramdown
 kramdown:
-  math_engine: mathjax
+  math_engine: mathjax  # Enables LaTeX support!
