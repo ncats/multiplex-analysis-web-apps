@@ -20,3 +20,16 @@ kramdown:
   math_engine: katex
   math_engine_opts:
     output: mathml
+
+# Navigation menu
+navigation:
+  - title: Home
+    url: /
+  - title: Data Loader
+    url: /data_loader/
+  - title: Multi-axial Gating
+    url: /multiaxial_gating/
+  - title: Phenotyping
+    url: /phenotyper/
+  - title: Neighborhood Profiles Workflow
+    url: /neighborhood_profiles_analyzer/
