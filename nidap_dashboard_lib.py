@@ -277,10 +277,10 @@ def loadDataButton(session_state, df_import, projectName, fileName):
     session_state['uniSlide ID_short'] = session_state['uniSlide ID']
     session_state['selSlide ID_short'] = session_state['uniSlide ID_short'][0]
 
-    session_state.prog_left_disabeled = True
-    session_state.prog_right_disabeled = False
+    session_state.prog_left_disabled = True
+    session_state.prog_right_disabled = False
     if session_state['numSlide ID'] == 1:
-        session_state.prog_right_disabeled = True
+        session_state.prog_right_disabled = True
 
     # Perform Filtering
     session_state.bc.startTimer()
