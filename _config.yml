@@ -1,7 +1,7 @@
 title: Multiplex Analysis Web Apps
 description: Documenation for the Multiplex Analysis Web Apps (MAWA)
 # logo: "/assets/images/mawa_logo-full.png"  # set a path/url to a logo that will be displayed instead of the title... appears tiny because I think it's expecting an image of text and therefore setting the height, which I currently can't change per https://stackoverflow.com/questions/59811176/changing-logo-svg-file-on-jekyll-github-reducing-pixel-size-does-not-appear-to because I'm using the theme as a remote
-theme: minima
+theme: jekyll-theme-minimal
 
 # Aux links for the upper right navigation
 aux_links:
