@@ -824,6 +824,125 @@ def set_figure_objs_clusters_analyzer(session_state):
 
     return session_state
 
+def check_feature_values(df, feature):
+        '''
+        
+        Returns:
+            int: 0: Feature is inappropriate for splitting
+            int: 2: Feature is boolean and is easily split
+            int  3-15: Feature has a few different options but can be easily compared when values are selected
+            int: 100: Feature is a numerical range and can be split by finding the median
+        '''
+
+        col = df[feature] # Column in question
+        dtypes = col.dtype     # Column Type
+        n_uni  = col.nunique() # Number of unique values
+
+        # If only 1 unique value, then the feature cannot be split
+        if n_uni <= 1:
+            return 0
+        # If exactly 2 values, then the value can be easily split.
+        elif n_uni == 2:
+            return 2
+        # If more than 2 values but less than 15, then the values
+        # can be easily split by two chosen values
+        elif n_uni > 2 and n_uni <= 15:
+            return n_uni
+        else:
+            if dtypes == 'category' or dtypes == 'object':
+                return 0
+            else:
+                # If there are more than 15 unique values, and the values are numerical,
+                # then the Feature can be split by the median
+                return 100
+            
+def split_df_by_feature(df, feature, val_fals=None, val_true=None, val_code=None):
+    '''
+    split_df_by_feature takes in a feature from a dataframe
+    and first identifies if the feature is boolean, if it contains 
+    float values, or neither. If its a boolean, it will split the
+    dataframe between values of 0 and 1 for the selected feature.
+    If the feature is a float, it will split the dataframe based on
+    the median value of the feature. If the feature is neither boolean
+    nor float, it will not split the dataframe. 
+
+    In all cases this function will return a dictionary of the outcome
+    of the split with the most importannt value being, appro_feat, 
+    which will be True if the feature is appropriate for splitting, and
+    False if not.
+
+    Args:
+        feature (str): Feature to split the dataframe by
+        val_fals (int): Value to use for the false condition
+        val_true (int): Value to use for the true condition
+        val_code (int): Code to use for the split
+
+    Returns:
+        split_dict (dict): Dictionary of the outcomes of splitting
+        the dataframe with the following parameters
+            appro_feat (bool): True if the feature is appropriate for splitting
+            df_umap_fals (Pandas dataframe): Dataframe of the false condition
+            df_umap_true (Pandas dataframe): Dataframe of the true condition
+            fals_msg (str): Message for the false condition
+            true_msg (str): Message for the true condition
+    '''
+
+    # Set up the dictionary for the split
+    split_dict = dict()
+
+    # Check the feature values
+    if val_code is None:
+        val_code = check_feature_values(feature)
+
+    # Set default values for the false and true conditions
+    if val_fals is None:
+        # Get the unique values of the feature
+        feat_vals_uniq = natsorted(df[feature].unique())
+
+        if val_code == 0:
+            val_fals = None
+            val_true = None
+        elif val_code == 100:
+            # Get the median value of the feature
+            median_val = np.round(self.df[feature].median(), decimals = 2)
+
+            val_fals = median_val
+            val_true = median_val
+        elif val_code == 2:
+            val_fals = feat_vals_uniq[0]
+            val_true = feat_vals_uniq[1]
+        else:
+            # We can later make this more sophisticated
+            # but this is only ever reached if the feature values
+            # are not otherwise previously identified.
+            # I dont think think this will be too much of a problem.
+            # If we need more specificity on this in the future, it can
+            # be easily added.
+            val_fals = feat_vals_uniq[0]
+            val_true = feat_vals_uniq[1]
+
+    if val_code == 0:
+        split_dict['appro_feat'] = False
+        split_dict['df_umap_fals'] = None
+        split_dict['df_umap_true'] = None
+        split_dict['fals_msg']   = 'Feature is inappropriate for splitting'
+        split_dict['true_msg']   = 'Feature is inappropriate for splitting'
+    elif val_code == 100:
+        median = val_fals
+        split_dict['appro_feat'] = True
+        split_dict['df_umap_fals'] = df.loc[df[feature] <= median, :]
+        split_dict['df_umap_true'] = df.loc[df[feature] > median, :]
+        split_dict['fals_msg']   = f'<= {median:.2f}'
+        split_dict['true_msg']   = f'> {median:.2f}'
+    else:
+        split_dict['appro_feat'] = True
+        split_dict['df_umap_fals'] = df.loc[df[feature] == val_fals, :]
+        split_dict['df_umap_true'] = df.loc[df[feature] == val_true, :]
+        split_dict['fals_msg']   = f'= {val_fals}'
+        split_dict['true_msg']   = f'= {val_true}'
+
+    return split_dict
+
 def filter_by_lineage(df, display_toggle, def_val, drop_val):
     '''
     Function for filtering UMAP function based on lineage. Sometimes
