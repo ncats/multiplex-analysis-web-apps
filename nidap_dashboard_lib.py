@@ -808,7 +808,7 @@ def set_figure_objs_clusters_analyzer(session_state):
             if clust_label != 'No Cluster':
                 inci_df.loc[clust_label, 'counts'] = group['Slide ID'].count()
 
-        split_dict = {'fals_msg':None, 'true_msg':None}
+        split_dict = {'fals_msg':None, 'true_msg':None, 'appro_feat':True}
 
     # Title
     inci_title = 'Incidence by Cluster'
@@ -822,8 +822,8 @@ def set_figure_objs_clusters_analyzer(session_state):
                                                     show_raw_counts = session_state.inci_fig_show_raw_counts)
 
     session_state.inci_df       = inci_df
-    session_state.inci_fals_msg = f'{session_state.inciOutcomeSel} {split_dict['fals_msg']}'
-    session_state.inci_true_msg = f'{session_state.inciOutcomeSel} {split_dict['true_msg']}'
+    session_state.inci_fals_msg = f"{session_state.inciOutcomeSel} {split_dict['fals_msg']}"
+    session_state.inci_true_msg = f"{session_state.inciOutcomeSel} {split_dict['true_msg']}"
     session_state.inci_appro_feat = split_dict['appro_feat']
 
     return session_state
