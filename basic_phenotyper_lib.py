@@ -755,9 +755,6 @@ def umap_clustering(spatial_umap, n_clusters, clust_minmax, cpu_pool_size = 8):
     # Assign values to cluster_label column in df_umap
     spatial_umap.df_umap.loc[:, 'clust_label'] = [spatial_umap.cluster_dict[key] for key in (kmeans_obj_targ.labels_+1)]
 
-    # After assigning cluster labels, perform mean calculations
-    spatial_umap.mean_measures()
-
     return spatial_umap
 
 def draw_wcss_elbow_plot(clust_range, wcss, sel_clus):
@@ -1101,9 +1098,9 @@ def draw_incidence_fig(inci_df, fig_title, phenotype = 'All Phenotypes', feature
             df_up = inci_df['featureCount1']
             df_dn = inci_df['featureCount0']
 
-            dfmin = df_dn.loc[(df_dn != np.nan)].min()
+            dfmin = df_dn.loc[(df_dn != np.nan)].max()
             dfmax = df_up.loc[(df_up != np.nan)].max()
-            up_limit = max(-1*dfmin, dfmax)
+            up_limit = max(dfmin, dfmax)
 
             if up_limit < 2:
                 up_limit = 2
@@ -1209,7 +1206,10 @@ def draw_incidence_fig(inci_df, fig_title, phenotype = 'All Phenotypes', feature
                 bgcolor='#0E86D4',
                 bordercolor='#0E86D4',
                 font=dict(color=slc_text)
-            )
+            ),
+            text=[f"<b>{int(y):,}</b>" for y in df.values],
+            textposition='inside',
+            textfont=dict(color=slc_bg, size=14)
         ))
 
     annotations = [
