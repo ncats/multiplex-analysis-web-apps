@@ -429,7 +429,7 @@ def scatter_plot(df, fig, ax, figTitle, xVar, yVar, hueVar, hueOrder, xLim = Non
         saveFlag (Boolean, optional): Boolean Flag to save the figure to disk using matplotlib methods. Defaults to FALSE
     """
 
-    figTitle = wrapTitleText(figTitle)
+    figTitle = wrap_title_text(figTitle)
     plot_title = ''
     for i in figTitle:
         plot_title = plot_title + i + '\n'
@@ -507,9 +507,9 @@ def scatter_plot(df, fig, ax, figTitle, xVar, yVar, hueVar, hueOrder, xLim = Non
         fig.savefig(figname, dpi=dpi, bbox_inches='tight')
     return fig
 
-def wrapTitleText(title):
+def wrap_title_text(title):
     '''
-    Helps with wrapping text
+    Helps with wrapping title text around a 75 character limit
     '''
     char_lim =75
     wrap_title = []
@@ -841,7 +841,7 @@ def draw_heatmap_fig(df, pheno_list, title, norm_axis = None):
         vmax = heatmap_df.max().max()
     title.append(heatmap_title)
 
-    fig_title = wrapTitleText(title)
+    fig_title = wrap_title_text(title)
     plot_title = ''
     for i in fig_title:
         plot_title = plot_title + i + '\n'

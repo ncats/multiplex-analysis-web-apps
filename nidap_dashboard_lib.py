@@ -614,7 +614,9 @@ def setFigureObjs_UMAPDifferences(session_state):
     session_state.umap_ins_msg = None
 
     udp_ins_raw = copy(udp_full)
-    udp_ins_raw.filter_by_lineage(session_state.lineageDisplayToggle, session_state.umapInspect_Ver, session_state.def_lineage_opt)
+    udp_ins_raw.filter_by_lineage(session_state.lineageDisplayToggle,
+                                  session_state.umapInspect_Ver,
+                                  session_state.def_lineage_opt)
 
     # Filter by Feature for Inspection
     if session_state.umapInspect_Feat != session_state.def_umap_feature:
@@ -626,8 +628,10 @@ def setFigureObjs_UMAPDifferences(session_state):
             udp_true = UMAPDensityProcessing(session_state.npf, split_dict_full_ins['df_umap_true'], xx=udp_ins_raw.xx, yy=udp_ins_raw.yy)
 
             ## Set Feature Labels
-            udp_fals.set_feature_label(session_state.umapInspect_Feat, split_dict_full_ins['fals_msg'])
-            udp_true.set_feature_label(session_state.umapInspect_Feat, split_dict_full_ins['true_msg'])
+            udp_fals.set_feature_label(session_state.umapInspect_Feat,
+                                       split_dict_full_ins['fals_msg'])
+            udp_true.set_feature_label(session_state.umapInspect_Feat,
+                                       split_dict_full_ins['true_msg'])
 
             udp_fals.cluster_dict = udp_ins_raw.cluster_dict
             udp_true.cluster_dict = udp_ins_raw.cluster_dict
@@ -759,7 +763,9 @@ def set_figure_objs_clusters_analyzer(session_state):
 
     ### Incidence Line Graph ###
     # Filter by the lineage
-    df_umap = filter_by_lineage(df_umap, session_state.lineageDisplayToggle_clus, session_state.def_lineage_opt, session_state.inciPhenoSel)
+    df_umap = filter_by_lineage(df_umap, session_state.lineageDisplayToggle_clus,
+                                session_state.def_lineage_opt,
+                                session_state.inciPhenoSel)
 
     # Set up incidence dataframe
     comp_thresh = None
@@ -846,44 +852,44 @@ def drawAltairObj(df, title, sortOrder, fig, ax = None, legendCol='phenotype'):
     """
     ## Draw the Scatter Plot
     # Wrap the Title
-    wrapTitle = wrapTitleText(title)
+    wrap_title = wrap_title_text(title)
 
     if ax is not None:
-        minXLim, maxXLim = ax.get_xlim()
-        minYLim, maxYLim = ax.get_ylim()
+        min_xlim, max_xlim = ax.get_xlim()
+        min_ylim, max_ylim = ax.get_ylim()
         bbox = fig.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
         width, height = bbox.width*fig.dpi*0.75, bbox.height*fig.dpi*0.75
     else:
-        minXLim = df['CentroidX'].min() - 50
-        minYLim = df['CentroidY'].min() - 50
-        maxXLim = df['CentroidX'].max() + 50
-        maxYLim = df['CentroidY'].max() + 50
+        min_xlim = df['CentroidX'].min() - 50
+        min_ylim = df['CentroidY'].min() - 50
+        max_xlim = df['CentroidX'].max() + 50
+        max_ylim = df['CentroidY'].max() + 50
         width, height = 750, 750
 
-    numLgdCol = 4
-    # if len(sortOrder) >= numLgdCol:
-    #     sortOrderTran = np.array(sortOrder).reshape(-1, numLgdCol).T.flatten().reshape(-1, numLgdCol).T.flatten()
+    num_lgd_col = 4
+    # if len(sortOrder) >= num_lgd_col:
+    #     sort_order_tran = np.array(sortOrder).reshape(-1, num_lgd_col).T.flatten().reshape(-1, num_lgd_col).T.flatten()
     # else:
-    sortOrderTran = sortOrder
+    sort_order_tran = sortOrder
 
     # Altair Visualization
     selection = alt.selection_point(fields=[legendCol], bind='legend')
     chart = alt.Chart(df).mark_circle(size=3).encode(
             alt.X('CentroidX:Q',
-                    scale=alt.Scale(domain=(minXLim, maxXLim)),
+                    scale=alt.Scale(domain=(min_xlim, max_xlim)),
                     title='CentroidX (\u03BCm)'),
             alt.Y('CentroidY:Q',
-                    scale=alt.Scale(domain=(minYLim, maxYLim)),
+                    scale=alt.Scale(domain=(min_ylim, max_ylim)),
                     title='CentroidY (\u03BCm)'),
             color= alt.Color(legendCol, scale=alt.Scale(domain = sortOrder, scheme = 'category20'),
-                                          sort=sortOrderTran,
+                                          sort=sort_order_tran,
                                           legend=alt.Legend(
                                                             orient='bottom',
-                                                            columns = numLgdCol)),
+                                                            columns = num_lgd_col)),
             order=alt.Order('color_phenotype_sort_index:Q'),
             opacity=alt.condition(selection, alt.value(1), alt.value(0.2)),
             tooltip=[legendCol]
-            ).properties(width=width,height=height, title=wrapTitle
+            ).properties(width=width,height=height, title=wrap_title
             ).interactive().add_params(selection)
 
     # Histogram
@@ -894,11 +900,11 @@ def drawAltairObj(df, title, sortOrder, fig, ax = None, legendCol='phenotype'):
 
     return chart
 
-def wrapTitleText(title):
+def wrap_title_text(title):
     """
-    Helps with Wrapping text
+    Helps with wrapping title text around a 75 character limit
     """
-    char_lim = 70
+    char_lim = 75
     wrap_title = []
     for x in title:
         while len(x) > char_lim:
@@ -910,17 +916,11 @@ def wrapTitleText(title):
 
     return wrap_title
 
-def add_item_export_list(session_state, item_name, file_name):
-    tempdf = pd.DataFrame(data = {'Item Name' : [item_name],
-                                  'File Name' : [file_name],
-                                  'Date Time Added': [datetime.now()]})
-    session_state.files_to_export = pd.concat([session_state.files_to_export, tempdf]).reset_index(drop=True)
-
 def read_markdown_file(markdown_file):
     '''
     Simple markdown reading function
     '''
-    return Path(markdown_file).read_text()
+    return Path(markdown_file).read_text(encoding="utf-8")
 
 def save_csv(df, df_name):
     '''
@@ -942,14 +942,14 @@ def save_png(img_obj, fig_type, suffix = None):
     # Save as a png in the local directory using the Matplotlib 'savefig' method
     img_obj.savefig(file_name_full)
 
-def save_png_dataset(fiol, datafile, pngFileName, pltFig):
+def save_png_dataset(fiol, datafile, png_file_name, plt_fig):
     """
     Save png image to dataset. Calling functions from the Foundry IO Library (FIOL)
 
     Args:
         fiol (obj): Foundry IO Library object for handling Palantir SDK calls.
         datafile (str): Path to the dataset that the image will be saved to
-        pngFileName (str): Filename for the image, not included the suffix (added later)
-        pltfig (obj): Matplotlib figure object to be save as png
+        png_file_name (str): Filename for the image, not included the suffix (added later)
+        plt_fig (obj): Matplotlib figure object to be save as png
     """
-    fiol.save_png_dataset(datafile, pngFileName, pltFig)
+    fiol.save_png_dataset(datafile, png_file_name, plt_fig)
