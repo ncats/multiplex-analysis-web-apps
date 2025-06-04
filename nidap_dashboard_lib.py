@@ -892,7 +892,7 @@ def split_df_by_feature(df, feature, val_fals=None, val_true=None, val_code=None
 
     # Check the feature values
     if val_code is None:
-        val_code = check_feature_values(feature)
+        val_code = check_feature_values(df, feature)
 
     # Set default values for the false and true conditions
     if val_fals is None:
@@ -904,7 +904,7 @@ def split_df_by_feature(df, feature, val_fals=None, val_true=None, val_code=None
             val_true = None
         elif val_code == 100:
             # Get the median value of the feature
-            median_val = np.round(self.df[feature].median(), decimals = 2)
+            median_val = np.round(df[feature].median(), decimals = 2)
 
             val_fals = median_val
             val_true = median_val
