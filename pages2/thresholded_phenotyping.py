@@ -56,7 +56,7 @@ def filter_and_plot(plot_by_slider = False):
     '''
     function to update the filtering and the figure plotting
     '''
-    st.session_state.prog_left_disabled  = False
+    st.session_state.prog_left_disabled = False
     st.session_state.prog_right_disabled = False
 
     if st.session_state['idxSlide ID'] == 0:
