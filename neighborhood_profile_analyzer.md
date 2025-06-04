@@ -118,15 +118,15 @@ The heatmap offers a view of the number of each phenotyped cell located within e
 
 1. No Norm (default): No normalization is applied to the heatmap. The relative colors for each cell is scaled for all cells in all phenotypes and in all clusters. The sum of each number shown in the grid corresponds to the total number of cells transformed by the UMAP model.
 
-<img src="./assets/images/clust_analyzer_heatmap1.png" alt="Heatmap No Normalization" width="40%" />
+![Heatmap No Normalization](./assets/images/clust_analyzer_heatmap1.png)
 
 2. Norm within Clusters: The grid values are decimal values of the number of cells within a cluster assigned to a given phenotype. In this schema, the relative color of the grid is based on the within-cluster distribution. The sum of the numbers in each row sum to 1.
 
-<img src="./assets/images/clust_analyzer_heatmap2.png" alt="Heatmap Norm within Clusters" width="40%" />
+![Heatmap Norm within Clusters](./assets/images/clust_analyzer_heatmap2.png)
 
 3. Norm within Phenotypes: The grid values are decimal values of the number of cells within a phenotype assigned to a given cluster. In this schema, the relative color of the grid is based on the within-phenotype distribution. The sum of the numbers in each column sum to 1.
 
-<img src="./assets/images/clust_analyzer_heatmap3.png" alt="Heatmap Norm within Phenotypes" width="40%" />
+![Heatmap Norm within Phenotypes](./assets/images/clust_analyzer_heatmap3.png)
 
 #### Incidence Figure
 
