@@ -819,17 +819,17 @@ def main():
                                 value = 10000, step = 10,)
             with nei_sett_col[3]:
                 st.checkbox('Log Scale', key = 'nei_pro_toggle_log_scale', value = True)
-            st.toggle('Subset Neighbourhood Profiles by Feature', value = False,
-                      key = 'toggle_NeiPro_filter_feat', disabled=not st.session_state.umap_completed)
-            if st.session_state['toggle_NeiPro_filter_feat']:
-                nei_feat_filt_col = st.columns([2,2])
-                with nei_feat_filt_col[0]:
-                    st.selectbox('Feature', options = st.session_state.umapOutcomes,
-                                 key='NeiPro_filter_feat', on_change=reset_neipro_feature_values)
-                with nei_feat_filt_col[1]:
-                    selected_feat = st.session_state['NeiPro_filter_feat']
-                    unique_values = st.session_state.spatial_umap.df_umap[selected_feat].unique()
-                    st.selectbox('Value', options = unique_values, key='NeiPro_filter_value')
+            # st.toggle('Subset Neighbourhood Profiles by Feature', value = False,
+            #           key = 'toggle_NeiPro_filter_feat', disabled=not st.session_state.umap_completed)
+            # if st.session_state['toggle_NeiPro_filter_feat']:
+            #     nei_feat_filt_col = st.columns([2,2])
+            #     with nei_feat_filt_col[0]:
+            #         st.selectbox('Feature', options = st.session_state.umapOutcomes,
+            #                      key='NeiPro_filter_feat', on_change=reset_neipro_feature_values)
+            #     with nei_feat_filt_col[1]:
+            #         selected_feat = st.session_state['NeiPro_filter_feat']
+            #         unique_values = st.session_state.spatial_umap.df_umap[selected_feat].unique()
+            #         st.selectbox('Value', options = unique_values, key='NeiPro_filter_value')
 
 
         # If the spatial-umap is completed...
