@@ -1050,7 +1050,7 @@ def UMAPdraw_density(d, bins, w, n_pad, vlim, feat = None, diff = False, legendt
 
     return umap_fig
 
-def draw_incidence_fig(inci_df, fig_title, phenotype = 'All Phenotypes', feature = 'Cell Counts', displayas = 'Counts Difference', comp_thresh = None, show_raw_counts= False):
+def draw_incidence_fig(inci_df, fig_title, phenotype = 'All Phenotypes', feature = 'Cell Counts', displayas = 'Counts Difference', msg_tags = ['=0', '=1'], show_raw_counts= False):
     '''
     Draws the line plot figure which describes the incideces of a 
     selected features
@@ -1076,13 +1076,8 @@ def draw_incidence_fig(inci_df, fig_title, phenotype = 'All Phenotypes', feature
     slc_ylw  = '#F6EB61'  # Streamlit Yellow Color
     slc_red  = '#FF4B4B'  # Streamlit Red Color
 
-
-    if comp_thresh is not None:
-        up_tag = f' >= {comp_thresh}'
-        dn_tag = f' < {comp_thresh}'
-    else:
-        up_tag = ' = 1'
-        dn_tag = ' = 0'
+    up_tag = msg_tags[1]
+    dn_tag = msg_tags[0]
 
     anno2 = False
     if feature != 'Cell Counts':

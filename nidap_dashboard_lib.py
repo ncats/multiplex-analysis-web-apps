@@ -777,21 +777,18 @@ def set_figure_objs_clusters_analyzer(session_state):
 
     # Not Cell Counts
     if session_state.inciOutcomeSel != session_state.def_inci_feature:
-        col = df_umap[session_state.inciOutcomeSel]
-        if identify_col_type(col) == 'not_bool':
-            comp_thresh = 0
-            df_umap['chosen_feature'] = df_umap.apply(lambda row: 1 if row[session_state.inciOutcomeSel] >= comp_thresh else 0, axis = 1)
-        elif identify_col_type(col) == 'bool':
-            df_umap['chosen_feature'] = df_umap[session_state.inciOutcomeSel]
-        else:
-            df_umap['chosen_feature'] = df_umap[session_state.inciOutcomeSel]
+        split_dict = split_df_by_feature(df_umap, session_state.inciOutcomeSel)
 
         # Compute the Difference
-        for clust_label, group in df_umap.groupby('clust_label'):
+        for clust_label, group in split_dict['df_umap_fals'].groupby('clust_label'):
             if clust_label != 'No Cluster':
-                inci_df.loc[clust_label, 'counts'] = group['chosen_feature'].count()
-                inci_df.loc[clust_label, 'featureCount1'] = sum(group['chosen_feature'] == 1)
-                inci_df.loc[clust_label, 'featureCount0'] = sum(group['chosen_feature'] == 0)
+                inci_df.loc[clust_label, 'counts'] = group[session_state.inciOutcomeSel].count()
+                inci_df.loc[clust_label, 'featureCount0'] = group[session_state.inciOutcomeSel].count()
+
+        for clust_label, group in split_dict['df_umap_true'].groupby('clust_label'):
+            if clust_label != 'No Cluster':
+                inci_df.loc[clust_label, 'counts'] = inci_df.loc[clust_label, 'counts'] + group[session_state.inciOutcomeSel].count()
+                inci_df.loc[clust_label, 'featureCount1'] = group[session_state.inciOutcomeSel].count()
 
         inci_df['Count Differences'] = inci_df['featureCount1'] - inci_df['featureCount0']
 
@@ -811,6 +808,8 @@ def set_figure_objs_clusters_analyzer(session_state):
             if clust_label != 'No Cluster':
                 inci_df.loc[clust_label, 'counts'] = group['Slide ID'].count()
 
+        split_dict = {'fals_msg':None, 'true_msg':None}
+
     # Title
     inci_title = 'Incidence by Cluster'
 
@@ -819,8 +818,13 @@ def set_figure_objs_clusters_analyzer(session_state):
                                                     phenotype   = session_state.inciPhenoSel,
                                                     feature     = session_state.inciOutcomeSel,
                                                     displayas   = session_state.Inci_Value_display,
-                                                    comp_thresh = comp_thresh,
+                                                    msg_tags  = [split_dict['fals_msg'], split_dict['true_msg']],
                                                     show_raw_counts = session_state.inci_fig_show_raw_counts)
+
+    session_state.inci_df       = inci_df
+    session_state.inci_fals_msg = f'{session_state.inciOutcomeSel} {split_dict['fals_msg']}'
+    session_state.inci_true_msg = f'{session_state.inciOutcomeSel} {split_dict['true_msg']}'
+    session_state.inci_appro_feat = split_dict['appro_feat']
 
     return session_state
 
@@ -923,8 +927,8 @@ def split_df_by_feature(df, feature, val_fals=None, val_true=None, val_code=None
 
     if val_code == 0:
         split_dict['appro_feat'] = False
-        split_dict['df_umap_fals'] = None
-        split_dict['df_umap_true'] = None
+        split_dict['df_umap_fals'] = df
+        split_dict['df_umap_true'] = df
         split_dict['fals_msg']   = 'Feature is inappropriate for splitting'
         split_dict['true_msg']   = 'Feature is inappropriate for splitting'
     elif val_code == 100:
