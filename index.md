@@ -1,6 +1,7 @@
 ---
-nav_order: 1
+layout: default
 title: Home
+nav_order: 1
 ---
 
 <h1 class="fs-9">Multiplex Analysis Web Apps</h1>
