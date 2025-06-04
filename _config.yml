@@ -1,5 +1,5 @@
 title: Multiplex Analysis Web Apps
-description: Documenation for the Multiplex Analysis Web Apps (MAWA)
+description: Documentation for the Multiplex Analysis Web Apps (MAWA)
 # logo: "/assets/images/mawa_logo-full.png"  # set a path/url to a logo that will be displayed instead of the title... appears tiny because I think it's expecting an image of text and therefore setting the height, which I currently can't change per https://stackoverflow.com/questions/59811176/changing-logo-svg-file-on-jekyll-github-reducing-pixel-size-does-not-appear-to because I'm using the theme as a remote
 theme: jekyll-theme-minimal
 
@@ -12,8 +12,14 @@ aux_links:
 plugins:
   - jekyll-feed
   - jekyll-sitemap
+  - jekyll-spaceship
 
-# Markdown processor
-markdown: kramdown
-kramdown:
-  math_engine: mathjax  # Enables LaTeX support!
+jekyll-spaceship:
+  mathjax-processor:
+    src:
+      - https://polyfill.io/v3/polyfill.min.js?features=es6
+      - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+    config:
+      tex:
+        inlineMath: [['$', '$'], ['\\(', '\\)']]
+        displayMath: [['$$', '$$'], ['\\[', '\\]']]
