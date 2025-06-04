@@ -200,7 +200,7 @@ class NeighborhoodProfiles:
         # get the counts per cell and save to pickle file
         print('Starting Cell Counts process')
         self.bc.startTimer()
-        self.spatial_umap.get_counts_And()
+        self.spatial_umap.get_counts_And(cpu_pool_size=cpu_pool_size)
         self.bc.printElapsedTime(f'Calculating Counts for {len(self.spatial_umap.cells)} cells')
 
         # get the areas of cells and save to pickle file
