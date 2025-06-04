@@ -149,7 +149,10 @@ The incidence figure details how the cells within each cluster differ in their e
 `Display-as Radio Button`: How the values of the Feature select box should be displayed. This radio button is disabled for the Cell Counts condition, but is enabled for any other Feature selection. For each of the options shown below, there are equations detailing how the values for each condition are calculated. For equations 1-4, *d* represents the full datasets, and the *Condition* is the Feature and Value combinaton being condisdered. Each equation is also considered at each cluster in the dataset. Therefore when a feature is selected, the dataset will be split as follows
 
 $$
+\begin{aligned}
 d_{\text{cond0}} = d \subset Condition0 \quad\quad\quad \text{Equation 1a}\\
+d_{\text{cond1}} = d \subset Condition1 \quad\quad\quad \text{Equation 1b}\\
+\end{aligned}
 $$
 
 The options to be displayed are:
