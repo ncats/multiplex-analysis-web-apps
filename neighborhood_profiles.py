@@ -116,7 +116,7 @@ class NeighborhoodProfiles:
         Args:
             df (pd.DataFrame): DataFrame containing the cell data
             marker_names (list): List of marker names
-            pheno_order (list): List of phenotype names
+            pheno_order (list): List of phenotype names in order
             smallest_image_size (float): Smallest image size for analysis
 
         Returns:
@@ -283,25 +283,31 @@ class NeighborhoodProfiles:
         return session_state
 
     @staticmethod
-    def kmeans_calc(spatial_umap, n_clusters = 5):
+    def kmeans_calc(clust_data, n_clusters = 5, random_state = None):
         '''
         Perform KMeans clustering on the spatial UMAP data
 
         Args:
-            spatial_umap (spatial_umap): spatial_umap object
-            nClus (int): Number of clusters to use
-        
+            clust_data (clust_data): clust_data
+            n_clusters (int): Number of clusters to use
+            random_state (int, optional): Random state for reproducibility
+
         Returns:
             kmeans_obj: KMeans obj created from KMeans
         '''
+
+        print(f'Starting KMeans Calculation for {n_clusters} clusters')
         # Create KMeans object for a chosen cluster
         kmeans_obj = KMeans(n_clusters = n_clusters,
                             init ='k-means++',
                             max_iter = 300,
-                            n_init = 10,
-                            random_state = 42)
+                            n_init = 50,
+                            random_state = random_state)
+
         # Fit the data to the KMeans object
-        kmeans_obj.fit(spatial_umap.umap_test)
+        kmeans_obj.fit(clust_data)
+
+        print(f'...Completed KMeans Calculation for {n_clusters} clusters')
 
         return kmeans_obj
 
@@ -326,7 +332,7 @@ class NeighborhoodProfiles:
             wcss.append(kmeans_obj.inertia_)
         return list(clust_range), wcss
 
-    def perform_clustering(self, n_clusters):
+    def perform_clustering(self, n_clusters, clust_minmax, cpu_pool_size = 8):
         '''
         perform clustering for the UMAP data using KMeans
 
@@ -337,13 +343,37 @@ class NeighborhoodProfiles:
         Returns:
             spatial_umap: spatial_umap object with the clustering performed
         '''
+        # Reset the cluster labels just in case
+        self.spatial_umap.df_umap.loc[:, 'clust_label'] = -1
 
-        # Reperform clustering for chosen cluster value
-        kmeans_obj = self.kmeans_calc(self.spatial_umap, n_clusters)
-        # Add cluster label column to cells dataframe
-        self.spatial_umap.df_umap.loc[:, 'clust_label'] = kmeans_obj.labels_
-        self.spatial_umap.df_umap.loc[:, 'cluster'] = kmeans_obj.labels_
-        self.spatial_umap.df_umap.loc[:, 'Cluster'] = kmeans_obj.labels_
+        clust_range = range(clust_minmax[0], clust_minmax[1]+1)
+
+        kwargs_list = []
+        for clust in clust_range:
+            kwargs_list.append(
+                (
+                    self.spatial_umap.umap_test,
+                    clust
+                )
+            )
+
+        results = utils.execute_data_parallelism_potentially(self.kmeans_calc,
+                                                            kwargs_list,
+                                                            nworkers = cpu_pool_size,
+                                                            task_description='KMeans Clustering',
+                                                            use_starmap=True)
+        # mp_start_method = mp.get_start_method()
+        # # Create a pool of worker processes
+        # with mp.get_context(mp_start_method).Pool(processes=cpu_pool_size) as pool:
+        #     results = pool.starmap(kmeans_calc, kwargs_list)
+
+        wcss = [x.inertia_ for x in results]
+
+        # Create WCSS Elbow Plot
+        self.spatial_umap.elbow_fig = self.draw_wcss_elbow_plot(clust_range, wcss, n_clusters)
+
+        # Identify the kmeans obj that matches the selected cluster number
+        kmeans_obj_targ = results[n_clusters-1]
 
         self.spatial_umap.cluster_dict = dict()
         for i in range(n_clusters):
@@ -356,10 +386,47 @@ class NeighborhoodProfiles:
         self.spatial_umap.palette_dict['No Cluster'] = 'white'
 
         # Assign values to cluster_label column in df_umap
-        self.spatial_umap.df_umap.loc[:, 'clust_label'] = [self.spatial_umap.cluster_dict[key] for key in (kmeans_obj.labels_+1)]
+        self.spatial_umap.df_umap.loc[:, 'clust_label'] = [self.spatial_umap.cluster_dict[key] for key in (kmeans_obj_targ.labels_+1)]
 
         # After assigning the cluster labels, perform mean measure calculations
         self.spatial_umap.mean_measures()
+
+    @staticmethod
+    def draw_wcss_elbow_plot(clust_range, wcss, sel_clus):
+        '''
+        Calculate possible clusters and plot the elbow plot
+
+        Args:
+            clust_range (list): List of cluster values
+            wcss (list): List of within-cluster sum of squares
+            sel_clus (int): Selected cluster value
+
+        Returns:
+            fig: Matplotlib figure object
+        '''
+
+        # Streamlit Theming
+        slc_bg   = '#0E1117'  # Streamlit Background Color
+        slc_text = '#FAFAFA'  # Streamlit Text Color
+        slc_bg2  = '#262730'  # Streamlit Secondary Background Color
+
+        fig = plt.figure(figsize = (5,5), facecolor = slc_bg)
+        ax = fig.add_subplot(1,1,1, facecolor = slc_bg)
+        ax.set_xlabel('Number of Clusters', fontsize = 10, color = slc_text)
+        ax.set_ylabel('WCSS', fontsize = 10, color = slc_text)
+        ax.set_xlim(0, clust_range[-1])
+        ax.set_xticks(np.linspace(0, clust_range[-1], clust_range[-1]+1))
+
+        plt.plot(clust_range, wcss)
+        # plt.axvline(sel_clus, linestyle='--', color='r')
+
+        ax.spines['left'].set_color(slc_text)
+        ax.spines['bottom'].set_color(slc_text)
+        ax.spines['top'].set_color(slc_bg)
+        ax.spines['right'].set_color(slc_bg)
+        ax.tick_params(axis='x', colors=slc_text, which='both')
+        ax.tick_params(axis='y', colors=slc_text, which='both')
+        return fig
 
     def filter_and_plot(self, session_state):
         '''
@@ -871,7 +938,7 @@ class UMAPDensityProcessing():
         Perform KMeans clustering on sets of 2D data
 
         Args:
-            dens_mat (numpy array): Data to be clustered
+            clust_data (numpy array): Data to be clustered
             n_clusters (int): Number of clusters to use
             random_state (int): Random state to use for KMeans
         
