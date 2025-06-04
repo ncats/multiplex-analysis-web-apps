@@ -56,14 +56,14 @@ def filter_and_plot(plot_by_slider = False):
     '''
     function to update the filtering and the figure plotting
     '''
-    st.session_state.prog_left_disabeled  = False
-    st.session_state.prog_right_disabeled = False
+    st.session_state.prog_left_disabled = False
+    st.session_state.prog_right_disabled = False
 
     if st.session_state['idxSlide ID'] == 0:
-        st.session_state.prog_left_disabeled = True
+        st.session_state.prog_left_disabled = True
 
     if st.session_state['idxSlide ID'] == st.session_state['numSlide ID']-1:
-        st.session_state.prog_right_disabeled = True
+        st.session_state.prog_right_disabled = True
 
     if plot_by_slider:
         slider_val = st.session_state.point_slider_val
@@ -287,10 +287,10 @@ def main():
                          on_change=slide_id_callback)
         with image_prog_col[1]:
             add_vertical_space(2)
-            st.button('←', on_click=slide_id_prog_left_callback, disabled=st.session_state.prog_left_disabeled)
+            st.button('←', on_click=slide_id_prog_left_callback, disabled=st.session_state.prog_left_disabled)
         with image_prog_col[2]:
             add_vertical_space(2)
-            st.button('→', on_click=slide_id_prog_right_callback, disabled=st.session_state.prog_right_disabeled)
+            st.button('→', on_click=slide_id_prog_right_callback, disabled=st.session_state.prog_right_disabled)
         with image_prog_col[3]:
             add_vertical_space(2)
             st.write(f'Image {st.session_state["idxSlide ID"]+1} of {st.session_state["numSlide ID"]}')

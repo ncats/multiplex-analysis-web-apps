@@ -172,41 +172,41 @@ def reset_neigh_profile_settings(session_state):
     session_state.lineageDisplayToggle_clus = 'Phenotypes'
 
     # Unfiltered dropdown default options
-    session_state.defLineageOpt    = 'All Phenotypes'
-    session_state.defumapOutcomes  = 'phenotype'
-    session_state.definciOutcomes  = 'Cell Counts'
+    session_state.def_lineage_opt  = 'All Phenotypes' # Default Lineage Option
+    session_state.def_umap_feature = 'phenotype'      # Default Feature selection for UMAP analysis
+    session_state.def_inci_feature = 'Cell Counts'    # Default Feature selection for Incidence analysis
 
     # Default UMAP dropdown options
-    session_state.umapPheno = [session_state.defLineageOpt]
-    session_state.umapMarks = [session_state.defLineageOpt]
-    session_state.umaplineages = [session_state.defLineageOpt]
-    session_state.umapOutcomes = [session_state.defumapOutcomes]
+    session_state.umapPheno = [session_state.def_lineage_opt]
+    session_state.umapMarks = [session_state.def_lineage_opt]
+    session_state.umaplineages = [session_state.def_lineage_opt]
+    session_state.umapOutcomes = [session_state.def_umap_feature]
 
     # Default Incidence dropdown options
-    session_state.outcomes     = [session_state.defumapOutcomes]
-    session_state.inciOutcomes = [session_state.definciOutcomes]
+    session_state.outcomes     = [session_state.def_umap_feature]
+    session_state.inciOutcomes = [session_state.def_inci_feature]
 
     # Default UMAPInspect settings
-    session_state.umapInspect_Ver = session_state.defLineageOpt
-    session_state.umapInspect_Feat = session_state.defumapOutcomes
+    session_state.umapInspect_Ver = session_state.def_lineage_opt
+    session_state.umapInspect_Feat = session_state.def_umap_feature
 
     # Default UMAP differences settings
-    session_state.diffUMAPSel_Ver  = session_state.defLineageOpt
-    session_state.diffUMAPSel_Feat = session_state.defumapOutcomes
+    session_state.diffUMAPSel_Ver  = session_state.def_lineage_opt
+    session_state.diffUMAPSel_Feat = session_state.def_umap_feature
 
     # Default Incidence settings
-    session_state.inciPhenoSel   = session_state.defLineageOpt
-    session_state.inciOutcomeSel = session_state.definciOutcomes
+    session_state.inciPhenoSel   = session_state.def_lineage_opt
+    session_state.inciOutcomeSel = session_state.def_inci_feature
     session_state.Inci_Value_display = 'Count Differences'
 
     # Default Cluster_Dict()
     session_state.cluster_dict = {0: 'No Cluster'}
 
     # Neighborhood Profiles Line Plot Settings
-    session_state.compare_clusters_as = 'Difference'
+    session_state.compare_clusters_as = 'Ratio'
     session_state.palette_dict = 'bwr'
 
-    # Clustering 
+    # Clustering
     session_state.elbow_fig_0 = None
     session_state.elbow_fig_1 = None
 
@@ -277,10 +277,10 @@ def loadDataButton(session_state, df_import, projectName, fileName):
     session_state['uniSlide ID_short'] = session_state['uniSlide ID']
     session_state['selSlide ID_short'] = session_state['uniSlide ID_short'][0]
 
-    session_state.prog_left_disabeled = True
-    session_state.prog_right_disabeled = False
+    session_state.prog_left_disabled = True
+    session_state.prog_right_disabled = False
     if session_state['numSlide ID'] == 1:
-        session_state.prog_right_disabeled = True
+        session_state.prog_right_disabled = True
 
     # Perform Filtering
     session_state.bc.startTimer()
@@ -318,8 +318,8 @@ def set_phenotyping_elements(session_state, df_orig):
     session_state.spec_summ_load       = session_state.spec_summ # Default version that is loaded
     session_state.spec_summ_dataeditor = session_state.spec_summ # Default version that is used for custom phenotyping table
 
-    if 'dataeditor__do_not_persist' in session_state:
-        del session_state.dataeditor__do_not_persist
+    if hasattr(session_state, 'dataeditor__do_not_persist'):
+        delattr(session_state, 'dataeditor__do_not_persist')
 
     # Initalize Phenotyping Settings (Radio BUttons)
     session_state.noPhenoOpt = 'Not Selected'
@@ -357,8 +357,8 @@ def updatePhenotyping(session_state):
     # Initalize Species Summary Table
     session_state.spec_summ    = bpl.init_pheno_assign(session_state.df)
 
-    if 'dataeditor__do_not_persist' in session_state:
-        del session_state.dataeditor__do_not_persist
+    if hasattr(session_state, 'dataeditor__do_not_persist'):
+        delattr(session_state, 'dataeditor__do_not_persist')
 
     # session_state.spec_summ_load       = session_state.spec_summ
     session_state.spec_summ_dataeditor = session_state.spec_summ
@@ -614,10 +614,12 @@ def setFigureObjs_UMAPDifferences(session_state):
     session_state.umap_ins_msg = None
 
     udp_ins_raw = copy(udp_full)
-    udp_ins_raw.filter_by_lineage(session_state.lineageDisplayToggle, session_state.umapInspect_Ver, session_state.defLineageOpt)
+    udp_ins_raw.filter_by_lineage(session_state.lineageDisplayToggle,
+                                  session_state.umapInspect_Ver,
+                                  session_state.def_lineage_opt)
 
     # Filter by Feature for Inspection
-    if session_state.umapInspect_Feat != session_state.defumapOutcomes:
+    if session_state.umapInspect_Feat != session_state.def_umap_feature:
 
         split_dict_full_ins = udp_ins_raw.split_df_by_feature(session_state.umapInspect_Feat)
         if split_dict_full_ins['appro_feat']:
@@ -626,8 +628,10 @@ def setFigureObjs_UMAPDifferences(session_state):
             udp_true = UMAPDensityProcessing(session_state.npf, split_dict_full_ins['df_umap_true'], xx=udp_ins_raw.xx, yy=udp_ins_raw.yy)
 
             ## Set Feature Labels
-            udp_fals.set_feature_label(session_state.umapInspect_Feat, split_dict_full_ins['fals_msg'])
-            udp_true.set_feature_label(session_state.umapInspect_Feat, split_dict_full_ins['true_msg'])
+            udp_fals.set_feature_label(session_state.umapInspect_Feat,
+                                       split_dict_full_ins['fals_msg'])
+            udp_true.set_feature_label(session_state.umapInspect_Feat,
+                                       split_dict_full_ins['true_msg'])
 
             udp_fals.cluster_dict = udp_ins_raw.cluster_dict
             udp_true.cluster_dict = udp_ins_raw.cluster_dict
@@ -664,10 +668,10 @@ def setFigureObjs_UMAPDifferences(session_state):
     session_state.umap_diff_msg = None
 
     udp_diff_raw = copy(udp_full)
-    udp_diff_raw.filter_by_lineage(session_state.lineageDisplayToggle, session_state.diffUMAPSel_Ver, session_state.defLineageOpt)
+    udp_diff_raw.filter_by_lineage(session_state.lineageDisplayToggle, session_state.diffUMAPSel_Ver, session_state.def_lineage_opt)
 
     # Filter by Feature for Inspection
-    if session_state.diffUMAPSel_Feat != session_state.defumapOutcomes:
+    if session_state.diffUMAPSel_Feat != session_state.def_umap_feature:
         split_dict_full_diff = udp_diff_raw.split_df_by_feature(session_state.diffUMAPSel_Feat)
 
         if split_dict_full_diff['appro_feat']:
@@ -746,11 +750,22 @@ def set_figure_objs_clusters_analyzer(session_state):
     else:
         norm_axis = None
 
-    session_state.heatmapfig = bpl.createHeatMap(df_umap, session_state.pheno_summ['phenotype'], title, norm_axis)
+    if session_state.toggle_heatmap_filter_feat:
+        title.append(f'Filtered for data where {session_state.heatmap_filter_feat} = {session_state.heatmap_filter_value}')
+        df_umap_filt = df_umap[df_umap[session_state.heatmap_filter_feat] == session_state.heatmap_filter_value]
+    else:
+        df_umap_filt = df_umap
+
+    session_state.heatmapfig = bpl.draw_heatmap_fig(df_umap_filt,
+                                                    pheno_list=session_state.pheno_summ['phenotype'],
+                                                    title=title,
+                                                    norm_axis=norm_axis)
 
     ### Incidence Line Graph ###
     # Filter by the lineage
-    df_umap = filterLineage4UMAP(df_umap, session_state.lineageDisplayToggle_clus, session_state.defLineageOpt, session_state.inciPhenoSel)
+    df_umap = filter_by_lineage(df_umap, session_state.lineageDisplayToggle_clus,
+                                session_state.def_lineage_opt,
+                                session_state.inciPhenoSel)
 
     # Set up incidence dataframe
     comp_thresh = None
@@ -761,22 +776,19 @@ def set_figure_objs_clusters_analyzer(session_state):
     inci_df['featureCount0'] = 0 # False Condition
 
     # Not Cell Counts
-    if session_state.inciOutcomeSel != session_state.definciOutcomes:
-        col = df_umap[session_state.inciOutcomeSel]
-        if identify_col_type(col) == 'not_bool':
-            comp_thresh = 0
-            df_umap['chosen_feature'] = df_umap.apply(lambda row: 1 if row[session_state.inciOutcomeSel] >= comp_thresh else 0, axis = 1)
-        elif identify_col_type(col) == 'bool':
-            df_umap['chosen_feature'] = df_umap[session_state.inciOutcomeSel]
-        else:
-            df_umap['chosen_feature'] = df_umap[session_state.inciOutcomeSel]
+    if session_state.inciOutcomeSel != session_state.def_inci_feature:
+        split_dict = split_df_by_feature(df_umap, session_state.inciOutcomeSel)
 
         # Compute the Difference
-        for clust_label, group in df_umap.groupby('clust_label'):
+        for clust_label, group in split_dict['df_umap_fals'].groupby('clust_label'):
             if clust_label != 'No Cluster':
-                inci_df.loc[clust_label, 'counts'] = group['chosen_feature'].count()
-                inci_df.loc[clust_label, 'featureCount1'] = sum(group['chosen_feature'] == 1)
-                inci_df.loc[clust_label, 'featureCount0'] = sum(group['chosen_feature'] == 0)
+                inci_df.loc[clust_label, 'counts'] = group[session_state.inciOutcomeSel].count()
+                inci_df.loc[clust_label, 'featureCount0'] = group[session_state.inciOutcomeSel].count()
+
+        for clust_label, group in split_dict['df_umap_true'].groupby('clust_label'):
+            if clust_label != 'No Cluster':
+                inci_df.loc[clust_label, 'counts'] = inci_df.loc[clust_label, 'counts'] + group[session_state.inciOutcomeSel].count()
+                inci_df.loc[clust_label, 'featureCount1'] = group[session_state.inciOutcomeSel].count()
 
         inci_df['Count Differences'] = inci_df['featureCount1'] - inci_df['featureCount0']
 
@@ -796,27 +808,164 @@ def set_figure_objs_clusters_analyzer(session_state):
             if clust_label != 'No Cluster':
                 inci_df.loc[clust_label, 'counts'] = group['Slide ID'].count()
 
+        split_dict = {'fals_msg':None, 'true_msg':None, 'appro_feat':True}
+
     # Title
-    inci_title = ['Incidence by Cluster']
+    inci_title = 'Incidence by Cluster'
 
     # Draw Incidence Figure
-    session_state.inciFig = bpl.drawIncidenceFigure(inci_df, inci_title,
-                                                    phenotype  = session_state.inciPhenoSel,
-                                                    feature    = session_state.inciOutcomeSel,
-                                                    displayas  = session_state.Inci_Value_display,
-                                                    comp_thresh = comp_thresh)
+    session_state.inci_fig = bpl.draw_incidence_fig(inci_df, inci_title,
+                                                    phenotype   = session_state.inciPhenoSel,
+                                                    feature     = session_state.inciOutcomeSel,
+                                                    displayas   = session_state.Inci_Value_display,
+                                                    msg_tags  = [split_dict['fals_msg'], split_dict['true_msg']],
+                                                    show_raw_counts = session_state.inci_fig_show_raw_counts)
+
+    session_state.inci_df       = inci_df
+    session_state.inci_fals_msg = f"{session_state.inciOutcomeSel} {split_dict['fals_msg']}"
+    session_state.inci_true_msg = f"{session_state.inciOutcomeSel} {split_dict['true_msg']}"
+    session_state.inci_appro_feat = split_dict['appro_feat']
 
     return session_state
 
-def filterLineage4UMAP(df, display_toggle, defVal, dropVal):
+def check_feature_values(df, feature):
+        '''
+        
+        Returns:
+            int: 0: Feature is inappropriate for splitting
+            int: 2: Feature is boolean and is easily split
+            int  3-15: Feature has a few different options but can be easily compared when values are selected
+            int: 100: Feature is a numerical range and can be split by finding the median
+        '''
+
+        col = df[feature] # Column in question
+        dtypes = col.dtype     # Column Type
+        n_uni  = col.nunique() # Number of unique values
+
+        # If only 1 unique value, then the feature cannot be split
+        if n_uni <= 1:
+            return 0
+        # If exactly 2 values, then the value can be easily split.
+        elif n_uni == 2:
+            return 2
+        # If more than 2 values but less than 15, then the values
+        # can be easily split by two chosen values
+        elif n_uni > 2 and n_uni <= 15:
+            return n_uni
+        else:
+            if dtypes == 'category' or dtypes == 'object':
+                return 0
+            else:
+                # If there are more than 15 unique values, and the values are numerical,
+                # then the Feature can be split by the median
+                return 100
+            
+def split_df_by_feature(df, feature, val_fals=None, val_true=None, val_code=None):
     '''
-    Function for filtering UMAP function based on Phenotypes or Markers
+    split_df_by_feature takes in a feature from a dataframe
+    and first identifies if the feature is boolean, if it contains 
+    float values, or neither. If its a boolean, it will split the
+    dataframe between values of 0 and 1 for the selected feature.
+    If the feature is a float, it will split the dataframe based on
+    the median value of the feature. If the feature is neither boolean
+    nor float, it will not split the dataframe. 
+
+    In all cases this function will return a dictionary of the outcome
+    of the split with the most importannt value being, appro_feat, 
+    which will be True if the feature is appropriate for splitting, and
+    False if not.
+
+    Args:
+        feature (str): Feature to split the dataframe by
+        val_fals (int): Value to use for the false condition
+        val_true (int): Value to use for the true condition
+        val_code (int): Code to use for the split
+
+    Returns:
+        split_dict (dict): Dictionary of the outcomes of splitting
+        the dataframe with the following parameters
+            appro_feat (bool): True if the feature is appropriate for splitting
+            df_umap_fals (Pandas dataframe): Dataframe of the false condition
+            df_umap_true (Pandas dataframe): Dataframe of the true condition
+            fals_msg (str): Message for the false condition
+            true_msg (str): Message for the true condition
     '''
-    if dropVal != defVal:
+
+    # Set up the dictionary for the split
+    split_dict = dict()
+
+    # Check the feature values
+    if val_code is None:
+        val_code = check_feature_values(df, feature)
+
+    # Set default values for the false and true conditions
+    if val_fals is None:
+        # Get the unique values of the feature
+        feat_vals_uniq = natsorted(df[feature].unique())
+
+        if val_code == 0:
+            val_fals = None
+            val_true = None
+        elif val_code == 100:
+            # Get the median value of the feature
+            median_val = np.round(df[feature].median(), decimals = 2)
+
+            val_fals = median_val
+            val_true = median_val
+        elif val_code == 2:
+            val_fals = feat_vals_uniq[0]
+            val_true = feat_vals_uniq[1]
+        else:
+            # We can later make this more sophisticated
+            # but this is only ever reached if the feature values
+            # are not otherwise previously identified.
+            # I dont think think this will be too much of a problem.
+            # If we need more specificity on this in the future, it can
+            # be easily added.
+            val_fals = feat_vals_uniq[0]
+            val_true = feat_vals_uniq[1]
+
+    if val_code == 0:
+        split_dict['appro_feat'] = False
+        split_dict['df_umap_fals'] = df
+        split_dict['df_umap_true'] = df
+        split_dict['fals_msg']   = 'Feature is inappropriate for splitting'
+        split_dict['true_msg']   = 'Feature is inappropriate for splitting'
+    elif val_code == 100:
+        median = val_fals
+        split_dict['appro_feat'] = True
+        split_dict['df_umap_fals'] = df.loc[df[feature] <= median, :]
+        split_dict['df_umap_true'] = df.loc[df[feature] > median, :]
+        split_dict['fals_msg']   = f'<= {median:.2f}'
+        split_dict['true_msg']   = f'> {median:.2f}'
+    else:
+        split_dict['appro_feat'] = True
+        split_dict['df_umap_fals'] = df.loc[df[feature] == val_fals, :]
+        split_dict['df_umap_true'] = df.loc[df[feature] == val_true, :]
+        split_dict['fals_msg']   = f'= {val_fals}'
+        split_dict['true_msg']   = f'= {val_true}'
+
+    return split_dict
+
+def filter_by_lineage(df, display_toggle, def_val, drop_val):
+    '''
+    Function for filtering UMAP function based on lineage. Sometimes
+    the intended lineage is the phenotype and sometimes it is the marker.
+
+    Args:
+        df: DataFrame to filter
+        display_toggle: Toggle for displaying by Phenotypes or Markers
+        def_val: Default value for filtering
+        drop_val: Value to drop
+
+    Returns:
+        df: Filtered DataFrame
+    '''
+    if drop_val != def_val:
         if display_toggle == 'Phenotypes':
-            df = df.loc[df['Lineage'] == dropVal, :]
+            df = df.loc[df['Lineage'] == drop_val, :]
         elif display_toggle == 'Markers':
-            df = df.loc[df['species_name_short'].str.contains(dropVal), :]
+            df = df.loc[df['species_name_short'].str.contains(drop_val), :]
 
     return df
 
@@ -826,44 +975,44 @@ def drawAltairObj(df, title, sortOrder, fig, ax = None, legendCol='phenotype'):
     """
     ## Draw the Scatter Plot
     # Wrap the Title
-    wrapTitle = wrapTitleText(title)
+    wrap_title = wrap_title_text(title)
 
     if ax is not None:
-        minXLim, maxXLim = ax.get_xlim()
-        minYLim, maxYLim = ax.get_ylim()
+        min_xlim, max_xlim = ax.get_xlim()
+        min_ylim, max_ylim = ax.get_ylim()
         bbox = fig.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
         width, height = bbox.width*fig.dpi*0.75, bbox.height*fig.dpi*0.75
     else:
-        minXLim = df['CentroidX'].min() - 50
-        minYLim = df['CentroidY'].min() - 50
-        maxXLim = df['CentroidX'].max() + 50
-        maxYLim = df['CentroidY'].max() + 50
+        min_xlim = df['CentroidX'].min() - 50
+        min_ylim = df['CentroidY'].min() - 50
+        max_xlim = df['CentroidX'].max() + 50
+        max_ylim = df['CentroidY'].max() + 50
         width, height = 750, 750
 
-    numLgdCol = 4
-    # if len(sortOrder) >= numLgdCol:
-    #     sortOrderTran = np.array(sortOrder).reshape(-1, numLgdCol).T.flatten().reshape(-1, numLgdCol).T.flatten()
+    num_lgd_col = 4
+    # if len(sortOrder) >= num_lgd_col:
+    #     sort_order_tran = np.array(sortOrder).reshape(-1, num_lgd_col).T.flatten().reshape(-1, num_lgd_col).T.flatten()
     # else:
-    sortOrderTran = sortOrder
+    sort_order_tran = sortOrder
 
     # Altair Visualization
     selection = alt.selection_point(fields=[legendCol], bind='legend')
     chart = alt.Chart(df).mark_circle(size=3).encode(
             alt.X('CentroidX:Q',
-                    scale=alt.Scale(domain=(minXLim, maxXLim)),
+                    scale=alt.Scale(domain=(min_xlim, max_xlim)),
                     title='CentroidX (\u03BCm)'),
             alt.Y('CentroidY:Q',
-                    scale=alt.Scale(domain=(minYLim, maxYLim)),
+                    scale=alt.Scale(domain=(min_ylim, max_ylim)),
                     title='CentroidY (\u03BCm)'),
             color= alt.Color(legendCol, scale=alt.Scale(domain = sortOrder, scheme = 'category20'),
-                                          sort=sortOrderTran,
+                                          sort=sort_order_tran,
                                           legend=alt.Legend(
                                                             orient='bottom',
-                                                            columns = numLgdCol)),
+                                                            columns = num_lgd_col)),
             order=alt.Order('color_phenotype_sort_index:Q'),
             opacity=alt.condition(selection, alt.value(1), alt.value(0.2)),
             tooltip=[legendCol]
-            ).properties(width=width,height=height, title=wrapTitle
+            ).properties(width=width,height=height, title=wrap_title
             ).interactive().add_params(selection)
 
     # Histogram
@@ -874,11 +1023,11 @@ def drawAltairObj(df, title, sortOrder, fig, ax = None, legendCol='phenotype'):
 
     return chart
 
-def wrapTitleText(title):
+def wrap_title_text(title):
     """
-    Helps with Wrapping text
+    Helps with wrapping title text around a 75 character limit
     """
-    char_lim = 70
+    char_lim = 75
     wrap_title = []
     for x in title:
         while len(x) > char_lim:
@@ -890,17 +1039,11 @@ def wrapTitleText(title):
 
     return wrap_title
 
-def add_item_export_list(session_state, item_name, file_name):
-    tempdf = pd.DataFrame(data = {'Item Name' : [item_name],
-                                  'File Name' : [file_name],
-                                  'Date Time Added': [datetime.now()]})
-    session_state.files_to_export = pd.concat([session_state.files_to_export, tempdf]).reset_index(drop=True)
-
 def read_markdown_file(markdown_file):
     '''
     Simple markdown reading function
     '''
-    return Path(markdown_file).read_text()
+    return Path(markdown_file).read_text(encoding="utf-8")
 
 def save_csv(df, df_name):
     '''
@@ -922,14 +1065,14 @@ def save_png(img_obj, fig_type, suffix = None):
     # Save as a png in the local directory using the Matplotlib 'savefig' method
     img_obj.savefig(file_name_full)
 
-def save_png_dataset(fiol, datafile, pngFileName, pltFig):
+def save_png_dataset(fiol, datafile, png_file_name, plt_fig):
     """
     Save png image to dataset. Calling functions from the Foundry IO Library (FIOL)
 
     Args:
         fiol (obj): Foundry IO Library object for handling Palantir SDK calls.
         datafile (str): Path to the dataset that the image will be saved to
-        pngFileName (str): Filename for the image, not included the suffix (added later)
-        pltfig (obj): Matplotlib figure object to be save as png
+        png_file_name (str): Filename for the image, not included the suffix (added later)
+        plt_fig (obj): Matplotlib figure object to be save as png
     """
-    fiol.save_png_dataset(datafile, pngFileName, pltFig)
+    fiol.save_png_dataset(datafile, png_file_name, plt_fig)

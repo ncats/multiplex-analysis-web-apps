@@ -523,7 +523,10 @@ class SpatialUMAP:
 
     def mean_measures(self):
         '''
-        Setup density values for means
+        Mean measures creates the density dataframe (self.dens_df) which is used
+        for visualiations of Neighborhood Profiles
+
+        Components from self.df_umap are grouped to create self.dens_df and self.dens_df_mean
         '''
 
         dens_umap_test = self.density[self.cells['umap_test'], :, :]
