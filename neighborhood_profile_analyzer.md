@@ -1,6 +1,7 @@
 ---
 title: Neighborhood Profiles Workflow
 nav_order: 8
+layout: default
 ---
 
 # Neighborhood Profiles Workflow
