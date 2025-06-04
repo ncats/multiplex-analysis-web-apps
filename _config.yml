@@ -8,15 +8,7 @@ aux_links:
   "MAWA on GitHub":
     - "https://github.com/ncats/multiplex-analysis-web-apps"
 
-plugins:
-  - jekyll-spaceship
-
-jekyll-spaceship:
-  mathjax-processor:
-    src:
-      - https://polyfill.io/v3/polyfill.min.js?features=es6
-      - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
-    config:
-      tex:
-        inlineMath: [['$', '$'], ['\\(', '\\)']]
-        displayMath: [['$$', '$$'], ['\\[', '\\]']]
+# Still enable LaTeX
+markdown: kramdown
+kramdown:
+  math_engine: mathjax
