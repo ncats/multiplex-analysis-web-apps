@@ -20,6 +20,7 @@ from scipy import ndimage as ndi
 import basic_phenotyper_lib as bpl  # Useful functions for cell phenotyping
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
 from benchmark_collector import benchmark_collector # Benchmark Collector Class
+from SpatialUMAP import SpatialUMAP
 import PlottingTools as umPT
 import utils
 from natsort import natsorted
@@ -110,10 +111,68 @@ class NeighborhoodProfiles:
 
     def setup_spatial_umap(self, df, marker_names, pheno_order, smallest_image_size):
         '''
-        Silly I know. I will fix it later
+        Sets up the Spatial UMAP object with the provided data and parameters.
+
+        Args:
+            df (pd.DataFrame): DataFrame containing the cell data
+            marker_names (list): List of marker names
+            pheno_order (list): List of phenotype names
+            smallest_image_size (float): Smallest image size for analysis
+
+        Returns:
+            SpatialUMAP: Initialized SpatialUMAP object
         '''
 
-        self.spatial_umap = bpl.setup_Spatial_UMAP(df, marker_names, pheno_order, smallest_image_size)
+        # Initialize the SpatialUMAP object
+        # dist_bin_um (np.array): Array of distances in microns
+        # um_per_px (float): Microns per pixel
+        # area_downsample (float): Area downsample
+        self.spatial_umap = SpatialUMAP(dist_bin_um=np.array([25, 50, 100, 150, 200]), um_per_px=1.0, area_downsample=1.0)
+        self.spatial_umap.cells = df
+        self.spatial_umap.patients = self.spatial_umap.makeDummyClinic(10)
+
+        # Set Lineage and sort
+        self.spatial_umap.cells['Lineage'] = self.spatial_umap.cells['phenotype']
+        self.spatial_umap.cells['Lineage'] = self.spatial_umap.cells['Lineage'].astype("category")
+        self.spatial_umap.cells['Lineage'] = self.spatial_umap.cells['Lineage'].cat.set_categories(pheno_order)
+        # self.spatial_umap.cells = self.spatial_umap.cells.sort_values(["Lineage"])
+
+        # Assign pheno_order
+        self.spatial_umap.phenoLabel = pheno_order
+
+        # Set regions
+        self.spatial_umap.cells['TMA_core_id'] = self.spatial_umap.cells['Slide ID']
+        # Set sample number
+        if 'Sample_number' not in self.spatial_umap.cells:
+            self.spatial_umap.cells['Sample_number'] = np.ones(self.spatial_umap.cells.shape[0])
+        print(f'There are {self.spatial_umap.cells["TMA_core_id"].unique().size} images in this dataset ')
+
+        # Define the number of species we will be working with (how many different get_dummies)
+        self.spatial_umap.species = pheno_order
+        self.spatial_umap.markers = sorted(marker_names)
+        self.spatial_umap.markers = [x + '+' for x in self.spatial_umap.markers]
+        self.spatial_umap.num_species = len(self.spatial_umap.species)
+        self.spatial_umap.num_markers = len(self.spatial_umap.markers)
+
+        # set explicitly as numpy array the cell coordinates (x, y)
+        # Notice here that I needed to change the script to CentroidX, CentroidY
+        self.spatial_umap.cell_positions = self.spatial_umap.cells[['Cell X Position', 'Cell Y Position']].values
+        # set explicitly as one hot data frame the cell labels
+        self.spatial_umap.cell_labels = pd.get_dummies(self.spatial_umap.cells['Lineage'])
+        self.spatial_umap.cell_labels = self.spatial_umap.cell_labels[self.spatial_umap.species]
+        # set the region is to be analyzed (a TMA core is treated similar to a region of a interest)
+        self.spatial_umap.region_ids = self.spatial_umap.cells.TMA_core_id.unique()
+        # default cluster values
+        self.spatial_umap.cells['clust_label'] = 'No Cluster'
+
+        self.spatial_umap.elbow_fig = None
+        self.spatial_umap.smallest_image_size = smallest_image_size
+
+        # sets flags for analysis processing
+        self.spatial_umap.phenotyping_completed = True
+        self.spatial_umap.density_completed     = False
+        self.spatial_umap.umap_completed        = False
+        self.spatial_umap.cluster_completed     = False
 
     def perform_density_calc(self, calc_areas, cpu_pool_size = 1, area_threshold = 0.001):
         '''
