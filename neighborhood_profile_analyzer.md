@@ -12,7 +12,7 @@ Neighborhood Profiles identifies the types of cells that often cluster with one 
 
 ## Workflow
 
-The Neighborhood Profiles Workflow can be used once your data has been properly loaded and phenotyped. Of particular importance is that the your data contains X/Y coordinates for each cell, and each cell is categorized as a phenotype in the phenotyping page.
+The Neighborhood Profiles Workflow can be used once your data has been properly loaded and phenotyped. Of particular importance is that the your data contains X/Y coordinates for each cell, and each cell is categorized as a phenotype in the phenotyping page. The sections below will show examples of settings and visualizations that can be created in the Neighborhood Profiles Workflow. For these examples, we used a sample dataset included with MAWA called **Multiplex_Image_Sample.csv** and selected three Markers (ECAD, HistoneH3, and CD45RO) for our phenotyping step. When combined, these three markers create eight unique phenotypes with the *Species phenotyping* method in Thresholded intensities.
 
 ### Neighborhood Profiles
 
@@ -23,6 +23,16 @@ In the top panel, there are the following buttons
 * Perform Cell Counts/Areas Analysis
 * Perform UMAP Analysis
 * Perform Clustering Analysis
+
+There is also a collapsable container for the Neighborhood Profiles Settings. This container allows you to set the parameters for the Neighborhood Profiles analysis. These settings include:
+
+* Number of CPUs
+* Calculate Unique Areas
+* Area Filter Ratio
+* Percentage of cells to subset for UMAP fitting step
+* Subset data transformed for UMAP
+* Percentage of cells to subset for UMAP transforming step
+* Load pre-generated UMAP model
 
 The bottom figure panels are labeled
 
@@ -89,8 +99,10 @@ These are again further copies of the 2D UMAP. These are displayed by default bo
 
 The final step in the Neighborhood Profiles workflow is the clustering analysis. Again, this page will be most useful after all three analysis steps from the [Neighborhood Profiles](#neighborhood-profiles) page are completed. The Cluster Analyzer page contains two figures generated from the Neighborhood Profiles analysis:
 
-1. [Cluster/Phenotype Heatmap](#clusterphenotype-heatmap)
+1. [Phenotype/Cluster Heatmap](#phenotypecluster-heatmap)
 1. [Incidence Figure](#incidence-figure)
+
+!['Clusters Analyzer Page'](./assets/images/clust_analyzer_main.png)
 
 These figures have been created to investigate the composition of phenotypes of cells in assigned clusters, and the feature expression of cells in assigned clusters. Each figure can be customized further using the options available in the interface. Each figure can be exported for use in other applications by right-clicking on the image and clicking 'save as'.
 
@@ -98,9 +110,9 @@ IMPORTANT: All of the values displayed in the figures below are measured from th
 
 The sections below will show examples of settings and visualizations that can be created in the Clusters Analyzer page. For these examples, we used a sample dataset included with MAWA called **Multiplex_Image_Sample.csv** and selected three Markers (ECAD, HistoneH3, and CD45RO) for our phenotyping step. When combined, these three markers create eight unique phenotypes with the *Species phenotyping* method in Thresholded intensities.
 
-#### Cluster/Phenotype Heatmap
+#### Phenotype/Cluster Heatmap
 
-The heatmap offers a view of the number of each phenotyped cell located within each cluster. The heatmap can be modified using a toggle switch for heatmap normalization, and a selectboxes for Feature and Feature value selection. These widgets have the following properties. It offers three normalization options for viewing the heatmap:
+The heatmap offers a view of the number of each phenotyped cell located within each cluster. The heatmap can be modified using a toggle switch for heatmap normalization. These widgets have the following properties.
 
 `Normalization Toggle`: This toggle switch allows you to change the normalization method applied to the heatmap. The normalization options are as follows:
 
@@ -108,20 +120,20 @@ The heatmap offers a view of the number of each phenotyped cell located within e
 2. Norm within Clusters: The grid values are decimal values of the number of cells within a cluster assigned to a given phenotype. In this schema, the relative color of the grid is based on the within-cluster distribution. The sum of the numbers in each row sum to 1.
 3. Norm within Phenotypes: The grid values are decimal values of the number of cells within a phenotype assigned to a given cluster. In this schema, the relative color of the grid is based on the within-phenotype distribution. The sum of the numbers in each column sum to 1.
 
-`Feature Select Box and Value Select Box`: These select boxes allows you to choose which feature to filter your data by for the heatmap. This can help you focus on specific aspects of the data and display the distribution of cells that match a feature and value pair. The features listed in the Feature select box are any and all Feature columns that are included in your input dataset. The value select box contains all the unique values for the selected Feature. The heatmap that is displayed will use only the cells from your dataset that are the selected Value for the selected Feature. The relative color of the heatmap will be based on the filtered data, not the full dataset.
-
 #### Incidence Figure
 
-The incidence line plot details how the cells within each cluster differ in their expression of the data features recorded alongside the cell positions and marker values. These features range from boolean values (True/False), continuous values (-1, 0, 1), and string values('time0'). There are two selection boxes to augment the indicence line plot, and a radio button to select the type of comparison to perform. They are the following:
+The incidence figure is one way to represent the counts of the cells present in each cluster. In this example I choose the standard form of clustering analysis with 5 clusters. When it is first loaded, it looks like the following (Figure 1):
 
-`Feature Select Box`: Features that can be considered for the Incidence line plot.
+The incidence figure details how the cells within each cluster differ in their expression of the data features recorded alongside the cell positions and marker values. These features range from boolean values (True/False), continuous values (-1, 0, 1), and string values('time0'). There are two selection boxes to augment the indicence figure, and a radio button to select the type of comparison to perform. They are the following:
 
-* Cell Counts: The number of cells assigned to a given cluster
-* HYPOXIC, NORMOXIC, NucArea, RelOrientation, etc: Columns from your dataset by which you want to directly compare TWO conditions. At this time, this works best with Boolean data (True/False), but also works with range data (x>0, x<0). Once a feature is selected, the incidence plot no longer shows a pure count, but instead a comparison of the two conditions within the feature.
+`Feature Select Box`: Features that can be considered for the Incidence figure.
+
+* Cell Counts: The number of cells assigned to a given cluster (Default)
+* Other features from your datasets: Columns from your dataset by which you want to directly compare TWO conditions. At this time, this works best with Boolean data (True/False), but also works with range data (x>0, x<0). Once a feature is selected, the incidence plot no longer shows a pure count, but instead a comparison of the two conditions within the feature.
 
 `Phenotype Select Box`: The phenotype the cells being plotted. The options shown are:
 
-* All Phenotypes: Shows all cells irrespective of phenotype
+* All Phenotypes: Shows all cells irrespective of phenotype (Default)
 * VIM+, ECAD+, VIM+ECAD+, Other, etc...: Shows only the cells that express for the specifically chosen phenotype (created during the Phenotyping stage of the workflow).
 
 `Display-as Radio Button`: How the values of the Feature select box should be displayed. This radio button is disabled for the Cell Counts condition, but is enabled for any other Feature selection. The options to be displayed are:
