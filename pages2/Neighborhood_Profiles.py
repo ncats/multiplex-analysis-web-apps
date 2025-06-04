@@ -813,7 +813,7 @@ def main():
             with nei_sett_col[1]:
                 st.number_input('Y-axis Min', key = 'y_axis_min_main',
                                 value = 0.1, step = 0.01,)
-                st.toggle('Hide "No Cluster" Neighborhood Profile', value = False, key = 'toggle_hide_no_cluster')
+                st.session_state['toggle_hide_no_cluster'] = True
             with nei_sett_col[2]:
                 st.number_input('Y-axis Max', key = 'y_axis_max_main',
                                 value = 10000, step = 10,)
@@ -836,7 +836,7 @@ def main():
         if 'spatial_umap' in st.session_state:
             # List of Clusters to display
             list_clusters = list(st.session_state.spatial_umap.dens_df_mean['clust_label'].unique())
-            if st.session_state['toggle_hide_no_cluster']:
+            if 'No Cluster' in list_clusters:
                 list_clusters.remove('No Cluster')
 
             cluster_sel_col = st.columns([3, 1])
