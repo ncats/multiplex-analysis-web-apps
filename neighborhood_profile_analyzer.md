@@ -144,8 +144,44 @@ The incidence figure details how the cells within each cluster differ in their e
 * All Phenotypes: Shows all cells irrespective of phenotype (Default)
 * VIM+, ECAD+, VIM+ECAD+, Other, etc...: Shows only the cells that express for the specifically chosen phenotype (created during the Phenotyping stage of the workflow).
 
-`Display-as Radio Button`: How the values of the Feature select box should be displayed. This radio button is disabled for the Cell Counts condition, but is enabled for any other Feature selection. The options to be displayed are:
+`Display-as Radio Button`: How the values of the Feature select box should be displayed. This radio button is disabled for the Cell Counts condition, but is enabled for any other Feature selection. For each of the options shown below, there are equations detailing how the values for each condition are calculated. For equations 1-4, *d* represents the full datasets, and the *Condition* is the Feature and Value combinaton being condisdered. Each equation is also considered at each cluster in the dataset. Therefore when a feature is selected, the dataset will be split as follows
 
-* Count Differences: The value shown on the y-axis is the difference between the number of cells in a cluster in the Y>0 condition subtracted from the number of cells in that cluster in the Y<0 condition.
-* Percentages: The value shown on the y-axis is the percentage of cells that match a feature condition in that given cluster. The Sum of the values across a given cluster would be to 100%.
+$$
+\begin{aligned}
+d_{\text{cond0}} = d \subset Condition0 \quad\quad\quad \text{Equation 1a}\\
+d_{\text{cond1}} = d \subset Condition1 \quad\quad\quad \text{Equation 1b}\\
+\end{aligned}
+$$
+
+The options to be displayed are:
+
+* Count Differences: The value shown on the y-axis is the difference between the quantity of cells in a cluster in the Y>0 condition subtracted from the quantity of cells in that cluster in the Y<0 condition.
+
+$$
+\begin{aligned}
+d\_count_{\text{cond0}} &= |d_{\text{cond0}}| \hspace{4.5cm} \text{Equation 2a} \\
+d\_count_{\text{cond1}} &= |d_{\text{cond1}}| \hspace{4.5cm} \text{Equation 2b} \\
+d\_difference &= d\_count_{\text{cond1}} - d\_count_{\text{cond0}} \hspace{1.35cm} \text{Equation 2c}
+\end{aligned}
+$$
+
+* Percentages: The value shown on the y-axis is the percentage of cells that match a feature condition in that given cluster. The sum of the values across a given cluster would be to 100%.
+
+$$
+\begin{aligned}
+
+\end{aligned}
+$$
+
 * Ratios: The value shown on the y-axis is the ratio of r1/r0 where r1 is the percentage of cells that match the feature of condition shown on y>0 in that cluster, and r0 is the percentage of cells that match the feature of the condition show on y<0 in that cluster.
+
+`Show Raw Counts Toggle`: This toggle switch is enabled for any Feature selection other than Cell Counts. When a feature is selected from the `Feature Select Box`, one of the three Display-As analyses are performed to show a line plot of the Incidence for that feature across clusters. This line plot is a very simply comparison of two numbers, and it can hide the magnitude of the raw cell counts. By turning this toggle to true, a bar plot is overlayed 
+
+#### Example workflow for Incidence Figure
+There are two drop-down menus for Feature and Phenotype, the defaults of which are Cell Counts and All Phenotypes respectively. Below the drop-down tables is a set of radio buttons, which in the default state are disabled. Following these widgets is the line graph. On the line graph, the specific clusters are measured on the horizontal axis. The vertical axis is the incidence being described. In its default state (Cell Counts), the bar plot shows the number of cells present in each cluster, irrespective of phenotype. To be specific, these are the counts of cells that were clustered. The clustered cells are not always your full dataset; it depends on how you perform the UMAP step before the clustering. See the Neighborhood Profiles Settings section for how to sample your data for UMAP. In this example, we sampled about ~7300 total cells. This bar plot, shows the distribution of where those 7300 cells fall in each cluster.
+
+!['Cell Counts by Cluster'](./assets/images/clust_analyzer_inci_fig1.png)
+
+It looks like Cluster 3 had least number of cells, and Cluster 5 had the most. At its core, this is the starting point for using this figure. Here we can begin to understand the presence of cells within each cluster. We can next start to drill down into the data a bit further and look at how cells of a specific phenotype are represented in each cluster. For example, to investigate how CD45RO+ HistoneH3+ is represented in each cluster, you can select that phenotype from the right menu and the figure will adjust to look something like Figure 2. Here the scale is much smaller, and that the bar plot distribution changes. This is now a subset of the data sen in the previous figure, only CD45RO+ HistoneH3+ cells are shown instead of all cells. It also appears that the great majority of CD45RO+ HistoneH3+ cells are found in Cluster 3 and not many at all in the other clusters.
+
+!['CD45RO+ HistoneH3+ Cell Counts by Cluster'](./assets/images/clust_analyzer_inci_fig2.png)
