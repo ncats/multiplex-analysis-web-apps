@@ -70,16 +70,16 @@ def init_spatial_umap():
 
     st.session_state.bc.startTimer()
     with st.spinner('Calculating Cell Counts and Areas', show_time=True):
-        st.session_state.spatial_umap = bpl.setup_Spatial_UMAP(st.session_state.df,
-                                                               st.session_state.marker_multi_sel,
-                                                               st.session_state.phenoOrder,
-                                                               st.session_state.datafile_min_img_size)
+        st.session_state.spatial_umap = bpl.setup_Spatial_UMAP(df = st.session_state.df,
+                                                               marker_names = st.session_state.marker_multi_sel,
+                                                               pheno_order = st.session_state.phenoOrder,
+                                                               smallest_image_size = st.session_state.datafile_min_img_size)
 
         st.session_state.spatial_umap = bpl.perform_density_calc(st.session_state.spatial_umap,
                                                                  st.session_state.bc,
                                                                  st.session_state.calc_unique_areas_toggle,
                                                                  st.session_state.cpu_pool_size,
-                                                                 area_filter)
+                                                                 area_threshold = area_filter)
 
         # Record time elapsed
         st.session_state.bc.set_value_df('time_to_run_counts', st.session_state.bc.elapsedTime())
@@ -254,6 +254,9 @@ def set_clusters():
                                                                 n_clusters = st.session_state.slider_clus_val,
                                                                 clust_minmax = st.session_state.clust_minmax,
                                                                 cpu_pool_size = 3)
+            
+            st.session_state.spatial_umap.mean_measures()
+            st.session_state.bc.printElapsedTime('Performing Mean Measures', split = True)
 
             st.session_state.appro_feat = True
             st.session_state.cluster_completed_diff = False
@@ -311,6 +314,15 @@ def check_feature_approval_callback():
         st.session_state.clus_diff_vals_true = options_true
         st.session_state.feature_value_fals = options_fals[0]
         st.session_state.feature_value_true = options_true[0]
+
+def post_cluster_cleanup():
+    '''
+    mean_measures() calculation and variable setting
+    '''
+
+    st.session_state.spatial_umap.mean_measures()
+    st.session_state.bc.printElapsedTime('Performing Mean Measures', split = True)
+
 
 def slide_id_prog_left_callback():
     '''
