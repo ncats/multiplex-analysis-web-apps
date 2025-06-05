@@ -4,15 +4,21 @@
 
 ## Welcome
 
-Welcome to the Multiple Analysis Web Apps (MAWA) presented by NCATS-NCI-DMAP. This is your one stop resource for data exploration, algorithm tuning, and figure generation. The below is a guide to using this app with suggested workflow, step-by-step instructions, and FAQs
+Welcome to the Multiple Analysis Web Apps (MAWA) presented by NCATS-NCI-DMAP. This is your one stop resource for data exploration, algorithm tuning, and figure generation. The below is a guide to using this app with suggested workflows, step-by-step instructions, and FAQs.
 
-## Available Apps
+## MAWA Sections
 
-1. File Handling
-1. Multiaxial Gating
-1. Phenotyping
-1. Spatial Interaction Tool
-1. Neighborhood Profiles
+- [File Handling](#1-file-handling)  
+- [Coordinate Scatter Plot](#2-coordinate-scatter-plot)  
+- [Phenotyping](#3-phenotyping)  
+- [Phenotype Clustering Workflow](#4-phenotype-clustering-workflow)  
+- [Spatial Interaction Tool](#5-spatial-interaction-tool)  
+- [Neighborhood Profiles Workflow](#6-neighborhood-profiles-workflow)
+    - [Neighborhood Profiles](#6a-neighborhood-profiles)
+    - [UMAP Differences Analyzer](#6b-umap-differences-analyzer)
+    - [Clusters Analyzer](#6c-clusters-analyzer)
+- [Radial Profiles](#7-radial-profiles)  
+- [Utilities](#8-utilities)
 
 ### 1. File Handling
 
@@ -48,7 +54,7 @@ NIDAP manages files using a product called Compass. Compass is akin to other fil
 2. Go ahead and click the button below that reads: **Load the selected input dataset**. This may take a moment to complete (~1min). When it has you will see a sample of the dataset. Feel free to review it.  
 3. If in the future, you have loaded a previously created mawa-unified dataset, once it is loaded into MAWA memory, you can move directly to this screen and load it using the drop down select box.  
 
-### 2. Multiaxial Gating
+### 2. Coordinate Scatter Plot
 
 ### 3. Phenotyping
 
@@ -60,11 +66,15 @@ The second page to start your analysis pipeline is the phenotyping page. This is
     `Markers`: The phenotype is set as one of the given Marker that the cell is positive for. If the cell is positive for more than one Marker, the cell entry in the dataset is duplicated and represented by each positive marker value being studied.
     `Custom`: The phenotype is set as a value of your own choise. Once the Custom phenotyping is selected, the Phenotype Summary Table on the right side of the page becomes editable.
 
-### 4. Spatial Interaction Tool
+### 4. Phenotype Clustering Workflow
 
-### 5. Neighborhood Profiles (UMAP) Workflow
+### 5. Spatial Interaction Tool
 
-#### 5A. Neighborhood Profiles
+### 6. Neighborhood Profiles Workflow
+
+Neighborhood Profiles identifies the types of cells that often cluster with one another, and find patterns of these types of clusterings occurring more often in certain tissue types or health-conditions. This goal of these analyses is to help identify the specific neighborhoods present in a given dataset, and characterize their makeup based on the phenotypes present.
+
+#### 6A. Neighborhood Profiles
 
 1. Expand the collapsed container labeled: *Neighborhood Profiles Settings*. In this container make sure that `Number of CPUs` is set to 7 and `Calculate unique areas` is set to OFF. For the middle number boxes, set Percentage of cells to Subset for Fitting Step equal to 50 and Percentage of cells to Subset for Transforming Step equal to 50. Make sure the toggle titled Subset data transformed by UMAP is ON, and the toggle titled Load pre-generated UMAP is set to OFF.
 
@@ -75,7 +85,7 @@ The second page to start your analysis pipeline is the phenotyping page. This is
     2. Perform Clustering on UMAP Density Difference = ON:  This will allow you to perform individual clustering steps on regions of the UMAP which include cells of a specific feature condition. For example, how do differences between large nuclei and small nuclei cell contribute to the distribution of the UMAP? Select a column from the dropdown select box that is a numeric value (like area) or has exactly two unique values (For example: TRUE/FALSE). If you attempt to choose a categorical or string feature that has only 1 unique value or more than 2 unique values, you cannot perform the difference UMAP clustering. Choose any number of clusters for the FALSE and TRUE clustering to start off. For now, ignore the box titled: `Cutoff Percentage`. Rerun the clustering by hitting the box titled Perform Clustering Analysis. Once it has completed, elbow plots will appear under the cluster values for your investigation. You will also see many figures appear as well. Anytime you want to adjust the column being observed, or the number of clusters to use, you will need to resubmit the Perform Clustering Analysis button. This should be completed in roughly 3 min (we are working to improve the timing).
 5. Once clustering is complete peruse the figures, as well as moving on to sections of Neighborhood Profiles//UMAP Differences and Neighborhood Profiles//Clusters Analyzer.
 
-#### 5b. UMAP Differences Analyzer
+#### 6b. UMAP Differences Analyzer
 
 After completing the UMAP decomposition and clustering analysis, the user may now take a look at the down-stream figures generated as a result of these analyses. While there are not many levers and knobs to change the data implicitly here, the user can generate different figures.
 
@@ -85,7 +95,7 @@ After completing the UMAP decomposition and clustering analysis, the user may no
     2. 2D UMAP filtered by lineage and features
     3. Different UMAP scaled by features
 
-#### 5c. Clusters Analyzer
+#### 6c. Clusters Analyzer
 
 After completing the UMAP decomposition and clustering analysis, the user may now take a look at the down-stream figures generated as a result of these analyses. The Cluster Analyzer page contains two figures generated from the upstream data analysis:
 
@@ -102,22 +112,37 @@ The heatmap offers a view of the number of each phenotyped cell located within e
 2. `Norm within Clusters`: The grid values are decimal values of the number of cells within a cluster assigned to a given phenotype. In this schema, the relative color of the grid is based on the within- 
 3. `Norm within Phenotypes`: The grid values are decimal values
 
-#### Incidence Lineplot
+#### Incidence Figure
 
-The incidence lineplot details how the cells within each cluster differ in their expression of the data features recorded alongside the cell positions and marker values. These features range from boolean values (True/False), continuous values (-1, 0, 1), and string values('time0'). There are two selection boxes to augment the indicence line plot, and a radio button to select the type of comparison to perform. They are the following:
+The incidence figure is one way to represent the counts of the cells present in each cluster. In this example I choose the standard form of clustering analysis with 5 clusters. When it is first loaded, it looks like the following (Figure 1):
 
-`Feature Selectbox`: Features that can be considered for the Incidence lineplot.
+The incidence figure details how the cells within each cluster differ in their expression of the data features recorded alongside the cell positions and marker values. These features range from boolean values (True/False), continuous values (-1, 0, 1), and string values('time0'). There are two selection boxes to augment the indicence figure, and a radio button to select the type of comparison to perform. They are the following:
 
-- Cell Counts: The number of cells assigned to a given cluster
-- HYPOXIC, NORMOXIC, NucArea, RelOrientation, etc: Any other feature that specified to Dante/Andrew as one that is worth showing. YOU MUST tell us which ones you want and we will set it up for you.
+`Feature Select Box`: Features that can be considered for the Incidence figure.
 
-`Phenotype Selectionbox`: The phenotype the cells being plotted. The options shown are:
+* Cell Counts: The number of cells assigned to a given cluster (Default)
+* Other features from your datasets: Columns from your dataset by which you want to directly compare TWO conditions. At this time, this works best with Boolean data (True/False), but also works with range data (x>0, x<0). Once a feature is selected, the incidence plot no longer shows a pure count, but instead a comparison of the two conditions within the feature.
 
-- All Phenotypes: Shows all cells irrespective of phenotype
-- VIM+, ECAD+, VIM+ECAD+, Other, etc...: The other phenotypes that have been selected in the Phenotyping stage of the workflow.
+`Phenotype Select Box`: The phenotype the cells being plotted. The options shown are:
 
-`DisplayAs Radio Button`: How the values of the Feature selectbox should be displayed. This radio button is disabled for the Cell Counts condition, but is enabled for any other Feature selection. The options to be displayed are:
+* All Phenotypes: Shows all cells irrespective of phenotype (Default)
+* VIM+, ECAD+, VIM+ECAD+, Other, etc...: Shows only the cells that express for the specifically chosen phenotype (created during the Phenotyping stage of the workflow).
+
+`Display-as Radio Button`: How the values of the Feature select box should be displayed. This radio button is disabled for the Cell Counts condition, but is enabled for any other Feature selection. For each of the options shown below, there are equations detailing how the values for each condition are calculated. For equations 1-4, *d* represents the full datasets, and the *Condition* is the Feature and Value combinaton being condisdered. Each equation is also considered at each cluster in the dataset. Therefore when a feature is selected, the dataset will be split as follows
+
+$$
+\begin{aligned}
+d_{\text{cond0}} = d \subset Condition0 \quad\quad\quad \text{Equation 1a}\\
+d_{\text{cond1}} = d \subset Condition1 \quad\quad\quad \text{Equation 1b}\\
+\end{aligned}
+$$
+
+The options to be displayed are:
 
 - Count Differences: The value shown on the y-axis is the difference between the number of cells in a cluster in the Y>0 condition subtracted from the number of cells in that cluster in the Y<0 condition.
 - Percentages: The value shown on the y-axis is the percentage of cells that match a feature condition in that given cluster. If you were to sum all the values across the clusters, they would sum to 100%.  
 - Ratios: The value shown on the y-axis is the ratio of r1/r0 where r1 is the precentage of cells that match the feature of condition shown on y>0 in that cluster, and r0 is the percentage of cells that match the feature of the condition show on y<0 in that cluster.
+
+### 7. Radial Profiles
+
+### 8. Utilities
