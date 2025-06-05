@@ -73,7 +73,25 @@ The bottom figure panels are labeled
 
 #### Instructions - UMAP Density Difference Neighborhood Profiles
 
-The UMAP Density Difference Neighborhood Profiles
+The UMAP Density Difference Neighborhood Profiles is alternative way to perform your Neighborhood Profiles analysis. The steps 1-4 from the Standard method are the same as this method. The difference comes when you being clustering. Instead of applying the clustering algoirthm to the full dataset, the clustering is applied separately to parts of the dataset that meet a specific feature condition.
+
+5. After finishing the UMAP Analysis, and before the clustering, you will need to select the toggle in the Clustering Settings to enable the Density Difference mode. Once on, the settings window will display additional options for configuring the clustering analysis.
+
+!['Clustering Settings1'](./assets/images/NeiPro_dd_clustersettings1.png)
+
+!['Clustering Settings2'](./assets/images/NeiPro_dd_clustersettings2.png)
+
+6. Select a Feature to split the data on using the first drop down list in the Clustering Settings panel. This list will include all Features of your dataset. After you select a Feature, you will see the values drop-boxes changes to match the values that can be found in that Feature. However, not all features are appropriate for splitting your data into two halves. For this reason, a few checks are performed to verify the feature can be split. Any chosen Feature that has two and only two unique values are easily split along this binary. You will notice that the Values dropdown will default to those two values. If the values are numerical and there are over 15 unique values, the algorithm assumes its a continuous value and will split the data at the median value. If the values are numerical and there are between 2 and 15 unique values, then the algorithm will assume some sort of categorical variable, and will allow you to choose which two variables to use. If the feature has less than two unique values, or if it is a category or object type, then the algorithm will not be able to split the data and will warn you that this is not an appropriate feature for splitting.
+
+7. Select the number of clusters you want to use for each of the split datasets. This will determine how many clusters the k-means algorithm will create for each subset of the data. This might be a value that you tweak and adjust as needed.
+
+8. Click the button to *Perform Clustering Analysis*. This step is the slowest, and depending on the number of cells in your datasets, could take over 3 min to run. When its complete, the user should see be able to see a number of UMAP figures appear to the right of the analysis buttons
+
+!['Clustering Split UMAPs'](./assets/images/NeiPro_dd_UMAPS.png)
+
+#### UMAP Density Difference Neighborhood Profiles Interpretation
+
+Looking at the above figure there is a lot to take in. The UMAP plots show the distribution of cell neighborhoods based on their phenotypic profile. The top figure is the completed UMAP of the full dataset before splitting. The middle left and middle right UMAPS are the data subsets from the Feature select in step 6 above. By subtracting the data in the middle right figure from the data in the middle left figure, you achieve a visualization of the differences in neighborhood profiles between the two subsets; the figure the middle of the figure grouping.
 
 ### UMAP Differences
 
