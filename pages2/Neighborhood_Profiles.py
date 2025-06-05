@@ -272,6 +272,18 @@ def set_clusters():
     st.session_state.bc.printElapsedTime(msg = 'Setting Clusters')
     st.session_state.bc.set_value_df('time_to_run_cluster', st.session_state.bc.elapsedTime())
 
+
+    # List of Clusters to display
+    st.session_state.list_clusters = list(st.session_state.cluster_dict.values())
+    if 'No Cluster' in st.session_state.list_clusters:
+        st.session_state.list_clusters.remove('No Cluster')
+
+    st.session_state['sel_npf_fig'] = st.session_state.list_clusters[0]
+    if st.session_state['toggle_compare_clusters']:
+        st.session_state['sel_npf_fig2'] = st.session_state.list_clusters[1]
+    else:
+        st.session_state['sel_npf_fig2'] = None
+
     st.session_state.cluster_completed = True
 
     filter_and_plot()
@@ -832,30 +844,26 @@ def main():
             #         st.selectbox('Value', options = unique_values, key='NeiPro_filter_value')
 
 
-        # If the spatial-umap is completed...
-        if 'spatial_umap' in st.session_state:
-            # List of Clusters to display
-            list_clusters = list(st.session_state.spatial_umap.dens_df_mean['clust_label'].unique())
-            if 'No Cluster' in list_clusters:
-                list_clusters.remove('No Cluster')
+        cluster_sel_col = st.columns([3, 1])
+        # Compare Clusters Toggle
+        with cluster_sel_col[1]:
+            add_vertical_space(2)
+            st.toggle('Compare Cluster Neighborhoods', value = False, key = 'toggle_compare_clusters')
+            if st.session_state['toggle_compare_clusters']:
+                st.radio('Compare as:', ('Ratio', 'Difference'), index = 0, key = 'compare_clusters_as', horizontal=True)
 
-            cluster_sel_col = st.columns([3, 1])
-            # Compare Clusters Toggle
-            with cluster_sel_col[1]:
-                add_vertical_space(2)
-                st.toggle('Compare Cluster Neighborhoods', value = False, key = 'toggle_compare_clusters')
-                if st.session_state['toggle_compare_clusters']:
-                    st.radio('Compare as:', ('Ratio', 'Difference'), index = 0, key = 'compare_clusters_as', horizontal=True)
+        # If the spatial-umap is completed...
+        if st.session_state.cluster_completed:
 
             # Cluster Select Widgets
             with cluster_sel_col[0]:
-                st.selectbox('Select a cluster to view', list_clusters, key='sel_npf_fig')
+                st.selectbox('Select a cluster to view', st.session_state.list_clusters, key='sel_npf_fig')
                 if st.session_state['toggle_compare_clusters']:
-                    st.selectbox('Select a cluster to compare', list_clusters, key='sel_npf_fig2')
+                    st.selectbox('Select a cluster to compare', st.session_state.list_clusters, key='sel_npf_fig2')
                 else:
                     st.session_state['sel_npf_fig2'] = None
 
-            if st.session_state.cluster_completed and st.session_state.appro_feat:
+            if st.session_state.appro_feat:
 
                 # Draw the Neighborhood Profile
                 npf_fig, ax = bpl.draw_scatter_fig(figsize=(14, 16))
