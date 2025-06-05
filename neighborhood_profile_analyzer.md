@@ -41,7 +41,7 @@ The bottom figure panels are labeled
 * Clusters Plot
 * Neighborhood Profiles
 
-#### Instructions for Use
+#### Instructions - Standard Neighborhood Profiles
 
 1. Start by checking the message text that can be seen in the middle of the screen. If you have not completed the previous phenotyping step, this message will appear as the following.
 
@@ -51,25 +51,29 @@ The bottom figure panels are labeled
 
 !['Neighborhood Profiles Step 1'](./assets/images/NeiPro_Step1.png)
 
-3. Begin the Cell Counts/Area Analysis by clicking the button at the top of the page. This process will take varying amounts on time depending on the size of your dataset, the size of your images, and the number of phenotypes you have selected in the phenotyping step. For a dataset of 48k cells, and 8 phenotypes, this process takes approximately 5min. When this step has completed correctly, you will see a message in the middle of the screen that reads as the following:
+3. Begin the cell density analysis by clicking the button *Perform Cell Density Analysis*. This process will take varying amounts on time depending on the size of your dataset, the size of your images, and the number of phenotypes you have selected in the phenotyping step. For a dataset of 48k cells, and 8 phenotypes, this process takes approximately 1 min. When this step has completed correctly, you will see a message in the middle of the screen that reads as the following:
 
 !['Neighborhood Profiles Step 2'](./assets/images/NeiPro_Step2.png)
 
-4. Next, begin the UMAP Analysis by clicking the button at the top of the page. Running the UMAP decomposition will take varying amounts on time depending on the size of your dataset, the size of your images, and the number of phenotypes you have selected in the phenotyping step. For a dataset of 48k cells, and 8 phenotypes, this process takes approximately 1 min. When this step has completed correctly, you will see a message in the middle of the screen that reads as the following:
+4. Next, begin the UMAP Analysis by clicking the button *Perform UMAP Analysis*. Running the UMAP decomposition will take varying amounts on time depending on the size of your dataset, the size of your images, and the number of phenotypes you have selected in the phenotyping step. For a dataset of 48k cells, and 8 phenotypes, this process takes approximately 1 min. When this step has completed correctly, you will see a message in the middle of the screen that reads as the following:
 
 !['Neighborhood Profiles Step 3'](./assets/images/NeiPro_Step3.png)
 
-5. Finally, we can begin the process of clustering the results of the UMAP. At the lower part of the analysis section, select a number of clusters to use for the k-means clustering algorithm. Once a number is selected, click on the button to *Perform Clustering Analysis*. This step is the fastest, and depending on the number of cells in your datasets, this should take under 1 min to run. When its complete, the user should see be able to see the scatter below populated and colored by cluster, and the Neighborhood Profiles line plots populated and drawn for the phenotypes included in each cluster.
+5. Finally, begin the process of clustering the results of the UMAP. At the lower part of the analysis section, select a number of clusters to use for the k-means clustering algorithm. Once a number is selected, click on the button to *Perform Clustering Analysis*. This step is the slowest, and depending on the number of cells in your datasets, could take over 1 min to run. When its complete, the user should see be able to see the scatter below populated and colored by cluster, and the Neighborhood Profiles line plots populated and drawn for the phenotypes included in each cluster.
 
 6. In the clusters figure, observe that any time you can swap back and forth between plot the colors of the scatter plot by the Cluster label or by the Phenotype label. You can also progress through all the images that are included in your dataset and see how the clusters have partitioned individual tissues samples
 
 !['Neighborhood Profiles Clusters Plot'](./assets/images/NeiPro_ClustersPlot.png)
 
-7. In the Neighborhood Profiles Line plot, the user can observe the make up (profiles) of each of the clusters (neighborhoods) created by the K-means clustering algorithm. These line plots show the density measurement of the number of cells for a given phenotype (counts /mm2) within different annuli surrounding the cells of that given cluster. The user can swap between different clusters by selecting them from the drop down menu. All figures are scaled to fit on the same axes, and as such any one phenotype from any one cluster might contribute more to the overall scale of these line plots. As is often case, there are many cells (often the majority) that are assigned to the 'Other' phenotype. When this other category dwarfs the other phenotypes, it might be helpful to hide the 'Other' phenotype from the figure. This can be done in the Options menu seen in the second image below. This action can be similarly done for the 'No Cluster' cluster if that has been created in your workflow. As you test differences in your UMAP results as a factor of the k-means cluster size, your Neighborhood Profiles line plots will change, giving the user an opportunity to tune and test their assumptions of the data.
+7. In the Neighborhood Profiles Line plot, the user can observe the make up (profiles) of each of the clusters (neighborhoods) created by the K-means clustering algorithm. These line plots show the density measurement of the number of cells for a given phenotype (counts /mm2) within different annuli surrounding the cells of that given cluster. The user can swap between different clusters by selecting them from the drop down menu. All figures are scaled to fit on the same axes, and as such any one phenotype from any one cluster might contribute more to the overall scale of these line plots. As is often case, there are many cells (often the majority) that are assigned to the 'Other' phenotype. When this other category dwarfs the other phenotypes, it might be helpful to hide the 'Other' phenotype from the figure. This can be done in the Options menu seen in the second image below. As you test differences in your UMAP results as a factor of the k-means cluster size, your Neighborhood Profiles line plots will change, giving the user an opportunity to tune and test their assumptions of the data.
 
 !['Neighborhood Profiles Line Plot'](./assets/images/NeiPro_NeighPlot.png)
 
 !['Neighborhood Profiles Line Plot Options'](./assets/images/NeiPro_NeighPlot_options.png)
+
+#### Instructions - UMAP Density Difference Neighborhood Profiles
+
+The UMAP Density Difference Neighborhood Profiles
 
 ### UMAP Differences
 
@@ -192,7 +196,7 @@ Now this first example focuses on pure Cell Counts and does not consider specifi
 
 If the selected Feature contains exactly two unique values, then the dataset will be evenly split between the values, and the figure will look similar to Figure 3. If the feature column contains has more than 2 unique values and the values are numerical, then the median value of the range will be found, and the data will be split evenly around the median. If the feature column only has 1 or fewer unique values, or if the data has more than 2 unique values and is a string value, MAWA will tell the user that the data cannot be easily split and comparison on this Feature is innapropriate.
 
-Once the feature is split into two parts, the figure will display differences between the parts. To that end, the first dataset of the feature will be drawn to the top of the figure (Upper, above the horizontal axis), and the second half will be drawn to the bottom of the figure (Lower, below the horizontal axis). 
+Once the feature is split into two parts, the figure will display differences between the parts. To that end, the first dataset of the feature will be drawn to the top of the figure (Upper, above the horizontal axis), and the second half will be drawn to the bottom of the figure (Lower, below the horizontal axis).
 
 When the first radio button is selected, the figure draws the visualization as *Counts Differences*. This line graph is the difference of the quantiy of cells that match the Upper condition subtracted from the quantity of cells that match the Lower condition (Eq 1). For a given cluster, if the drawn line falls above the horizontal axis, then there are more values in the Upper condition than there are in the Lower condition, and vice versa. As you might expect, you can drill down further into the data by selecting different Phenotype subsets in combination with the Feature selection.
 
