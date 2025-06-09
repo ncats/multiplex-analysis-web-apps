@@ -775,7 +775,9 @@ def main():
     # Scatterplot Figure Column
     with viz_cols[0]:
         # Print a column header
-        st.header('Clusters Plot')
+        st.header('Clusters Figure')
+
+        filter_and_plot()
 
         # Plot Colors by Clusters or Phenotype
         clust_or_pheno = st.radio('Plot Colors by: ',
