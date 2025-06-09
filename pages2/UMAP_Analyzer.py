@@ -17,6 +17,11 @@ def main():
     Main function for running the page
     '''
 
+    if 'def_lineage_opt' not in st.session_state:
+        st.session_state.def_lineage_opt = 'All Phenotypes'
+        st.session_state.session_state.def_umap_feature = 'phenotype'
+        st.session_state.def_inci_feature = 'Cell Counts'
+
     # Make a generic check to avoid neeeding to hunt down individual checks
     rdy_to_plot = st.session_state.cluster_completed
 
