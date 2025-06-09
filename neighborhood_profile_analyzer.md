@@ -18,7 +18,7 @@ The Neighborhood Profiles Workflow can be used once your data has been properly 
 
 ### Neighborhood Profiles
 
-!['Neighborhood Profiles Home'](./assets/images/NeiPro_Home.png)
+!['Neighborhood Profiles Home'](./assets/images/NeiPro_home.png)
 
 This page is the starting point for running the Neighborhood Profiles. On the top of this page you will see options for running each step of the analysis. At the bottom of the page are placeholder spaces for two figures.
 
