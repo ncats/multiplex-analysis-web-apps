@@ -457,15 +457,16 @@ def scatter_plot(df, fig, ax, figTitle, xVar, yVar, hueVar, hueOrder, xLim = Non
 
     if xVar == 'Cell X Position':
         ax.set_title(plot_title, fontsize = 14, color = slc_text, ha='left', x=x, wrap=True)
-        ax.set_xlabel('Centroid X ('r'$\mu m)$', fontsize = 14, color = slc_text)
-        ax.set_ylabel('Centroid Y ('r'$\mu m)$', fontsize = 14, color = slc_text)
+        ax.set_xlabel(r'Centroid X ($\mu m)$', fontsize = 14, color = slc_text)
+        ax.set_ylabel(r'Centroid Y ($\mu m)$', fontsize = 14, color = slc_text)
         ax.set_aspect(1)       # Set the Aspect Ratio
     else:
         ax.set_xlabel('')
         ax.set_ylabel('')
 
     if boxoff:
-        [ax.spines[sp].set_visible(False) for sp in ax.spines]
+        for sp in ax.spines:
+            ax.spines[sp].set_visible(False)
         ax.set(xticks=[], yticks=[])
 
     if xLim is not None:
