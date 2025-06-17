@@ -24,6 +24,13 @@ def main():
     Main function for running the page
     '''
 
+    if 'def_lineage_opt' not in st.session_state:
+        st.session_state.def_lineage_opt = 'All Phenotypes'
+    if 'def_umap_feature' not in st.session_state:
+        st.session_state.def_umap_feature = 'phenotype'
+    if 'def_inci_feature' not in st.session_state:
+        st.session_state.def_inci_feature = 'Cell Counts'
+
     st.radio("Filter by Phenotypes or Markers?",
              ['Phenotypes', 'Markers'],
              key = 'lineageDisplayToggle_clus',
