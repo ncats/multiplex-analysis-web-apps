@@ -554,6 +554,9 @@ def main():
     Main function for running the page
     '''
 
+    if 'list_clusters' not in st.session_state:
+        st.session_state.list_clusters = list(st.session_state.cluster_dict.values())
+
     nei_pro_tabs = st.tabs(['Analyze from Phenotyping', 'Load Previous Analysis'])
     with nei_pro_tabs[0]:
 
