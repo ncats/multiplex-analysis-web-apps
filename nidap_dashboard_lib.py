@@ -314,6 +314,8 @@ def set_phenotyping_elements(session_state, df_orig):
     session_state.spec_summ, \
     session_state.pheno_summ = bpl.preprocess_df(df_orig, session_state.marker_names, session_state.marker_pre, session_state.bc)
 
+    session_state.phenoOrder = list(session_state.pheno_summ.loc[session_state.pheno_summ['phenotype_count'].index, 'phenotype'])
+
     # Initalize Custom Phenotyping Variables
     session_state.spec_summ_load       = session_state.spec_summ # Default version that is loaded
     session_state.spec_summ_dataeditor = session_state.spec_summ # Default version that is used for custom phenotyping table
@@ -365,6 +367,8 @@ def updatePhenotyping(session_state):
 
     # Create Phenotypes Summary Table based on 'phenotype' column in df
     session_state.pheno_summ = bpl.init_pheno_summ(session_state.df)
+
+    session_state.phenoOrder = list(session_state.pheno_summ.loc[session_state.pheno_summ['phenotype_count'].index, 'phenotype'])
 
     # Filtered dataset
     df_plot = perform_filtering(session_state)
@@ -523,8 +527,6 @@ def set_figure_objs(session_state, df_plot, slider_val = None):
              f'PHENO METHOD: {session_state.selected_phenoMeth}',
              f'SLIDE ID: {session_state["selSlide ID_short"]}']
 
-    session_state.phenoOrder = list(session_state.pheno_summ.loc[session_state.pheno_summ['phenotype_count'].index, 'phenotype'])
-
     # num_points
     targ_cell_count = 150000
 
@@ -558,9 +560,6 @@ def set_figure_objs(session_state, df_plot, slider_val = None):
     session_state.phenoFig = bpl.scatter_plot(df_plot, session_state.phenoFig, session_state.ax, title,
                                               xVar = 'Cell X Position', yVar = 'Cell Y Position', hueVar='phenotype',
                                               hueOrder=session_state.phenoOrder)
-
-    # Altair
-    # session_state.chart = drawAltairObj(df_plot, title, session_state.phenoOrder, session_state.phenoFig, session_state.ax)
 
     return session_state
 

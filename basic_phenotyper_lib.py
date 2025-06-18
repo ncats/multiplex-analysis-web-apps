@@ -175,14 +175,17 @@ def init_pheno_assign(df):
     return spec_summ
 
 def init_pheno_summ(df):
-    """For each unique species (elsewhere called "exclusive" phenotyping), generate information concerning their prevalence in a new dataframe.
+    '''For each unique species (elsewhere called "exclusive" phenotyping),
+    generate information concerning their prevalence in a new dataframe.
 
     Args:
-        df (Pandas dataframe): Dataframe containing data from the input dataset, including a "mark_bits" column
+        df (Pandas dataframe): Dataframe containing data from the input dataset,
+                                including a "mark_bits" column
 
     Returns:
-        assign_pheno (Pandas dataframe): Dataframe containing the value counts of each "exclusive" species
-    """
+        assign_pheno (Pandas dataframe): Dataframe containing the value counts of
+                                        each "exclusive" species
+    '''
 
     assign_pheno = df[['phenotype', 'species_name_short', 'species_name_long']].groupby(by='phenotype', as_index = False).agg(lambda x: np.unique(list(x)))
 
