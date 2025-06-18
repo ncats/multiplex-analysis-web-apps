@@ -134,7 +134,6 @@ def apply_umap(umap_style):
     st.session_state.inciOutcomes.extend(st.session_state.outcomes)
 
     # creates the df_umap dataframe for plotting
-    # creates the df_umap dataframe for plotting
     st.session_state.spatial_umap.prepare_df_umap_plotting(st.session_state.outcomes)
 
     st.session_state.wcss_calc_completed = True
@@ -146,12 +145,6 @@ def apply_umap(umap_style):
     # Create Full UMAP example
     st.session_state.udp_full = UMAPDensityProcessing(st.session_state.npf, st.session_state.spatial_umap.df_umap)
     st.session_state.UMAPFig = st.session_state.udp_full.UMAPdraw_density()
-
-    # Plot results
-    filter_and_plot()
-
-    # Save checkpoint for Neighborhood Profile structure
-    # save_neipro_struct()
 
 def set_clusters():
     '''
@@ -286,8 +279,6 @@ def set_clusters():
 
     st.session_state.cluster_completed = True
 
-    filter_and_plot()
-
 def check_feature_approval_callback():
     '''
     Simple callback to test the current value of 
@@ -335,7 +326,6 @@ def post_cluster_cleanup():
     st.session_state.spatial_umap.mean_measures()
     st.session_state.bc.printElapsedTime('Performing Mean Measures', split = True)
 
-
 def slide_id_prog_left_callback():
     '''
     callback function when the left Cell_ID progression button is clicked
@@ -344,7 +334,6 @@ def slide_id_prog_left_callback():
         st.session_state['idxSlide ID'] -=1
         st.session_state['selSlide ID'] = st.session_state['uniSlide ID'][st.session_state['idxSlide ID']]
         st.session_state['selSlide ID_short'] = st.session_state['uniSlide ID_short'][st.session_state['idxSlide ID']]
-        filter_and_plot()
 
 def slide_id_prog_right_callback():
     '''
@@ -354,7 +343,6 @@ def slide_id_prog_right_callback():
         st.session_state['idxSlide ID'] +=1
         st.session_state['selSlide ID'] = st.session_state['uniSlide ID'][st.session_state['idxSlide ID']]
         st.session_state['selSlide ID_short'] = st.session_state['uniSlide ID_short'][st.session_state['idxSlide ID']]
-        filter_and_plot()
 
 def slide_id_callback():
     '''
@@ -363,9 +351,6 @@ def slide_id_callback():
     # st.session_state['idxSlide ID'] = st.session_state['uniSlide ID_short'].index(st.session_state['selSlide ID_short'])
     idx = st.session_state['idxSlide ID'] = st.session_state['uniSlide ID_short'].index(st.session_state['selSlide ID_short'])
     st.session_state['selSlide ID'] = st.session_state['uniSlide ID'][idx]
-
-    # After correct index is selected, reapply filters, redraw plots
-    filter_and_plot()
 
 def filter_and_plot():
     '''
@@ -421,8 +406,6 @@ def load_neipro_struct():
         # Create Full UMAP example
         st.session_state.udp_full = UMAPDensityProcessing(npf = st.session_state.npf, df = st.session_state.spatial_umap.df_umap)
         st.session_state.UMAPFig = st.session_state.udp_full.UMAPdraw_density()
-
-        filter_and_plot()
 
 def save_neipro_struct():
     '''
@@ -555,9 +538,6 @@ def diff_density_perform_clustering():
     dens_df_mean_true = dens_df_true.groupby(['clust_label', 'phenotype', 'dist_bin'], as_index=False).mean()
 
     st.session_state.spatial_umap.dens_df_mean = pd.concat([st.session_state.spatial_umap.dens_df_mean, dens_df_mean_fals, dens_df_mean_true], axis=0)
-
-    # Create the Cluster Scatterplot
-    filter_and_plot()
 
 def reset_neipro_feature_values():
     '''
@@ -777,6 +757,7 @@ def main():
         # Print a column header
         st.header('Clusters Figure')
 
+        # Plot the Clusters Figure
         filter_and_plot()
 
         # Plot Colors by Clusters or Phenotype
