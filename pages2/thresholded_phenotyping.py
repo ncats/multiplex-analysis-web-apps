@@ -169,28 +169,6 @@ def main():
         st.session_state.phenotyping_completed = True
 
     mid_col = st.columns(2)
-    with mid_col[0]:
-    ### Data Filters Container ###
-        with st.expander('Data Filters'):
-            with st.form('Filter Levers'):
-                filt_col = st.columns([1, 2])
-                with filt_col[0]:
-                    # Select Box Features
-                    for feat in st.session_state.SEL_feat_widg:
-                        st.selectbox(feat,
-                                    (st.session_state.df_raw[feat].unique()),
-                                    key = 'sel' + feat)
-
-                with filt_col[1]:
-                    # Check Box Features
-                    for feat in st.session_state.CHK_feat_widg:
-                        st.checkbox(feat,
-                                    key = 'sel' + feat)
-
-                submitted = st.form_submit_button('Apply Filters')
-                if submitted:
-                    filter_and_plot()
-                    st.session_state.pointstSliderVal_Sel = st.session_state.calcSliderVal
     with mid_col[1]:
         with st.expander('Choose Markers to include'):
             st.multiselect('Markers', options = st.session_state.loaded_marker_names,
