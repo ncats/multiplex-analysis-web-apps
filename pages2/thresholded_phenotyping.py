@@ -256,9 +256,9 @@ def main():
                 st.markdown('### Plotting full scatterplot')
 
             st.write(f'Drawing {st.session_state.drawnPoints} points')
-            st.checkbox('Omit drawing cells with all negative markers',
+            st.toggle('Omit cells with all negative markers',
                         key = 'selhas_pos_mark')
-            st.checkbox('Flip Y-axis', key='pheno_flip_yaxis')
+            st.toggle('Flip Y-axis', key='pheno_flip_yaxis')
 
         image_prog_col = st.columns([3, 1, 1, 2])
         with image_prog_col[0]:
