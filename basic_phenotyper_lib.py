@@ -396,7 +396,7 @@ def load_previous_species_summary(filename):
     return spec_summ
 
 def draw_pheno_summ_bar_fig(pheno_summ, omit_other):
-    
+
     pheno_order = pheno_summ['phenotype'].tolist()
 
     slc_bg   = '#0E1117'  # Streamlit Background Color
@@ -407,11 +407,11 @@ def draw_pheno_summ_bar_fig(pheno_summ, omit_other):
     palette = [f'rgba({int(r*255)}, {int(g*255)}, {int(b*255)}, 1)' for r, g, b in palette]
 
     if omit_other:
-        
-        pheno_summ = pheno_summ[pheno_summ['phenotype'] != 'Other']
-        idx = pheno_order.index('Other')
-        pheno_order = pheno_order[:idx] + pheno_order[idx+1:]
-        palette = palette[:idx] + palette[idx+1:]
+        if 'Other' in pheno_order:
+            pheno_summ = pheno_summ[pheno_summ['phenotype'] != 'Other']
+            idx = pheno_order.index('Other')
+            pheno_order = pheno_order[:idx] + pheno_order[idx+1:]
+            palette = palette[:idx] + palette[idx+1:]
 
     fig = go.Figure(
         data=[

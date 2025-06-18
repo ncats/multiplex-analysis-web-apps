@@ -68,6 +68,8 @@ def filter_and_plot(plot_by_slider = False):
     # Filtered dataset
     df_filt = ndl.perform_filtering(st.session_state)
 
+    st.session_state.pheno_summ_filt = bpl.init_pheno_summ(df_filt)
+
     # Update and reset Figure Objects
     st.session_state = ndl.set_figure_objs(session_state = st.session_state,
                                            df_plot = df_filt,
@@ -232,7 +234,14 @@ def main():
                     st.toast(f'Added {st.session_state.df_update_filename_U} to export list ')
 
         with pheno_summ_tabs[1]:
-            st.session_state.pheno_summ_bar_fig = bpl.draw_pheno_summ_bar_fig(st.session_state.pheno_summ, st.session_state.selhas_pos_mark)
+            st.radio('Bar plot view', options=['Full data', 'Slide data'], key='pheno_bar_plot_view', horizontal=True)
+            if st.session_state.pheno_bar_plot_view == 'Full data':
+                st.markdown('### Full Dataset')
+                pheno_df = st.session_state.pheno_summ
+            else:
+                st.markdown(f'### {st.session_state["selSlide ID_short"]} Dataset')
+                pheno_df = st.session_state.pheno_summ_filt
+            st.session_state.pheno_summ_bar_fig = bpl.draw_pheno_summ_bar_fig(pheno_df, st.session_state.selhas_pos_mark)
             st.plotly_chart(st.session_state.pheno_summ_bar_fig)
 
     # First column on the page
