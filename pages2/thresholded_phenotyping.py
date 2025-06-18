@@ -202,32 +202,38 @@ def main():
 
         ### PHENOTYPE SUMMARY TABLE ###
         st.write('## Phenotype Summary')
-        st.write('The following phenotypes will update as the table above is modified. Double-click a cell to see all its contents at once.')
-        st.dataframe(st.session_state.pheno_summ, use_container_width=True)
+        pheno_summ_tabs = st.tabs(['Summary Table', 'Summary Figure'])
+        with pheno_summ_tabs[0]:
+            st.write('The following phenotypes will update as the table above is modified. Double-click a cell to see all its contents at once.')
+            st.dataframe(st.session_state.pheno_summ, use_container_width=True)
 
-        # Prepare for Exporting
-        df_update = st.session_state.df.drop(['mark_bits', 'species_name_long', 'species_name_short'], axis=1)
+            # Prepare for Exporting
+            df_update = st.session_state.df.drop(['mark_bits', 'species_name_long', 'species_name_short'], axis=1)
 
-        phen_summ_cols = st.columns([2, 1])
-        with phen_summ_cols[0]:
-            st.text_input('Phenotype Summary File Name', key = 'pheno_assign_filename_U')
-        with phen_summ_cols[1]:
-            add_vertical_space(2)
-            if st.button('Append Export List', key = 'appendexportbutton_phenotypesummary__do_not_persist'):
-                if st.session_state.selected_phenoMeth == 'Custom':
-                    ndl.save_csv(st.session_state['pheno__de_phenotype_assignments'].reconstruct_edited_dataframe(), st.session_state.pheno_assign_filename_U)  # use dataframe editor
-                else:
-                    ndl.save_csv(st.session_state.spec_summ, st.session_state.pheno_assign_filename_U)
-                st.toast(f'Added {st.session_state.pheno_assign_filename_U} to export list ')
+            phen_summ_cols = st.columns([2, 1])
+            with phen_summ_cols[0]:
+                st.text_input('Phenotype Summary File Name', key = 'pheno_assign_filename_U')
+            with phen_summ_cols[1]:
+                add_vertical_space(2)
+                if st.button('Append Export List', key = 'appendexportbutton_phenotypesummary__do_not_persist'):
+                    if st.session_state.selected_phenoMeth == 'Custom':
+                        ndl.save_csv(st.session_state['pheno__de_phenotype_assignments'].reconstruct_edited_dataframe(), st.session_state.pheno_assign_filename_U)  # use dataframe editor
+                    else:
+                        ndl.save_csv(st.session_state.spec_summ, st.session_state.pheno_assign_filename_U)
+                    st.toast(f'Added {st.session_state.pheno_assign_filename_U} to export list ')
 
-        updated_df_cols = st.columns([2, 1])
-        with updated_df_cols[0]:
-            st.text_input('Updated Dataset File Name', key = 'df_update_filename_U')
-        with updated_df_cols[1]:
-            add_vertical_space(2)
-            if st.button('Append Export List', key = 'appendexportbutton_updateddf__do_not_persist'):
-                ndl.save_csv(df_update, st.session_state.df_update_filename_U)
-                st.toast(f'Added {st.session_state.df_update_filename_U} to export list ')
+            updated_df_cols = st.columns([2, 1])
+            with updated_df_cols[0]:
+                st.text_input('Updated Dataset File Name', key = 'df_update_filename_U')
+            with updated_df_cols[1]:
+                add_vertical_space(2)
+                if st.button('Append Export List', key = 'appendexportbutton_updateddf__do_not_persist'):
+                    ndl.save_csv(df_update, st.session_state.df_update_filename_U)
+                    st.toast(f'Added {st.session_state.df_update_filename_U} to export list ')
+
+        with pheno_summ_tabs[1]:
+            st.session_state.pheno_summ_bar_fig = bpl.draw_pheno_summ_bar_fig(st.session_state.pheno_summ, st.session_state.selhas_pos_mark)
+            st.plotly_chart(st.session_state.pheno_summ_bar_fig)
 
     # First column on the page
     with viz_col[0]:

@@ -249,6 +249,7 @@ def loadDataButton(session_state, df_import, projectName, fileName):
     session_state.marker_multi_sel = session_state.marker_names
     session_state.point_slider_val = 100
     session_state.calcSliderVal  = 100
+    session_state.selhas_pos_mark = False
     session_state.selected_nClus = 1         # Clustering (If applicable)
     session_state.NormHeatRadio  = 'No Norm' # Heatmap Radio
 

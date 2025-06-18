@@ -395,6 +395,45 @@ def load_previous_species_summary(filename):
 
     return spec_summ
 
+def draw_pheno_summ_bar_fig(pheno_summ, omit_other):
+    
+    pheno_order = pheno_summ['phenotype'].tolist()
+
+    slc_bg   = '#0E1117'  # Streamlit Background Color
+    slc_text = '#FAFAFA'  # Streamlit Text Color
+
+    # Read in the tab20 palette from seaborn and convert it to a format suitable for plotly
+    palette = sns.color_palette('tab20')[0:len(pheno_summ)]
+    palette = [f'rgba({int(r*255)}, {int(g*255)}, {int(b*255)}, 1)' for r, g, b in palette]
+
+    if omit_other:
+        
+        pheno_summ = pheno_summ[pheno_summ['phenotype'] != 'Other']
+        idx = pheno_order.index('Other')
+        pheno_order = pheno_order[:idx] + pheno_order[idx+1:]
+        palette = palette[:idx] + palette[idx+1:]
+
+    fig = go.Figure(
+        data=[
+            go.Bar(
+                x=pheno_summ['phenotype'],
+                y=pheno_summ['phenotype_count'],
+                marker_color=palette,
+                hovertemplate='<b>Phenotype:</b> %{x}<br><b>Count:</b> %{y}<extra></extra>'
+            )
+        ]
+    )
+    fig.update_layout(
+        title='Phenotype Counts',
+        xaxis_title='Phenotype',
+        yaxis_title='Count',
+        plot_bgcolor=slc_bg,
+        paper_bgcolor=slc_bg,
+        font=dict(color=slc_text)
+    )
+
+    return fig
+
 def draw_scatter_fig(figsize=(12, 12)):
     '''
     Setup Scatter plot figure and axes
