@@ -250,6 +250,7 @@ def loadDataButton(session_state, df_import, projectName, fileName):
     session_state.point_slider_val = 100
     session_state.calcSliderVal  = 100
     session_state.selhas_pos_mark = False
+    session_state.pheno_flip_yaxis = False
     session_state.selected_nClus = 1         # Clustering (If applicable)
     session_state.NormHeatRadio  = 'No Norm' # Heatmap Radio
 
@@ -570,7 +571,7 @@ def set_figure_objs(session_state, df_plot, slider_val = None):
     session_state.phenoFig, session_state.ax = bpl.draw_scatter_fig(figsize=session_state.figsize)
     session_state.phenoFig = bpl.scatter_plot(df_plot, session_state.phenoFig, session_state.ax, title,
                                               xVar = 'Cell X Position', yVar = 'Cell Y Position', hueVar='phenotype',
-                                              hueOrder=pheno_order,
+                                              hueOrder=pheno_order, flip_yaxis = session_state.pheno_flip_yaxis,
                                               palette=palette)
 
     return session_state

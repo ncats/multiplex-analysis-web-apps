@@ -453,7 +453,7 @@ def draw_scatter_fig(figsize=(12, 12)):
 
     return fig, ax
 
-def scatter_plot(df, fig, ax, figTitle, xVar, yVar, hueVar, hueOrder, xLim = None, yLim = None, boxoff = False, small_ver = False, feat = None, clusters_label = None, figname='scatter_plot.png', dpi=200, saveFlag=0, palette = 'tab20'):
+def scatter_plot(df, fig, ax, figTitle, xVar, yVar, hueVar, hueOrder, xLim = None, yLim = None, flip_yaxis = False, boxoff = False, small_ver = False, feat = None, clusters_label = None, figname='scatter_plot.png', dpi=200, saveFlag=0, palette = 'tab20'):
     """Create a 2D scatter plot and color the points by a specific variable in a dataframe
 
     Args:
@@ -490,6 +490,11 @@ def scatter_plot(df, fig, ax, figTitle, xVar, yVar, hueVar, hueOrder, xLim = Non
                     linewidth = 0,
                     palette = palette,
                     ax = ax)
+
+    # Flip the figure about the y axis
+    if flip_yaxis:
+        ylim = ax.get_ylim()
+        ax.set_ylim(ylim[::-1])
 
     bbox = ax.get_yticklabels()[-1].get_window_extent()
     x,_ = ax.transAxes.inverted().transform([bbox.x0, bbox.y0])
