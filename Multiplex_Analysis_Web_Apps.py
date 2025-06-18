@@ -47,8 +47,9 @@ def welcome_page():
     First page displayed when the app opens
     '''
     # Markdown text
-    intro_markdown = ndl.read_markdown_file('markdown/MAWA_WelcomePage.md')
-    st.markdown(intro_markdown, unsafe_allow_html=True)
+    with open("markdown/MAWA_WelcomePage.md", "r", encoding="utf-8") as f:
+        md_content = f.read()
+    st.markdown(md_content, unsafe_allow_html=True)
 
 
 def platform_is_nidap():
