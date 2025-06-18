@@ -812,7 +812,10 @@ def set_figure_objs_clusters_analyzer(session_state):
         inci_df['Percentages1_adj'] = 100*(inci_df['featureCount1'] + 1)/(sumf1 + 1*session_state.selected_nClus)
         inci_df['Percentages0_adj'] = 100*(inci_df['featureCount0'] + 1)/(sumf0 + 1*session_state.selected_nClus)
 
-        inci_df['Ratios'] = np.log10(inci_df['Percentages1_adj']/inci_df['Percentages0_adj'])
+        inci_df['Percentages1_adj_log'] = np.log10(inci_df['Percentages1_adj'])
+        inci_df['Percentages0_adj_log'] = np.log10(inci_df['Percentages0_adj'])
+
+        inci_df['Ratios'] = inci_df['Percentages1_adj_log'] - inci_df['Percentages0_adj_log']
     # Cell Counts
     else:
         for clust_label, group in df_umap.groupby('clust_label'):

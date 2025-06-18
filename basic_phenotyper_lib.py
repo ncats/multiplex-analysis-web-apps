@@ -1122,6 +1122,8 @@ def draw_incidence_fig(inci_df, fig_title, phenotype = 'All Phenotypes', feature
     up_tag = msg_tags[1]
     dn_tag = msg_tags[0]
 
+    inci_df = inci_df.round(2)
+
     anno2 = False
     if feature != 'Cell Counts':
 
@@ -1151,6 +1153,14 @@ def draw_incidence_fig(inci_df, fig_title, phenotype = 'All Phenotypes', feature
             outcome_suff = ' (Counts)'
         elif displayas == 'Ratios':
             anno2 = True
+
+            df_up = inci_df['Percentages1_adj_log']
+            df_dn = inci_df['Percentages0_adj_log']
+
+            dfmin = df_dn.loc[(df_dn != np.nan)].max()
+            dfmax = df_up.loc[(df_up != np.nan)].max()
+            up_limit = max(dfmin, dfmax)
+
             ylim = [-1.05*up_limit, 1.05*up_limit]
             feature_pos = [1, up_limit*.95]
             feature_text = f'{feature}{up_tag}'
@@ -1159,6 +1169,14 @@ def draw_incidence_fig(inci_df, fig_title, phenotype = 'All Phenotypes', feature
             hover_template = '<b>Cluster:</b> %{x}<br><b>Ratio:</b> %{y}<extra></extra>'
             outcome_suff = ' Ratio (log10)'
         elif displayas == 'Percentages':
+
+            df_up = inci_df['Percentages']
+            df_dn = inci_df['Percentages0']
+
+            dfmin = df_dn.loc[(df_dn != np.nan)].max()
+            dfmax = df_up.loc[(df_up != np.nan)].max()
+            up_limit = dfmax
+
             ylim = [-1.05, 1.05*up_limit]
             feature_pos = [1, up_limit*.95]
             feature_text = f'{feature}{up_tag}'
@@ -1166,12 +1184,10 @@ def draw_incidence_fig(inci_df, fig_title, phenotype = 'All Phenotypes', feature
             outcome_suff = ' (%)'
     else:
         df = inci_df['counts']
-        
+
         dfmin = df.min()
         dfmax = df.max()
         up_limit = max(-1*dfmin, dfmax)
-        limrange = dfmax-dfmin
-        liminc = limrange/8
         ylim = [0, dfmax*1.05]
 
         feature_pos = [1, up_limit*.95]
@@ -1180,44 +1196,43 @@ def draw_incidence_fig(inci_df, fig_title, phenotype = 'All Phenotypes', feature
         outcome_suff = ' (Counts)'
 
     if feature != 'Cell Counts':
-        if displayas == 'Count Differences':
-            if show_raw_counts:
-                inci_fig.add_trace(go.Bar(
-                    x=df_up.index,
-                    y=df_up.values,
-                    name=f"{phenotype}{up_tag}",
-                    marker=dict(color=slc_ylw),
-                    hovertemplate=hover_template,
-                    hoverlabel=dict(
-                    bgcolor=slc_ylw,
-                    bordercolor=slc_ylw,
-                    font=dict(color=slc_bg)
-                    ),
-                    opacity=0.65,
-                    offsetgroup='1',
-                    showlegend=False,
-                    text=[f"<b>{int(y):,}</b>" for y in df_up.values],
-                    textposition='inside',
-                    textfont=dict(color=slc_bg, size=14)
-                ))
-                inci_fig.add_trace(go.Bar(
-                    x=df_dn.index,
-                    y=-df_dn.values,
-                    name=f"{phenotype}{dn_tag}",
-                    marker=dict(color=slc_red),
-                    hovertemplate=hover_template,
-                    hoverlabel=dict(
-                    bgcolor=slc_red,
-                    bordercolor=slc_red,
-                    font=dict(color=slc_text)
-                    ),
-                    opacity=0.65,
-                    offsetgroup='1',
-                    showlegend=False,
-                    text=[f"<b>{int(y):,}</b>" for y in df_dn.values],
-                    textposition='inside',
-                    textfont=dict(color=slc_bg, size=14)
-                ))
+        if show_raw_counts:
+            inci_fig.add_trace(go.Bar(
+                x=df_up.index,
+                y=df_up.values,
+                name=f"{phenotype}{up_tag}",
+                marker=dict(color=slc_ylw),
+                hovertemplate=hover_template,
+                hoverlabel=dict(
+                bgcolor=slc_ylw,
+                bordercolor=slc_ylw,
+                font=dict(color=slc_bg)
+                ),
+                opacity=0.65,
+                offsetgroup='1',
+                showlegend=False,
+                text=[f"<b>{y:,}</b>" for y in df_up.values],
+                textposition='inside',
+                textfont=dict(color=slc_bg, size=14)
+            ))
+            inci_fig.add_trace(go.Bar(
+                x=df_dn.index,
+                y=-df_dn.values,
+                name=f"{phenotype}{dn_tag}",
+                marker=dict(color=slc_red),
+                hovertemplate=hover_template,
+                hoverlabel=dict(
+                bgcolor=slc_red,
+                bordercolor=slc_red,
+                font=dict(color=slc_text)
+                ),
+                opacity=0.65,
+                offsetgroup='1',
+                showlegend=False,
+                text=[f"<b>{y:,}</b>" for y in df_dn.values],
+                textposition='inside',
+                textfont=dict(color=slc_bg, size=14)
+            ))
 
         inci_fig.add_trace(go.Scatter(
             x=df.index,
