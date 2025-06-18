@@ -22,8 +22,6 @@ def data_editor_change_callback():
     # Create Phenotypes Summary Table based on 'phenotype' column in df
     st.session_state.pheno_summ = bpl.init_pheno_summ(st.session_state.df)
 
-    filter_and_plot(plot_by_slider = True)
-
 def slide_id_prog_left_callback():
     '''
     callback function when the left Cell_ID progression button is clicked
@@ -32,7 +30,6 @@ def slide_id_prog_left_callback():
         st.session_state['idxSlide ID'] -=1
         st.session_state['selSlide ID'] = st.session_state['uniSlide ID'][st.session_state['idxSlide ID']]
         st.session_state['selSlide ID_short'] = st.session_state['uniSlide ID_short'][st.session_state['idxSlide ID']]
-        filter_and_plot()
 
 def slide_id_prog_right_callback():
     '''
@@ -42,7 +39,6 @@ def slide_id_prog_right_callback():
         st.session_state['idxSlide ID'] +=1
         st.session_state['selSlide ID'] = st.session_state['uniSlide ID'][st.session_state['idxSlide ID']]
         st.session_state['selSlide ID_short'] = st.session_state['uniSlide ID_short'][st.session_state['idxSlide ID']]
-        filter_and_plot()
 
 def slide_id_callback():
     '''
@@ -50,7 +46,6 @@ def slide_id_callback():
     '''
     st.session_state['idxSlide ID'] = st.session_state['uniSlide ID_short'].index(st.session_state['selSlide ID_short'])
     st.session_state['selSlide ID'] = st.session_state['uniSlide ID'][st.session_state['idxSlide ID']]
-    filter_and_plot()
 
 def filter_and_plot(plot_by_slider = False):
     '''
@@ -239,23 +234,21 @@ def main():
         # Print a column header
         st.header('Phenotype Plot')
 
+        filter_and_plot(plot_by_slider=True)
+
         plot_slide = st.columns(2)
         with plot_slide[0]:
-            st.slider('How many points to plot (%)', 0, 100, key = 'point_slider_val',
-                        on_change = filter_and_plot, kwargs = {"plot_by_slider": True})
-
+            st.slider('How many points to plot (%)', 0, 100, key = 'point_slider_val')
 
         with plot_slide[1]:
-            if st.session_state.calcSliderVal < 100:
+            if st.session_state.point_slider_val < 100:
                 st.warning('Not plotting full scatterplot', icon="⚠️")
             else:
                 st.markdown('### Plotting full scatterplot')
 
             st.write(f'Drawing {st.session_state.drawnPoints} points')
             st.checkbox('Omit drawing cells with all negative markers',
-                        key = 'selhas_pos_mark',
-                        on_change=filter_and_plot,
-                        kwargs = {"plot_by_slider": True})
+                        key = 'selhas_pos_mark')
 
         image_prog_col = st.columns([3, 1, 1, 2])
         with image_prog_col[0]:

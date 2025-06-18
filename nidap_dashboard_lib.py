@@ -529,7 +529,7 @@ def set_figure_objs(session_state, df_plot, slider_val = None):
              f'SLIDE ID: {session_state["selSlide ID_short"]}']
 
     pheno_order = session_state.phenoOrder
-    palette = sns.color_palette('tab20')
+    palette = sns.color_palette('tab20')[0:len(pheno_order)]
     if session_state.selhas_pos_mark:
         # Remove 'Other' from phenoOrder if present
         if 'Other' in pheno_order:
@@ -554,7 +554,7 @@ def set_figure_objs(session_state, df_plot, slider_val = None):
         calc_slider_val = slider_val
         df_plot = df_plot.sample(frac = calc_slider_val/100)
         session_state.plotPointsCustom = True
-        print(f'    Slider_val selected. Randomly sampled {slider_val} points')
+        print(f'    Slider_val selected. Randomly sampled {df_plot.shape[0]} points')
     else:
         n = num_points
         calc_slider_val = 100
