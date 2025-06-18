@@ -9,6 +9,7 @@ import time
 from copy import copy
 import numpy as np
 import pandas as pd
+import seaborn as sns
 import altair as alt
 alt.data_transformers.disable_max_rows()
 from natsort import natsorted
@@ -527,6 +528,15 @@ def set_figure_objs(session_state, df_plot, slider_val = None):
              f'PHENO METHOD: {session_state.selected_phenoMeth}',
              f'SLIDE ID: {session_state["selSlide ID_short"]}']
 
+    pheno_order = session_state.phenoOrder
+    palette = sns.color_palette('tab20')
+    if session_state.selhas_pos_mark:
+        # Remove 'Other' from phenoOrder if present
+        if 'Other' in pheno_order:
+            idx = pheno_order.index('Other')
+            pheno_order = pheno_order[:idx] + pheno_order[idx+1:]
+            palette = palette[:idx] + palette[idx+1:]
+
     # num_points
     targ_cell_count = 150000
 
@@ -559,7 +569,8 @@ def set_figure_objs(session_state, df_plot, slider_val = None):
     session_state.phenoFig, session_state.ax = bpl.draw_scatter_fig(figsize=session_state.figsize)
     session_state.phenoFig = bpl.scatter_plot(df_plot, session_state.phenoFig, session_state.ax, title,
                                               xVar = 'Cell X Position', yVar = 'Cell Y Position', hueVar='phenotype',
-                                              hueOrder=session_state.phenoOrder)
+                                              hueOrder=pheno_order,
+                                              palette=palette)
 
     return session_state
 
