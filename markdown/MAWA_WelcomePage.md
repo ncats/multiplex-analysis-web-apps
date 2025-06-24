@@ -78,7 +78,7 @@ The Neighborhood Profiles Workflow can be used once your data has been properly 
 
 #### 6A. Neighborhood Profiles
 
-!['Neighborhood Profiles Home'](./assets/images/NeiPro_home.png)
+!['Neighborhood Profiles Home'](./markdown/assets/images/NeiPro_home.png)
 
 This page is the starting point for running the Neighborhood Profiles. On the top of this page you will see options for running each step of the analysis. At the bottom of the page are placeholder spaces for two figures.
 
@@ -107,31 +107,31 @@ The bottom figure panels are labeled
 
 1. Start by checking the message text that can be seen in the middle of the screen. If you have not previously completed the phenotyping step, a message will appear as the following.
 
-    !['Neighborhood Profiles Step 0'](./assets/images/NeiPro_Step0.png)
+    !['Neighborhood Profiles Step 0'](./markdown/assets/images/NeiPro_Step0.png)
 
 2. If you have finished the phenotyping step, the middle message text should look like the following. This means the app is ready to be used for processing Neighborhood Profiles.
 
-    !['Neighborhood Profiles Step 1'](./assets/images/NeiPro_Step1.png)
+    !['Neighborhood Profiles Step 1'](./markdown/assets/images/NeiPro_Step1.png)
 
 3. Begin the cell density analysis by clicking the button *Perform Cell Density Analysis*. This process will take varying amounts on time depending on the size of your dataset, the size of your images, and the number of phenotypes you have selected in the phenotyping step. For a dataset of 48k cells, and 8 phenotypes, this process takes approximately 1 min. When this step has completed correctly, you will see a message in the middle of the screen that reads as the following:
 
-    !['Neighborhood Profiles Step 2'](./assets/images/NeiPro_Step2.png)
+    !['Neighborhood Profiles Step 2'](./markdown/assets/images/NeiPro_Step2.png)
 
 4. Next, begin the UMAP Analysis by clicking the button *Perform UMAP Analysis*. Running the UMAP decomposition will take varying amounts on time depending on the size of your dataset, the size of your images, and the number of phenotypes you have selected in the phenotyping step. For a dataset of 48k cells, and 8 phenotypes, this process takes approximately 1 min. When this step has completed correctly, you will see a message in the middle of the screen that reads as the following:
 
-    !['Neighborhood Profiles Step 3'](./assets/images/NeiPro_Step3.png)
+    !['Neighborhood Profiles Step 3'](./markdown/assets/images/NeiPro_Step3.png)
 
 5. Finally, begin the process of clustering the results of the UMAP. At the lower part of the analysis section, select a number of clusters to use for the k-means clustering algorithm. Once a number is selected, click on the button to *Perform Clustering Analysis*. This step is the slowest, and depending on the number of cells in your datasets, could take over 1 min to run. When its complete, the user should see be able to see the scatter below populated and colored by cluster, and the Neighborhood Profiles line plots populated and drawn for the phenotypes included in each cluster.
 
 6. In the Clusters Plot, notice this figure can swap its categorical colors to show the the Cluster label or by the Phenotype label. You can also progress through all the images that are included in your dataset and see how the clusters have partitioned individual tissues samples
 
-    !['Neighborhood Profiles Clusters Plot'](./assets/images/NeiPro_ClustersPlot.png)
+    !['Neighborhood Profiles Clusters Plot'](./markdown/assets/images/NeiPro_ClustersPlot.png)
 
 7. The Neighborhood Profiles line plot, shows the make up (profiles) of each of the clusters (neighborhoods) created by the k-means clustering algorithm. These line plots show the mean density measurement of the number of cells for a given phenotype (counts /mm2) within different annuli surrounding the cells of that given cluster. The error bars are the Standard Error of the Mean (SE). Different clusters can be selected from the drop down menu. All figures are scaled to fit on the same axes, and as such, any one phenotype from any one cluster might contribute more to the overall scale of these line plots. As is often case, there are many cells (often the majority) that are assigned to the 'Other' phenotype. When this other category dwarfs the other phenotypes, it might be helpful to hide the 'Other' phenotype from the figure. This can be done in the Options menu seen in the second image below. As you test differences in your UMAP results as a factor of the k-means cluster size, your Neighborhood Profiles line plots will change, you an opportunity to tune and test your experimental assumptions.
 
-!['Neighborhood Profiles Line Plot'](./assets/images/NeiPro_NeighPlot.png)
+!['Neighborhood Profiles Line Plot'](./markdown/assets/images/NeiPro_NeighPlot.png)
 
-!['Neighborhood Profiles Line Plot Options'](./assets/images/NeiPro_NeighPlot_options.png)  
+!['Neighborhood Profiles Line Plot Options'](./markdown/assets/images/NeiPro_NeighPlot_options.png)
 
 * Manual Y-axis Scaling: The default behavior for this toggle is off. That means that by default the Neighborhood Profiles figure will automatically scale based on the data present. By turning this toggle on, users can manually adjust the y-axis scaling to better visualize their data.
 * Y-axis Min and Y-axis Max: These two fields allow users to set the minimum and maximum values for the y-axis. This can be useful for zooming in on specific areas of interest within the data. These values do nothing if the Manual Y-axis Scaling is set to off.
@@ -144,9 +144,9 @@ The UMAP Density Difference Neighborhood Profiles is alternative way to perform 
 
 5. After finishing the UMAP Analysis, and before the clustering, you will need to select the toggle in the Clustering Settings to enable the Density Difference mode. Once on, the settings window will display additional options for configuring the clustering analysis.
 
-    !['Clustering Settings1'](./assets/images/NeiPro_dd_clustersettings1.png)
+    !['Clustering Settings1'](./markdown/assets/images/NeiPro_dd_clustersettings1.png)
 
-    !['Clustering Settings2'](./assets/images/NeiPro_dd_clustersettings2.png)
+    !['Clustering Settings2'](./markdown/assets/images/NeiPro_dd_clustersettings2.png)
 
 6. Select a Feature to split the data on using the first drop down list in the Clustering Settings panel. This list will include all Features of your dataset. After you select a Feature, you will see the values drop-boxes in the middle of the settings box change to match values that can be found in the dataset for that Feature. However, not all features are appropriate for splitting your data into two halves. For this reason, a few checks are performed to verify the feature can be split. Any chosen Feature that has two and only two unique values are easily split along this binary. You will notice that the Values dropdown will default to those two values. If the values are numerical and there are over 15 unique values, the algorithm assumes its a continuous value and will split the data at the median value. If the values are numerical and there are between 2 and 15 unique values, then the algorithm will assume some sort of categorical variable, and will allow you to choose which two variables to use. If the feature has less than two unique values, or if it is a category or object type, then the algorithm will not be able to split the data and will warn you that this is not an appropriate feature for splitting.
 
@@ -154,7 +154,7 @@ The UMAP Density Difference Neighborhood Profiles is alternative way to perform 
 
 8. Click the button to *Perform Clustering Analysis*. This step is the slowest, and depending on the number of cells in your datasets, could take over 3 min to run. When its complete, the user should see be able to see a number of UMAP figures appear to the right of the analysis buttons
 
-    !['Clustering Split UMAPs'](./assets/images/NeiPro_dd_UMAPS.png)
+    !['Clustering Split UMAPs'](./markdown/assets/images/NeiPro_dd_UMAPS.png)
 
 #### UMAP Density Difference Neighborhood Profiles Interpretation
 
@@ -189,7 +189,7 @@ The final step in the Neighborhood Profiles workflow is the Clusters Analyzer. A
 1. [Phenotype/Cluster Heatmap](#phenotypecluster-heatmap)
 1. [Incidence Figure](#incidence-figure)
 
-!['Clusters Analyzer Page'](./assets/images/clust_analyzer_main.png)
+!['Clusters Analyzer Page'](./markdown/assets/images/clust_analyzer_main.png)
 
 These figures have been created to investigate the composition of phenotypes of cells in assigned clusters, and the feature expression of cells in assigned clusters. Each figure can be customized further using the options available in the interface. Each figure can be exported for use in other applications by right-clicking on the image and clicking 'save as'.
 
@@ -205,15 +205,15 @@ The heatmap offers a view of the number of each phenotyped cell located within e
 
 1. No Norm (default): No normalization is applied to the heatmap. The relative colors for each cell is scaled for all cells in all phenotypes and in all clusters. The sum of each number shown in the grid corresponds to the total number of cells transformed by the UMAP model.
 
-    ![Heatmap No Normalization](./assets/images/clust_analyzer_heatmap1.png)
+    ![Heatmap No Normalization](./markdown/assets/images/clust_analyzer_heatmap1.png)
 
 2. Norm within Clusters: The grid values are decimal values of the number of cells within a cluster assigned to a given phenotype. In this schema, the relative color of the grid is based on the within-cluster distribution. The sum of the numbers in each row sum to 1.
 
-    ![Heatmap Norm within Clusters](./assets/images/clust_analyzer_heatmap2.png)
+    ![Heatmap Norm within Clusters](./markdown/assets/images/clust_analyzer_heatmap2.png)
 
 3. Norm within Phenotypes: The grid values are decimal values of the number of cells within a phenotype assigned to a given cluster. In this schema, the relative color of the grid is based on the within-phenotype distribution. The sum of the numbers in each column sum to 1.
 
-    ![Heatmap Norm within Phenotypes](./assets/images/clust_analyzer_heatmap3.png)
+    ![Heatmap Norm within Phenotypes](./markdown/assets/images/clust_analyzer_heatmap3.png)
 
 #### Incidence Figure
 
@@ -277,11 +277,11 @@ $$
 
 There are two drop-down menus for Feature and Phenotype, the defaults of which are Cell Counts and All Phenotypes respectively. Below the drop-down tables is a set of radio buttons and a toggle switch, the default states of which are disabled. Following these widgets is the Incidence Figure. On the figure, the specific clusters are specified on the horizontal axis. The vertical axis is the incidence being described. In its default state (Cell Counts), the bar plot shows the number of cells present in each cluster, irrespective of phenotype. To be specific, these are the counts of cells that were clustered. The clustered cells are not always your full dataset; it depends on how you perform the UMAP step before the clustering. See the Neighborhood Profiles Settings section for how to sample your data for UMAP. In this example, we sampled about ~7300 total cells. This bar plot, shows the distribution of where those 7300 cells fall in each cluster.
 
-!['Cell Counts by Cluster'](./assets/images/clust_analyzer_inci_fig1.png)
+!['Cell Counts by Cluster'](./markdown/assets/images/clust_analyzer_inci_fig1.png)
 
 It looks like Cluster 5 has the fewest number of cells, and Cluster 4 has the most. At its core, this is the starting point for using this figure. Here we can begin to understand the presence of cells within each cluster. We next start to drill down into the data a bit further and look at how cells of a specific phenotype are represented in each cluster. For example, to investigate how CD45RO+ HistoneH3+ is represented in each cluster, you can select that phenotype from the right menu and the figure will adjust to look something like the figure below. Here the scale is much smaller, and that the bar plot distribution changes. This is now a subset of the data seen in the previous figure, only CD45RO+ HistoneH3+ cells are shown instead of all cells. It also appears that the great majority of CD45RO+ HistoneH3+ cells are found in Cluster 5 and not many at all in the other clusters.
 
-!['CD45RO+ HistoneH3+ Cell Counts by Cluster'](./assets/images/clust_analyzer_inci_fig2.png)
+!['CD45RO+ HistoneH3+ Cell Counts by Cluster'](./markdown/assets/images/clust_analyzer_inci_fig2.png)
 
 Now this first example focuses on pure Cell Counts and does not consider specific feature differences. This figure was built to also show some differences for specific Features or measurements of the data other than phenotype. In this sample dataset, there is a feature called DNA2. The values of DNA2 are all numerical and are a continuous measurement. The left side drop-down menu contains a list of all available features in the dataset as well as the default entry of *Cell Counts*.  When a Feature other than *Cell Counts* is selected, the dataset will split into two halves based on the values in the dataset. Selecting a Feature will also enable the radio buttons and the toggle switch.
 
@@ -289,17 +289,17 @@ If the selected Feature contains exactly two unique values, then the dataset wil
 
 When the first radio button is selected, the figure draws the visualization as *Counts Differences*. This line graph is the difference of the quantiy of cells that match the Upper condition subtracted from the quantity of cells that match the Lower condition (Eq 1). For a given cluster, if the drawn line falls above the horizontal axis, then there are more values in the Upper condition than there are in the Lower condition, and vice versa. As you might expect, you can drill down further into the data by selecting different Phenotype subsets in combination with the Feature selection. When the *Counts DIfferences* option is selected, you can also enable the `Show Raw Counts Toggle`. This will display bar graphs of the actual raw counts for each condition. This gives a more complete picture of the magnitude of the underlying differences be shown. For more information refer to equation 2 above.
 
-![Counts Differences by Cluster](./assets/images/clust_analyzer_inci_fig3.png)
+![Counts Differences by Cluster](./markdown/assets/images/clust_analyzer_inci_fig3.png)
 
-![Raw Counts by Cluster](./assets/images/clust_analyzer_inci_fig4.png)
+![Raw Counts by Cluster](./markdown/assets/images/clust_analyzer_inci_fig4.png)
 
 When the second radio button is selected, the figure draws the visualization as a *Percentage*. Presently, this *Percentage* focuses only on the Upper condition of the Feature. This calculates the percentage of Upper value cells in each cluster that across all Upper value cells. This means that the percentages seen in this line plot (in our example, five percentages) should sum to 100%. For more information refer to equation 3 above.
 
-![Percentage by Cluster](./assets/images/clust_analyzer_inci_fig5.png)
+![Percentage by Cluster](./markdown/assets/images/clust_analyzer_inci_fig5.png)
 
 Finally, when the third radio button is selected, the figure draws the visualization as a *Ratio*. This *Ratio* returns to a comparison between the Upper and Lower conditions of the selected Feature. Specifically, each value on the visualization is the ratio of the percentages generated from the previous visualization. Since there are scenarios where a percentage could be 0% for a given cluster, the math is slightly adjust for the calculation of the percentages used for the ratio. For more information refer to equation 4 above. The aim of this *Ratio* is to illustrate the magnitude of how many more (or fewer) cells appear for a condition for a given cluster. This ratio is displayed on a log10 scale.
 
-![Ratio by Cluster](./assets/images/clust_analyzer_inci_fig6.png)
+![Ratio by Cluster](./markdown/assets/images/clust_analyzer_inci_fig6.png)
 
 ### 7. Radial Profiles
 
