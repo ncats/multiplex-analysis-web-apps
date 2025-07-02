@@ -341,6 +341,8 @@ def main():
             df_boxplot = pd.DataFrame({'Image': unique_images, 'Percent': percent_match_holder, 'Trace': trace_value_holder})
             fig = px.box(df_boxplot, x='Trace', y='Percent', title=f'Box and whisker plot for {box_and_whisker_plot_value}', points='all')
             st.plotly_chart(fig, use_container_width=True)
+            with st.expander('Data in table form:'):
+                st.dataframe(df_boxplot)
 
 
 # Run the main function
