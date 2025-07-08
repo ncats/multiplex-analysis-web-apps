@@ -6,6 +6,19 @@ import pandas as pd
 from itertools import cycle, islice
 
 
+# Output value counts and percentages for an input DataFrame and column.
+def output_value_counts_and_percentages(df, column):
+
+    # Get value counts and percentages for the selected column and combine into a DataFrame.
+    counts = df[column].value_counts()
+    percentages = df[column].value_counts(normalize=True) * 100
+    value_counts_df = pd.DataFrame({'Count': counts, 'Percent': percentages}).reset_index().rename(columns={'index': 'Value'})
+
+    # Display in Streamlit.
+    st.write(f"Total cells: {len(df)}")
+    st.dataframe(value_counts_df)
+
+
 def turn_off_plotting():
     st.session_state['rsp__show_scatter_plot'] = False
 
@@ -296,6 +309,12 @@ def draw_scatter_plot_with_options():
         # Plot the plotly chart in Streamlit
         st.plotly_chart(fig, use_container_width=True)
 
+        # Optionally display the value counts and percentages for the selected image and column.
+        if 'rsp__show_value_counts_and_percentages_selected_image' not in st.session_state:
+            st.session_state['rsp__show_value_counts_and_percentages_selected_image'] = False
+        if st.toggle('Show value counts and percentages for selected image and column', key='rsp__show_value_counts_and_percentages_selected_image'):
+            output_value_counts_and_percentages(df_selected_image_and_filter, column_to_plot)
+
         # Attempt to get page to not scroll up to the top after the plot is drawn... doesn't seem to work here, though note that toggling on the box and whisker plot does prevent this snapping to the top
         st.write(' ')
 
@@ -312,6 +331,12 @@ def main():
         return
 
     df, column_to_plot, values_to_plot, categorical_columns, unique_images = return_values
+
+    # Optionally display the value counts and percentages for the entire dataset and selected column.
+    if 'rsp__show_value_counts_and_percentages_entire_dataset' not in st.session_state:
+        st.session_state['rsp__show_value_counts_and_percentages_entire_dataset'] = False
+    if st.toggle('Show value counts and percentages for entire dataset and selected column', key='rsp__show_value_counts_and_percentages_entire_dataset'):
+        output_value_counts_and_percentages(df, column_to_plot)
 
     if 'rsp__get_percent_frequencies' not in st.session_state:
         st.session_state['rsp__get_percent_frequencies'] = False
