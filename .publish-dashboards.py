@@ -79,7 +79,8 @@ def publish_dashboard(dashboard_rid, dashboard_definition):
     publish_url = "{0}/containers/{1}/versions".format(FOUNDRY_CONTAINER_SERVICE_API, dashboard_rid)
     runtime = {
         key: dashboard_definition.get(key)
-        for key in ["idleTimeout", "resourceProfile", "resources", "inputs", "networkPolicies", "environmentVariables", "shared", "allowDownloads"]
+        for key in ["idleTimeout", "resourceProfile", "resources", "inputs", "networkPolicies", "sources", "environmentVariables", "shared", "allowDownloads"]
+        if key in dashboard_definition
     }
     payload = {
         "branch": BRANCH,
