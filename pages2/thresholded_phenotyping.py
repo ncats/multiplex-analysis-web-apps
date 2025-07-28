@@ -70,6 +70,9 @@ def filter_and_plot(plot_by_slider = False):
 
     st.session_state.pheno_summ_filt = bpl.init_pheno_summ(df_filt)
 
+    # Redefine the Phenotyping Order
+    st.session_state.phenoOrder = list(st.session_state.pheno_summ.loc[st.session_state.pheno_summ['phenotype_count'].index, 'phenotype'])
+
     # Update and reset Figure Objects
     st.session_state = ndl.set_figure_objs(session_state = st.session_state,
                                            df_plot = df_filt,
