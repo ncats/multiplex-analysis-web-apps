@@ -600,7 +600,7 @@ def setFigureObjs_UMAP(session_state, palette = 'tab20'):
                                                       palette  = session_state.palette_dict)
 
     # Altair
-    session_state.altairFig_clust = drawAltairObj(session_state.spatial_umap.df_umap_filt, title, clust_order, session_state.seabornFig_clust, session_state.ax, legendCol = 'clust_label')
+    session_state.altairFig_clust = draw_altair_obj(session_state.spatial_umap.df_umap_filt, title, clust_order, session_state.seabornFig_clust, session_state.ax, legend_col = 'clust_label')
 
     return session_state
 
@@ -989,7 +989,7 @@ def filter_by_lineage(df, display_toggle, def_val, drop_val):
 
     return df
 
-def drawAltairObj(df, title, sortOrder, fig, ax = None, legendCol='phenotype'):
+def draw_altair_obj(df, title, clust_order, fig, ax = None, legend_col='phenotype'):
     """
     Draw Altair Objects
     """
@@ -1010,13 +1010,10 @@ def drawAltairObj(df, title, sortOrder, fig, ax = None, legendCol='phenotype'):
         width, height = 750, 750
 
     num_lgd_col = 4
-    # if len(sortOrder) >= num_lgd_col:
-    #     sort_order_tran = np.array(sortOrder).reshape(-1, num_lgd_col).T.flatten().reshape(-1, num_lgd_col).T.flatten()
-    # else:
-    sort_order_tran = sortOrder
+    sort_order_tran = clust_order
 
     # Altair Visualization
-    selection = alt.selection_point(fields=[legendCol], bind='legend')
+    selection = alt.selection_point(fields=[legend_col], bind='legend')
     chart = alt.Chart(df).mark_circle(size=3).encode(
             alt.X('CentroidX:Q',
                     scale=alt.Scale(domain=(min_xlim, max_xlim)),
@@ -1024,14 +1021,15 @@ def drawAltairObj(df, title, sortOrder, fig, ax = None, legendCol='phenotype'):
             alt.Y('CentroidY:Q',
                     scale=alt.Scale(domain=(min_ylim, max_ylim)),
                     title='CentroidY (\u03BCm)'),
-            color= alt.Color(legendCol, scale=alt.Scale(domain = sortOrder, scheme = 'category20'),
+            color= alt.Color(legend_col, scale=alt.Scale(domain = clust_order,
+                                                         scheme = 'category20'),
                                           sort=sort_order_tran,
                                           legend=alt.Legend(
                                                             orient='bottom',
                                                             columns = num_lgd_col)),
             order=alt.Order('color_phenotype_sort_index:Q'),
             opacity=alt.condition(selection, alt.value(1), alt.value(0.2)),
-            tooltip=[legendCol]
+            tooltip=[legend_col]
             ).properties(width=width,height=height, title=wrap_title
             ).interactive().add_params(selection)
 
