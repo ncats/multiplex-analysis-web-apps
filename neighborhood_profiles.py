@@ -644,11 +644,16 @@ class UMAPDensityProcessing():
 
     def check_feature_values(self, feature):
         '''
+        check_feature_values checks the values of a feature in the dataframe
+        and returns an integer value based on the number of unique values
+
+        Args:
+            feature (str): Feature to check the values of
         
         Returns:
             int: 0: Feature is inappropriate for splitting
             int: 2: Feature is boolean and is easily split
-            int  3-15: Feature has a few different options but can be easily compared when values are selected
+            int  3-99: Feature has a few different options
             int: 100: Feature is a numerical range and can be split by finding the median
         '''
 
@@ -662,15 +667,15 @@ class UMAPDensityProcessing():
         # If exactly 2 values, then the value can be easily split.
         elif n_uni == 2:
             return 2
-        # If more than 2 values but less than 15, then the values
+        # If more than 2 values but less than 100, then the values
         # can be easily split by two chosen values
-        elif n_uni > 2 and n_uni <= 15:
+        elif n_uni > 2 and n_uni <= 99:
             return n_uni
         else:
             if dtypes == 'category' or dtypes == 'object':
                 return 0
             else:
-                # If there are more than 15 unique values, and the values are numerical,
+                # If there are more than 99 unique values, and the values are numerical,
                 # then the Feature can be split by the median
                 return 100
 
