@@ -175,14 +175,17 @@ def init_pheno_assign(df):
     return spec_summ
 
 def init_pheno_summ(df):
-    """For each unique species (elsewhere called "exclusive" phenotyping), generate information concerning their prevalence in a new dataframe.
+    '''For each unique species (elsewhere called "exclusive" phenotyping),
+    generate information concerning their prevalence in a new dataframe.
 
     Args:
-        df (Pandas dataframe): Dataframe containing data from the input dataset, including a "mark_bits" column
+        df (Pandas dataframe): Dataframe containing data from the input dataset,
+                                including a "mark_bits" column
 
     Returns:
-        assign_pheno (Pandas dataframe): Dataframe containing the value counts of each "exclusive" species
-    """
+        assign_pheno (Pandas dataframe): Dataframe containing the value counts of
+                                        each "exclusive" species
+    '''
 
     assign_pheno = df[['phenotype', 'species_name_short', 'species_name_long']].groupby(by='phenotype', as_index = False).agg(lambda x: np.unique(list(x)))
 
@@ -392,6 +395,45 @@ def load_previous_species_summary(filename):
 
     return spec_summ
 
+def draw_pheno_summ_bar_fig(pheno_summ, omit_other):
+
+    pheno_order = pheno_summ['phenotype'].tolist()
+
+    slc_bg   = '#0E1117'  # Streamlit Background Color
+    slc_text = '#FAFAFA'  # Streamlit Text Color
+
+    # Read in the tab20 palette from seaborn and convert it to a format suitable for plotly
+    palette = sns.color_palette('tab20')[0:len(pheno_summ)]
+    palette = [f'rgba({int(r*255)}, {int(g*255)}, {int(b*255)}, 1)' for r, g, b in palette]
+
+    if omit_other:
+        if 'Other' in pheno_order:
+            pheno_summ = pheno_summ[pheno_summ['phenotype'] != 'Other']
+            idx = pheno_order.index('Other')
+            pheno_order = pheno_order[:idx] + pheno_order[idx+1:]
+            palette = palette[:idx] + palette[idx+1:]
+
+    fig = go.Figure(
+        data=[
+            go.Bar(
+                x=pheno_summ['phenotype'],
+                y=pheno_summ['phenotype_count'],
+                marker_color=palette,
+                hovertemplate='<b>Phenotype:</b> %{x}<br><b>Count:</b> %{y}<extra></extra>'
+            )
+        ]
+    )
+    fig.update_layout(
+        title='Phenotype Counts',
+        xaxis_title='Phenotype',
+        yaxis_title='Count',
+        plot_bgcolor=slc_bg,
+        paper_bgcolor=slc_bg,
+        font=dict(color=slc_text)
+    )
+
+    return fig
+
 def draw_scatter_fig(figsize=(12, 12)):
     '''
     Setup Scatter plot figure and axes
@@ -411,7 +453,7 @@ def draw_scatter_fig(figsize=(12, 12)):
 
     return fig, ax
 
-def scatter_plot(df, fig, ax, figTitle, xVar, yVar, hueVar, hueOrder, xLim = None, yLim = None, boxoff = False, small_ver = False, feat = None, clusters_label = None, figname='scatter_plot.png', dpi=200, saveFlag=0, palette = 'tab20'):
+def scatter_plot(df, fig, ax, figTitle, xVar, yVar, hueVar, hueOrder, xLim = None, yLim = None, flip_yaxis = False, boxoff = False, small_ver = False, feat = None, clusters_label = None, figname='scatter_plot.png', dpi=200, saveFlag=0, palette = 'tab20'):
     """Create a 2D scatter plot and color the points by a specific variable in a dataframe
 
     Args:
@@ -449,6 +491,11 @@ def scatter_plot(df, fig, ax, figTitle, xVar, yVar, hueVar, hueOrder, xLim = Non
                     palette = palette,
                     ax = ax)
 
+    # Flip the figure about the y axis
+    if flip_yaxis:
+        ylim = ax.get_ylim()
+        ax.set_ylim(ylim[::-1])
+
     bbox = ax.get_yticklabels()[-1].get_window_extent()
     x,_ = ax.transAxes.inverted().transform([bbox.x0, bbox.y0])
 
@@ -457,15 +504,16 @@ def scatter_plot(df, fig, ax, figTitle, xVar, yVar, hueVar, hueOrder, xLim = Non
 
     if xVar == 'Cell X Position':
         ax.set_title(plot_title, fontsize = 14, color = slc_text, ha='left', x=x, wrap=True)
-        ax.set_xlabel('Centroid X ('r'$\mu m)$', fontsize = 14, color = slc_text)
-        ax.set_ylabel('Centroid Y ('r'$\mu m)$', fontsize = 14, color = slc_text)
+        ax.set_xlabel(r'Centroid X ($\mu m)$', fontsize = 14, color = slc_text)
+        ax.set_ylabel(r'Centroid Y ($\mu m)$', fontsize = 14, color = slc_text)
         ax.set_aspect(1)       # Set the Aspect Ratio
     else:
         ax.set_xlabel('')
         ax.set_ylabel('')
 
     if boxoff:
-        [ax.spines[sp].set_visible(False) for sp in ax.spines]
+        for sp in ax.spines:
+            ax.spines[sp].set_visible(False)
         ax.set(xticks=[], yticks=[])
 
     if xLim is not None:
@@ -1079,6 +1127,8 @@ def draw_incidence_fig(inci_df, fig_title, phenotype = 'All Phenotypes', feature
     up_tag = msg_tags[1]
     dn_tag = msg_tags[0]
 
+    inci_df = inci_df.round(2)
+
     anno2 = False
     if feature != 'Cell Counts':
 
@@ -1108,6 +1158,14 @@ def draw_incidence_fig(inci_df, fig_title, phenotype = 'All Phenotypes', feature
             outcome_suff = ' (Counts)'
         elif displayas == 'Ratios':
             anno2 = True
+
+            df_up = inci_df['Percentages1_adj_log']
+            df_dn = inci_df['Percentages0_adj_log']
+
+            dfmin = df_dn.loc[(df_dn != np.nan)].max()
+            dfmax = df_up.loc[(df_up != np.nan)].max()
+            up_limit = max(dfmin, dfmax)
+
             ylim = [-1.05*up_limit, 1.05*up_limit]
             feature_pos = [1, up_limit*.95]
             feature_text = f'{feature}{up_tag}'
@@ -1116,6 +1174,14 @@ def draw_incidence_fig(inci_df, fig_title, phenotype = 'All Phenotypes', feature
             hover_template = '<b>Cluster:</b> %{x}<br><b>Ratio:</b> %{y}<extra></extra>'
             outcome_suff = ' Ratio (log10)'
         elif displayas == 'Percentages':
+
+            df_up = inci_df['Percentages']
+            df_dn = inci_df['Percentages0']
+
+            dfmin = df_dn.loc[(df_dn != np.nan)].max()
+            dfmax = df_up.loc[(df_up != np.nan)].max()
+            up_limit = dfmax
+
             ylim = [-1.05, 1.05*up_limit]
             feature_pos = [1, up_limit*.95]
             feature_text = f'{feature}{up_tag}'
@@ -1123,12 +1189,10 @@ def draw_incidence_fig(inci_df, fig_title, phenotype = 'All Phenotypes', feature
             outcome_suff = ' (%)'
     else:
         df = inci_df['counts']
-        
+
         dfmin = df.min()
         dfmax = df.max()
         up_limit = max(-1*dfmin, dfmax)
-        limrange = dfmax-dfmin
-        liminc = limrange/8
         ylim = [0, dfmax*1.05]
 
         feature_pos = [1, up_limit*.95]
@@ -1137,44 +1201,43 @@ def draw_incidence_fig(inci_df, fig_title, phenotype = 'All Phenotypes', feature
         outcome_suff = ' (Counts)'
 
     if feature != 'Cell Counts':
-        if displayas == 'Count Differences':
-            if show_raw_counts:
-                inci_fig.add_trace(go.Bar(
-                    x=df_up.index,
-                    y=df_up.values,
-                    name=f"{phenotype}{up_tag}",
-                    marker=dict(color=slc_ylw),
-                    hovertemplate=hover_template,
-                    hoverlabel=dict(
-                    bgcolor=slc_ylw,
-                    bordercolor=slc_ylw,
-                    font=dict(color=slc_bg)
-                    ),
-                    opacity=0.65,
-                    offsetgroup='1',
-                    showlegend=False,
-                    text=[f"<b>{int(y):,}</b>" for y in df_up.values],
-                    textposition='inside',
-                    textfont=dict(color=slc_bg, size=14)
-                ))
-                inci_fig.add_trace(go.Bar(
-                    x=df_dn.index,
-                    y=-df_dn.values,
-                    name=f"{phenotype}{dn_tag}",
-                    marker=dict(color=slc_red),
-                    hovertemplate=hover_template,
-                    hoverlabel=dict(
-                    bgcolor=slc_red,
-                    bordercolor=slc_red,
-                    font=dict(color=slc_text)
-                    ),
-                    opacity=0.65,
-                    offsetgroup='1',
-                    showlegend=False,
-                    text=[f"<b>{int(y):,}</b>" for y in df_dn.values],
-                    textposition='inside',
-                    textfont=dict(color=slc_bg, size=14)
-                ))
+        if show_raw_counts:
+            inci_fig.add_trace(go.Bar(
+                x=df_up.index,
+                y=df_up.values,
+                name=f"{phenotype}{up_tag}",
+                marker=dict(color=slc_ylw),
+                hovertemplate=hover_template,
+                hoverlabel=dict(
+                bgcolor=slc_ylw,
+                bordercolor=slc_ylw,
+                font=dict(color=slc_bg)
+                ),
+                opacity=0.65,
+                offsetgroup='1',
+                showlegend=False,
+                text=[f"<b>{y:,}</b>" for y in df_up.values],
+                textposition='inside',
+                textfont=dict(color=slc_bg, size=14)
+            ))
+            inci_fig.add_trace(go.Bar(
+                x=df_dn.index,
+                y=-df_dn.values,
+                name=f"{phenotype}{dn_tag}",
+                marker=dict(color=slc_red),
+                hovertemplate=hover_template,
+                hoverlabel=dict(
+                bgcolor=slc_red,
+                bordercolor=slc_red,
+                font=dict(color=slc_text)
+                ),
+                opacity=0.65,
+                offsetgroup='1',
+                showlegend=False,
+                text=[f"<b>{y:,}</b>" for y in df_dn.values],
+                textposition='inside',
+                textfont=dict(color=slc_bg, size=14)
+            ))
 
         inci_fig.add_trace(go.Scatter(
             x=df.index,

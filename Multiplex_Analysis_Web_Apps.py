@@ -2,6 +2,7 @@
 Top level Streamlit Application for MAWA
 '''
 import os
+import re
 import subprocess
 import numpy as np
 
@@ -47,8 +48,17 @@ def welcome_page():
     First page displayed when the app opens
     '''
     # Markdown text
-    intro_markdown = ndl.read_markdown_file('markdown/MAWA_WelcomePage.md')
-    st.markdown(intro_markdown, unsafe_allow_html=True)
+    with open("markdown/MAWA_WelcomePage.md", "r", encoding="utf-8") as f:
+        md_content = f.read()
+
+    parts = re.split(r"!\[(.*?)\]\((.*?)\)", md_content)
+    for i, part in enumerate(parts):
+        if i % 3 == 0:
+            st.markdown(part, unsafe_allow_html=True)
+        elif i % 3 == 1:
+            title = part
+        else:
+            st.image(part)
 
 
 def platform_is_nidap():

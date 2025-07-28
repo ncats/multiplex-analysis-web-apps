@@ -170,7 +170,6 @@ data/
 *.pb
 *.pdf
 *.pkl
-*.png
 *.ppt
 *.pptx
 *.RData

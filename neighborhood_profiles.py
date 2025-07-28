@@ -644,11 +644,16 @@ class UMAPDensityProcessing():
 
     def check_feature_values(self, feature):
         '''
+        check_feature_values checks the values of a feature in the dataframe
+        and returns an integer value based on the number of unique values
+
+        Args:
+            feature (str): Feature to check the values of
         
         Returns:
             int: 0: Feature is inappropriate for splitting
             int: 2: Feature is boolean and is easily split
-            int  3-15: Feature has a few different options but can be easily compared when values are selected
+            int  3-99: Feature has a few different options
             int: 100: Feature is a numerical range and can be split by finding the median
         '''
 
@@ -662,15 +667,15 @@ class UMAPDensityProcessing():
         # If exactly 2 values, then the value can be easily split.
         elif n_uni == 2:
             return 2
-        # If more than 2 values but less than 15, then the values
+        # If more than 2 values but less than 100, then the values
         # can be easily split by two chosen values
-        elif n_uni > 2 and n_uni <= 15:
+        elif n_uni > 2 and n_uni <= 99:
             return n_uni
         else:
             if dtypes == 'category' or dtypes == 'object':
                 return 0
             else:
-                # If there are more than 15 unique values, and the values are numerical,
+                # If there are more than 99 unique values, and the values are numerical,
                 # then the Feature can be split by the median
                 return 100
 
@@ -850,7 +855,7 @@ class UMAPDensityProcessing():
     def perform_clustering(self, dens_mat_cmp, num_clus_0, num_clus_1, clust_minmax, cpu_pool_size = 8):
         '''
         perform_clustering takes in the density matrix for the UMAP data
-        and performs clustering on the data. The function will perform
+        and performs clustering on the data. The function will perform 
         '''
 
         print(f'Performing Clustering with {num_clus_0} clusters for Negative Condition and {num_clus_1} clusters for Positive Condition')
@@ -917,20 +922,20 @@ class UMAPDensityProcessing():
         self.cluster_dict = dict()
         self.cluster_dict[0] = 'No Cluster'
         for i in unique_set_fals.index:
-            self.cluster_dict[unique_set_fals.vals[i]] = f'False Cluster {i+1}'
+            self.cluster_dict[unique_set_fals.vals[i]] = f'Left Cluster {i+1}'
         for i in unique_set_true.index:
-            self.cluster_dict[unique_set_true.vals[i]] = f'True Cluster {i+1}'
+            self.cluster_dict[unique_set_true.vals[i]] = f'Right Cluster {i+1}'
 
-        set_blues = sns.color_palette('Blues_r', 10)
         set_reds = sns.color_palette('Reds_r', 10)
+        set_blues = sns.color_palette('Blues_r', 10)
 
         # Set Palette Dictionary
         self.palette_dict = dict()
         self.palette_dict['No Cluster'] = 'white'
         for i in unique_set_fals.index:
-            self.palette_dict[f'False Cluster {i+1}'] = set_reds[i]
+            self.palette_dict[f'Left Cluster {i+1}'] = set_reds[i]
         for i in unique_set_true.index:
-            self.palette_dict[f'True Cluster {i+1}'] = set_blues[i]
+            self.palette_dict[f'Right Cluster {i+1}'] = set_blues[i]
 
     @staticmethod
     def kmeans_calc(clust_data, n_clusters = 5, random_state = None):
@@ -996,4 +1001,3 @@ class UMAPDensityProcessing():
         ax.tick_params(axis='x', colors=slc_text, which='both')
         ax.tick_params(axis='y', colors=slc_text, which='both')
         return fig
-    

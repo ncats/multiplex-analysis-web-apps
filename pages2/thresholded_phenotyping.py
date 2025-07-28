@@ -22,8 +22,6 @@ def data_editor_change_callback():
     # Create Phenotypes Summary Table based on 'phenotype' column in df
     st.session_state.pheno_summ = bpl.init_pheno_summ(st.session_state.df)
 
-    filter_and_plot(plot_by_slider = True)
-
 def slide_id_prog_left_callback():
     '''
     callback function when the left Cell_ID progression button is clicked
@@ -32,7 +30,6 @@ def slide_id_prog_left_callback():
         st.session_state['idxSlide ID'] -=1
         st.session_state['selSlide ID'] = st.session_state['uniSlide ID'][st.session_state['idxSlide ID']]
         st.session_state['selSlide ID_short'] = st.session_state['uniSlide ID_short'][st.session_state['idxSlide ID']]
-        filter_and_plot()
 
 def slide_id_prog_right_callback():
     '''
@@ -42,7 +39,6 @@ def slide_id_prog_right_callback():
         st.session_state['idxSlide ID'] +=1
         st.session_state['selSlide ID'] = st.session_state['uniSlide ID'][st.session_state['idxSlide ID']]
         st.session_state['selSlide ID_short'] = st.session_state['uniSlide ID_short'][st.session_state['idxSlide ID']]
-        filter_and_plot()
 
 def slide_id_callback():
     '''
@@ -50,7 +46,6 @@ def slide_id_callback():
     '''
     st.session_state['idxSlide ID'] = st.session_state['uniSlide ID_short'].index(st.session_state['selSlide ID_short'])
     st.session_state['selSlide ID'] = st.session_state['uniSlide ID'][st.session_state['idxSlide ID']]
-    filter_and_plot()
 
 def filter_and_plot(plot_by_slider = False):
     '''
@@ -72,6 +67,11 @@ def filter_and_plot(plot_by_slider = False):
 
     # Filtered dataset
     df_filt = ndl.perform_filtering(st.session_state)
+
+    st.session_state.pheno_summ_filt = bpl.init_pheno_summ(df_filt)
+
+    # Redefine the Phenotyping Order
+    st.session_state.phenoOrder = list(st.session_state.pheno_summ.loc[st.session_state.pheno_summ['phenotype_count'].index, 'phenotype'])
 
     # Update and reset Figure Objects
     st.session_state = ndl.set_figure_objs(session_state = st.session_state,
@@ -169,28 +169,6 @@ def main():
         st.session_state.phenotyping_completed = True
 
     mid_col = st.columns(2)
-    with mid_col[0]:
-    ### Data Filters Container ###
-        with st.expander('Data Filters'):
-            with st.form('Filter Levers'):
-                filt_col = st.columns([1, 2])
-                with filt_col[0]:
-                    # Select Box Features
-                    for feat in st.session_state.SEL_feat_widg:
-                        st.selectbox(feat,
-                                    (st.session_state.df_raw[feat].unique()),
-                                    key = 'sel' + feat)
-
-                with filt_col[1]:
-                    # Check Box Features
-                    for feat in st.session_state.CHK_feat_widg:
-                        st.checkbox(feat,
-                                    key = 'sel' + feat)
-
-                submitted = st.form_submit_button('Apply Filters')
-                if submitted:
-                    filter_and_plot()
-                    st.session_state.pointstSliderVal_Sel = st.session_state.calcSliderVal
     with mid_col[1]:
         with st.expander('Choose Markers to include'):
             st.multiselect('Markers', options = st.session_state.loaded_marker_names,
@@ -229,55 +207,70 @@ def main():
 
         ### PHENOTYPE SUMMARY TABLE ###
         st.write('## Phenotype Summary')
-        st.write('The following phenotypes will update as the table above is modified. Double-click a cell to see all its contents at once.')
-        st.dataframe(st.session_state.pheno_summ, use_container_width=True)
+        pheno_summ_tabs = st.tabs(['Summary Table', 'Summary Figure'])
+        with pheno_summ_tabs[0]:
+            st.write('The following phenotypes will update as the table above is modified. Double-click a cell to see all its contents at once.')
+            st.dataframe(st.session_state.pheno_summ, use_container_width=True)
 
-        # Prepare for Exporting
-        df_update = st.session_state.df.drop(['mark_bits', 'species_name_long', 'species_name_short'], axis=1)
+            # Prepare for Exporting
+            df_update = st.session_state.df.drop(['mark_bits', 'species_name_long', 'species_name_short'], axis=1)
 
-        phen_summ_cols = st.columns([2, 1])
-        with phen_summ_cols[0]:
-            st.text_input('Phenotype Summary File Name', key = 'pheno_assign_filename_U')
-        with phen_summ_cols[1]:
-            add_vertical_space(2)
-            if st.button('Append Export List', key = 'appendexportbutton_phenotypesummary__do_not_persist'):
-                if st.session_state.selected_phenoMeth == 'Custom':
-                    ndl.save_csv(st.session_state['pheno__de_phenotype_assignments'].reconstruct_edited_dataframe(), st.session_state.pheno_assign_filename_U)  # use dataframe editor
-                else:
-                    ndl.save_csv(st.session_state.spec_summ, st.session_state.pheno_assign_filename_U)
-                st.toast(f'Added {st.session_state.pheno_assign_filename_U} to export list ')
+            phen_summ_cols = st.columns([2, 1])
+            with phen_summ_cols[0]:
+                st.text_input('Phenotype Summary File Name', key = 'pheno_assign_filename_U')
+            with phen_summ_cols[1]:
+                add_vertical_space(2)
+                if st.button('Append Export List', key = 'appendexportbutton_phenotypesummary__do_not_persist'):
+                    if st.session_state.selected_phenoMeth == 'Custom':
+                        ndl.save_csv(st.session_state['pheno__de_phenotype_assignments'].reconstruct_edited_dataframe(), st.session_state.pheno_assign_filename_U)  # use dataframe editor
+                    else:
+                        ndl.save_csv(st.session_state.spec_summ, st.session_state.pheno_assign_filename_U)
+                    st.toast(f'Added {st.session_state.pheno_assign_filename_U} to export list ')
 
-        updated_df_cols = st.columns([2, 1])
-        with updated_df_cols[0]:
-            st.text_input('Updated Dataset File Name', key = 'df_update_filename_U')
-        with updated_df_cols[1]:
-            add_vertical_space(2)
-            if st.button('Append Export List', key = 'appendexportbutton_updateddf__do_not_persist'):
-                ndl.save_csv(df_update, st.session_state.df_update_filename_U)
-                st.toast(f'Added {st.session_state.df_update_filename_U} to export list ')
+            updated_df_cols = st.columns([2, 1])
+            with updated_df_cols[0]:
+                st.text_input('Updated Dataset File Name', key = 'df_update_filename_U')
+            with updated_df_cols[1]:
+                add_vertical_space(2)
+                if st.button('Append Export List', key = 'appendexportbutton_updateddf__do_not_persist'):
+                    ndl.save_csv(df_update, st.session_state.df_update_filename_U)
+                    st.toast(f'Added {st.session_state.df_update_filename_U} to export list ')
+
+        with pheno_summ_tabs[1]:
+            st.radio('Bar plot view', options=['Full data', 'Slide data'], key='pheno_bar_plot_view', horizontal=True)
+            if st.session_state.pheno_bar_plot_view == 'Full data':
+                st.markdown('### Full Dataset')
+                pheno_df = st.session_state.pheno_summ
+            else:
+                st.markdown(f'### {st.session_state["selSlide ID_short"]} Dataset')
+                pheno_df = st.session_state.pheno_summ_filt
+            st.session_state.pheno_summ_bar_fig = bpl.draw_pheno_summ_bar_fig(pheno_df, st.session_state.selhas_pos_mark)
+            st.plotly_chart(st.session_state.pheno_summ_bar_fig)
 
     # First column on the page
     with viz_col[0]:
         # Print a column header
         st.header('Phenotype Plot')
 
+        if 'pheno_flip_yaxis' not in st.session_state:
+            st.session_state.pheno_flip_yaxis = False
+
+        filter_and_plot(plot_by_slider=True)
+
         plot_slide = st.columns(2)
         with plot_slide[0]:
-            st.slider('How many points to plot (%)', 0, 100, key = 'point_slider_val',
-                        on_change = filter_and_plot, kwargs = {"plot_by_slider": True})
-
+            st.slider('How many points to plot (%)', 0, 100, key = 'point_slider_val')
 
         with plot_slide[1]:
-            if st.session_state.calcSliderVal < 100:
+            if st.session_state.point_slider_val < 100:
                 st.warning('Not plotting full scatterplot', icon="⚠️")
             else:
                 st.markdown('### Plotting full scatterplot')
 
             st.write(f'Drawing {st.session_state.drawnPoints} points')
-            st.checkbox('Omit drawing cells with all negative markers',
-                        key = 'selhas_pos_mark',
-                        on_change=filter_and_plot,
-                        kwargs = {"plot_by_slider": True})
+            st.toggle('Omit cells with all negative markers',
+                        key = 'selhas_pos_mark')
+            st.toggle('Flip Y-axis', key='pheno_flip_yaxis')
 
         image_prog_col = st.columns([3, 1, 1, 2])
         with image_prog_col[0]:

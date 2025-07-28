@@ -9,6 +9,7 @@ import time
 from copy import copy
 import numpy as np
 import pandas as pd
+import seaborn as sns
 import altair as alt
 alt.data_transformers.disable_max_rows()
 from natsort import natsorted
@@ -248,6 +249,8 @@ def loadDataButton(session_state, df_import, projectName, fileName):
     session_state.marker_multi_sel = session_state.marker_names
     session_state.point_slider_val = 100
     session_state.calcSliderVal  = 100
+    session_state.selhas_pos_mark = False
+    session_state.pheno_flip_yaxis = False
     session_state.selected_nClus = 1         # Clustering (If applicable)
     session_state.NormHeatRadio  = 'No Norm' # Heatmap Radio
 
@@ -314,6 +317,8 @@ def set_phenotyping_elements(session_state, df_orig):
     session_state.spec_summ, \
     session_state.pheno_summ = bpl.preprocess_df(df_orig, session_state.marker_names, session_state.marker_pre, session_state.bc)
 
+    session_state.phenoOrder = list(session_state.pheno_summ.loc[session_state.pheno_summ['phenotype_count'].index, 'phenotype'])
+
     # Initalize Custom Phenotyping Variables
     session_state.spec_summ_load       = session_state.spec_summ # Default version that is loaded
     session_state.spec_summ_dataeditor = session_state.spec_summ # Default version that is used for custom phenotyping table
@@ -365,6 +370,8 @@ def updatePhenotyping(session_state):
 
     # Create Phenotypes Summary Table based on 'phenotype' column in df
     session_state.pheno_summ = bpl.init_pheno_summ(session_state.df)
+
+    session_state.phenoOrder = list(session_state.pheno_summ.loc[session_state.pheno_summ['phenotype_count'].index, 'phenotype'])
 
     # Filtered dataset
     df_plot = perform_filtering(session_state)
@@ -523,7 +530,14 @@ def set_figure_objs(session_state, df_plot, slider_val = None):
              f'PHENO METHOD: {session_state.selected_phenoMeth}',
              f'SLIDE ID: {session_state["selSlide ID_short"]}']
 
-    session_state.phenoOrder = list(session_state.pheno_summ.loc[session_state.pheno_summ['phenotype_count'].index, 'phenotype'])
+    pheno_order = session_state.phenoOrder
+    palette = sns.color_palette('tab20')[0:len(pheno_order)]
+    if session_state.selhas_pos_mark:
+        # Remove 'Other' from phenoOrder if present
+        if 'Other' in pheno_order:
+            idx = pheno_order.index('Other')
+            pheno_order = pheno_order[:idx] + pheno_order[idx+1:]
+            palette = palette[:idx] + palette[idx+1:]
 
     # num_points
     targ_cell_count = 150000
@@ -542,7 +556,7 @@ def set_figure_objs(session_state, df_plot, slider_val = None):
         calc_slider_val = slider_val
         df_plot = df_plot.sample(frac = calc_slider_val/100)
         session_state.plotPointsCustom = True
-        print(f'    Slider_val selected. Randomly sampled {slider_val} points')
+        print(f'    Slider_val selected. Randomly sampled {df_plot.shape[0]} points')
     else:
         n = num_points
         calc_slider_val = 100
@@ -557,10 +571,8 @@ def set_figure_objs(session_state, df_plot, slider_val = None):
     session_state.phenoFig, session_state.ax = bpl.draw_scatter_fig(figsize=session_state.figsize)
     session_state.phenoFig = bpl.scatter_plot(df_plot, session_state.phenoFig, session_state.ax, title,
                                               xVar = 'Cell X Position', yVar = 'Cell Y Position', hueVar='phenotype',
-                                              hueOrder=session_state.phenoOrder)
-
-    # Altair
-    # session_state.chart = drawAltairObj(df_plot, title, session_state.phenoOrder, session_state.phenoFig, session_state.ax)
+                                              hueOrder=pheno_order, flip_yaxis = session_state.pheno_flip_yaxis,
+                                              palette=palette)
 
     return session_state
 
@@ -588,7 +600,7 @@ def setFigureObjs_UMAP(session_state, palette = 'tab20'):
                                                       palette  = session_state.palette_dict)
 
     # Altair
-    session_state.altairFig_clust = drawAltairObj(session_state.spatial_umap.df_umap_filt, title, clust_order, session_state.seabornFig_clust, session_state.ax, legendCol = 'clust_label')
+    session_state.altairFig_clust = draw_altair_obj(session_state.spatial_umap.df_umap_filt, title, clust_order, session_state.seabornFig_clust, session_state.ax, legend_col = 'clust_label')
 
     return session_state
 
@@ -801,7 +813,10 @@ def set_figure_objs_clusters_analyzer(session_state):
         inci_df['Percentages1_adj'] = 100*(inci_df['featureCount1'] + 1)/(sumf1 + 1*session_state.selected_nClus)
         inci_df['Percentages0_adj'] = 100*(inci_df['featureCount0'] + 1)/(sumf0 + 1*session_state.selected_nClus)
 
-        inci_df['Ratios'] = np.log10(inci_df['Percentages1_adj']/inci_df['Percentages0_adj'])
+        inci_df['Percentages1_adj_log'] = np.log10(inci_df['Percentages1_adj'])
+        inci_df['Percentages0_adj_log'] = np.log10(inci_df['Percentages0_adj'])
+
+        inci_df['Ratios'] = inci_df['Percentages1_adj_log'] - inci_df['Percentages0_adj_log']
     # Cell Counts
     else:
         for clust_label, group in df_umap.groupby('clust_label'):
@@ -829,37 +844,42 @@ def set_figure_objs_clusters_analyzer(session_state):
     return session_state
 
 def check_feature_values(df, feature):
-        '''
-        
-        Returns:
-            int: 0: Feature is inappropriate for splitting
-            int: 2: Feature is boolean and is easily split
-            int  3-15: Feature has a few different options but can be easily compared when values are selected
-            int: 100: Feature is a numerical range and can be split by finding the median
-        '''
+    '''
+    check_feature_values checks the values of a feature in the dataframe
+    and returns an integer value based on the number of unique values
 
-        col = df[feature] # Column in question
-        dtypes = col.dtype     # Column Type
-        n_uni  = col.nunique() # Number of unique values
+    Args:
+        feature (str): Feature to check the values of
+    
+    Returns:
+        int: 0: Feature is inappropriate for splitting
+        int: 2: Feature is boolean and is easily split
+        int  3-99: Feature has a few different options
+        int: 100: Feature is a numerical range and can be split by finding the median
+    '''
 
-        # If only 1 unique value, then the feature cannot be split
-        if n_uni <= 1:
+    col = df[feature] # Column in question
+    dtypes = col.dtype     # Column Type
+    n_uni  = col.nunique() # Number of unique values
+
+    # If only 1 unique value, then the feature cannot be split
+    if n_uni <= 1:
+        return 0
+    # If exactly 2 values, then the value can be easily split.
+    elif n_uni == 2:
+        return 2
+    # If more than 2 values but less than 100, then the values
+    # can be easily split by two chosen values
+    elif n_uni > 2 and n_uni <= 99:
+        return n_uni
+    else:
+        if dtypes == 'category' or dtypes == 'object':
             return 0
-        # If exactly 2 values, then the value can be easily split.
-        elif n_uni == 2:
-            return 2
-        # If more than 2 values but less than 15, then the values
-        # can be easily split by two chosen values
-        elif n_uni > 2 and n_uni <= 15:
-            return n_uni
         else:
-            if dtypes == 'category' or dtypes == 'object':
-                return 0
-            else:
-                # If there are more than 15 unique values, and the values are numerical,
-                # then the Feature can be split by the median
-                return 100
-            
+            # If there are more than 99 unique values, and the values are numerical,
+            # then the Feature can be split by the median
+            return 100
+
 def split_df_by_feature(df, feature, val_fals=None, val_true=None, val_code=None):
     '''
     split_df_by_feature takes in a feature from a dataframe
@@ -969,7 +989,7 @@ def filter_by_lineage(df, display_toggle, def_val, drop_val):
 
     return df
 
-def drawAltairObj(df, title, sortOrder, fig, ax = None, legendCol='phenotype'):
+def draw_altair_obj(df, title, clust_order, fig, ax = None, legend_col='phenotype'):
     """
     Draw Altair Objects
     """
@@ -990,13 +1010,10 @@ def drawAltairObj(df, title, sortOrder, fig, ax = None, legendCol='phenotype'):
         width, height = 750, 750
 
     num_lgd_col = 4
-    # if len(sortOrder) >= num_lgd_col:
-    #     sort_order_tran = np.array(sortOrder).reshape(-1, num_lgd_col).T.flatten().reshape(-1, num_lgd_col).T.flatten()
-    # else:
-    sort_order_tran = sortOrder
+    sort_order_tran = clust_order
 
     # Altair Visualization
-    selection = alt.selection_point(fields=[legendCol], bind='legend')
+    selection = alt.selection_point(fields=[legend_col], bind='legend')
     chart = alt.Chart(df).mark_circle(size=3).encode(
             alt.X('CentroidX:Q',
                     scale=alt.Scale(domain=(min_xlim, max_xlim)),
@@ -1004,14 +1021,15 @@ def drawAltairObj(df, title, sortOrder, fig, ax = None, legendCol='phenotype'):
             alt.Y('CentroidY:Q',
                     scale=alt.Scale(domain=(min_ylim, max_ylim)),
                     title='CentroidY (\u03BCm)'),
-            color= alt.Color(legendCol, scale=alt.Scale(domain = sortOrder, scheme = 'category20'),
+            color= alt.Color(legend_col, scale=alt.Scale(domain = clust_order,
+                                                         scheme = 'category20'),
                                           sort=sort_order_tran,
                                           legend=alt.Legend(
                                                             orient='bottom',
                                                             columns = num_lgd_col)),
             order=alt.Order('color_phenotype_sort_index:Q'),
             opacity=alt.condition(selection, alt.value(1), alt.value(0.2)),
-            tooltip=[legendCol]
+            tooltip=[legend_col]
             ).properties(width=width,height=height, title=wrap_title
             ).interactive().add_params(selection)
 
