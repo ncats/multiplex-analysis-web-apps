@@ -855,7 +855,7 @@ class UMAPDensityProcessing():
     def perform_clustering(self, dens_mat_cmp, num_clus_0, num_clus_1, clust_minmax, cpu_pool_size = 8):
         '''
         perform_clustering takes in the density matrix for the UMAP data
-        and performs clustering on the data. The function will perform
+        and performs clustering on the data. The function will perform 
         '''
 
         print(f'Performing Clustering with {num_clus_0} clusters for Negative Condition and {num_clus_1} clusters for Positive Condition')
@@ -922,20 +922,20 @@ class UMAPDensityProcessing():
         self.cluster_dict = dict()
         self.cluster_dict[0] = 'No Cluster'
         for i in unique_set_fals.index:
-            self.cluster_dict[unique_set_fals.vals[i]] = f'False Cluster {i+1}'
+            self.cluster_dict[unique_set_fals.vals[i]] = f'Left Cluster {i+1}'
         for i in unique_set_true.index:
-            self.cluster_dict[unique_set_true.vals[i]] = f'True Cluster {i+1}'
+            self.cluster_dict[unique_set_true.vals[i]] = f'Right Cluster {i+1}'
 
-        set_blues = sns.color_palette('Blues_r', 10)
         set_reds = sns.color_palette('Reds_r', 10)
+        set_blues = sns.color_palette('Blues_r', 10)
 
         # Set Palette Dictionary
         self.palette_dict = dict()
         self.palette_dict['No Cluster'] = 'white'
         for i in unique_set_fals.index:
-            self.palette_dict[f'False Cluster {i+1}'] = set_reds[i]
+            self.palette_dict[f'Left Cluster {i+1}'] = set_reds[i]
         for i in unique_set_true.index:
-            self.palette_dict[f'True Cluster {i+1}'] = set_blues[i]
+            self.palette_dict[f'Right Cluster {i+1}'] = set_blues[i]
 
     @staticmethod
     def kmeans_calc(clust_data, n_clusters = 5, random_state = None):
@@ -1001,4 +1001,3 @@ class UMAPDensityProcessing():
         ax.tick_params(axis='x', colors=slc_text, which='both')
         ax.tick_params(axis='y', colors=slc_text, which='both')
         return fig
-    

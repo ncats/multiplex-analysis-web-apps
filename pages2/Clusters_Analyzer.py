@@ -123,7 +123,7 @@ def main():
                             have a negative quantity of cells. Negative numbers are used here to indicate a values towards
                             a given Feature condition.
                             \nAdditionally, for Features that are a pure binary, data was split directly between
-                            the True and False conditions. For features that are a continuous variable, the data
+                            the Left and Right conditions. For features that are a continuous variable, the data
                             are split along the median value. Any numerical annotations or notes associated with a greater than or less than 
                             symbol is comparing the median value of that data feature. For features that are a categorical variable,
                             the Feature is identified as inappropriate for splitting.
@@ -138,7 +138,7 @@ def main():
                             presently (but is calculated) is {st.session_state.inci_df.iloc[0, 5]:.2f}% of the 
                             {st.session_state.inci_fals_msg} cells can be found in {st.session_state.inci_df.index[0]}.
                             \nAdditionally, for Features that are a pure binary, data was split directly between
-                            the True and False conditions. For features that are a continuous variable, the data
+                            the Left and Right conditions. For features that are a continuous variable, the data
                             are split along the median value. Any numerical annotations or notes associated with a greater than or less than 
                             symbol is comparing the median value of that data feature. For features that are a categorical variable,
                             the Feature is identified as inappropriate for splitting.
@@ -150,14 +150,14 @@ def main():
                             {st.session_state.inci_fals_msg} cells also be found in {st.session_state.inci_df.index[0]}, the calculated
                             ratio of {st.session_state.inci_df.index[0]} is {st.session_state.inci_df.iloc[0, 8]:.2f}. You may find that
                             this ratio calculation is not a pure reflection of these two percentages. That is because we needed to account for
-                            conditions where one of the percentages was 0%. Therefore the true ratio is the log10 division between adjusted 
+                            conditions where one of the percentages was 0%. Therefore the Right ratio is the log10 division between adjusted 
                             percentages. Please refer to the documentation for the full equation.
                             \nAll ratios are shown in relation to the more *positive* outome. Therefore all ratios larger than
                             1 show a higher incidence of cells for the upper conditions. Ratios less than 1 show a higher incidence
                             for cells in the lower conditions.
                             \nAdditionally, for Features that are a pure binary, data was split directly between
-                            the True and False conditions. For features that are a continuous variable, the data
-                            are split along the median value. Any numerical annotations or notes associated with a greater than or less than 
+                            the Left and Right conditions. For features that are a continuous variable, the data
+                            are split along the median value. Any numerical annotations or notes associated with a greater than or less than
                             symbol is comparing the median value of that data feature. For features that are a categorical variable,
                             the Feature is identified as inappropriate for splitting.
                             ''')
