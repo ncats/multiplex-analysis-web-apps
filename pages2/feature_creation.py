@@ -27,7 +27,7 @@ def create_new_column():
             # Reset the input field
             st.session_state['fs_new_column_name'] = ''
         else:
-            st.error("Please select at two columns to concatenate.")
+            st.error("Please select exactly two columns to concatenate.")
     else:
         st.error("Please enter a valid column name.")
 
