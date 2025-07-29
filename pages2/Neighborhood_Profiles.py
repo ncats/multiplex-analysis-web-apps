@@ -642,7 +642,7 @@ def main():
 
                 dens_butt  = st.button('Perform Cell Density Analysis')
                 umap_butt  = st.button('Perform UMAP Analysis')
-                clust_butt = st.button('Perform Clustering Analysis')
+                clust_butt = st.button('Perform Clustering Analysis', disabled=st.session_state.disable_clustering)
 
             # Button results and difference settings
             with butt_cols[1]:
@@ -682,8 +682,7 @@ def main():
                               value = False, key = 'toggle_clust_diff',
                               help = '''Perform clustering on the density difference between
                                         two levels of a dataset feature.''',
-                                        on_change=check_feature_approval_callback,
-                                        disabled=st.session_state.disable_clustering)
+                                        on_change=check_feature_approval_callback)
 
                     clust_exp_col = st.columns(2)
                     with clust_exp_col[0]:

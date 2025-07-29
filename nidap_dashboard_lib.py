@@ -166,6 +166,7 @@ def reset_neigh_profile_settings(session_state):
     session_state.density_completed = False
     session_state.umap_completed    = False
     session_state.cluster_completed = False
+    session_state.disable_clustering = False
     session_state.UMAPFigType       = 'Density'
 
     # UMAP Lineage Display
