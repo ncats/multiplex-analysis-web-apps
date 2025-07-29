@@ -330,8 +330,8 @@ def check_number_points():
     num_points_left =  sum(st.session_state.udp_full.df[st.session_state.dens_diff_feat_sel] == st.session_state.feature_value_fals)
     num_points_right = sum(st.session_state.udp_full.df[st.session_state.dens_diff_feat_sel] == st.session_state.feature_value_true)
 
-    print(num_points_left, num_points_right)
-    if num_points_left <= 10 or num_points_right <= 10:
+    print(num_points_left, num_points_right, st.session_state.clust_diff_vals_code)
+    if (num_points_left <= 10 or num_points_right <= 10) and st.session_state.clust_diff_vals_code != 100:
         st.session_state.disable_clustering = True
         st.error('Selected Feature Values does not have enough points for clustering')
     else:
