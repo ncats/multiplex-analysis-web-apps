@@ -83,5 +83,6 @@ def main():
         st.dataframe(st.session_state['input_dataset'].data[selected_columns])
     else:
         st.info("No columns selected.")
+
 if __name__ == '__main__':
     main()
