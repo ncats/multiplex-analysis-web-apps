@@ -20,6 +20,7 @@ install_missing_packages.live_package_installation()
 from pages2 import data_import_and_export
 from pages2 import datafile_format_unifier
 from pages2 import open_file
+from pages2 import feature_creation
 from pages2 import robust_scatter_plotter
 from pages2 import multiaxial_gating
 from pages2 import thresholded_phenotyping  # slow due to things ultimately importing umap
@@ -94,8 +95,9 @@ def main():
                 st.Page(datafile_format_unifier.main, title="Datafile Unification", url_path='datafile_unification'),
                 st.Page(open_file.main, title="Open File", url_path='open_file')
             ],
-        'Coordinate Scatter Plotter 🌟':
+        'Dataset Investigation 🌟':
             [
+                st.Page(feature_creation.main, title="Feature Creation", url_path='feature_creation'),
                 st.Page(robust_scatter_plotter.main, title="Coordinate Scatter Plotter", url_path='coordinate_scatter_plotter')
             ],
         'Phenotyping 🧬':
