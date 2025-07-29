@@ -84,5 +84,15 @@ def main():
     else:
         st.info("No columns selected.")
 
+    # Add a dataframe which displays the number of unique values in selected columns
+    cols = st.columns([1, 1, 1])
+    with cols[1]:
+        if selected_columns:
+            unique_counts = st.session_state['input_dataset'].data[selected_columns].nunique()
+            unique_counts = unique_counts.rename('Unique Values')
+            st.dataframe(unique_counts)
+        else:
+            st.info("No columns selected.")
+
 if __name__ == '__main__':
     main()
