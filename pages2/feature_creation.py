@@ -94,5 +94,19 @@ def main():
         else:
             st.info("No columns selected.")
 
+    with cols[2]:
+        # Draw a bar chat of the count of each unique value for a given column
+        unique_bar_col = st.selectbox(
+            "Select column for unique value counts:",
+            options=selected_columns,
+            key='fs_unique_bar_col'
+        )
+        if unique_bar_col:
+            st.subheader("Unique Value Counts")
+            st.write(f"Counts for {unique_bar_col}:")
+            st.bar_chart(st.session_state['input_dataset'].data[unique_bar_col].value_counts())
+        else:
+            st.info("No columns selected.")
+
 if __name__ == '__main__':
     main()
