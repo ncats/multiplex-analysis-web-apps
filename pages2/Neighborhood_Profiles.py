@@ -343,6 +343,8 @@ def check_number_points():
         print('Enough points for clustering')
         st.session_state.disable_clustering = False
 
+    st.write(str(num_points_left), str(num_points_right), st.session_state.clust_diff_vals_code)
+
 def post_cluster_cleanup():
     '''
     mean_measures() calculation and variable setting
