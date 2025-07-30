@@ -327,14 +327,20 @@ def check_number_points():
     '''
 
     # Check the number of points where this value is true
-    num_points_left =  sum(st.session_state.udp_full.df[st.session_state.dens_diff_feat_sel] == st.session_state.feature_value_fals)
-    num_points_right = sum(st.session_state.udp_full.df[st.session_state.dens_diff_feat_sel] == st.session_state.feature_value_true)
+    if st.session_state.clust_diff_vals_code != 100:
+        num_points_left = sum(st.session_state.udp_full.df[st.session_state.dens_diff_feat_sel] == st.session_state.feature_value_fals)
+        num_points_right = sum(st.session_state.udp_full.df[st.session_state.dens_diff_feat_sel] == st.session_state.feature_value_true)
+    else:
+        num_points_left = sum(st.session_state.udp_full.df[st.session_state.dens_diff_feat_sel] <= st.session_state.feature_value_fals)
+        num_points_right = sum(st.session_state.udp_full.df[st.session_state.dens_diff_feat_sel] > st.session_state.feature_value_true)
 
     print(num_points_left, num_points_right, st.session_state.clust_diff_vals_code)
-    if (num_points_left <= 10 or num_points_right <= 10) and st.session_state.clust_diff_vals_code != 100:
+    if num_points_left <= 10 or num_points_right <= 10:
+        print('Not enough points for clustering')
         st.session_state.disable_clustering = True
-        st.error('Selected Feature Values does not have enough points for clustering')
+        # st.error('Selected Feature Values does not have enough points for clustering')
     else:
+        print('Enough points for clustering')
         st.session_state.disable_clustering = False
 
 def post_cluster_cleanup():
@@ -645,7 +651,7 @@ def main():
 
                 dens_butt  = st.button('Perform Cell Density Analysis')
                 umap_butt  = st.button('Perform UMAP Analysis')
-                clust_butt = st.button('Perform Clustering Analysis', disabled=st.session_state.disable_clustering)
+                clust_butt = st.button('Perform Clustering Analysis')
 
             # Button results and difference settings
             with butt_cols[1]:
