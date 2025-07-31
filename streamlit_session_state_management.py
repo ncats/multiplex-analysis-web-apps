@@ -9,7 +9,7 @@ import utils
 # from pympler.asizeof import asizeof as deep_mem_usage_in_bytes
 from objsize import get_deep_size as deep_mem_usage_in_bytes
 import time
-from pages import memory_analyzer
+from pages2 import memory_analyzer
 
 
 def load_session_state_preprocessing(saved_streamlit_session_states_dir, saved_streamlit_session_state_prefix='streamlit_session_state-', saved_streamlit_session_state_key='session_selection', selected_session=None):

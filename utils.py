@@ -12,6 +12,7 @@ import pytz
 from datetime import datetime
 import anndata
 import time
+import pickle
 
 def set_filename_corresp_to_roi(df_paths, roi_name, curr_colname, curr_dir, curr_dir_listing):
     """Update the path in a main paths-holding dataframe corresponding to a particular ROI in a particular directory.
@@ -63,6 +64,8 @@ def get_paths_for_rois():
     # Obtain the directory holding the subdirectories containing various types of plots (in this case, three types)
     # plots_dir = os.path.join(os.getcwd(), '..', 'results', 'webpage', 'slices_1x{}'.format(radius_in_microns), 'real')
     plots_dir = os.path.join('.', 'output', 'images')
+    pickle_dir = os.path.join('.', 'output', 'checkpoints')
+    pickle_file = 'initial_data.pkl'
 
     # Obtain the paths to the subdirectories
     outlines_dir = os.path.join(plots_dir, 'single_roi_outlines_on_whole_slides')
@@ -86,11 +89,17 @@ def get_paths_for_rois():
         df_paths = set_filename_corresp_to_roi(df_paths=df_paths, roi_name=roi_name, curr_colname='heatmap', curr_dir=heatmaps_dir, curr_dir_listing=heatmaps_dir_listing)
         df_paths = set_filename_corresp_to_roi(df_paths=df_paths, roi_name=roi_name, curr_colname='outline', curr_dir=outlines_dir, curr_dir_listing=outlines_dir_listing)
 
+    with open(os.path.join(pickle_dir, pickle_file), 'rb') as f:
+        initial_data = pickle.load(f)
+    df_data_by_roi = initial_data['df_data_by_roi']
+    df_data_by_roi['unique_roi'] = df_data_by_roi['unique_roi'].replace(' ', '_', regex=True)
+    ser_slide_per_roi = df_data_by_roi.set_index('unique_roi')['unique_slide']
+
     # Add columns containing the patient "case" ID and the slide "condition", in order to aid in sorting the data
     cases = []
     conditions = []
     for roi_name in df_paths.index:
-        slide_id = roi_name.split('-')[0]
+        slide_id = ser_slide_per_roi[roi_name].split('-')[0]  # this is a more reliable way to get the slide ID
         cases.append(int(slide_id[:-1]))
         conditions.append(slide_id[-1])
     df_paths['case'] = cases
@@ -135,21 +144,16 @@ def get_paths_for_slides():
     df_paths = pd.DataFrame([os.path.splitext(x)[0] for x in slides_listing], columns=['slide_name']).set_index('slide_name')
 
     # Determine the filenames of each of the image types corresponding to each slide name
-    corresp_slide_filename = []
-    corresp_slide_filename_patched = []
-    corresp_heatmap_filename = []
     for slide_name in df_paths.index:
-        for slide_filename, heatmap_filename in zip(slides_listing, heatmaps_listing):
+        for slide_filename in slides_listing:
             if slide_name in slide_filename:
-                corresp_slide_filename.append(os.path.join(plots_dir, 'whole_slide_patches', slide_filename))
-                corresp_slide_filename_patched.append(os.path.join(plots_dir, 'whole_slide_patches', '{}-patched{}'.format(os.path.splitext(slide_filename)[0], file_extension)))
+                df_paths.loc[slide_name, 'slide'] = os.path.join(plots_dir, 'whole_slide_patches', slide_filename)
+                df_paths.loc[slide_name, 'slide_patched'] = os.path.join(plots_dir, 'whole_slide_patches', '{}-patched{}'.format(os.path.splitext(slide_filename)[0], file_extension))
+                break
+        for heatmap_filename in heatmaps_listing:
             if slide_name in heatmap_filename:
-                corresp_heatmap_filename.append(os.path.join(plots_dir, 'dens_pvals_per_slide', heatmap_filename))
-
-    # Add these paths to the main paths dataframe
-    df_paths['slide'] = corresp_slide_filename
-    df_paths['slide_patched'] = corresp_slide_filename_patched
-    df_paths['heatmap'] = corresp_heatmap_filename
+                df_paths.loc[slide_name, 'heatmap'] = os.path.join(plots_dir, 'dens_pvals_per_slide', heatmap_filename)
+                break
 
     # Add columns containing the patient "case" ID and the slide "condition", in order to aid in sorting the data
     cases = []
@@ -163,6 +167,14 @@ def get_paths_for_slides():
 
     # Sort the data by case, then by condition, then by the slide string
     df_paths = df_paths.sort_values(by=['case', 'condition', 'slide_name'])
+
+    # # Delete rows in df_paths where 'slide', 'slide_patched', or 'heatmap' is None
+    # print(df_paths)
+    # num_rows_before = len(df_paths)
+    # df_paths = df_paths.dropna(subset=['slide', 'slide_patched', 'heatmap'])
+    # print(df_paths)
+    # num_rows_after = len(df_paths)
+    # print(f'Deleted {num_rows_before - num_rows_after} rows from df_paths where "slide", "slide_patched", or "heatmap" was None.')
 
     # Return the paths dataframe
     return df_paths
@@ -760,6 +772,23 @@ def calculate_neighbor_counts_with_possible_chunking(center_coords=None, neighbo
     # Return the neighbor counts
     return neighbor_counts
 
+
+def calculate_neighbor_counts_with_kdtree(center_coords, neighbor_coords, radius, tol=1e-9):
+    # NOTE FOR FUTURE: Probably reconsider using scipy.spatial.KDTree.count_neighbors() since that may align with the statistic of interest in both Poisson and permutation methods, i.e., the sum of the neighbor counts over all centers. Perhaps force that to work because that may really perfectly match the statistic of interest. E.g., note in calculate_density_metrics() that the full output of this function (num_centers,) is not used but is rather summed, which I believe would be the output of count_neighbors(). I.e., query_ball_tree() returns extra, unused information. I would need to make sure there would never be memory issues though, e.g., if an entire large slide were to run count_neighbors() at once. If there are P phenotypes, we'd still have to build 2P trees and call count_neighbors P^2 times per ROI, so both timing and memory usage should be tested thoroughly.
+    radius = radius - tol  # to essentially make the check [0, radius) instead of [0, radius]
+    center_tree = scipy.spatial.KDTree(center_coords)
+    neighbor_tree = scipy.spatial.KDTree(neighbor_coords)
+    indexes = center_tree.query_ball_tree(neighbor_tree, r=radius)
+    return np.array([len(neighbors_list) for neighbors_list in indexes])  # (num_centers,)
+
+    # Using this matches the cdist method but is not elegant, but using "tol" above gets the same result more efficiently
+    # neighbor_counts = []
+    # for i, neighbors_list in enumerate(indexes):
+    #     count = sum(np.linalg.norm(neighbor_coords[idx] - center_coords[i]) < radius for idx in neighbors_list)
+    #     neighbor_counts.append(count)
+    # return np.array(neighbor_counts)  # (num_centers,)
+
+
 def dataframe_insert_possibly_existing_column(df, column_position, column_name, srs_column_values):
     """
     Alternative to df.insert() that replaces the column values if the column already exists, but otherwise uses df.insert() to add the column to the dataframe.
@@ -837,21 +866,24 @@ def downcast_series_dtype(ser, frac_cutoff=0.05, number_cutoff=10):
     # Get the initial dtype
     initial_dtype = ser.dtype
 
-    # Check if the series dtype is 'object'
-    if ser.dtype == 'object':
-        cutoff = frac_cutoff * len(ser)  # Calculate the cutoff based on the fraction of unique values
-    else:
-        cutoff = number_cutoff  # Use the number cutoff for non-object dtypes
+    # Don't do anything if the series is boolean
+    if initial_dtype != 'bool':
 
-    # If the number of unique values is less than or equal to the cutoff, convert the series to the category data type
-    if ser.nunique() <= cutoff:
-        ser = ser.astype('category')
+        # Check if the series dtype is 'object'
+        if ser.dtype == 'object':
+            cutoff = frac_cutoff * len(ser)  # Calculate the cutoff based on the fraction of unique values
+        else:
+            cutoff = number_cutoff  # Use the number cutoff for non-object dtypes
 
-    # Halve the precision of integers and floats
-    if ser.dtype == 'int64':
-        ser = ser.astype('int32')
-    elif ser.dtype == 'float64':
-        ser = ser.astype('float32')
+        # If the number of unique values is less than or equal to the cutoff, convert the series to the category data type
+        if ser.nunique() <= cutoff:
+            ser = ser.astype('category')
+
+        # Halve the precision of integers and floats
+        if ser.dtype == 'int64':
+            ser = ser.astype('int32')
+        elif ser.dtype == 'float64':
+            ser = ser.astype('float32')
 
     # Get the final dtype
     final_dtype = ser.dtype
@@ -885,13 +917,12 @@ def downcast_dataframe_dtypes(df, also_return_final_size=False, frac_cutoff=0.05
     print('----')
     print('Memory usage before conversion: {:.2f} MB'.format(original_memory / 1024 ** 2))
 
-    # Potentially convert the columns to more efficient formats, ignoring boolean columns
+    # Potentially convert the columns to more efficient formats
     for col in df.columns:
-        if df[col].dtype != 'bool':
-            if no_categorical:
-                df[col] = downcast_series_dtype_no_categorical(df[col])
-            else:
-                df[col] = downcast_series_dtype(df[col], frac_cutoff=frac_cutoff, number_cutoff=number_cutoff)
+        if no_categorical:
+            df[col] = downcast_series_dtype_no_categorical(df[col])
+        else:
+            df[col] = downcast_series_dtype(df[col], frac_cutoff=frac_cutoff, number_cutoff=number_cutoff)
 
     # Print memory usage after conversion
     new_memory = df.memory_usage(deep=True).sum()
@@ -930,12 +961,15 @@ def downcast_series_dtype_no_categorical(ser):
     # Get the initial dtype
     initial_dtype = ser.dtype
 
-    # Halve the precision of integers and floats
-    if initial_dtype == 'int64':
-        # ser = ser.astype('int32')
-        ser = downcast_int_series(ser)
-    elif initial_dtype == 'float64':
-        ser = ser.astype('float32')
+    # Don't do anything if the series is boolean
+    if initial_dtype != 'bool':
+
+        # Halve the precision of integers and floats
+        if initial_dtype == 'int64':
+            # ser = ser.astype('int32')
+            ser = downcast_int_series(ser)
+        elif initial_dtype == 'float64':
+            ser = ser.astype('float32')
 
     # Get the final dtype
     final_dtype = ser.dtype
@@ -1233,3 +1267,16 @@ def fast_neighbors_counts_for_block2(df_image, image_name, coord_column_names, p
 
     # Return the final dataframe of neighbor counts for the current image
     return df_curr_counts
+
+
+def get_categorical_columns_including_numeric(df, max_num_unique_values=1000):
+    categorical_columns = []
+    for col in df.columns:
+        if df[col].nunique() <= max_num_unique_values:
+            categorical_columns.append(col)
+    return categorical_columns
+
+
+def sample_df_without_replacement_by_number(df, n, seed=None):
+    n = min(n, len(df))
+    return df.sample(n=n, replace=False, random_state=seed)

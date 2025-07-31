@@ -25,8 +25,8 @@ class foundry_IO_lib:
         token = os.environ.get('FOUNDRY_TOKEN', 'Not found')
         if (host_name == 'Not found') | (token == 'Not found'):
             # Import SDK handling library
-            from palantir.datasets import dataset
-            self.dataset = dataset
+            # from palantir.datasets import dataset
+            # self.dataset = dataset
             # Inform on working environment
             print('Not Operating on NIDAP')
             self.onNIDAP = False
@@ -155,15 +155,23 @@ class foundry_IO_lib:
             df.to_csv(full_path, index=False)
         print(f'Uploaded {filename}')
 
-    def save_png_dataset(self, datafile, pngFileName, pltFig):
+    def save_png_dataset(self, datafile, png_file_name, plt_fig):
         """
         Save png to a NIDAP dataset
+
+        Args:
+            datafile (str): The NIDAP dataset to save the PNG to
+            png_file_name (str): The name of the PNG file (without extension)
+            plt_fig (obj): Matplotlib figure object to be save as png
+
+        Returns:
+            None
         """
 
         # File Name
-        filename_full = pngFileName + '.png'
+        filename_full = png_file_name + '.png'
         # Save as a png in the local directory using the Matplotlib 'savefig' method
-        pltFig.savefig(filename_full)
+        plt_fig.savefig(filename_full)
 
         if self.onNIDAP:
             foundry_obj = self.dataset.get(datafile)
