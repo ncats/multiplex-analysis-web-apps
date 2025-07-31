@@ -287,6 +287,7 @@ def check_feature_approval_callback():
 
     if not st.session_state['toggle_clust_diff']:
         st.session_state.appro_feat = True
+        st.session_state.disable_clustering = False
     else:
 
         # Check feature values
@@ -301,7 +302,7 @@ def check_feature_approval_callback():
         if st.session_state.clust_diff_vals_code == 2:
             options_fals = [feature_vals[0]]
             options_true = [feature_vals[1]]
-        elif st.session_state.clust_diff_vals_code > 2 and st.session_state.clust_diff_vals_code <= 15:
+        elif st.session_state.clust_diff_vals_code > 2 and st.session_state.clust_diff_vals_code <= 99:
             options_fals = feature_vals
             options_true = feature_vals
         elif st.session_state.clust_diff_vals_code == 100:
@@ -317,6 +318,32 @@ def check_feature_approval_callback():
         st.session_state.clus_diff_vals_true = options_true
         st.session_state.feature_value_fals = options_fals[0]
         st.session_state.feature_value_true = options_true[0]
+
+        check_number_points()
+
+def check_number_points():
+    '''
+    Quick function to check the number of points to be used for clustering
+    '''
+
+    # Check the number of points where this value is true
+    if st.session_state.clust_diff_vals_code != 100:
+        num_points_left = sum(st.session_state.udp_full.df[st.session_state.dens_diff_feat_sel] == st.session_state.feature_value_fals)
+        num_points_right = sum(st.session_state.udp_full.df[st.session_state.dens_diff_feat_sel] == st.session_state.feature_value_true)
+    else:
+        num_points_left = sum(st.session_state.udp_full.df[st.session_state.dens_diff_feat_sel] <= st.session_state.feature_value_fals)
+        num_points_right = sum(st.session_state.udp_full.df[st.session_state.dens_diff_feat_sel] > st.session_state.feature_value_true)
+
+    print(num_points_left, num_points_right, st.session_state.clust_diff_vals_code)
+    if num_points_left <= 10 or num_points_right <= 10:
+        print('Not enough points for clustering')
+        st.session_state.disable_clustering = True
+        # st.error('Selected Feature Values does not have enough points for clustering')
+    else:
+        print('Enough points for clustering')
+        st.session_state.disable_clustering = False
+
+    st.write(str(num_points_left), str(num_points_right), st.session_state.clust_diff_vals_code)
 
 def post_cluster_cleanup():
     '''
@@ -557,6 +584,9 @@ def main():
     if 'list_clusters' not in st.session_state:
         st.session_state.list_clusters = list(st.session_state.cluster_dict.values())
 
+    if 'disable_clustering' not in st.session_state:
+        st.session_state.disable_clustering = False
+
     nei_pro_tabs = st.tabs(['Analyze from Phenotyping', 'Load Previous Analysis'])
     with nei_pro_tabs[0]:
 
@@ -676,8 +706,10 @@ def main():
                                          on_change=check_feature_approval_callback)
 
                             st.selectbox('Value for Left Condition', key = 'feature_value_fals',
-                                         options = st.session_state.clus_diff_vals_fals)
-                            st.number_input('Number of Clusters for Left Condition', min_value = 1, max_value = 10, value = 3, step = 1, key = 'num_clus_0')
+                                         options = st.session_state.clus_diff_vals_fals,
+                                         on_change=check_number_points)
+                            st.number_input('Number of Clusters for Left Condition', min_value = 1, max_value = 10,
+                                            value = 3, step = 1, key = 'num_clus_0')
                             if st.session_state.elbow_fig_0 is not None:
                                 st.pyplot(st.session_state.elbow_fig_0)
                         # Perform clustering normally
@@ -693,8 +725,10 @@ def main():
                         if st.session_state['toggle_clust_diff'] is True:
                             st.number_input('Cutoff Percentage', min_value = 0.01, max_value = 0.99, value = 0.01, step = 0.01, key = 'dens_diff_cutoff')
                             st.selectbox('Value for Right Condition', key = 'feature_value_true',
-                                         options = st.session_state.clus_diff_vals_true)
-                            st.number_input('Number of Clusters for Right Condition', min_value = 1, max_value = 10, value = 3, step = 1, key = 'num_clus_1')
+                                         options = st.session_state.clus_diff_vals_true,
+                                         on_change=check_number_points)
+                            st.number_input('Number of Clusters for Right Condition', min_value = 1, max_value = 10,
+                                            value = 3, step = 1, key = 'num_clus_1')
                             if st.session_state.elbow_fig_1 is not None:
                                 st.pyplot(st.session_state.elbow_fig_1)
                     if st.session_state.cluster_completed:
