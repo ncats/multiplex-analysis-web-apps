@@ -38,6 +38,21 @@ def update_list_columns():
 
     st.session_state['fc_input_df_columns'] = st.session_state['input_dataset'].data.columns.tolist()
 
+def update_image_list():
+    '''
+    Function to update the list of images in the session state.
+    '''
+
+    # Check if the column 'Image ID_(standardized) exists
+    if 'Image ID_(standardized)' in st.session_state['input_dataset'].data.columns:
+        st.session_state.fc_image_select_disabled = False
+        st.session_state['fc_input_df_images'] = st.session_state['input_dataset'].data['Image ID_(standardized)'].unique().tolist()
+
+        # Append 'All Images' to the front of this list
+        st.session_state['fc_input_df_images'].insert(0, 'All Images')
+    else:
+        st.session_state.fc_image_select_disabled = True
+
 def main():
     '''
     Main function for creating custom features
@@ -53,6 +68,8 @@ def main():
     if 'fc_input_df_columns' not in st.session_state:
         update_list_columns()
         st.session_state['fc_columns_select'] = st.session_state['fc_input_df_columns']
+
+    update_image_list()
 
     with st.expander("Select columns to display", expanded=True):
         selected_columns = st.multiselect(
@@ -80,6 +97,7 @@ def main():
         )
 
     if selected_columns:
+        st.subheader(f"Number of cells: {st.session_state['input_dataset'].data.shape[0]}")
         st.dataframe(st.session_state['input_dataset'].data[selected_columns])
     else:
         st.info("No columns selected.")
@@ -94,17 +112,42 @@ def main():
         else:
             st.info("No columns selected.")
 
+    # Draw a bar chat of the count of each unique value for a given column
     with cols[2]:
-        # Draw a bar chat of the count of each unique value for a given column
-        unique_bar_col = st.selectbox(
-            "Select column for unique value counts:",
-            options=selected_columns,
-            key='fs_unique_bar_col'
-        )
+
+        sub_cols = st.columns([1, 1])
+        with sub_cols[0]:
+            unique_bar_col = st.selectbox(
+                "Select column for unique value counts:",
+                options=st.session_state['fc_input_df_columns'],
+                key='fs_unique_bar_col'
+            )
+
+        with sub_cols[1]:
+            if not st.session_state.fc_image_select_disabled:
+                image_to_view = st.selectbox(
+                    "Select image to view:",
+                    options=st.session_state['fc_input_df_images'],
+                    key='fs_image_to_view'
+                )
+            else:
+                image_to_view = 'All Images'
+                st.write("No Column named 'Image ID_(standardized)'. Please complete the Datafile Unification")
+
         if unique_bar_col:
-            st.subheader("Unique Value Counts")
-            st.write(f"Counts for {unique_bar_col}:")
-            st.bar_chart(st.session_state['input_dataset'].data[unique_bar_col].value_counts())
+
+            # Find max value from unique counts across all images
+            max_unique_count = st.session_state['input_dataset'].data[unique_bar_col].value_counts().max()
+
+            if image_to_view == 'All Images':
+                bar_chart_data = st.session_state['input_dataset'].data[unique_bar_col].value_counts()
+            else:
+                bar_chart_data = st.session_state['input_dataset'].data[unique_bar_col][st.session_state['input_dataset'].data['Image ID_(standardized)'] == image_to_view].value_counts()
+
+            st.subheader(f"Feature: {unique_bar_col}")
+            st.write(f'''**Image**: {image_to_view}  
+                         **Number of cells**: {bar_chart_data.sum()}''')
+            st.bar_chart(bar_chart_data)
         else:
             st.info("No columns selected.")
 
