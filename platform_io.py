@@ -9,9 +9,8 @@ import shutil
 import pandas as pd
 import streamlit as st
 import streamlit_dataframe_editor as sde
-import streamlit_session_state_management
 import utils
-from pages import memory_analyzer
+from pages2 import memory_analyzer
 
 # Constant
 local_input_dir = os.path.join('.', 'input')
@@ -274,10 +273,10 @@ class Platform:
         # If on NIDAP...
         elif self.platform == 'nidap':
 
-            st.subheader(':tractor: Load input data')
+            st.subheader(':tractor: Load input data into MAWA')
 
             # If a load button is clicked...
-            if st.button('Load selected (at left) input data :arrow_right:'):
+            if st.button('Load selected NIDAP input data :arrow_right:'):
 
                 # Import relevant libraries
                 import nidap_io
@@ -313,9 +312,9 @@ class Platform:
                     if selected_input_filename.endswith('.zip'):
                         splitted = selected_input_filename.split('.')  # should be of length 2 or 3 (for, e.g., asdf.csv.zip)
                         num_periods = len(splitted) - 1  # should be 1 or 2
-                        if (num_periods < 1) or (num_periods > 2):
-                            st.error('Available .zip input filename {} has a bad number of periods ({}... it should have 1-2 periods); please fix this.'.format(selected_input_filename, num_periods))
-                            sys.exit()
+                        # if (num_periods < 1) or (num_periods > 2):
+                        #     st.error('Available .zip input filename {} has a bad number of periods ({}... it should have 1-2 periods); please fix this.'.format(selected_input_filename, num_periods))
+                        #     sys.exit()
                         if num_periods == 1:  # it's a zipped directory, by specification
                             if '--' not in selected_input_filename:
                                 dirpath = os.path.join(local_input_dir, selected_input_filename.rstrip('.zip'))
@@ -323,7 +322,7 @@ class Platform:
                                 dirpath = os.path.join(local_input_dir, selected_input_filename.split('--')[0])
                             ensure_empty_directory(dirpath)
                             shutil.unpack_archive(local_download_path, dirpath)
-                        elif num_periods == 2:  # it's a zipped datafile
+                        else:  # it's a zipped datafile
                             shutil.unpack_archive(local_download_path, local_input_dir)
                     else:
                         shutil.copy(local_download_path, local_input_dir)
@@ -374,7 +373,7 @@ class Platform:
     
     # Write a dataframe of the local input files, which we don't want to be editable because we don't want to mess with the local inputs (for now), even though they're basically a local copy
     def display_local_inputs_df(self):
-        st.subheader(':open_file_folder: Input data available to the tool')
+        st.subheader(':open_file_folder: Input data in MAWA')
         local_inputs = self.get_local_inputs_listing()
         if self.platform == 'local':  # not editable locally because deletion is disabled anyway so there'd be nothing to do with selected files
             make_complex_dataframe_from_file_listing(dirpath=local_input_dir, item_names=local_inputs, editable=False)
@@ -501,7 +500,7 @@ class Platform:
             st.selectbox('Select available results archive to load:', self.available_archives, key='archive_to_load')
 
             # If the user wants to load the selected archive...
-            if st.button('Load selected (above) results archive :arrow_right:', help='WARNING: This will copy the contents of the selected archive to the results directory and will overwrite currently loaded results; please ensure they are backed up (you can just use the functions on this page)!'):
+            if st.button('Load selected results archive :arrow_right:', help='WARNING: This will copy the contents of the selected archive to the results directory and will overwrite currently loaded results; please ensure they are backed up (you can just use the functions on this page)!'):
 
                 # First delete everything in currently in the output results directory (i.e., all currently loaded data) that's not an output archive
                 delete_selected_files_and_dirs(local_output_dir, self.get_local_results_listing())
@@ -617,7 +616,7 @@ class Platform:
     
     # Write a dataframe of the results in the local output directory, also obviously platform-independent
     def display_local_results_df(self):
-        st.subheader(':open_file_folder: Results loaded in the tool')
+        st.subheader(':open_file_folder: Results in MAWA')
         make_complex_dataframe_from_file_listing(local_output_dir, self.get_local_results_listing(), df_session_state_key_basename='local_results', editable=True)
 
     # Delete selected items from the output results directory
@@ -641,7 +640,7 @@ class Platform:
     # Write a YAML file of the current tool parameters to the loaded results directory
     def write_settings_to_local_results(self):
         st.subheader(':tractor: Write current tool parameters to loaded results')
-        if st.button(':pencil2: Write current tool settings to the results directory', help='Note you can subsequently load these parameters from the "Tool parameter selection" tab at left'):
+        if st.button(':pencil2: Write current tool settings to the results directory'):
             write_current_tool_parameters_to_disk(local_output_dir)
             st.rerun()  # rerun since this potentially changes outputs
 

@@ -4,15 +4,14 @@ that must be run first at the top of every Streamlit page
 '''
 import subprocess
 import numpy as np
-import platform_io
 import streamlit as st
-from st_pages import show_pages_from_config, add_indentation
 from streamlit_extras.app_logo import add_logo
 import streamlit_session_state_management
 import streamlit_utils
 
 # Import relevant libraries
-import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
+import platform_io                # Platform I/O functions
+import nidap_dashboard_lib as ndl # Useful functions for NIDAP dashboards
 
 def top_of_page_reqs(session_state):
     '''
@@ -29,11 +28,6 @@ def top_of_page_reqs(session_state):
         first_app_run = True
     else:
         first_app_run = False
-
-    # Apply pages order and indentation
-    if first_app_run:
-        show_pages_from_config()  # this is slow so only do it once
-    add_indentation()
 
     # Run session state management in the sidebar
     streamlit_session_state_management.execute(first_app_run)
@@ -70,7 +64,7 @@ def platform_is_nidap():
     '''
     Check if the Streamlit application is operating on NIDAP
     '''
-    return np.any(['nidap.nih.gov' in x for x in subprocess.run('conda config --show channels', shell=True, capture_output=True).stdout.decode().split('\n')[1:-1]])
+    return np.any(['foundry-artifacts' in x for x in subprocess.run('conda config --show channels', shell=True, capture_output=True).stdout.decode().split('\n')[1:-1]])
 
 def check_for_platform(session_state):
     '''

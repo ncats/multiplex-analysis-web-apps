@@ -1,0 +1,65 @@
+package:
+  name: '{{ PACKAGE_NAME }}'
+  version: '{{ PACKAGE_VERSION }}'
+source:
+  path: ../src
+requirements:
+  run:
+  - gcc_linux-64
+  - gxx_linux-64
+  - clang
+  - numba
+  - scanpy
+  - ipykernel
+  - pip
+  - foundry-data-sidecar-api>=0.745.0
+  - foundry-transforms-lib-python>=0.757.0
+  - pandas
+  - polars
+  - dash
+  - streamlit
+  - tensorboard
+  - requests=2.27.1
+  pip:
+  - streamlit-extras
+  - phenograph
+  - anndata==0.10.9
+  - matplotlib
+  - natsort
+  - numpy
+  - palantir-sdk
+  - plotly
+  - scipy
+  - seaborn
+  - scikit-image
+  - scikit-learn
+  - split-file-reader
+  - squidpy
+  - tqdm
+  - umap-learn
+  - pyyaml
+  - st-pages
+  - streamlit-javascript
+  - dill
+  - pympler
+  - objsize
+  - parc
+  - parmap
+  - setuptools-scm
+  - annoy
+  - sklearn-ann
+  - pynndescent
+  - plotnine
+  - dask==2024.9.1
+  - dask-expr==1.1.15
+  - distributed==2024.9.1
+  - faker==30.3.0
+  - frozenlist==1.4.1
+  - igraph==0.11.6
+  - imageio==2.35.1
+  - mizani==0.11.4
+  - pymdown-extensions==10.11.2
+  - typeguard==4.3.0
+  - xarray==2024.9.0
+  - xarray-datatree==0.0.14
+  - yarl==1.14.0

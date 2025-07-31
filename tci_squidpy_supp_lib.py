@@ -109,7 +109,7 @@ def squidpy_enrichment(adata, radius=3.0, n_neighs=6, radius_instead_of_knn=True
         sq.gr.spatial_neighbors(adata, n_neighs=n_neighs, coord_type='generic')
 
     # Calculate the neighborhood enrichment
-    sq.gr.nhood_enrichment(adata, cluster_key=label_name, n_jobs=n_jobs)
+    sq.gr.nhood_enrichment(adata, cluster_key=label_name)
 
     # Generate the heatmap
     sq.pl.nhood_enrichment(adata, cluster_key=label_name, annotate=annotate)

@@ -220,9 +220,7 @@ class SpatialUMAP:
         with mp.Pool(processes=cpu_pool_size) as pool:
             results = pool.starmap(utils.fast_neighbors_counts_for_block2, kwargs_list)
 
-        print('Finished calculating density matrix for all images. Concatenating results...')
         df_density_matrix = pd.concat(self.get_dataframes(results))
-        print('Finished concatenating counts results.')
         full_array = None
         for ii, phenotype in enumerate(phenotypes):
             cols2Use = [f'{phenotype} in {x}' for x in range_strings]
@@ -231,10 +229,9 @@ class SpatialUMAP:
                 full_array = array_set
             else:
                 full_array = np.dstack((full_array, array_set))
-        print('BBBBB')
+
         full_array_nan = np.isnan(full_array)
         full_array[full_array_nan] = 0
-        print('CCCCC')
 
         # Concatenate the results into a single dataframe
         return full_array
@@ -274,10 +271,11 @@ class SpatialUMAP:
         # Mean Densities
         self.dens_df = pd.DataFrame()
         self.prop_df = pd.DataFrame()
-        self.dens_df_mean = pd.DataFrame(data = {'clust_label': ['No Cluster'], 
+        self.dens_df_mean = pd.DataFrame(data = {'clust_label': ['No Cluster'],
                                                  'phenotype': ['Other'], 
                                                  'dist_bin': [25], 
-                                                 'density_mean': [0]})
+                                                 'density_mean': [0],
+                                                 'density_sem': [0]})
         self.dens_df_se = pd.DataFrame()
         self.maxdens_df = pd.DataFrame()
 
@@ -525,7 +523,10 @@ class SpatialUMAP:
 
     def mean_measures(self):
         '''
-        Setup density values for means
+        Mean measures creates the density dataframe (self.dens_df) which is used
+        for visualiations of Neighborhood Profiles
+
+        Components from self.df_umap are grouped to create self.dens_df and self.dens_df_mean
         '''
 
         dens_umap_test = self.density[self.cells['umap_test'], :, :]

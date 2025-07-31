@@ -9,20 +9,21 @@ Class UMAPDensityProcessing:
     Individual processing of UMAP density matrices
 '''
 
-import multiprocessing as mp
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.cluster import KMeans # K-Means
-import umap
+import umap  # slow
 from scipy import ndimage as ndi
 
 import basic_phenotyper_lib as bpl  # Useful functions for cell phenotyping
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
 from benchmark_collector import benchmark_collector # Benchmark Collector Class
+from SpatialUMAP import SpatialUMAP
 import PlottingTools as umPT
-
+import utils
+from natsort import natsorted
 class NeighborhoodProfiles:
     '''
     Organization of the methods and attributes that are required to run
@@ -82,40 +83,98 @@ class NeighborhoodProfiles:
         self.lineageDisplayToggle_clus = 'Phenotypes'
 
         # Unfiltered dropdown default options
-        self.defLineageOpt    = 'All Phenotypes'
-        self.defumapOutcomes  = 'No Outcome'
-        self.definciOutcomes  = 'Cell Counts'
+        self.def_lineage_opt  = 'All Phenotypes' # Default Lineage Option
+        self.def_umap_feature = 'No Outcome'     # Default Feature selection for UMAP analysis
+        self.def_inci_feature = 'Cell Counts'    # Default Feature selection for Incidence analysis
 
         # Default UMAP dropdown options
-        self.umapPheno    = [self.defLineageOpt]
-        self.umapMarks    = [self.defLineageOpt]
-        self.umaplineages = [self.defLineageOpt]
-        self.umapOutcomes = [self.defumapOutcomes]
+        self.umapPheno    = [self.def_lineage_opt]
+        self.umapMarks    = [self.def_lineage_opt]
+        self.umaplineages = [self.def_lineage_opt]
+        self.umapOutcomes = [self.def_umap_feature]
 
-        # Default Incidence dropdown options
-        self.inciOutcomes = [self.definciOutcomes]
+        # Default feature dropdown options for Incidence analysis
+        self.inciOutcomes = [self.def_inci_feature]
 
         # Default UMAPInspect settings
-        self.umapInspect_Ver = self.defLineageOpt
-        self.umapInspect_Feat = self.defumapOutcomes
+        self.umapInspect_Ver = self.def_lineage_opt
+        self.umapInspect_Feat = self.def_umap_feature
 
         # Default UMAP differences settings
-        self.diffUMAPSel_Ver  = self.defLineageOpt
-        self.diffUMAPSel_Feat = self.defumapOutcomes
+        self.diffUMAPSel_Ver  = self.def_lineage_opt
+        self.diffUMAPSel_Feat = self.def_umap_feature
 
         # Default Incidence settings
-        self.inciPhenoSel   = self.defLineageOpt
-        self.inciOutcomeSel = self.definciOutcomes
-        self.Inci_Value_display = 'Count Differences'
+        self.inci_pheno_sel = self.def_lineage_opt  # Incidence Phenotype Selection
+        self.inci_featu_sel = self.def_inci_feature # Incidence Feature Selection
+        self.inci_value_dis = 'Count Differences'   # Incidence Value Displayed
 
-    def setup_spatial_umap(self, df, marker_names, pheno_order):
+    def setup_spatial_umap(self, df, marker_names, pheno_order, smallest_image_size):
         '''
-        Silly I know. I will fix it later
+        Sets up the Spatial UMAP object with the provided data and parameters.
+
+        Args:
+            df (pd.DataFrame): DataFrame containing the cell data
+            marker_names (list): List of marker names
+            pheno_order (list): List of phenotype names in order
+            smallest_image_size (float): Smallest image size for analysis
+
+        Returns:
+            SpatialUMAP: Initialized SpatialUMAP object
         '''
 
-        self.spatial_umap = bpl.setup_Spatial_UMAP(df, marker_names, pheno_order)
+        # Initialize the SpatialUMAP object
+        # dist_bin_um (np.array): Array of distances in microns
+        # um_per_px (float): Microns per pixel
+        # area_downsample (float): Area downsample
+        self.spatial_umap = SpatialUMAP(dist_bin_um=np.array([25, 50, 100, 150, 200]), um_per_px=1.0, area_downsample=1.0)
+        self.spatial_umap.cells = df
+        self.spatial_umap.patients = self.spatial_umap.makeDummyClinic(10)
 
-    def perform_density_calc(self, cpu_pool_size = 1):
+        # Set Lineage and sort
+        self.spatial_umap.cells['Lineage'] = self.spatial_umap.cells['phenotype']
+        self.spatial_umap.cells['Lineage'] = self.spatial_umap.cells['Lineage'].astype("category")
+        self.spatial_umap.cells['Lineage'] = self.spatial_umap.cells['Lineage'].cat.set_categories(pheno_order)
+        # self.spatial_umap.cells = self.spatial_umap.cells.sort_values(["Lineage"])
+
+        # Assign pheno_order
+        self.spatial_umap.phenoLabel = pheno_order
+
+        # Set regions
+        self.spatial_umap.cells['TMA_core_id'] = self.spatial_umap.cells['Slide ID']
+        # Set sample number
+        if 'Sample_number' not in self.spatial_umap.cells:
+            self.spatial_umap.cells['Sample_number'] = np.ones(self.spatial_umap.cells.shape[0])
+        print(f'There are {self.spatial_umap.cells["TMA_core_id"].unique().size} images in this dataset ')
+
+        # Define the number of species we will be working with (how many different get_dummies)
+        self.spatial_umap.species = pheno_order
+        self.spatial_umap.markers = sorted(marker_names)
+        self.spatial_umap.markers = [x + '+' for x in self.spatial_umap.markers]
+        self.spatial_umap.num_species = len(self.spatial_umap.species)
+        self.spatial_umap.num_markers = len(self.spatial_umap.markers)
+
+        # set explicitly as numpy array the cell coordinates (x, y)
+        # Notice here that I needed to change the script to CentroidX, CentroidY
+        self.spatial_umap.cell_positions = self.spatial_umap.cells[['Cell X Position', 'Cell Y Position']].values
+        # set explicitly as one hot data frame the cell labels
+        self.spatial_umap.cell_labels = pd.get_dummies(self.spatial_umap.cells['Lineage'])
+        self.spatial_umap.cell_labels = self.spatial_umap.cell_labels[self.spatial_umap.species]
+        # set the region is to be analyzed (a TMA core is treated similar to a region of a interest)
+        self.spatial_umap.region_ids = self.spatial_umap.cells.TMA_core_id.unique()
+        # default cluster values
+        self.spatial_umap.cells['clust_label'] = 'No Cluster'
+
+        self.spatial_umap.elbow_fig = None
+        self.spatial_umap.smallest_image_size = smallest_image_size
+
+        # sets flags for analysis processing
+        self.spatial_umap.phenotyping_completed = True
+        self.spatial_umap.density_completed     = False
+        self.spatial_umap.umap_completed        = False
+        self.spatial_umap.cluster_completed     = False
+
+    def perform_density_calc(self, calc_areas, cpu_pool_size = 1, area_threshold = 0.001):
         '''
         Calculate the cell counts, cell areas,
         perform the cell densities and cell proportions analyses.
@@ -141,20 +200,23 @@ class NeighborhoodProfiles:
         # get the counts per cell and save to pickle file
         print('Starting Cell Counts process')
         self.bc.startTimer()
-        self.spatial_umap.get_counts_And()
+        self.spatial_umap.get_counts_And(cpu_pool_size=cpu_pool_size)
         self.bc.printElapsedTime(f'Calculating Counts for {len(self.spatial_umap.cells)} cells')
 
         # get the areas of cells and save to pickle file
-        area_threshold = 0.001
-        print('\nStarting Cell Areas process')
-        self.spatial_umap.get_areas(area_threshold, pool_size=cpu_pool_size)
+        print(f'\nStarting Cell Areas process with area threshold of {area_threshold}')
+        self.bc.startTimer()
+        self.spatial_umap.get_areas(calc_areas, area_threshold, pool_size=cpu_pool_size)
+        self.bc.printElapsedTime(f'Calculating Areas for {len(self.spatial_umap.cells)} cells')
 
         # calculate density based on counts of cells / area of each arc examine
         self.spatial_umap.calc_densities(area_threshold)
         # calculate proportions based on species counts/# cells within an arc
         self.spatial_umap.calc_proportions(area_threshold)
 
-    def perform_spatial_umap(self, session_state, umap_style = 'density'):
+        self.spatial_umap.density_completed = True
+
+    def perform_spatial_umap(self, session_state, umap_subset_per_fit, umap_subset_toggle, umap_subset_per):
         '''
         Perform the spatial UMAP analysis
 
@@ -167,9 +229,13 @@ class NeighborhoodProfiles:
             spatial_umap: spatial_umap object with the UMAP analysis performed
         '''
 
+        min_image_size = self.spatial_umap.smallest_image_size
+        n_fit = int(min_image_size*umap_subset_per_fit/100)
+        n_tra = n_fit + int(min_image_size*umap_subset_per/100)
+
         # set training and "test" cells for umap training and embedding, respectively
         print('Setting Train/Test Split')
-        self.spatial_umap.set_train_test(n=2500, groupby_label = 'TMA_core_id', seed=54321)
+        self.spatial_umap.set_train_test(n_fit=n_fit, n_tra = n_tra, groupby_label = 'TMA_core_id', seed=54321, umap_subset_toggle = umap_subset_toggle)
 
         # fit umap on training cells
         self.bc.startTimer()
@@ -183,6 +249,8 @@ class NeighborhoodProfiles:
         self.spatial_umap.umap_test = self.spatial_umap.umap_fit.transform(self.spatial_umap.density[self.spatial_umap.cells['umap_test'].values].reshape((self.spatial_umap.cells['umap_test'].sum(), -1)))
         self.bc.printElapsedTime(f'      Transforming {np.sum(self.spatial_umap.cells["umap_test"] == 1)} points with the model')
 
+        self.spatial_umap.umap_completed = True
+
         # Identify all of the features in the dataframe
         self.outcomes = self.spatial_umap.cells.columns
 
@@ -191,16 +259,16 @@ class NeighborhoodProfiles:
         # Setup the session_state default parameters
 
         # List of possible UMAP Lineages as defined by the completed UMAP
-        session_state.umapPheno = [session_state.defLineageOpt]
+        session_state.umapPheno = [session_state.def_lineage_opt]
         session_state.umapPheno.extend(session_state.pheno_summ['phenotype'])
-        session_state.umapMarks = [session_state.defLineageOpt]
+        session_state.umapMarks = [session_state.def_lineage_opt]
         session_state.umapMarks.extend(self.spatial_umap.markers)
         session_state.umapMarks.extend(['Other'])
 
         # List of possible outcome variables as defined by the config yaml files
-        session_state.umapOutcomes = [session_state.defumapOutcomes]
+        session_state.umapOutcomes = [session_state.def_umap_feature]
         session_state.umapOutcomes.extend(self.outcomes)
-        session_state.inciOutcomes = [session_state.definciOutcomes]
+        session_state.inciOutcomes = [session_state.def_inci_feature]
         session_state.inciOutcomes.extend(self.outcomes)
 
         # Perform possible cluster variations with the completed UMAP
@@ -215,25 +283,31 @@ class NeighborhoodProfiles:
         return session_state
 
     @staticmethod
-    def kmeans_calc(spatial_umap, n_clusters = 5):
+    def kmeans_calc(clust_data, n_clusters = 5, random_state = None):
         '''
         Perform KMeans clustering on the spatial UMAP data
 
         Args:
-            spatial_umap (spatial_umap): spatial_umap object
-            nClus (int): Number of clusters to use
-        
+            clust_data (clust_data): clust_data
+            n_clusters (int): Number of clusters to use
+            random_state (int, optional): Random state for reproducibility
+
         Returns:
             kmeans_obj: KMeans obj created from KMeans
         '''
+
+        print(f'Starting KMeans Calculation for {n_clusters} clusters')
         # Create KMeans object for a chosen cluster
         kmeans_obj = KMeans(n_clusters = n_clusters,
                             init ='k-means++',
                             max_iter = 300,
-                            n_init = 10,
-                            random_state = 42)
+                            n_init = 50,
+                            random_state = random_state)
+
         # Fit the data to the KMeans object
-        kmeans_obj.fit(spatial_umap.umap_test)
+        kmeans_obj.fit(clust_data)
+
+        print(f'...Completed KMeans Calculation for {n_clusters} clusters')
 
         return kmeans_obj
 
@@ -258,7 +332,7 @@ class NeighborhoodProfiles:
             wcss.append(kmeans_obj.inertia_)
         return list(clust_range), wcss
 
-    def perform_clustering(self, n_clusters):
+    def perform_clustering(self, n_clusters, clust_minmax, cpu_pool_size = 8):
         '''
         perform clustering for the UMAP data using KMeans
 
@@ -269,16 +343,90 @@ class NeighborhoodProfiles:
         Returns:
             spatial_umap: spatial_umap object with the clustering performed
         '''
+        # Reset the cluster labels just in case
+        self.spatial_umap.df_umap.loc[:, 'clust_label'] = -1
 
-        # Reperform clustering for chosen cluster value
-        kmeans_obj = self.kmeans_calc(self.spatial_umap, n_clusters)
-        # Add cluster label column to cells dataframe
-        self.spatial_umap.df_umap.loc[:, 'clust_label'] = kmeans_obj.labels_
-        self.spatial_umap.df_umap.loc[:, 'cluster'] = kmeans_obj.labels_
-        self.spatial_umap.df_umap.loc[:, 'Cluster'] = kmeans_obj.labels_
+        clust_range = range(clust_minmax[0], clust_minmax[1]+1)
+
+        kwargs_list = []
+        for clust in clust_range:
+            kwargs_list.append(
+                (
+                    self.spatial_umap.umap_test,
+                    clust
+                )
+            )
+
+        results = utils.execute_data_parallelism_potentially(self.kmeans_calc,
+                                                            kwargs_list,
+                                                            nworkers = cpu_pool_size,
+                                                            task_description='KMeans Clustering',
+                                                            use_starmap=True)
+        # mp_start_method = mp.get_start_method()
+        # # Create a pool of worker processes
+        # with mp.get_context(mp_start_method).Pool(processes=cpu_pool_size) as pool:
+        #     results = pool.starmap(kmeans_calc, kwargs_list)
+
+        wcss = [x.inertia_ for x in results]
+
+        # Create WCSS Elbow Plot
+        self.spatial_umap.elbow_fig = self.draw_wcss_elbow_plot(clust_range, wcss, n_clusters)
+
+        # Identify the kmeans obj that matches the selected cluster number
+        kmeans_obj_targ = results[n_clusters-1]
+
+        self.spatial_umap.cluster_dict = dict()
+        for i in range(n_clusters):
+            self.spatial_umap.cluster_dict[i+1] = f'Cluster {i+1}'
+        self.spatial_umap.cluster_dict[0] = 'No Cluster'
+
+        self.spatial_umap.palette_dict = dict()
+        for i in range(n_clusters):
+            self.spatial_umap.palette_dict[f'Cluster {i+1}'] = sns.color_palette('tab20')[i]
+        self.spatial_umap.palette_dict['No Cluster'] = 'white'
+
+        # Assign values to cluster_label column in df_umap
+        self.spatial_umap.df_umap.loc[:, 'clust_label'] = [self.spatial_umap.cluster_dict[key] for key in (kmeans_obj_targ.labels_+1)]
 
         # After assigning the cluster labels, perform mean measure calculations
         self.spatial_umap.mean_measures()
+
+    @staticmethod
+    def draw_wcss_elbow_plot(clust_range, wcss, sel_clus):
+        '''
+        Calculate possible clusters and plot the elbow plot
+
+        Args:
+            clust_range (list): List of cluster values
+            wcss (list): List of within-cluster sum of squares
+            sel_clus (int): Selected cluster value
+
+        Returns:
+            fig: Matplotlib figure object
+        '''
+
+        # Streamlit Theming
+        slc_bg   = '#0E1117'  # Streamlit Background Color
+        slc_text = '#FAFAFA'  # Streamlit Text Color
+        slc_bg2  = '#262730'  # Streamlit Secondary Background Color
+
+        fig = plt.figure(figsize = (5,5), facecolor = slc_bg)
+        ax = fig.add_subplot(1,1,1, facecolor = slc_bg)
+        ax.set_xlabel('Number of Clusters', fontsize = 10, color = slc_text)
+        ax.set_ylabel('WCSS', fontsize = 10, color = slc_text)
+        ax.set_xlim(0, clust_range[-1])
+        ax.set_xticks(np.linspace(0, clust_range[-1], clust_range[-1]+1))
+
+        plt.plot(clust_range, wcss)
+        # plt.axvline(sel_clus, linestyle='--', color='r')
+
+        ax.spines['left'].set_color(slc_text)
+        ax.spines['bottom'].set_color(slc_text)
+        ax.spines['top'].set_color(slc_bg)
+        ax.spines['right'].set_color(slc_bg)
+        ax.tick_params(axis='x', colors=slc_text, which='both')
+        ax.tick_params(axis='y', colors=slc_text, which='both')
+        return fig
 
     def filter_and_plot(self, session_state):
         '''
@@ -325,6 +473,9 @@ class NeighborhoodProfiles:
         return w, df_umap
 
     def setup_spectrogram_settings(self):
+        '''
+        Set up the spectrogram settings for the UMAP data
+        '''
         self.xx = np.linspace(np.min(self.df_umap['X']), np.max(self.df_umap['X']), self.n_bins + 1)
         self.yy = np.linspace(np.min(self.df_umap['Y']), np.max(self.df_umap['Y']), self.n_bins + 1)
 
@@ -491,9 +642,47 @@ class UMAPDensityProcessing():
         self.dens_max = np.max(self.dens_mat)
         self.minabs   = np.min([np.abs(self.dens_min), np.abs(self.dens_max)])
 
+    def check_feature_values(self, feature):
+        '''
+        check_feature_values checks the values of a feature in the dataframe
+        and returns an integer value based on the number of unique values
+
+        Args:
+            feature (str): Feature to check the values of
+        
+        Returns:
+            int: 0: Feature is inappropriate for splitting
+            int: 2: Feature is boolean and is easily split
+            int  3-99: Feature has a few different options
+            int: 100: Feature is a numerical range and can be split by finding the median
+        '''
+
+        col = self.df[feature] # Column in question
+        dtypes = col.dtype     # Column Type
+        n_uni  = col.nunique() # Number of unique values
+
+        # If only 1 unique value, then the feature cannot be split
+        if n_uni <= 1:
+            return 0
+        # If exactly 2 values, then the value can be easily split.
+        elif n_uni == 2:
+            return 2
+        # If more than 2 values but less than 100, then the values
+        # can be easily split by two chosen values
+        elif n_uni > 2 and n_uni <= 99:
+            return n_uni
+        else:
+            if dtypes == 'category' or dtypes == 'object':
+                return 0
+            else:
+                # If there are more than 99 unique values, and the values are numerical,
+                # then the Feature can be split by the median
+                return 100
+
     def filter_by_lineage(self, display_toggle, drop_val, default_val):
         '''
-        Function for filtering UMAP function based on Phenotypes or Markers
+        Function for filtering UMAP function based on lineage. Sometimes
+        the intended lineage is the phenotype and sometimes it is the marker.
 
         Args:
             display_toggle (str): Toggle to display as Phenotypes or Markers
@@ -509,7 +698,7 @@ class UMAPDensityProcessing():
             elif display_toggle == 'Markers':
                 self.df = self.df.loc[self.df['species_name_short'].str.contains(drop_val), :]
 
-    def split_df_by_feature(self, feature):
+    def split_df_by_feature(self, feature, val_fals=None, val_true=None, val_code=None):
         '''
         split_df_by_feature takes in a feature from a dataframe
         and first identifies if the feature is boolean, if it contains 
@@ -526,34 +715,73 @@ class UMAPDensityProcessing():
 
         Args:
             feature (str): Feature to split the dataframe by
+            val_fals (int): Value to use for the false condition
+            val_true (int): Value to use for the true condition
+            val_code (int): Code to use for the split
 
         Returns:
             split_dict (dict): Dictionary of the outcomes of splitting
-             the dataframe
+            the dataframe with the following parameters
+                appro_feat (bool): True if the feature is appropriate for splitting
+                df_umap_fals (Pandas dataframe): Dataframe of the false condition
+                df_umap_true (Pandas dataframe): Dataframe of the true condition
+                fals_msg (str): Message for the false condition
+                true_msg (str): Message for the true condition
         '''
 
+        # Set up the dictionary for the split
         split_dict = dict()
-        # Idenfify the column type that is splitting the UMAP
-        col_type = ndl.identify_col_type(self.df[feature])
 
-        if col_type == 'not_bool':
-            # Identify UMAP by Condition
-            median = np.round(self.df[feature].median(), 2)
+        # Check the feature values
+        if val_code is None:
+            val_code = self.check_feature_values(feature)
+
+        # Set default values for the false and true conditions
+        if val_fals is None:
+            # Get the unique values of the feature
+            feat_vals_uniq = natsorted(self.df[feature].unique())
+
+            if val_code == 0:
+                val_fals = None
+                val_true = None
+            elif val_code == 100:
+                # Get the median value of the feature
+                median_val = np.round(self.df[feature].median(), decimals = 2)
+
+                val_fals = median_val
+                val_true = median_val
+            elif val_code == 2:
+                val_fals = feat_vals_uniq[0]
+                val_true = feat_vals_uniq[1]
+            else:
+                # We can later make this more sophisticated
+                # but this is only ever reached if the feature values
+                # are not otherwise previously identified.
+                # I dont think think this will be too much of a problem.
+                # If we need more specificity on this in the future, it can
+                # be easily added.
+                val_fals = feat_vals_uniq[0]
+                val_true = feat_vals_uniq[1]
+
+        if val_code == 0:
+            split_dict['appro_feat'] = False
+            split_dict['df_umap_fals'] = None
+            split_dict['df_umap_true'] = None
+            split_dict['fals_msg']   = 'Feature is inappropriate for splitting'
+            split_dict['true_msg']   = 'Feature is inappropriate for splitting'
+        elif val_code == 100:
+            median = val_fals
+            split_dict['appro_feat'] = True
             split_dict['df_umap_fals'] = self.df.loc[self.df[feature] <= median, :]
             split_dict['df_umap_true'] = self.df.loc[self.df[feature] > median, :]
-            split_dict['fals_msg']   = f'<= {median}'
-            split_dict['true_msg']   = f'> {median}'
-            split_dict['appro_feat'] = True
-        elif col_type == 'bool':
-            # Identify UMAP by Condition
-            values = self.df[feature].unique()
-            split_dict['df_umap_fals'] = self.df.loc[self.df[feature] == values[0], :]
-            split_dict['df_umap_true'] = self.df.loc[self.df[feature] == values[1], :]
-            split_dict['fals_msg']   = f'= {values[0]}'
-            split_dict['true_msg']   = f'= {values[1]}'
-            split_dict['appro_feat'] = True
+            split_dict['fals_msg']   = f'<= {median:.2f}'
+            split_dict['true_msg']   = f'> {median:.2f}'
         else:
-            split_dict['appro_feat'] = False
+            split_dict['appro_feat'] = True
+            split_dict['df_umap_fals'] = self.df.loc[self.df[feature] == val_fals, :]
+            split_dict['df_umap_true'] = self.df.loc[self.df[feature] == val_true, :]
+            split_dict['fals_msg']   = f'= {val_fals}'
+            split_dict['true_msg']   = f'= {val_true}'
 
         return split_dict
 
@@ -627,7 +855,7 @@ class UMAPDensityProcessing():
     def perform_clustering(self, dens_mat_cmp, num_clus_0, num_clus_1, clust_minmax, cpu_pool_size = 8):
         '''
         perform_clustering takes in the density matrix for the UMAP data
-        and performs clustering on the data. The function will perform
+        and performs clustering on the data. The function will perform 
         '''
 
         print(f'Performing Clustering with {num_clus_0} clusters for Negative Condition and {num_clus_1} clusters for Positive Condition')
@@ -658,13 +886,17 @@ class UMAPDensityProcessing():
                 )
             )
 
-        # Create a pool of worker processes
-        with mp.Pool(processes=cpu_pool_size) as pool:
-            results_0 = pool.starmap(self.kmeans_calc, kwargs_list_0)
+        results_0 = utils.execute_data_parallelism_potentially(self.kmeans_calc,
+                                                               kwargs_list_0,
+                                                               nworkers = cpu_pool_size,
+                                                               task_description='KMeans Clustering for False Condition',
+                                                               use_starmap=True)
 
-        # Create a pool of worker processes
-        with mp.Pool(processes=cpu_pool_size) as pool:
-            results_1 = pool.starmap(self.kmeans_calc, kwargs_list_1)
+        results_1 = utils.execute_data_parallelism_potentially(self.kmeans_calc,
+                                                               kwargs_list_1,
+                                                               nworkers = cpu_pool_size,
+                                                               task_description='KMeans Clustering for True Condition',
+                                                               use_starmap=True)
 
         wcss_0 = [x.inertia_ for x in results_0]
         wcss_1 = [x.inertia_ for x in results_1]
@@ -690,20 +922,20 @@ class UMAPDensityProcessing():
         self.cluster_dict = dict()
         self.cluster_dict[0] = 'No Cluster'
         for i in unique_set_fals.index:
-            self.cluster_dict[unique_set_fals.vals[i]] = f'False Cluster {i+1}'
+            self.cluster_dict[unique_set_fals.vals[i]] = f'Left Cluster {i+1}'
         for i in unique_set_true.index:
-            self.cluster_dict[unique_set_true.vals[i]] = f'True Cluster {i+1}'
+            self.cluster_dict[unique_set_true.vals[i]] = f'Right Cluster {i+1}'
 
-        set_blues = sns.color_palette('Blues_r', 10)
         set_reds = sns.color_palette('Reds_r', 10)
+        set_blues = sns.color_palette('Blues_r', 10)
 
         # Set Palette Dictionary
         self.palette_dict = dict()
         self.palette_dict['No Cluster'] = 'white'
         for i in unique_set_fals.index:
-            self.palette_dict[f'False Cluster {i+1}'] = set_reds[i]
+            self.palette_dict[f'Left Cluster {i+1}'] = set_reds[i]
         for i in unique_set_true.index:
-            self.palette_dict[f'True Cluster {i+1}'] = set_blues[i]
+            self.palette_dict[f'Right Cluster {i+1}'] = set_blues[i]
 
     @staticmethod
     def kmeans_calc(clust_data, n_clusters = 5, random_state = None):
@@ -711,7 +943,7 @@ class UMAPDensityProcessing():
         Perform KMeans clustering on sets of 2D data
 
         Args:
-            dens_mat (numpy array): Data to be clustered
+            clust_data (numpy array): Data to be clustered
             n_clusters (int): Number of clusters to use
             random_state (int): Random state to use for KMeans
         
@@ -742,6 +974,9 @@ class UMAPDensityProcessing():
             clust_range (list): List of cluster values
             wcss (list): List of within-cluster sum of squares
             sel_clus (int): Selected cluster value
+
+        Returns:
+            fig: Matplotlib figure object
         '''
 
         # Streamlit Theming

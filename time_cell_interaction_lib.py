@@ -1824,7 +1824,7 @@ class TIMECellInteraction:
                         dpi=dpi,
                         plots_dir=savedir,
                         plot_real_data=plot_real_data,
-                        entity_name=slide_name,
+                        entity_name=slide_name.replace(' ', '_'),
                         img_file_suffix=img_file_suffix,
                         entity=entity,
                         entity_index=-1,
@@ -2242,7 +2242,7 @@ class TIMECellInteraction:
                         dpi=settings__plotting__pval_dpi,
                         plots_dir=plots_dir,
                         plot_real_data=plot_real_data,
-                        entity_name=entity_name,
+                        entity_name=entity_name.replace(' ', '_'),
                         img_file_suffix='',
                         entity=entity,
                         entity_index=-1,
@@ -2814,7 +2814,7 @@ def roi_checks_and_output(x_roi, y_roi, do_printing=True, do_main_printing=True)
     return(x_range, y_range, min_coordinate_spacing)
 
 
-def calculate_metrics_from_coords(min_coord_spacing, input_coords=None, neighbors_eq_centers=False, ncenters_roi=1300, nneighbors_roi=220, nbootstrap_resamplings=0, rad_range=(2.2, 5.1), use_theoretical_counts=False, roi_edge_buffer_mult=1, roi_x_range=(1.0, 100.0), roi_y_range=(0.5, 50.0), silent=False, log_file_data=None, keep_unnecessary_calculations=False, old_method=False):
+def calculate_metrics_from_coords(min_coord_spacing, input_coords=None, neighbors_eq_centers=False, ncenters_roi=1300, nneighbors_roi=220, nbootstrap_resamplings=0, rad_range=(2.2, 5.1), use_theoretical_counts=False, roi_edge_buffer_mult=1, roi_x_range=(1.0, 100.0), roi_y_range=(0.5, 50.0), silent=False, log_file_data=None, keep_unnecessary_calculations=False, neighbor_counts_method='cdist avoiding oom'):
     '''
     Given a set of coordinates (whether actual coordinates or ones to be simulated), calculate the P values and Z scores.
 
@@ -2925,11 +2925,13 @@ def calculate_metrics_from_coords(min_coord_spacing, input_coords=None, neighbor
                 print('NOTE: Using artificial distribution')
             nneighbors = scipy.stats.poisson.rvs(nexpected, size=(nvalid_centers,))
         else:
-            if old_method:
+            if neighbor_counts_method == 'pure cdist':
                 dist_mat = scipy.spatial.distance.cdist(coords_centers[valid_centers, :], coords_neighbors, 'euclidean')  # calculate the distances between the valid centers and all the neighbors
                 nneighbors = ((dist_mat >= rad_range[0]) & (dist_mat < rad_range[1])).sum(axis=1)  # count the number of neighbors in the slice around every valid center
-            else:
+            elif neighbor_counts_method == 'cdist avoiding oom':  # returns number of points in [0, radius)
                 nneighbors = utils.calculate_neighbor_counts_with_possible_chunking(center_coords=coords_centers[valid_centers, :], neighbor_coords=coords_neighbors, radii=radii, single_dist_mat_cutoff_in_mb=200, verbose=False)[:, 0]  # (num_centers,)
+            elif neighbor_counts_method == 'kdtree':  # returns number of points in [0, radius) (with the "tol" correction within)
+                nneighbors = utils.calculate_neighbor_counts_with_kdtree(center_coords=coords_centers[valid_centers, :], neighbor_coords=coords_neighbors, radius=radii[1])
             if (neighbors_eq_centers) and (rad_range[0] < tol):
                 nneighbors = nneighbors - 1  # we're always going to count the center as a neighbor of itself in this case, so account for this; see also physical notebook notes on 1/7/21
 
@@ -4002,7 +4004,7 @@ def plot_just_rois(df, plotting_map, num_colors, webpage_dir, mapping_dict, coor
                     boxes_to_plot = boxes_for_slide.iloc[iroi_box].to_frame().T  # this is a one-row dataframe
                     tag = boxes_to_plot.index[0]
                     list_of_tuple_arguments.append((roi_figsize, spec2plot_roi, species_roi, x_roi, y_roi, plotting_map, colors, x_range, y_range, uroi, marker_size_step, default_marker_size, roi_dpi, mapping_dict, coord_units_in_microns, alpha, edgecolors, yaxis_dir, boxes_to_plot, pval_params, title_suffix, tag, filename_suffix, savedir))
-                utils.execute_data_parallelism_potentially(function=plot_and_save_roi, list_of_tuple_arguments=list_of_tuple_arguments, nworkers=(0 if not use_multiprocessing else nworkers), task_description='plotting of the single ROI outlines on whole slide images')
+                utils.execute_data_parallelism_potentially(function=plot_and_save_roi, list_of_tuple_arguments=list_of_tuple_arguments, nworkers=(0 if not use_multiprocessing else nworkers), task_description='plotting of the single ROI outlines on whole slide images')  # note this takes plenty of overhead... the individual plot_and_save_roi() function takes about 0.2s per image, but over six seconds seem to be taken for setting up the forkserver or other multiprocessing overhead. So it seems like the plotting of the single ROI outlines on whole slide images step takes long on simple datasets, but that's okay! This step in particular is all execute_data_parallelism_potentially() which is all (for small datasets) overhead!
 
 
 def get_integer_index(val_to_map, vmin=-200, vmax=0, N=2**8):
@@ -4100,7 +4102,7 @@ def plot_single_density_pvals(argument_tuple):
 
     # Define the ROI-specific variables from the main df_density_pvals_arrays parameter
     log_dens_pvals_arr = df_density_pvals_arrays.loc[entity_index, 'log_dens_pvals_arr']
-    entity_name = df_density_pvals_arrays.loc[entity_index, 'roi_name']
+    entity_name = df_density_pvals_arrays.loc[entity_index, 'roi_name'].replace(' ', '_')  # this is probably the place to replace spaces with underscores
     entity = 'roi'
 
     # Plot the heatmaps for the current set of data
@@ -4141,7 +4143,7 @@ def plot_single_roi(args_as_single_tuple):
 
     # Assign the data for the current ROI to useful variables
     roi_name = df_data_by_roi.loc[roi_index, 'unique_roi']  # df_data_by_roi.loc[roi_index, 'roi_name']
-    roi_fig_filename = 'roi_plot_{}_{}.{}'.format(roi_name, roi_index, save_image_ext)
+    roi_fig_filename = 'roi_plot_{}_{}.{}'.format(roi_name.replace(' ', '_'), roi_index, save_image_ext)
     roi_fig_pathname = os.path.join(savedir, roi_fig_filename)
 
     # If the image file doesn't already exist...
