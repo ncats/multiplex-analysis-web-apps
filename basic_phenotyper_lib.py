@@ -6,19 +6,21 @@ required for phenotyping
 
 import time
 import math
+import warnings
 import numpy as np
 import pandas as pd
-import umap  # slow 
-import warnings
-warnings.simplefilter(action='ignore', category= FutureWarning)
-warnings.filterwarnings("ignore", message=".*The 'nopython' keyword.*")
-pd.options.mode.chained_assignment = None  # default='warn'
+import umap  # slow
+import plotly.graph_objects as go
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.cluster import KMeans # K-Means
 from SpatialUMAP import SpatialUMAP
 import PlottingTools as umPT
 import utils
+
+warnings.simplefilter(action='ignore', category= FutureWarning)
+warnings.filterwarnings("ignore", message=".*The 'nopython' keyword.*")
+pd.options.mode.chained_assignment = None  # default='warn'
 
 def preprocess_df(df_orig, marker_names, marker_col_prefix, bc):
     '''Perform some preprocessing on our dataset to apply tranforms
@@ -173,14 +175,17 @@ def init_pheno_assign(df):
     return spec_summ
 
 def init_pheno_summ(df):
-    """For each unique species (elsewhere called "exclusive" phenotyping), generate information concerning their prevalence in a new dataframe.
+    '''For each unique species (elsewhere called "exclusive" phenotyping),
+    generate information concerning their prevalence in a new dataframe.
 
     Args:
-        df (Pandas dataframe): Dataframe containing data from the input dataset, including a "mark_bits" column
+        df (Pandas dataframe): Dataframe containing data from the input dataset,
+                                including a "mark_bits" column
 
     Returns:
-        assign_pheno (Pandas dataframe): Dataframe containing the value counts of each "exclusive" species
-    """
+        assign_pheno (Pandas dataframe): Dataframe containing the value counts of
+                                        each "exclusive" species
+    '''
 
     assign_pheno = df[['phenotype', 'species_name_short', 'species_name_long']].groupby(by='phenotype', as_index = False).agg(lambda x: np.unique(list(x)))
 
@@ -390,6 +395,45 @@ def load_previous_species_summary(filename):
 
     return spec_summ
 
+def draw_pheno_summ_bar_fig(pheno_summ, omit_other):
+
+    pheno_order = pheno_summ['phenotype'].tolist()
+
+    slc_bg   = '#0E1117'  # Streamlit Background Color
+    slc_text = '#FAFAFA'  # Streamlit Text Color
+
+    # Read in the tab20 palette from seaborn and convert it to a format suitable for plotly
+    palette = sns.color_palette('tab20')[0:len(pheno_summ)]
+    palette = [f'rgba({int(r*255)}, {int(g*255)}, {int(b*255)}, 1)' for r, g, b in palette]
+
+    if omit_other:
+        if 'Other' in pheno_order:
+            pheno_summ = pheno_summ[pheno_summ['phenotype'] != 'Other']
+            idx = pheno_order.index('Other')
+            pheno_order = pheno_order[:idx] + pheno_order[idx+1:]
+            palette = palette[:idx] + palette[idx+1:]
+
+    fig = go.Figure(
+        data=[
+            go.Bar(
+                x=pheno_summ['phenotype'],
+                y=pheno_summ['phenotype_count'],
+                marker_color=palette,
+                hovertemplate='<b>Phenotype:</b> %{x}<br><b>Count:</b> %{y}<extra></extra>'
+            )
+        ]
+    )
+    fig.update_layout(
+        title='Phenotype Counts',
+        xaxis_title='Phenotype',
+        yaxis_title='Count',
+        plot_bgcolor=slc_bg,
+        paper_bgcolor=slc_bg,
+        font=dict(color=slc_text)
+    )
+
+    return fig
+
 def draw_scatter_fig(figsize=(12, 12)):
     '''
     Setup Scatter plot figure and axes
@@ -409,7 +453,7 @@ def draw_scatter_fig(figsize=(12, 12)):
 
     return fig, ax
 
-def scatter_plot(df, fig, ax, figTitle, xVar, yVar, hueVar, hueOrder, xLim = None, yLim = None, boxoff = False, small_ver = False, feat = None, clusters_label = None, figname='scatter_plot.png', dpi=200, saveFlag=0, palette = 'tab20'):
+def scatter_plot(df, fig, ax, figTitle, xVar, yVar, hueVar, hueOrder, xLim = None, yLim = None, flip_yaxis = False, boxoff = False, small_ver = False, feat = None, clusters_label = None, figname='scatter_plot.png', dpi=200, saveFlag=0, palette = 'tab20'):
     """Create a 2D scatter plot and color the points by a specific variable in a dataframe
 
     Args:
@@ -427,14 +471,14 @@ def scatter_plot(df, fig, ax, figTitle, xVar, yVar, hueVar, hueOrder, xLim = Non
         saveFlag (Boolean, optional): Boolean Flag to save the figure to disk using matplotlib methods. Defaults to FALSE
     """
 
-    figTitle = wrapTitleText(figTitle)
+    figTitle = wrap_title_text(figTitle)
     plot_title = ''
     for i in figTitle:
         plot_title = plot_title + i + '\n'
 
-    SlBgC  = '#0E1117'  # Streamlit Background Color
-    SlTC   = '#FAFAFA'  # Streamlit Text Color
-    Sl2BgC = '#262730'  # Streamlit Secondary Background Color
+    slc_bg   = '#0E1117'  # Streamlit Background Color
+    slc_text = '#FAFAFA'  # Streamlit Text Color
+    slc_bg2 = '#262730'  # Streamlit Secondary Background Color
 
     # Create the scatter plot
     sns.scatterplot(df,
@@ -447,6 +491,11 @@ def scatter_plot(df, fig, ax, figTitle, xVar, yVar, hueVar, hueOrder, xLim = Non
                     palette = palette,
                     ax = ax)
 
+    # Flip the figure about the y axis
+    if flip_yaxis:
+        ylim = ax.get_ylim()
+        ax.set_ylim(ylim[::-1])
+
     bbox = ax.get_yticklabels()[-1].get_window_extent()
     x,_ = ax.transAxes.inverted().transform([bbox.x0, bbox.y0])
 
@@ -454,16 +503,17 @@ def scatter_plot(df, fig, ax, figTitle, xVar, yVar, hueVar, hueOrder, xLim = Non
     ax.set_frame_on(False) # Turn off the Frame
 
     if xVar == 'Cell X Position':
-        ax.set_title(plot_title, fontsize = 14, color = SlTC, ha='left', x=x, wrap=True)
-        ax.set_xlabel('Centroid X ('r'$\mu m)$', fontsize = 14, color = SlTC)
-        ax.set_ylabel('Centroid Y ('r'$\mu m)$', fontsize = 14, color = SlTC)
+        ax.set_title(plot_title, fontsize = 14, color = slc_text, ha='left', x=x, wrap=True)
+        ax.set_xlabel(r'Centroid X ($\mu m)$', fontsize = 14, color = slc_text)
+        ax.set_ylabel(r'Centroid Y ($\mu m)$', fontsize = 14, color = slc_text)
         ax.set_aspect(1)       # Set the Aspect Ratio
     else:
         ax.set_xlabel('')
         ax.set_ylabel('')
 
     if boxoff:
-        [ax.spines[sp].set_visible(False) for sp in ax.spines]
+        for sp in ax.spines:
+            ax.spines[sp].set_visible(False)
         ax.set(xticks=[], yticks=[])
 
     if xLim is not None:
@@ -490,24 +540,24 @@ def scatter_plot(df, fig, ax, figTitle, xVar, yVar, hueVar, hueOrder, xLim = Non
               markerscale = lgd_markscale,
               borderaxespad = 0,
               ncols = 4,
-              facecolor = Sl2BgC,
-              edgecolor = Sl2BgC,
-              labelcolor = SlTC)
+              facecolor = slc_bg2,
+              edgecolor = slc_bg2,
+              labelcolor = slc_text)
 
     if clusters_label:
-        ax.text(0.80*xLim[1], yLim[0], 'Clusters', c = SlTC, fontsize = 25)
+        ax.text(0.80*xLim[1], yLim[0], 'Clusters', c = slc_text, fontsize = 25)
 
     if feat is not None:
-        ax.text(xLim[0], 0.93*yLim[1], feat, c = SlTC, fontsize = 30)
+        ax.text(xLim[0], 0.93*yLim[1], feat, c = slc_text, fontsize = 30)
 
     # Save the figure to disk
     if saveFlag:
         fig.savefig(figname, dpi=dpi, bbox_inches='tight')
     return fig
 
-def wrapTitleText(title):
+def wrap_title_text(title):
     '''
-    Helps with wrapping text
+    Helps with wrapping title text around a 75 character limit
     '''
     char_lim =75
     wrap_title = []
@@ -753,9 +803,6 @@ def umap_clustering(spatial_umap, n_clusters, clust_minmax, cpu_pool_size = 8):
     # Assign values to cluster_label column in df_umap
     spatial_umap.df_umap.loc[:, 'clust_label'] = [spatial_umap.cluster_dict[key] for key in (kmeans_obj_targ.labels_+1)]
 
-    # After assigning cluster labels, perform mean calculations
-    spatial_umap.mean_measures()
-
     return spatial_umap
 
 def draw_wcss_elbow_plot(clust_range, wcss, sel_clus):
@@ -766,6 +813,9 @@ def draw_wcss_elbow_plot(clust_range, wcss, sel_clus):
         clust_range (list): List of cluster values
         wcss (list): List of within-cluster sum of squares
         sel_clus (int): Selected cluster value
+
+    Returns:
+        fig: Matplotlib figure object
     '''
 
     # Streamlit Theming
@@ -791,67 +841,76 @@ def draw_wcss_elbow_plot(clust_range, wcss, sel_clus):
     ax.tick_params(axis='y', colors=slc_text, which='both')
     return fig
 
-def createHeatMap(df, phenoList, title, normAxis = None):
+def draw_heatmap_fig(df, pheno_list, title, norm_axis = None):
     '''
     Create a heatmap of the phenotypes and clusters
+
+    Args:
+        df:
+        pheno_list:
+        title:
+        norm_axis:
+
+    Returns:
+        fig: Matplotlib figure
     '''
     # Create heatmap df
-    heatMapDf = pd.DataFrame()
+    heatmap_df = pd.DataFrame()
 
     for clust_label, group in df.groupby('clust_label'):
         clust_value_counts = group['Lineage'].value_counts()
         clust_value_counts.name = f'{clust_label}'
 
-        heatMapDf = pd.concat([heatMapDf, pd.DataFrame([clust_value_counts])])
+        heatmap_df = pd.concat([heatmap_df, pd.DataFrame([clust_value_counts])])
 
     # Fix the NA
-    heatMapDf[heatMapDf.isna()] = 0
-    heatMapDf = heatMapDf.astype('int')
+    heatmap_df[heatmap_df.isna()] = 0
+    heatmap_df = heatmap_df.astype('int')
 
     # Rearrange Columsn in order of prevalences
-    heatMapDf = heatMapDf.loc[:, phenoList]
+    heatmap_df = heatmap_df.loc[:, pheno_list]
 
-    if normAxis == 0:
-        heatMapTitle = 'Phenotype/Cluster Heatmap: Normalized within Clusters'
-        heatMapDf = round(heatMapDf.div(heatMapDf.sum(axis=1), axis=0), 3)
+    if norm_axis == 0:
+        heatmap_title = 'Phenotype/Cluster Heatmap: Normalized within Clusters'
+        heatmap_df = round(heatmap_df.div(heatmap_df.sum(axis=1), axis=0), 3)
         vmin = 0
         vmax = 1
-    elif normAxis == 1:
-        heatMapTitle = 'Phenotype/Cluster Heatmap: Normalized within Phenotypes'
-        heatMapDf = round(heatMapDf.div(heatMapDf.sum(axis=0), axis=1), 3)
+    elif norm_axis == 1:
+        heatmap_title = 'Phenotype/Cluster Heatmap: Normalized within Phenotypes'
+        heatmap_df = round(heatmap_df.div(heatmap_df.sum(axis=0), axis=1), 3)
         vmin = 0
         vmax = 1
     else:
-        heatMapTitle = 'Phenotype/Cluster Heatmap: '
-        vmin = heatMapDf.min().min()
-        vmax = heatMapDf.max().max()
-    title.append(heatMapTitle)
+        heatmap_title = 'Phenotype/Cluster Heatmap: '
+        vmin = heatmap_df.min().min()
+        vmax = heatmap_df.max().max()
+    title.append(heatmap_title)
 
-    figTitle = wrapTitleText(title)
+    fig_title = wrap_title_text(title)
     plot_title = ''
-    for i in figTitle:
+    for i in fig_title:
         plot_title = plot_title + i + '\n'
 
     # Define Output Variables
-    phenotypes = heatMapDf.columns
-    clusters = heatMapDf.index
+    phenotypes = heatmap_df.columns
+    clusters = heatmap_df.index
 
     # Theme Styles
-    SlBgC  = '#0E1117'  # Streamlit Background Color
-    SlTC   = '#FAFAFA'  # Streamlit Text Color
-    Sl2BgC = '#262730'  # Streamlit Secondary Background Color
+    slc_bg   = '#0E1117'  # Streamlit Background Color
+    slc_text = '#FAFAFA'  # Streamlit Text Color
+    slc_bg2  = '#262730'  # Streamlit Secondary Background Color
 
-    fig = plt.figure(figsize = (12,12), facecolor = SlBgC)
-    ax = fig.add_subplot(1,1,1, facecolor = SlBgC) 
-    im = ax.imshow(heatMapDf, cmap = 'inferno', vmin = vmin, vmax = vmax)
+    fig = plt.figure(figsize = (12,12), facecolor = slc_bg)
+    ax = fig.add_subplot(1,1,1, facecolor = slc_bg)
+    im = ax.imshow(heatmap_df, cmap = 'inferno', vmin = vmin, vmax = vmax)
 
     bbox = ax.get_yticklabels()[-1].get_window_extent()
     x, _ = ax.transAxes.inverted().transform([bbox.x0, bbox.y0])
 
     # Show all ticks and label them with the respective list entries
-    ax.set_title(plot_title, fontsize = 20, loc = 'left', color = SlTC, x=3*x, wrap=True)
-    ax.set_xticks(np.arange(len(phenotypes)), labels = phenotypes, fontsize = 14, color = SlTC)
-    ax.set_yticks(np.arange(len(clusters)), labels = clusters, fontsize = 14, color = SlTC)
+    ax.set_title(plot_title, fontsize = 20, loc = 'left', color = slc_text, x=3*x, wrap=True)
+    ax.set_xticks(np.arange(len(phenotypes)), labels = phenotypes, fontsize = 14, color = slc_text)
+    ax.set_yticks(np.arange(len(clusters)), labels = clusters, fontsize = 14, color = slc_text)
 
     # Rotate the tick labels and set their alignment.
     plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
@@ -860,7 +919,7 @@ def createHeatMap(df, phenoList, title, normAxis = None):
     # Loop over data dimensions and create text annotations.
     for i, cluster in enumerate(range(len(clusters))):
         for j, phenotype in enumerate(range(len(phenotypes))):
-            value = heatMapDf.iloc[cluster, phenotype]
+            value = heatmap_df.iloc[cluster, phenotype]
             if value >= 0.85*vmax:
                 text_color = 'b'
             else:
@@ -871,10 +930,23 @@ def createHeatMap(df, phenoList, title, normAxis = None):
 
     return fig
 
-def neighProfileDraw(spatial_umap, ax, sel_clus, cmp_clus = None, cmp_style = None, hide_other = False, hide_no_cluster = False, legend_flag = True):
+def draw_neigh_profile_fig(spatial_umap, ax, sel_clus, cmp_clus = None, cmp_style = None, hide_other = False, hide_no_cluster = False, legend_flag = True):
     '''
-    neighProfileDraw is the method that draws the neighborhood profile
+    draw_neigh_profile_fig is the method that draws the neighborhood profile
     line plots
+
+    Args:
+        spatial_umap: The spatial UMAP object containing the data to plot
+        ax: The matplotlib axis to draw the plot on
+        sel_clus: The selected cluster to highlight
+        cmp_clus: The cluster to compare against (optional)
+        cmp_style: The comparison style to use (optional)
+        hide_other: Whether to hide other phenotypes (optional)
+        hide_no_cluster: Whether to hide cells with no cluster (optional)
+        legend_flag: Whether to show the legend (optional)
+
+    Returns:
+        None
     '''
 
     dens_df_mean_base = spatial_umap.dens_df_mean
@@ -1026,77 +1098,259 @@ def UMAPdraw_density(d, bins, w, n_pad, vlim, feat = None, diff = False, legendt
 
     return umap_fig
 
-def drawIncidenceFigure(df, figTitle, phenotype = 'All Phenotypes', feature = 'Cell Counts', displayas = 'Counts Difference', comp_thresh = None, figsize=(12,12)):
+def draw_incidence_fig(inci_df, fig_title, phenotype = 'All Phenotypes', feature = 'Cell Counts', displayas = 'Counts Difference', msg_tags = ['=0', '=1'], show_raw_counts= False):
     '''
     Draws the line plot figure which describes the incideces of a 
     selected features
+
+    Args:
+        inci_df (pd.DataFrame): DataFrame containing the incidence data
+        fig_title (str): Title of the figure
+        phenotype (str): Phenotype to display
+        feature (str): Feature to display
+        displayas (str): How to display the data (Counts Difference, Ratios, Percentages)
+        comp_thresh (float): Comparison threshold
+        show_raw_counts (bool): Whether to show raw counts
+
+    Returns:
+        inci_fig (MATPLOTLIB Figure Obj): Incidence figure
     '''
+
+    inci_fig = go.Figure()
 
     slc_bg   = '#0E1117'  # Streamlit Background Color
     slc_text = '#FAFAFA'  # Streamlit Text Color
     slc_bg2  = '#262730'  # Streamlit Secondary Background Color
+    slc_ylw  = '#F6EB61'  # Streamlit Yellow Color
+    slc_red  = '#FF4B4B'  # Streamlit Red Color
 
-    figTitle = wrapTitleText(figTitle)
-    plot_title = ''
-    for i in figTitle:
-        plot_title = plot_title + i + '\n'
+    up_tag = msg_tags[1]
+    dn_tag = msg_tags[0]
 
-    inci_fig = plt.figure(figsize=figsize, facecolor = slc_bg)
-    ax = inci_fig.add_subplot(1, 1, 1, facecolor = slc_bg)
+    inci_df = inci_df.round(2)
 
-    if comp_thresh is not None:
-        up_tag = f' >= {comp_thresh}'
-        dn_tag = f' < {comp_thresh}'
-    else:
-        up_tag = ' = 1'
-        dn_tag = ' = 0'
-
+    anno2 = False
     if feature != 'Cell Counts':
 
-        df = df[displayas]
+        df = inci_df[displayas]
 
         dfmin = df.loc[(df != np.nan)].min()
         dfmax = df.loc[(df != np.nan)].max()
         up_limit = max(-1*dfmin, dfmax)
         if displayas == 'Count Differences':
+            anno2 = True
+
+            df_up = inci_df['featureCount1']
+            df_dn = inci_df['featureCount0']
+
+            dfmin = df_dn.loc[(df_dn != np.nan)].max()
+            dfmax = df_up.loc[(df_up != np.nan)].max()
+            up_limit = max(dfmin, dfmax)
+
             if up_limit < 2:
                 up_limit = 2
-            ax.set_ylim([-1.05*up_limit, 1.05*up_limit])
-            plt.axhline(y = 0, color = slc_text, linestyle = 'dashed', alpha = 0.7)
-            ax.text(0.5, up_limit*.95, f'{feature}{up_tag}', c = slc_text, fontsize = 30, alpha = 0.3)
-            ax.text(0.5, -up_limit*.95, f'{feature}{dn_tag}', c = slc_text, fontsize = 30, alpha = 0.3)
+            ylim = [-1.05*up_limit, 1.05*up_limit]
+            feature_pos = [1, up_limit*.95]
+            feature_text = f'{feature}{up_tag}'
+            feature_pos2 = [1, -up_limit*.95]
+            feature_text2 =f'{feature}{dn_tag}'
+            hover_template = '<b>Cluster:</b> %{x}<br><b>Count Difference:</b> %{y}<extra></extra>'
             outcome_suff = ' (Counts)'
         elif displayas == 'Ratios':
-            ax.set_ylim([-1.05*up_limit, 1.05*up_limit])
-            plt.axhline(y = 0, color = slc_text, linestyle = 'dashed', alpha = 0.7)
-            ax.text(0.5, up_limit*.95, f'{feature}{up_tag}', c = slc_text, fontsize = 30, alpha = 0.3)
-            ax.text(0.5, -up_limit*.95, f'{feature}{dn_tag}', c = slc_text, fontsize = 30, alpha = 0.3)
+            anno2 = True
+
+            df_up = inci_df['Percentages1_adj_log']
+            df_dn = inci_df['Percentages0_adj_log']
+
+            dfmin = df_dn.loc[(df_dn != np.nan)].max()
+            dfmax = df_up.loc[(df_up != np.nan)].max()
+            up_limit = max(dfmin, dfmax)
+
+            ylim = [-1.05*up_limit, 1.05*up_limit]
+            feature_pos = [1, up_limit*.95]
+            feature_text = f'{feature}{up_tag}'
+            feature_pos2 = [1, -up_limit*.95]
+            feature_text2 =f'{feature}{dn_tag}'
+            hover_template = '<b>Cluster:</b> %{x}<br><b>Ratio:</b> %{y}<extra></extra>'
             outcome_suff = ' Ratio (log10)'
         elif displayas == 'Percentages':
-            ax.set_ylim([-1.05, 1.05*up_limit])
-            plt.axhline(y = 0, color = slc_text, linestyle = 'dashed', alpha = 0.7)
-            ax.text(0.5, up_limit*.95, f'{feature}{up_tag}', c = slc_text, fontsize = 30, alpha = 0.3)
-            outcome_suff = ' (%)'
 
+            df_up = inci_df['Percentages']
+            df_dn = inci_df['Percentages0']
+
+            dfmin = df_dn.loc[(df_dn != np.nan)].max()
+            dfmax = df_up.loc[(df_up != np.nan)].max()
+            up_limit = dfmax
+
+            ylim = [-1.05, 1.05*up_limit]
+            feature_pos = [1, up_limit*.95]
+            feature_text = f'{feature}{up_tag}'
+            hover_template = '<b>Cluster:</b> %{x}<br><b>Percentage:</b> %{y}<extra></extra>'
+            outcome_suff = ' (%)'
     else:
-        df = df['counts']
+        df = inci_df['counts']
 
         dfmin = df.min()
         dfmax = df.max()
         up_limit = max(-1*dfmin, dfmax)
-        limrange = dfmax-dfmin
-        liminc = limrange/8
-        ax.set_ylim([dfmin-(liminc*0.1), dfmax + (liminc*0.1)])
-        ax.text(0.5, up_limit*.95, f'{feature}', c = slc_text, fontsize = 30, alpha = 0.3)
-        plt.axhline(y = 0, color = slc_text, linestyle = 'dashed', alpha = 0.7)
+        ylim = [0, dfmax*1.05]
+
+        feature_pos = [1, up_limit*.95]
+        feature_text = f'{feature}'
+        hover_template = '<b>Cluster:</b> %{x}<br><b>Count:</b> %{y}<extra></extra>'
         outcome_suff = ' (Counts)'
 
-    umPT.plot_incidence_line(ax, df, phenotype)
+    if feature != 'Cell Counts':
+        if show_raw_counts:
+            inci_fig.add_trace(go.Bar(
+                x=df_up.index,
+                y=df_up.values,
+                name=f"{phenotype}{up_tag}",
+                marker=dict(color=slc_ylw),
+                hovertemplate=hover_template,
+                hoverlabel=dict(
+                bgcolor=slc_ylw,
+                bordercolor=slc_ylw,
+                font=dict(color=slc_bg)
+                ),
+                opacity=0.65,
+                offsetgroup='1',
+                showlegend=False,
+                text=[f"<b>{y:,}</b>" for y in df_up.values],
+                textposition='inside',
+                textfont=dict(color=slc_bg, size=14)
+            ))
+            inci_fig.add_trace(go.Bar(
+                x=df_dn.index,
+                y=-df_dn.values,
+                name=f"{phenotype}{dn_tag}",
+                marker=dict(color=slc_red),
+                hovertemplate=hover_template,
+                hoverlabel=dict(
+                bgcolor=slc_red,
+                bordercolor=slc_red,
+                font=dict(color=slc_text)
+                ),
+                opacity=0.65,
+                offsetgroup='1',
+                showlegend=False,
+                text=[f"<b>{y:,}</b>" for y in df_dn.values],
+                textposition='inside',
+                textfont=dict(color=slc_bg, size=14)
+            ))
 
-    # Reset xticks after
-    ax.set_xticks(df.index)
-    ax.set_title(plot_title, fontsize = 20, loc = 'left', color = slc_text)
-    ax.set_xlabel('Cluster #', fontsize = 14, color = slc_text)
-    ax.set_ylabel(f'{feature}{outcome_suff}', fontsize = 14, color = slc_text)
+        inci_fig.add_trace(go.Scatter(
+            x=df.index,
+            y=df.values,
+            mode='lines+markers',
+            name=phenotype,
+            line=dict(color='#0E86D4', width=2.5),
+            marker=dict(color='#0E86D4', size=14),
+            hovertemplate=hover_template,
+            hoverlabel=dict(
+                bgcolor='#0E86D4',
+                bordercolor='#0E86D4',
+                font=dict(color=slc_text)
+            )
+        ))
+    else:
+        inci_fig.add_trace(go.Bar(
+            x=df.index,
+            y=df.values,
+            name=phenotype,
+            marker=dict(color='#0E86D4'),
+            hovertemplate=hover_template,
+            hoverlabel=dict(
+                bgcolor='#0E86D4',
+                bordercolor='#0E86D4',
+                font=dict(color=slc_text)
+            ),
+            text=[f"<b>{int(y):,}</b>" for y in df.values],
+            textposition='inside',
+            textfont=dict(color=slc_bg, size=14)
+        ))
+
+    annotations = [
+        dict(
+            x=feature_pos[0],
+            y=feature_pos[1],
+            text=feature_text,
+            showarrow=False,
+            font=dict(size=40, color=slc_text),
+            xanchor='center',
+            yanchor='bottom',
+            opacity=0.3,
+        )
+    ]
+
+    # Add a second annotation if anno2 is True
+    if anno2:
+        annotations.append(
+            dict(
+                x=feature_pos2[0],
+                y=feature_pos2[1],
+                text=feature_text2,
+                showarrow=False,
+                font=dict(size=40, color=slc_text),
+                xanchor='center',
+                yanchor='bottom',
+                opacity=0.3,
+            )
+        )
+
+    inci_fig.update_layout(
+        title=dict(
+            text=fig_title,
+            font=dict(size=25),
+            x=0.08,  # Align title to the left (vertical axis)
+            xanchor='left'
+        ),
+        xaxis_title="Cluster #",
+        yaxis_title=f'{feature}{outcome_suff}',
+        plot_bgcolor=slc_bg,
+        paper_bgcolor=slc_bg,
+        font=dict(color=slc_text, size=14),
+        xaxis=dict(showgrid=True, gridcolor=slc_bg2, showline=False, zeroline=False),
+        yaxis=dict(
+            showgrid=True,
+            gridcolor=slc_bg2,
+            showline=False,
+            zeroline=False,
+            range=ylim
+        ),
+        width=2000,
+        height=1000,
+        legend=dict(
+            title=None,
+            bgcolor=slc_bg2,
+            bordercolor=slc_bg2,
+            borderwidth=1,
+            orientation='v',
+            x=0.85,
+            y=1,
+            xanchor='left',
+            yanchor='top'
+        ),
+        showlegend=True,
+        annotations=annotations,
+        shapes=[
+            dict(
+                type='line',
+                xref='paper',
+                x0=0,
+                x1=1,
+                yref='y',
+                y0=0,
+                y1=0,
+                line=dict(
+                    color=slc_text,
+                    width=2,
+                    dash='dash'
+                ),
+                opacity=0.7,
+                layer='below'
+            )
+        ]
+    )
 
     return inci_fig

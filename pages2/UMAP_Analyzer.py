@@ -9,13 +9,20 @@ def reset_phenotype_selection():
     '''
     Quick function to reset the UMAP differences visualizations
     '''
-    st.session_state.umapInspect_Ver = st.session_state.defLineageOpt
-    st.session_state.diffUMAPSel_Ver = st.session_state.defLineageOpt
+    st.session_state.umapInspect_Ver = st.session_state.def_lineage_opt
+    st.session_state.diffUMAPSel_Ver = st.session_state.def_lineage_opt
 
 def main():
     '''
     Main function for running the page
     '''
+
+    if 'def_lineage_opt' not in st.session_state:
+        st.session_state.def_lineage_opt = 'All Phenotypes'
+    if 'def_umap_feature' not in st.session_state:
+        st.session_state.def_umap_feature = 'phenotype'
+    if 'def_inci_feature' not in st.session_state:
+        st.session_state.def_inci_feature = 'Cell Counts'
 
     # Make a generic check to avoid neeeding to hunt down individual checks
     rdy_to_plot = st.session_state.cluster_completed
