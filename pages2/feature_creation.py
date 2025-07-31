@@ -43,7 +43,7 @@ def update_image_list():
     Function to update the list of images in the session state.
     '''
 
-    # Check if the column 'Image ID_(standardized) exists
+    # Check if the column 'Image ID_(standardized)' exists
     if 'Image ID_(standardized)' in st.session_state['input_dataset'].data.columns:
         st.session_state.fc_image_select_disabled = False
         st.session_state['fc_input_df_images'] = st.session_state['input_dataset'].data['Image ID_(standardized)'].unique().tolist()
