@@ -139,6 +139,9 @@ def get_paths_for_slides():
     slides_listing = [y for y in slides_listing if '-patched.' not in y]
     heatmaps_listing = os.listdir(heatmaps_dir)
 
+    # Filter out CSV files from heatmaps listing
+    heatmaps_listing = [y for y in heatmaps_listing if not y.lower().endswith('.csv')]
+
     # Initialize an empty Pandas dataframe holding the full image pathnames where the index is the core slide name
     file_extension = os.path.splitext(slides_listing[0])[1]
     df_paths = pd.DataFrame([os.path.splitext(x)[0] for x in slides_listing], columns=['slide_name']).set_index('slide_name')
