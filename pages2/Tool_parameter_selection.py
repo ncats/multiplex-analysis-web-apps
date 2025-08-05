@@ -395,6 +395,7 @@ def main():
         if 'settings__annotation__microns_per_integer_unit' not in st.session_state:
             st.session_state['settings__annotation__microns_per_integer_unit'] = 0.25
         st.session_state['settings__plotting__min_log_pval'] = -50
+        st.session_state['settings__plotting__save_slide_averaged_heatmap_data'] = False
 
     # Allow the user to select an existing parameter file
     columns = st.columns(2)
@@ -468,6 +469,7 @@ def main():
         st.number_input('Number of nearest neighbors:', min_value=0, key='settings__analysis__n_neighs', disabled=st.session_state['analysis_n_neighs_is_disabled'])
         st.number_input('Minimum number of valid centers:', min_value=1, key='settings__analysis__min_num_valid_centers', help='Valid centers are defined as cells inside an analysis radius from the ROI edges. If a particular phenotype in a ROI has fewer than the minimum number of valid cells, it is excluded from downstream analysis as a center species (not as a neighbor species). I.e., the user may want to define a minimum sample size.')
         st.checkbox('For just the "Display average heatmaps" page, weight by the number of valid centers', key='settings__analysis__weight_by_num_valid_centers', help='This refers to the averaging performed on the "Display average heatmaps" page, in which the rows in the density P value heatmaps for each ROI are weighted by the number of valid centers in each row. (This *is not* center-neighbor symmetric because in a given analysis, the number valid neighbors is the total number of neighbors in the ROI whereas the number of valid centers is the number of centers within an analysis radius buffer from the ROI edge.) This has no effect on the averaging done per annotation region type, i.e., the averaging performed on the "Display average heatmaps per annotation" page, in which the ROIs are uniformly weighted depending on the weighting method selected on that page, for each annotation region type. (This *is* center-neighbor symmetric because the same weight is assigned to all the center-neighbor pairs for each ROI.) So the averaging done on these two pages is fundamentally different, even aside from annotations being involved.')
+        st.checkbox('For just the "Display average heatmaps" page, save the slide-averaged density P value heatmap data', key='settings__plotting__save_slide_averaged_heatmap_data', help='This saves the slide-averaged density P value heatmap data to the output directory, which can be used for further analysis or visualization.')
 
         # Input of clipping information
         st.write('Clipping range of the log (base 10) density P values:')
@@ -510,6 +512,7 @@ def main():
     orig_settings['analysis']['images_to_analyze'] = st.session_state['settings__analysis__images_to_analyze']
     orig_settings['analysis']['phenotypes_to_analyze'] = st.session_state['settings__analysis__phenotypes_to_analyze']
     orig_settings['plotting']['min_log_pval'] = st.session_state['settings__plotting__min_log_pval']
+    orig_settings['plotting']['save_heatmap_data'] = st.session_state['settings__plotting__save_slide_averaged_heatmap_data']
 
     # Save the currently selected settings, in the original API format, to memory
     st.session_state['sit__workflow_settings'] = orig_settings
