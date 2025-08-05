@@ -71,7 +71,7 @@ def main():
             # Check if directory exists and find CSV files
             if os.path.exists(heatmap_data_dir):
                 csv_files = [f for f in os.listdir(heatmap_data_dir) if f.endswith('_log_dens_pvals.csv')]
-                
+
                 if not csv_files:
                     st.warning('No heatmap data files found. Please select this option in the tool parameter selection.', icon='⚠️')
                 else:
@@ -79,7 +79,7 @@ def main():
                     def create_zip():
                         import zipfile
                         import io
-                        
+
                         zip_buffer = io.BytesIO()
                         with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
                             for csv_file in csv_files:
