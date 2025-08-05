@@ -1,5 +1,6 @@
 import utils
 import new_phenotyping_lib
+import pandas as pd
 
 save_image_ext = 'jpg'
 # save_image_ext = 'png'
@@ -1686,7 +1687,7 @@ class TIMECellInteraction:
         return df_data_by_roi
 
 
-    def average_dens_pvals_over_rois_for_each_slide(self, figsize=(10, 4), dpi=100, img_file_suffix='', plot_real_data=True, do_plotting=True, weight_rois_by_num_valid_centers=False, input_datafile='../data/dummy_txt_or_csv.csv'):
+    def average_dens_pvals_over_rois_for_each_slide(self, figsize=(10, 4), dpi=100, img_file_suffix='', plot_real_data=True, do_plotting=True, weight_rois_by_num_valid_centers=False, input_datafile='../data/dummy_txt_or_csv.csv', save_heatmap_data=False):
         """Average the P values over all ROIs for each slide. Note I have confirmed that this yields the same results as a non-weighted version of the original method.
 
         Args:
@@ -1829,7 +1830,8 @@ class TIMECellInteraction:
                         entity=entity,
                         entity_index=-1,
                         all_species_names=all_species_names,
-                        title_suffix=title_suffix
+                        title_suffix=title_suffix,
+                        save_heatmap_data=save_heatmap_data,
                     )
                 else:
                     print('Not plotting P values for slide {} averaged over all its ROIs with valid P value data, because there are no ROIs with valid P value data'.format(slide_name))
@@ -4266,12 +4268,16 @@ def generate_dens_pvals_array_for_roi(args_as_single_tuple):
     make_pickle({'roi_name': roi_name, 'log_dens_pvals_arr': log_dens_pvals_arr, 'num_valid_centers': num_valid_centers, 'centers_neighbors_arr': roi_center_neighbor_holder}, pickle_dir, pickle_file)
 
 
-def plot_density_pvals_simple(log_dens_pvals_arr, log_pval_range, figsize, dpi, plots_dir, plot_real_data, entity_name, img_file_suffix, entity, entity_index, all_species_names, title_suffix=''):
+def plot_density_pvals_simple(log_dens_pvals_arr, log_pval_range, figsize, dpi, plots_dir, plot_real_data, entity_name, img_file_suffix, entity, entity_index, all_species_names, title_suffix='', replace_characters=True, save_heatmap_data=False):
 
     # Import relevant libraries
     import matplotlib.pyplot as plt
     import seaborn as sns
     import os
+
+    # Get rid of the "(plus)" and "(dash)" characters in the species names, if requested.
+    if replace_characters:
+        all_species_names = [x.replace('(plus)', '+').replace('(dash)', '-') for x in all_species_names]
 
     # Determine the number of slices from the main array to plot
     nslices = log_dens_pvals_arr.shape[3]
@@ -4316,6 +4322,16 @@ def plot_density_pvals_simple(log_dens_pvals_arr, log_pval_range, figsize, dpi, 
 
         # Save the figure to disk
         fig.savefig(filename, dpi=dpi, bbox_inches='tight')
+
+        # Optionally save the heatmap data to CSV (one CSV for each of left and right P values) with the same filename except with a .csv extension and "left" or "right" appropriately indicated in the CSV filenames.The row and column names should both correspond to all_species_names. The data in the CSV file should be in the same order as the heatmap so e.g. the top-right cell in the heatmap corresponds to the first row and last column in the CSV file.
+        if save_heatmap_data:
+            # Save the left log density P values to a CSV file.
+            left_log_dens_pvals_df = pd.DataFrame(log_dens_pvals_arr[:, :, 0, islice], index=all_species_names, columns=all_species_names)
+            left_log_dens_pvals_df.to_csv(filename.replace(f'.{save_image_ext}', '-left_log_dens_pvals.csv'))
+
+            # Save the right log density P values to a CSV file
+            right_log_dens_pvals_df = pd.DataFrame(log_dens_pvals_arr[:, :, 1, islice], index=all_species_names, columns=all_species_names)
+            right_log_dens_pvals_df.to_csv(filename.replace(f'.{save_image_ext}', '-right_log_dens_pvals.csv'))
 
     # Close the figure
     plt.close(fig)
