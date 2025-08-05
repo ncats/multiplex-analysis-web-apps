@@ -4266,12 +4266,16 @@ def generate_dens_pvals_array_for_roi(args_as_single_tuple):
     make_pickle({'roi_name': roi_name, 'log_dens_pvals_arr': log_dens_pvals_arr, 'num_valid_centers': num_valid_centers, 'centers_neighbors_arr': roi_center_neighbor_holder}, pickle_dir, pickle_file)
 
 
-def plot_density_pvals_simple(log_dens_pvals_arr, log_pval_range, figsize, dpi, plots_dir, plot_real_data, entity_name, img_file_suffix, entity, entity_index, all_species_names, title_suffix=''):
+def plot_density_pvals_simple(log_dens_pvals_arr, log_pval_range, figsize, dpi, plots_dir, plot_real_data, entity_name, img_file_suffix, entity, entity_index, all_species_names, title_suffix='', replace_characters=True):
 
     # Import relevant libraries
     import matplotlib.pyplot as plt
     import seaborn as sns
     import os
+
+    # Get rid of the "(plus)" and "(dash)" characters in the species names, if requested.
+    if replace_characters:
+        all_species_names = [x.replace('(plus)', '+').replace('(dash)', '-') for x in all_species_names]
 
     # Determine the number of slices from the main array to plot
     nslices = log_dens_pvals_arr.shape[3]
