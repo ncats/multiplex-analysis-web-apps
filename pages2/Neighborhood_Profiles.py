@@ -868,8 +868,11 @@ def main():
                 st.selectbox('Select a cluster to view', st.session_state.list_clusters, key='sel_npf_fig')
                 if st.session_state['toggle_compare_clusters']:
                     st.selectbox('Select a cluster to compare', st.session_state.list_clusters, key='sel_npf_fig2')
+
+                    download_file_suffix = f"{st.session_state['sel_npf_fig']}_vs_{st.session_state['sel_npf_fig2']}"
                 else:
                     st.session_state['sel_npf_fig2'] = None
+                    download_file_suffix = f"{st.session_state['sel_npf_fig']}"
 
             if st.session_state.appro_feat:
 
@@ -900,7 +903,7 @@ def main():
                     csv_bytes = nei_pro_df.to_csv(index=False).encode('utf-8')
                     st.download_button("Download Data",
                                        data=csv_bytes,
-                                       file_name="neighborhood_profile.csv")
+                                       file_name=f"neighborhood_profile_data_{st.session_state['datafile']}_{download_file_suffix}.csv")
 
                     # # Create widgets for exporting the Neighborhood Profile images
                     # neigh_prof_col = st.columns([2, 1])
