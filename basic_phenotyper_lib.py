@@ -1002,6 +1002,7 @@ def draw_neigh_profile_fig(spatial_umap, ax, sel_clus, cmp_clus = None, cmp_styl
                                         cmp_style = cmp_style,
                                         max_dens = ylim,
                                         leg_flag = legend_flag)
+    return dens_df_mean
 
 def preprocess_weighted_umap(w, df_umap):
     '''

@@ -851,18 +851,6 @@ def main():
                                 value = 10000, step = 10,)
             with nei_sett_col[3]:
                 st.checkbox('Log Scale', key = 'nei_pro_toggle_log_scale', value = True)
-            # st.toggle('Subset Neighbourhood Profiles by Feature', value = False,
-            #           key = 'toggle_NeiPro_filter_feat', disabled=not st.session_state.umap_completed)
-            # if st.session_state['toggle_NeiPro_filter_feat']:
-            #     nei_feat_filt_col = st.columns([2,2])
-            #     with nei_feat_filt_col[0]:
-            #         st.selectbox('Feature', options = st.session_state.umapOutcomes,
-            #                      key='NeiPro_filter_feat', on_change=reset_neipro_feature_values)
-            #     with nei_feat_filt_col[1]:
-            #         selected_feat = st.session_state['NeiPro_filter_feat']
-            #         unique_values = st.session_state.spatial_umap.df_umap[selected_feat].unique()
-            #         st.selectbox('Value', options = unique_values, key='NeiPro_filter_value')
-
 
         cluster_sel_col = st.columns([3, 1])
         # Compare Clusters Toggle
@@ -888,7 +876,7 @@ def main():
                 # Draw the Neighborhood Profile
                 npf_fig, ax = bpl.draw_scatter_fig(figsize=(14, 16))
 
-                bpl.draw_neigh_profile_fig(st.session_state.spatial_umap,
+                nei_pro_df = bpl.draw_neigh_profile_fig(st.session_state.spatial_umap,
                                            ax = ax,
                                            sel_clus = st.session_state['sel_npf_fig'],
                                            cmp_clus = st.session_state['sel_npf_fig2'],
@@ -908,16 +896,22 @@ def main():
                     # Display the Neighborhood Profile
                     st.pyplot(fig=npf_fig)
 
-                    # Create widgets for exporting the Neighborhood Profile images
-                    neigh_prof_col = st.columns([2, 1])
-                    with neigh_prof_col[0]:
-                        st.text_input('.png file suffix (Optional)', key = 'neigh_prof_line_suffix')
-                    with neigh_prof_col[1]:
-                        add_vertical_space(2)
-                        if st.button('Append Export List', key = 'appendexportbutton_neighproline__do_not_persist'):
+                    # Convert figure data to bytes and then download
+                    csv_bytes = nei_pro_df.to_csv(index=False).encode('utf-8')
+                    st.download_button("Download Data",
+                                       data=csv_bytes,
+                                       file_name="neighborhood_profile.csv")
 
-                            ndl.save_png(npf_fig, 'Neighborhood Profiles', st.session_state.neigh_prof_line_suffix)
-                            st.toast(f'Added {st.session_state.neigh_prof_line_suffix} to export list')
+                    # # Create widgets for exporting the Neighborhood Profile images
+                    # neigh_prof_col = st.columns([2, 1])
+                    # with neigh_prof_col[0]:
+                    #     st.text_input('.png file suffix (Optional)', key = 'neigh_prof_line_suffix')
+                    # with neigh_prof_col[1]:
+                    #     add_vertical_space(2)
+                    #     if st.button('Append Export List', key = 'appendexportbutton_neighproline__do_not_persist'):
+
+                    #         ndl.save_png(npf_fig, 'Neighborhood Profiles', st.session_state.neigh_prof_line_suffix)
+                    #         st.toast(f'Added {st.session_state.neigh_prof_line_suffix} to export list')
 
     # Drawing the subplots of Neighborhood Profiles per cluster combinations
     if st.session_state['appro_feat'] and st.session_state.cluster_completed_diff:
