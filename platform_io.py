@@ -10,7 +10,7 @@ import pandas as pd
 import streamlit as st
 import streamlit_dataframe_editor as sde
 import utils
-from pages2 import memory_analyzer
+from pages import memory_analyzer
 
 # Constant
 local_input_dir = os.path.join('.', 'input')
