@@ -904,11 +904,8 @@ def main():
                     # Display the Neighborhood Profile
                     st.pyplot(fig=npf_fig)
 
-                    # Convert figure data to bytes and then download
-                    csv_bytes = nei_pro_df.to_csv(index=False).encode('utf-8')
-                    st.download_button("Download Data",
-                                       data=csv_bytes,
-                                       file_name=f"neighborhood_profile_data_{st.session_state['datafile']}_{download_file_suffix}.csv")
+                    if st.button('Save to Output Folder'):
+                        nei_pro_df.to_csv(f"./output/neighborhood_profiles_{st.session_state['datafile']}_{download_file_suffix}.csv", index=False)
 
                     # # Create widgets for exporting the Neighborhood Profile images
                     # neigh_prof_col = st.columns([2, 1])
