@@ -966,6 +966,7 @@ def draw_neigh_profile_fig(spatial_umap, ax, sel_clus, cmp_clus = None, cmp_styl
 
         dens_df_mean = dens_df_mean_cmp.copy()
         dens_df_mean['density_sem'] = 0
+
         # Subtraction Compare Style
         if cmp_style == 'Difference':
             dens_df_mean['density_mean'] = dens_df_mean_sel['density_mean'] - dens_df_mean_cmp['density_mean']
@@ -973,7 +974,9 @@ def draw_neigh_profile_fig(spatial_umap, ax, sel_clus, cmp_clus = None, cmp_styl
             range_values = [min(dens_df_mean['density_mean']), max(dens_df_mean['density_mean'])]
             top_range = 1.05*max(abs(range_values[0]), abs(range_values[1]))
             ylim = [-top_range, top_range]
+            dens_df_mean['clust_label'] = f'{sel_clus} - {cmp_clus}'
             cluster_title = f'{sel_clus} - {cmp_clus}'
+
         # Ratio Compare Style
         elif cmp_style == 'Ratio':
             dens_df_mean['density_mean'] = dens_df_mean_sel['density_mean'] / dens_df_mean_cmp['density_mean']
@@ -987,7 +990,9 @@ def draw_neigh_profile_fig(spatial_umap, ax, sel_clus, cmp_clus = None, cmp_styl
                 ymin = 0.95*range_values[0]
                 ymax = 1.05*range_values[1]
             ylim = np.array([ymin, ymax])
+            dens_df_mean['clust_label'] = f'{sel_clus}/{cmp_clus}'
             cluster_title = f'{sel_clus} / {cmp_clus}'
+
     else:
         cmp_style = None
 
@@ -1002,6 +1007,7 @@ def draw_neigh_profile_fig(spatial_umap, ax, sel_clus, cmp_clus = None, cmp_styl
                                         cmp_style = cmp_style,
                                         max_dens = ylim,
                                         leg_flag = legend_flag)
+    return dens_df_mean
 
 def preprocess_weighted_umap(w, df_umap):
     '''
