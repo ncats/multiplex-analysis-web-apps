@@ -1,13 +1,22 @@
+'''
+datafile_format_unifier.py
+'''
+
 # Import relevant libraries
 import os
+import re
 import streamlit as st
 import pandas as pd
 import streamlit_dataframe_editor as sde
-import re
 import utils
 
-
 def callback_for_combining_datafiles(filenames):
+    '''
+    callback for combining datafiles
+
+    Args:
+        filenames (list): A list of filenames to combine
+    '''
 
     # Clear all keys in the session state starting with "unifier__" and not applicable to the selections above the callback button
     keys_to_delete = [key for key in st.session_state.keys() if (key.startswith("unifier__")) and (key not in ['unifier__input_files', 'unifier__de_datafile_selection', 'unifier__df_datafile_selection', 'unifier__df_datafile_selection_changes_dict', 'unifier__df_datafile_selection_key'])]
@@ -19,6 +28,12 @@ def callback_for_combining_datafiles(filenames):
 
 
 def generate_guess_for_basename_of_mawa_unified_file(filenames):
+    '''
+    generate a guess for the basename of the MAWA unified file
+
+    Args:
+        filenames (list): A list of filenames to combine
+    '''
     # generate_guess_for_basename_of_mawa_unified_file(df_reconstructed.loc[selected_rows, 'Filename'])
 
     # Convert the pandas Series to a list
@@ -694,8 +709,8 @@ def main():
         information = f'''
         Loaded dataset properties:
 
-        :small_orange_diamond: Number of rows: `{df.shape[0]}`  
-        :small_orange_diamond: Number of columns: `{df.shape[1]}`  
+        :small_orange_diamond: Number of rows: `{df.shape[0]}`
+        :small_orange_diamond: Number of columns: `{df.shape[1]}`
         :small_orange_diamond: Coordinate units: `{st.session_state['unifier__microns_per_coordinate_unit'] if 'unifier__microns_per_coordinate_unit' in st.session_state else None} microns/coord`  
         :small_orange_diamond: Loaded memory usage: `{usage_str}`
         '''

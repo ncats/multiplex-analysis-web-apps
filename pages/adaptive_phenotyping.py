@@ -9,7 +9,6 @@ import utils
 # Global variable
 st_key_prefix = 'adaptive_phenotyping__'
 
-
 def plotly_mean_and_sem(dfs, df_names):
 
     # Create a Plotly figure
