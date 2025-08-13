@@ -12,9 +12,6 @@ import streamlit_session_state_management
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
 import streamlit_utils
 import platform_io
-import install_missing_packages
-
-install_missing_packages.live_package_installation()
 
 # Note if any of the following imports having "  # slow" are not commented out, there is a delay in running the forking test
 from pages2 import data_import_and_export
@@ -42,7 +39,6 @@ from pages2 import radial_profiles_analysis
 from pages2 import preprocessing
 from pages2 import results_transfer
 # from pages2 import forking_test
-
 
 def welcome_page():
     '''
