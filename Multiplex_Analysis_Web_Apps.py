@@ -3,6 +3,7 @@ Top level Streamlit Application for MAWA
 '''
 import os
 import re
+import logging
 import subprocess
 import numpy as np
 
@@ -40,6 +41,11 @@ from pages2 import preprocessing
 from pages2 import results_transfer
 # from pages2 import forking_test
 
+# Configure logging
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
 def welcome_page():
     '''
     First page displayed when the app opens
@@ -76,6 +82,9 @@ def check_for_platform(session_state):
 
 
 def main():
+    '''
+    Main function for running the Multiplex Analysis Web Apps
+    '''
 
     st.set_page_config(layout="wide")
 
@@ -139,9 +148,11 @@ def main():
     # Ensure the input/output directories exist
     input_path = './input'
     if not os.path.exists(input_path):
+        logger.info("Creating input directory at %s", input_path)
         os.makedirs(input_path)
     output_path = './output'
     if not os.path.exists(output_path):
+        logger.info("Creating output directory at %s", output_path)
         os.makedirs(output_path)
 
     # For widget persistence, we need always copy the session state to itself, being careful with widgets that cannot be persisted, like st.data_editor() (where we use the "__do_not_persist" suffix to avoid persisting it)
@@ -169,16 +180,18 @@ def main():
 
     # Initalize session_state values for streamlit processing
     if 'init' not in st.session_state:
+        logger.info("Initializing session state")
         st.session_state = ndl.init_session_state(st.session_state)
 
     # Sidebar organization
     with st.sidebar:
-        st.write('**:book: [Documentation](https://ncats.github.io/multiplex-analysis-web-apps/)**')
+        st.write('**📖 [Documentation](https://ncats.github.io/multiplex-analysis-web-apps/)**')
         with st.expander('Advanced:'):
-            benchmark_button = True
-            if benchmark_button:
-                st.button('Record Benchmarking', on_click = st.session_state.bc.save_run_to_csv)
+            if st.button('Record Benchmarking'):
+                logger.info("Recording benchmark information")
+                st.session_state.bc.save_run_to_csv()
             if st.button('Calculate memory used by Python session'):
+                logger.info("Calculating memory used by Python session")
                 streamlit_utils.write_python_session_memory_usage()
 
     # Check the platform
