@@ -268,6 +268,9 @@ def set_clusters():
 
     # List of Clusters to display
     st.session_state.list_clusters = list(st.session_state.cluster_dict.values())
+    if st.session_state['toggle_clust_diff']:
+        st.session_state.list_clusters += ['Average Left', 'Average Right']
+
     if 'No Cluster' in st.session_state.list_clusters:
         st.session_state.list_clusters.remove('No Cluster')
 
@@ -583,6 +586,8 @@ def main():
 
     if 'list_clusters' not in st.session_state:
         st.session_state.list_clusters = list(st.session_state.cluster_dict.values())
+        if st.session_state['toggle_clust_diff']:
+            st.session_state.list_clusters += ['Average Left', 'Average Right']
 
     if 'disable_clustering' not in st.session_state:
         st.session_state.disable_clustering = False
