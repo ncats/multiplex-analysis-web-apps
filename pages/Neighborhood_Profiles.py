@@ -885,12 +885,12 @@ def main():
                 npf_fig, ax = bpl.draw_scatter_fig(figsize=(14, 16))
 
                 nei_pro_df = bpl.draw_neigh_profile_fig(st.session_state.spatial_umap,
-                                           ax = ax,
-                                           sel_clus = st.session_state['sel_npf_fig'],
-                                           cmp_clus = st.session_state['sel_npf_fig2'],
-                                           cmp_style=st.session_state['compare_clusters_as'],
-                                           hide_other = st.session_state['toggle_hide_other'],
-                                           hide_no_cluster = st.session_state['toggle_hide_no_cluster'])
+                                                        ax = ax,
+                                                        sel_clus = st.session_state['sel_npf_fig'],
+                                                        cmp_clus = st.session_state['sel_npf_fig2'],
+                                                        cmp_style=st.session_state['compare_clusters_as'],
+                                                        hide_other = st.session_state['toggle_hide_other'],
+                                                        hide_no_cluster = st.session_state['toggle_hide_no_cluster'])
 
                 if st.session_state['nei_pro_toggle_log_scale']:
                     ax.set_yscale('log')
@@ -920,6 +920,11 @@ def main():
 
     # Drawing the subplots of Neighborhood Profiles per cluster combinations
     if st.session_state['appro_feat'] and st.session_state.cluster_completed_diff:
+
+        # Save all the nei_pro_dfs in a list
+        if 'nei_pro_dfs' not in st.session_state:
+            st.session_state['nei_pro_dfs'] = []
+            st.session_state['suffix_list'] = []
 
         supp_neipro_col = st.columns([4, 2])
         with supp_neipro_col[0]:
@@ -989,9 +994,12 @@ def main():
                         ['Right Cluster 3', 'Average Left', 'Aggregate Cluster Ratios'],
                         ]
 
+        # Create subplots
         num_figs = len(list_figures)
         num_cols = 3
         num_rows = np.ceil(num_figs/3).astype(int)
+        df_list = []
+        suffix_list = []
         for ii, cluster in enumerate(list_figures):
             axii = npf_fig_big.add_subplot(num_rows, 3, ii+1, facecolor = '#0E1117')
 
@@ -1000,14 +1008,22 @@ def main():
             else:
                 legend_flag = False
 
-            bpl.draw_neigh_profile_fig(st.session_state.spatial_umap,
-                                       ax = axii,
-                                       sel_clus = cluster[0],
-                                       cmp_clus = cluster[1],
-                                       cmp_style = 'Ratio',
-                                       hide_other = st.session_state['toggle_hide_other'],
-                                       hide_no_cluster = st.session_state['toggle_hide_no_cluster'],
-                                       legend_flag = legend_flag)
+            nei_pro_df = bpl.draw_neigh_profile_fig(st.session_state.spatial_umap,
+                                                    ax = axii,
+                                                    sel_clus = cluster[0],
+                                                    cmp_clus = cluster[1],
+                                                    cmp_style = 'Ratio',
+                                                    hide_other = st.session_state['toggle_hide_other'],
+                                                    hide_no_cluster = st.session_state['toggle_hide_no_cluster'],
+                                                    legend_flag = legend_flag)
+
+            # Save all the nei_pro_df in a list
+            df_list.append(nei_pro_df)
+
+            if cluster[1] is not None:
+                suffix_list.append(f"{cluster[0]}_vs_{cluster[1]}")
+            else:
+                suffix_list.append(f"{cluster[0]}")
 
             if st.session_state['toggle_manual_y_axis_scaling_supplemental']:
                 if cluster[2] == 'Individual Cluster Plots':
@@ -1027,6 +1043,16 @@ def main():
                         axii.set_yscale('log')
             else:
                 axii.set_yscale('log')
+
+        st.session_state['nei_pro_dfs'] = df_list
+        st.session_state['suffix_list'] = suffix_list
+
+        # Download Subplots Button
+        with supp_neipro_col[1]:
+            if st.button('Save All Subplots to Output Folder'):
+                for i, nei_pro_df in enumerate(st.session_state['nei_pro_dfs']):
+                    st.write(f"Saving neighborhood profile: {st.session_state['suffix_list'][i]}")
+                    nei_pro_df.to_csv(f"./output/neighborhood_profiles_{st.session_state['datafile']}_{st.session_state['suffix_list'][i]}.csv", index=False)
 
         plot_title = ''
         for i in title_supp:
