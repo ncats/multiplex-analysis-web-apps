@@ -8,7 +8,7 @@ dependencies:
   - psycopg2=2.9.10  # can probably upgrade to psycopg
   - pyyaml=6.0.2
   - dill=0.3.9
-  - git=2.51.0
+  - git=2.51.0  # doesn't seem to work; 3.1.45 is brought in
   - requests=2.32.5
   - minio=7.2.16
   - polars=1.33.0
