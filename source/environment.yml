@@ -39,6 +39,7 @@ dependencies:
   - spatialdata=0.2.5  # pinning, otherwise importing probably squidpy fails
   - dask=2024.9.1  # removes a legacy dask warning when importing spatialdata, though other warnings remain during import and during environment setup
   - pyopenssl=25.1.0  # needed to be able to import snowflake.snowpark without SSL errors
+  - numba=0.61.0  # needed to load in archives from NIDAP that were created using closer to this version of numba, seemingly needed to load neighborhood profiles results
   - pip=25.0.1
   - pip:
       - st-pages==1.0.1
