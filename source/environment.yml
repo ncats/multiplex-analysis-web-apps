@@ -23,7 +23,6 @@ dependencies:
   - seaborn=0.13.2
   - scikit-image=0.25.2
   - scikit-learn=1.5.2
-  - split-file-reader=0.1.4
   - anaconda::streamlit-extras=0.6.0
   - tqdm=4.67.1
   - umap-learn=0.5.7
@@ -50,3 +49,4 @@ dependencies:
       - annoy==1.17.3  # didn't work with conda
       - boto3==1.40.45  # required for squidpy pip install... even though conda installs recent boto3 (e.g., 1.40.45), that recent version doesn't seem to get recognized during squidpy pip install
       - squidpy==1.6.2  # didn't work with conda
+      - split-file-reader==0.1.4
