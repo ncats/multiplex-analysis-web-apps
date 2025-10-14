@@ -3,6 +3,7 @@ channels:
   - defaults
 channel_priority: strict
 dependencies:
+  - compilers=1.11.0
   - python=3.12.9
   - streamlit=1.50.0
   - psycopg2=2.9.10  # can probably upgrade to psycopg
@@ -39,6 +40,8 @@ dependencies:
   - dask=2024.9.1  # removes a legacy dask warning when importing spatialdata, though other warnings remain during import and during environment setup
   - pyopenssl=25.1.0  # needed to be able to import snowflake.snowpark without SSL errors
   - numba=0.61.0  # needed to load in archives from NIDAP that were created using closer to this version of numba, seemingly needed to load neighborhood profiles results
+  - zarr=2.18.4
+  - numcodecs=0.15.1
   - pip=25.0.1
   - pip:
       - st-pages==1.0.1
