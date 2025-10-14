@@ -4,6 +4,7 @@ import streamlit as st
 import yaml
 import framework.utils as utils
 import framework.platform_abstraction as pa
+import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
 
 ST_KEY_PREFIX = "startup.py__"
 SETTINGS_FILENAME = "settings.yaml"
@@ -39,3 +40,6 @@ def initialize():
 
     # Create app session entry.
     pa.log_app_session((app_session_id, current_username, pa.get_user_group(current_username), pa.get_frontend_image_id()))
+
+    # Dante's session state initialization.
+    ndl.init_session_state(st.session_state)
