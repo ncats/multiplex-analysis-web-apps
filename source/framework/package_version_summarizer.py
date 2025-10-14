@@ -44,9 +44,9 @@ def import_and_show_versions(package_names: list) -> Dict[str, Any]:
     return imported_packages
 
 # Your package list
-# Insert output from e.g. "grep "=" source/environment.yml | awk -v FS="- " '{print $2}' | awk -v FS== '{gsub("-", "_", $1); printf("\"%s\", ", $1)}' | less"
+# Insert, after cleaning up, output from e.g. "grep "=" source/environment.yml | awk -v FS="- " '{print $2}' | awk -v FS== '{gsub("-", "_", $1); printf("\"%s\", ", $1)}' | less"
 packages = [
-    "streamlit", "psycopg2", "yaml", "dill", "git", "requests", "minio", "polars", "snowflake.snowpark", "matplotlib", "natsort", "numpy", "palantir", "pandas", "plotly", "scipy", "seaborn", "skimage", "sklearn", "split_file_reader", "streamlit_extras", "tqdm", "umap", "pympler", "objsize", "phenograph", "parmap", "setuptools_scm", "pynndescent", "plotnine", "shapely", "hnswlib", "spatialdata", "dask", "OpenSSL", "numba", "pip", "st_pages", "streamlit_javascript", "parc", "sklearn_ann", "anndata", "annoy", "boto3", "squidpy"
+    "streamlit", "psycopg2", "yaml", "dill", "git", "requests", "minio", "polars", "snowflake.snowpark", "matplotlib", "natsort", "numpy", "palantir", "pandas", "plotly", "scipy", "seaborn", "skimage", "sklearn", "streamlit_extras", "tqdm", "umap", "pympler", "objsize", "phenograph", "parmap", "setuptools_scm", "pynndescent", "plotnine", "shapely", "hnswlib", "spatialdata", "dask", "OpenSSL", "numba", "zarr", "numcodecs", "pip", "st_pages", "streamlit_javascript", "parc", "sklearn_ann", "anndata", "annoy", "boto3", "squidpy", "split_file_reader"
 ]
 
 # Import all packages and show versions
