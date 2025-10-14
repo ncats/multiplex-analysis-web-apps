@@ -150,7 +150,7 @@ def main():
     with st.sidebar:
 
         # App-specific things.
-        st.write('**:book: [Documentation](https://ncats.github.io/multiplex-analysis-web-apps/)**')
+        st.write('**:open_book: [Documentation](https://ncats.github.io/multiplex-analysis-web-apps/)**')
         with st.expander('Advanced:'):
             benchmark_button = True
             if benchmark_button:
