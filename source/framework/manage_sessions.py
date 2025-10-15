@@ -94,6 +94,10 @@ def reset_session_state():
             if key not in keys_to_keep:
                 del st.session_state[key]
 
+        # Delete everything from the input and output directories.
+        utils.ensure_empty_directory(os.path.join(utils.session_dir(), "input"))
+        utils.ensure_empty_directory(os.path.join(utils.session_dir(), "output"))
+
         return True
     except Exception as e:
         st.error(f"Failed to reset session state: {e}")

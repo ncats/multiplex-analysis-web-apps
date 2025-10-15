@@ -36,6 +36,7 @@ from pages2 import preprocessing
 from pages2 import results_transfer
 from streamlit_extras.app_logo import add_logo
 import streamlit_session_state_management
+import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
 
 
 ST_KEY_PREFIX = "app.py__"
@@ -153,6 +154,10 @@ def main():
     # Run session state management in the sidebar
     streamlit_session_state_management.execute(first_app_run)
 
+    # Dante's session state initialization to initalize session_state values for streamlit processing. Not putting in startup.py so it gets rerun properly when the user hits the "Reset app" button without my having to trace through everything it does and add manually to manage_sessions.reset_session_state().
+    if 'init' not in st.session_state:
+        st.session_state = ndl.init_session_state(st.session_state)
+
     # Sidebar organization
     with st.sidebar:
 
@@ -168,8 +173,7 @@ def main():
         # Allow user to shut down entire app cleanly.
         with st.container(horizontal=True):
             st.button("🔄 Refresh page", help="If you want to refresh the page, press this button, *not* your browser's refresh button.")
-            if st.button("🧹 Reset app", help="Reset the app to its initial state."):
-                manage_sessions.reset_session_state()
+            st.button("🧹 Reset app", help="Reset the app to its initial state.", on_click=manage_sessions.reset_session_state)
             if st.button("🛑 Shut down app", help="Always save the app session prior to shutdown (unless you don't want to resume your work). Even if you have a running job, you can still shut down the app; just make sure you've saved the app session first so you can pick back up where you left off and load the completed job results as usual."):
                 pa.record_explicit_shutdown_time(st.session_state[ST_KEY_PREFIX_STARTUP + "app_session_id"])
                 pa.shut_down_app()

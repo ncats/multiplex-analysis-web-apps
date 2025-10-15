@@ -1,10 +1,11 @@
 # These should all be one-time startup operations.
+# Note that when the sidebar "Reset app" button gets pressed, everything in this script should be considered for resetting.
+# We should also consider whether things get appropriately reset if e.g. the user refreshes the page.
 
 import streamlit as st
 import yaml
 import framework.utils as utils
 import framework.platform_abstraction as pa
-import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
 import os
 
 ST_KEY_PREFIX = "startup.py__"
@@ -45,6 +46,3 @@ def initialize():
     # Ensure the input/output directories exist
     os.makedirs(os.path.join(session_dir, "input"), exist_ok=True)
     os.makedirs(os.path.join(session_dir, "output"), exist_ok=True)
-
-    # Dante's session state initialization.
-    st.session_state = ndl.init_session_state(st.session_state)
