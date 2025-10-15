@@ -20,6 +20,7 @@ from foundry_IO_lib import foundry_IO_lib           # Foundry Input/Output Class
 from benchmark_collector import benchmark_collector # Benchmark Collector Class
 from neighborhood_profiles import NeighborhoodProfiles, UMAPDensityProcessing  # slow because this imports umap
 import PlottingTools as umPT
+import framework.utils as utils
 
 def identify_col_type(col):
     '''
@@ -79,7 +80,7 @@ def init_session_state(session_state):
     #     session_state.files_dict[dataset] = load_listofFiles(session_state.fiol, dataset)
 
     # List of DataSets to save CSV to
-    session_state.OutputCSVPaths_U = './output'
+    session_state.OutputCSVPaths_U = os.path.join(utils.session_dir(), 'output')
 
     # List of DataSets to save PNGS to
     session_state.OutputPNGPaths = session_state.OutputCSVPaths_U
@@ -158,7 +159,7 @@ def reset_neigh_profile_settings(session_state):
     print('Resetting Neighborhood Profiles Analysis Settings')
 
     # Define the checkpoint directory
-    session_state.checkpoint_dir = './output/checkpoints/neighborhood_profiles'
+    session_state.checkpoint_dir = os.path.join(utils.session_dir(), 'output', 'checkpoints', 'neighborhood_profiles')
     if not os.path.exists(session_state.checkpoint_dir):
         os.makedirs(session_state.checkpoint_dir)
 
@@ -1069,7 +1070,7 @@ def save_csv(df, df_name):
     Simple method for saving csv to the output folder
     '''
 
-    output_folder = 'output'
+    output_folder = os.path.join(utils.session_dir(), 'output')
     df.to_csv(f'{output_folder}/{df_name}_{time.strftime("%Y%m%d-%H%M%S")}.csv')
 
 def save_png(img_obj, fig_type, suffix = None):
@@ -1077,7 +1078,7 @@ def save_png(img_obj, fig_type, suffix = None):
     Simple method for saving png to the output folder
     '''
 
-    output_folder = 'output'
+    output_folder = os.path.join(utils.session_dir(), 'output')
     if suffix is not None:
         suffix = '_' + suffix
     file_name_full = f'{output_folder}/{fig_type}_{time.strftime("%Y%m%d-%H%M%S")}{suffix}.png'
