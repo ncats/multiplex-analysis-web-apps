@@ -35,6 +35,7 @@ from pages2 import radial_profiles_analysis
 from pages2 import preprocessing
 from pages2 import results_transfer
 from streamlit_extras.app_logo import add_logo
+import streamlit_session_state_management
 
 
 ST_KEY_PREFIX = "app.py__"
@@ -67,6 +68,9 @@ def main():
     if key not in st.session_state:
         startup.initialize()
         st.session_state[key] = True
+        first_app_run = True
+    else:
+        first_app_run = False
 
     # Define the pages for the navigation bar.
     pg = st.navigation(
@@ -145,6 +149,9 @@ def main():
 
     # Add logo to sidebar
     add_logo('app_images/mawa_logo-width315.png', height=250)
+
+    # Run session state management in the sidebar
+    streamlit_session_state_management.execute(first_app_run)
 
     # Sidebar organization
     with st.sidebar:

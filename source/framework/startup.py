@@ -5,6 +5,7 @@ import yaml
 import framework.utils as utils
 import framework.platform_abstraction as pa
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
+import os
 
 ST_KEY_PREFIX = "startup.py__"
 SETTINGS_FILENAME = "settings.yaml"
@@ -33,7 +34,7 @@ def initialize():
     st.session_state[ST_KEY_PREFIX + "app_session_id"] = app_session_id
 
     # Create the session directory.
-    utils.session_dir()  # This creates the session directory if it doesn't already exist.
+    session_dir = utils.session_dir()  # This creates the session directory if it doesn't already exist.
 
     # Get the current username.
     current_username = pa.get_current_username()
@@ -41,5 +42,9 @@ def initialize():
     # Create app session entry.
     pa.log_app_session((app_session_id, current_username, pa.get_user_group(current_username), pa.get_frontend_image_id()))
 
+    # Ensure the input/output directories exist
+    os.makedirs(os.path.join(session_dir, "input"), exist_ok=True)
+    os.makedirs(os.path.join(session_dir, "output"), exist_ok=True)
+
     # Dante's session state initialization.
-    ndl.init_session_state(st.session_state)
+    st.session_state = ndl.init_session_state(st.session_state)
