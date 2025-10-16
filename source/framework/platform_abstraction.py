@@ -307,29 +307,63 @@ def get_user_group(username):
 def get_user_group_ideal(username):
     if utils.platform() == "local":
         try:
-            conn = get_database_connection(DATABASE_URL)
+            conn = get_database_connection(DB_URL_COMMON)
             with conn.cursor() as cur:
                 cur.execute(f"""
                     SELECT user_group
-                    FROM {utils.app_schema_name()}.user_groups
+                    FROM admin_schema.user_groups_table
                     WHERE username = %s
                 """, (username,))
                 user_group = cur.fetchone()
-            return_database_connection(conn, DATABASE_URL)
+            return_database_connection(conn, DB_URL_COMMON)
             return user_group[0] if user_group else None
         except Exception as e:
             st.error(f"Failed to retrieve user group: {e}")
             if conn:
-                return_database_connection(conn, DATABASE_URL)
+                return_database_connection(conn, DB_URL_COMMON)
             return None
     elif utils.platform() == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
             result = session.sql(f"""
                 SELECT user_group
-                FROM data_app_db.app_data_schema.user_groups_table
+                FROM common_db.admin_schema.user_groups_table
                 WHERE username = ?
             """, (username,)).collect()
+            return result[0]["USER_GROUP"] if result else None
+        except Exception as e:
+            st.error(f"Failed to retrieve user group: {e}")
+            return None
+
+
+# This currently unused function should get the user group using the ideal organization scheme that I have not set up yet, e.g., the common_db database.
+@st.cache_data()
+def get_group_db_schema(group):
+    if utils.platform() == "local":
+        try:
+            conn = get_database_connection(DB_URL_COMMON)
+            with conn.cursor() as cur:
+                cur.execute(f"""
+                    SELECT user_group
+                    FROM admin_schema.user_groups_table
+                    WHERE username = %s
+                """, (group,))
+                user_group = cur.fetchone()
+            return_database_connection(conn, DB_URL_COMMON)
+            return user_group[0] if user_group else None
+        except Exception as e:
+            st.error(f"Failed to retrieve user group: {e}")
+            if conn:
+                return_database_connection(conn, DB_URL_COMMON)
+            return None
+    elif utils.platform() == "snowflake":
+        try:
+            session = snowflake_connections.get_snowpark_session()
+            result = session.sql(f"""
+                SELECT user_group
+                FROM common_db.admin_schema.user_groups_table
+                WHERE username = ?
+            """, (group,)).collect()
             return result[0]["USER_GROUP"] if result else None
         except Exception as e:
             st.error(f"Failed to retrieve user group: {e}")
