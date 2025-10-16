@@ -65,7 +65,7 @@ def load_session_state():
         session_dir = utils.session_dir()
 
         # Back up app session-specific (i.e., startup.py-defined) variables we ultimately don't want to overwrite.
-        keys_to_keep = [ST_KEY_PREFIX_STARTUP + "app_settings", ST_KEY_PREFIX_STARTUP + "app_session_id", "previous_page_name", "current_page_name", ST_KEY_PREFIX_APP + "app_initialized"]
+        keys_to_keep = [ST_KEY_PREFIX_STARTUP + "app_settings", ST_KEY_PREFIX_STARTUP + "app_session_id", "previous_page_name", "current_page_name", ST_KEY_PREFIX_APP + "app_initialized", "platform"]
         startup_keys = {key: copy.deepcopy(st.session_state[key]) for key in keys_to_keep if key in st.session_state}
 
         # Delete everything in the session state.
@@ -87,7 +87,7 @@ def reset_session_state():
     """Load the session state from the session directory."""
     try:
         # Back up app session-specific (i.e., startup.py-defined) variables we ultimately don't want to overwrite.
-        keys_to_keep = [ST_KEY_PREFIX_STARTUP + "app_settings", ST_KEY_PREFIX_STARTUP + "app_session_id", "previous_page_name", "current_page_name", ST_KEY_PREFIX_APP + "app_initialized"]
+        keys_to_keep = [ST_KEY_PREFIX_STARTUP + "app_settings", ST_KEY_PREFIX_STARTUP + "app_session_id", "previous_page_name", "current_page_name", ST_KEY_PREFIX_APP + "app_initialized", "platform"]
 
         # Delete everything in the session state but the keys to keep.
         for key in list(st.session_state.keys()):

@@ -1,12 +1,14 @@
 # These should all be one-time startup operations.
-# Note that when the sidebar "Reset app" button gets pressed, everything in this script should be considered for resetting.
+# Note that when the sidebar "Reset app" button gets pressed, everything in this script should be considered for resetting, as in manage_sessions.reset_session_state().
 # We should also consider whether things get appropriately reset if e.g. the user refreshes the page.
+# Also when the user loads a session state, as in manage_sessions.load_session_state().
 
 import streamlit as st
 import yaml
 import framework.utils as utils
 import framework.platform_abstraction as pa
 import os
+import platform_io
 
 ST_KEY_PREFIX = "startup.py__"
 SETTINGS_FILENAME = "settings.yaml"
@@ -46,3 +48,6 @@ def initialize():
     # Ensure the input/output directories exist
     os.makedirs(os.path.join(session_dir, "input"), exist_ok=True)
     os.makedirs(os.path.join(session_dir, "output"), exist_ok=True)
+
+    # Initialize the platform object.
+    st.session_state['platform'] = platform_io.Platform(platform=os.getenv("APP_PLATFORM"))

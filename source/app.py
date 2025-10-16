@@ -38,7 +38,6 @@ from streamlit_extras.app_logo import add_logo
 import streamlit_session_state_management
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
 
-
 ST_KEY_PREFIX = "app.py__"
 ST_KEY_PREFIX_STARTUP = "startup.py__"
 

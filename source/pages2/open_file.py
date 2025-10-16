@@ -7,6 +7,9 @@ import streamlit as st
 import streamlit_utils
 import utils
 
+ST_KEY_PREFIX_APP = "app.py__"
+
+
 def clear_session_state():
     '''
     Function to clear all session state variables 
@@ -14,7 +17,7 @@ def clear_session_state():
     '''
     session_state_keys = list(st.session_state.keys())
     for key in session_state_keys:
-        if (not key.startswith(('unifier__', 'opener__'))) and (not key in ['session_selection', 'app_initialized']):
+        if (not key.startswith(('unifier__', 'opener__'))) and (not key in ['session_selection', ST_KEY_PREFIX_APP + 'app_initialized']):
             del st.session_state[key]
 
 def load_input_dataset():

@@ -2,7 +2,7 @@
 import streamlit as st
 import dill as pickle
 import os
-import app_top_of_page as top
+# import app_top_of_page as top
 import streamlit_dataframe_editor as sde
 import streamlit_dataframe_editor
 import utils
@@ -322,7 +322,7 @@ def main():
     """
 
     # Run Top of Page (TOP) functions
-    st.session_state = top.top_of_page_reqs(st.session_state)
+    # st.session_state = top.top_of_page_reqs(st.session_state)
 
     # Initialize the selected_option if it doesn't exist
     if 'selected_option' not in st.session_state:
