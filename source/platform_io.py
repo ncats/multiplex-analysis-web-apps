@@ -13,9 +13,12 @@ import utils
 from pages2 import memory_analyzer
 import framework.utils as framework_utils
 
-# Constant
-local_input_dir = os.path.join(framework_utils.session_dir(), 'input')
-local_output_dir = os.path.join(framework_utils.session_dir(), 'output')
+
+def local_input_dir():
+    return os.path.join(framework_utils.session_dir(), 'input')
+
+def local_output_dir():
+    return os.path.join(framework_utils.session_dir(), 'output')
 
 # Write a dataframe from a file listing with columns for selection, filename, # of files inside (for directories), and modification time, sorted descending by modification time
 # Note this is primarily for local listings, not remote listings
@@ -318,15 +321,15 @@ class Platform:
                         #     sys.exit()
                         if num_periods == 1:  # it's a zipped directory, by specification
                             if '--' not in selected_input_filename:
-                                dirpath = os.path.join(local_input_dir, selected_input_filename.rstrip('.zip'))
+                                dirpath = os.path.join(local_input_dir(), selected_input_filename.rstrip('.zip'))
                             else:
-                                dirpath = os.path.join(local_input_dir, selected_input_filename.split('--')[0])
+                                dirpath = os.path.join(local_input_dir(), selected_input_filename.split('--')[0])
                             ensure_empty_directory(dirpath)
                             shutil.unpack_archive(local_download_path, dirpath)
                         else:  # it's a zipped datafile
-                            shutil.unpack_archive(local_download_path, local_input_dir)
+                            shutil.unpack_archive(local_download_path, local_input_dir())
                     else:
-                        shutil.copy(local_download_path, local_input_dir)
+                        shutil.copy(local_download_path, local_input_dir())
     
     # Save a MAWA-unified datafile to NIDAP
     def save_selected_input(self):
@@ -338,7 +341,7 @@ class Platform:
             st.subheader(':tractor: Save MAWA-unified datafile to NIDAP')
 
             # Create a list of the CSV files having a "mawa-unified_datafile-" prefix and ".csv" suffix in the local input directory
-            mawa_unified_datafiles = [x for x in os.listdir(local_input_dir) if x.startswith('mawa-unified_datafile-') and x.endswith('.csv')]
+            mawa_unified_datafiles = [x for x in os.listdir(local_input_dir()) if x.startswith('mawa-unified_datafile-') and x.endswith('.csv')]
 
             # Create a dictionary of the stripped filenames and their corresponding full filenames
             mawa_unified_datafiles_dict = {x.split('mawa-unified_datafile-')[1].split('.csv')[0]: x for x in mawa_unified_datafiles}
@@ -357,29 +360,29 @@ class Platform:
 
                     # Zip the selected file
                     selected_mawa_unified_datafile = mawa_unified_datafiles_dict[st.session_state['loader__mawa_unified_datafile_to_save']]
-                    shutil.make_archive(os.path.join(local_input_dir, selected_mawa_unified_datafile), 'zip', local_input_dir, selected_mawa_unified_datafile)
+                    shutil.make_archive(os.path.join(local_input_dir(), selected_mawa_unified_datafile), 'zip', local_input_dir(), selected_mawa_unified_datafile)
 
                     # Transfer the zipped file to NIDAP
                     import nidap_io
                     dataset = nidap_io.get_foundry_dataset(alias='input')
-                    upload_single_file_to_dataset((dataset, local_input_dir, selected_mawa_unified_datafile + '.zip'))
-                    # nidap_io.upload_file_to_dataset(dataset, selected_filepath=os.path.join(local_input_dir, selected_mawa_unified_datafile + '.zip'))
+                    upload_single_file_to_dataset((dataset, local_input_dir(), selected_mawa_unified_datafile + '.zip'))
+                    # nidap_io.upload_file_to_dataset(dataset, selected_filepath=os.path.join(local_input_dir(), selected_mawa_unified_datafile + '.zip'))
 
                     # Delete the zipped file from the local input directory
-                    os.remove(os.path.join(local_input_dir, selected_mawa_unified_datafile + '.zip'))
+                    os.remove(os.path.join(local_input_dir(), selected_mawa_unified_datafile + '.zip'))
 
     # Get a listing of the files/dirs in the local input directory, which is platform-independent because it's local
     def get_local_inputs_listing(self):
-        return sorted([x for x in os.listdir(local_input_dir) if not x.endswith('.zip')])  # ignore zip files, which can appear locally only on a local platform, since for a remote platform such as NIDAP, per above, all zip files get unzipped
+        return sorted([x for x in os.listdir(local_input_dir()) if not x.endswith('.zip')])  # ignore zip files, which can appear locally only on a local platform, since for a remote platform such as NIDAP, per above, all zip files get unzipped
     
     # Write a dataframe of the local input files, which we don't want to be editable because we don't want to mess with the local inputs (for now), even though they're basically a local copy
     def display_local_inputs_df(self):
         st.subheader(':open_file_folder: Input data in MAWA')
         local_inputs = self.get_local_inputs_listing()
         if self.platform == 'local':  # not editable locally because deletion is disabled anyway so there'd be nothing to do with selected files
-            make_complex_dataframe_from_file_listing(dirpath=local_input_dir, item_names=local_inputs, editable=False)
+            make_complex_dataframe_from_file_listing(dirpath=local_input_dir(), item_names=local_inputs, editable=False)
         elif self.platform == 'nidap':  # editable on NIDAP because deletion is enabled since it's safe to delete loaded input files since they're backed up to NIDAP
-            make_complex_dataframe_from_file_listing(dirpath=local_input_dir, item_names=local_inputs, df_session_state_key_basename='local_inputs', editable=True)
+            make_complex_dataframe_from_file_listing(dirpath=local_input_dir(), item_names=local_inputs, df_session_state_key_basename='local_inputs', editable=True)
 
     # Possibly allow for deletion of loaded input files
     def add_delete_local_inputs_button(self):
@@ -395,7 +398,7 @@ class Platform:
             if st.button(':x: Delete selected (above) loaded input files'):
                 df_local_inputs = st.session_state['loader__de_local_inputs'].reconstruct_edited_dataframe()
                 local_input_files_to_delete = df_local_inputs[df_local_inputs['Selected']]['File or directory name']
-                delete_selected_files_and_dirs(local_input_dir, local_input_files_to_delete)
+                delete_selected_files_and_dirs(local_input_dir(), local_input_files_to_delete)
                 st.rerun()
     
     # List the results archives on the remote
@@ -403,7 +406,7 @@ class Platform:
 
         # List the output_archive-* folders
         if self.platform == 'local':
-            available_archives = [x for x in os.listdir(local_output_dir) if (x.startswith('output_archive-') and (not x.endswith('.zip')))]  # locally, archives shouldn't be zipped (rather in directories), though for setup/transfer-to-nidap purposes, there may exist corresponding zip files
+            available_archives = [x for x in os.listdir(local_output_dir()) if (x.startswith('output_archive-') and (not x.endswith('.zip')))]  # locally, archives shouldn't be zipped (rather in directories), though for setup/transfer-to-nidap purposes, there may exist corresponding zip files
             available_archives_trimmed = available_archives
 
         # List the contents of the output unstructured dataset (there should only be output_archive-*.zip files)
@@ -438,7 +441,7 @@ class Platform:
         if self.platform == 'local':
             st.subheader(':open_file_folder: Available results archives (i.e., saved results)')
             self.get_archives_listing()
-            make_complex_dataframe_from_file_listing(dirpath=local_output_dir, item_names=self.available_archives, df_session_state_key_basename='available_archives', editable=True)
+            make_complex_dataframe_from_file_listing(dirpath=local_output_dir(), item_names=self.available_archives, df_session_state_key_basename='available_archives', editable=True)
 
         # Only get the listing on NIDAP when it's not already loaded (or when the refresh button is hit, below) because that's "slow"
         elif self.platform == 'nidap':
@@ -463,7 +466,7 @@ class Platform:
                 dirs_to_delete = df_available_archives[df_available_archives['Selected']]['File or directory name']
 
                 # Delete them from the output results directory
-                delete_selected_files_and_dirs(local_output_dir, dirs_to_delete)
+                delete_selected_files_and_dirs(local_output_dir(), dirs_to_delete)
 
                 # Rerun since deleting archives changes outputs
                 st.rerun()
@@ -504,10 +507,10 @@ class Platform:
             if st.button('Load selected results archive :arrow_right:', help='WARNING: This will copy the contents of the selected archive to the results directory and will overwrite currently loaded results; please ensure they are backed up (you can just use the functions on this page)!'):
 
                 # First delete everything in currently in the output results directory (i.e., all currently loaded data) that's not an output archive
-                delete_selected_files_and_dirs(local_output_dir, self.get_local_results_listing())
+                delete_selected_files_and_dirs(local_output_dir(), self.get_local_results_listing())
 
                 # Copy everything from the selected output archive to the output directory
-                shutil.copytree(os.path.join(local_output_dir, st.session_state['archive_to_load']), local_output_dir, dirs_exist_ok=True)
+                shutil.copytree(os.path.join(local_output_dir(), st.session_state['archive_to_load']), local_output_dir(), dirs_exist_ok=True)
 
                 # Mimic (sort of) callback behavior, especially because we want to see updated available session states
                 st.rerun()
@@ -531,7 +534,7 @@ class Platform:
                 # import multiprocessing
 
                 # Delete all files currently present in the output results directory
-                delete_selected_files_and_dirs(local_output_dir, self.get_local_results_listing())
+                delete_selected_files_and_dirs(local_output_dir(), self.get_local_results_listing())
                 
                 # Obtain the full filename corresponding to the selected archive to load and run a check
                 list_of_len_1 = [x for x in self.available_archives if x.startswith(st.session_state['archive_to_load'])]
@@ -554,7 +557,7 @@ class Platform:
                     duration = time.time() - start_time
                     print('  Download of {} ({:5.3f} MB) from Compass to Workspaces took {:3.1f} seconds --> {:3.1f} MB/s'.format(selected_archive_with_proper_extension, filesize, duration, filesize / duration))
 
-                    extract_zipfile_to_directory(zipfile_name=local_download_path, extraction_path=local_output_dir)
+                    extract_zipfile_to_directory(zipfile_name=local_download_path, extraction_path=local_output_dir())
 
                 # If it corresponds to a chunked set of zip files...
                 else:
@@ -567,7 +570,7 @@ class Platform:
                     local_download_paths = [all_downloaded_files[zip_file_chunk] for zip_file_chunk in matching_archives_files]
 
                     # Extract all downloaded parts
-                    extract_zipfile_to_directory(filepaths=local_download_paths, extraction_path=local_output_dir)
+                    extract_zipfile_to_directory(filepaths=local_download_paths, extraction_path=local_output_dir())
     
                 # Mimic (sort of) callback behavior, especially because we want to see updated available session states
                 st.rerun()
@@ -585,40 +588,40 @@ class Platform:
         if st.button(':arrow_left: Save current results to a new archive', help='This will copy all current results to a new archive, including job settings and environment information.'):
 
             # Copy a YAML file of the current tool settings to the current/loaded results
-            write_current_tool_parameters_to_disk(local_output_dir)
+            write_current_tool_parameters_to_disk(local_output_dir())
 
             # Save the current environment to the current/loaded results
-            write_current_environment_to_disk(local_output_dir)
+            write_current_environment_to_disk(local_output_dir())
 
             # Delete any files in the local output directory that start with "streamlit_session_state-" because we're about to create a current one and we don't want to back up more than one as they're generally large
-            delete_selected_files_and_dirs(local_output_dir, [x for x in os.listdir(local_output_dir) if x.startswith('streamlit_session_state-')])
+            delete_selected_files_and_dirs(local_output_dir(), [x for x in os.listdir(local_output_dir()) if x.startswith('streamlit_session_state-')])
 
             # Save the current session state to the current/loaded results
-            memory_analyzer.save_session_state(local_output_dir)
+            memory_analyzer.save_session_state(local_output_dir())
 
             # If working locally...
             if self.platform == 'local':
 
                 # Copy everything in the local output directory except for files/dirs like ^output_archive- to a new archive directory
-                copy_output_dir_contents_to_output_archive(st.session_state['basename_suffix_for_new_results_archive'], local_output_dir)
+                copy_output_dir_contents_to_output_archive(st.session_state['basename_suffix_for_new_results_archive'], local_output_dir())
 
             # If working on NIDAP...
             elif self.platform == 'nidap':
 
                 # Back up everything in the local output directory to the output dataset on NIDAP
-                back_up_results_to_nidap(local_output_dir, st.session_state['basename_suffix_for_new_results_archive'])
+                back_up_results_to_nidap(local_output_dir(), st.session_state['basename_suffix_for_new_results_archive'])
 
             # Rerun since this potentially changes outputs
             st.rerun()
             
     # List all currently loaded results that aren't output archives, which is platform-independent
     def get_local_results_listing(self):
-        return sorted([x for x in os.listdir(local_output_dir) if not x.startswith('output_archive-')])  # only locally will there exist files/dirs that start with output_archive- but it doesn't hurt to keep this here
+        return sorted([x for x in os.listdir(local_output_dir()) if not x.startswith('output_archive-')])  # only locally will there exist files/dirs that start with output_archive- but it doesn't hurt to keep this here
     
     # Write a dataframe of the results in the local output directory, also obviously platform-independent
     def display_local_results_df(self):
         st.subheader(':open_file_folder: Results in MAWA')
-        make_complex_dataframe_from_file_listing(local_output_dir, self.get_local_results_listing(), df_session_state_key_basename='local_results', editable=True)
+        make_complex_dataframe_from_file_listing(local_output_dir(), self.get_local_results_listing(), df_session_state_key_basename='local_results', editable=True)
 
     # Delete selected items from the output results directory
     def add_delete_local_results_button(self):
@@ -633,7 +636,7 @@ class Platform:
             selected_items_to_delete = df_local_results[df_local_results['Selected']]['File or directory name']
 
             # Delete them
-            delete_selected_files_and_dirs(local_output_dir, selected_items_to_delete)
+            delete_selected_files_and_dirs(local_output_dir(), selected_items_to_delete)
     
             # Rerun since this potentially changes outputs
             st.rerun()
@@ -642,14 +645,14 @@ class Platform:
     def write_settings_to_local_results(self):
         st.subheader(':tractor: Write current tool parameters to loaded results')
         if st.button(':pencil2: Write current tool settings to the results directory'):
-            write_current_tool_parameters_to_disk(local_output_dir)
+            write_current_tool_parameters_to_disk(local_output_dir())
             st.rerun()  # rerun since this potentially changes outputs
 
     # Write a YAML file of the current environment to the loaded results directory
     def write_environment_to_local_results(self):
         st.subheader(':tractor: Write current conda/pip environment to loaded results')
         if st.button(':pencil2: Write current environment to the results directory'):
-            write_current_environment_to_disk(local_output_dir)
+            write_current_environment_to_disk(local_output_dir())
             st.rerun()  # rerun since this potentially changes outputs
     
     # Create a local empty results archive
@@ -662,7 +665,7 @@ class Platform:
 
         # Create a new local directory with that basename suffix
         if st.button(':pencil2: Create empty results archive directory'):
-            _ = create_empty_output_archive(st.session_state['basename_suffix_for_new_local_archive_dir'], local_output_dir)
+            _ = create_empty_output_archive(st.session_state['basename_suffix_for_new_local_archive_dir'], local_output_dir())
             st.rerun()  # rerun since this potentially changes outputs
     
     # Delete local empty results output archive directories
@@ -680,7 +683,7 @@ class Platform:
             dirs_to_delete = df_local_results[(df_local_results['# of files within'] == 0) & (df_local_results['File or directory name'].apply(lambda x: x.startswith('output_archive-')))]['File or directory name']
 
             # Delete the empty archive directories
-            delete_selected_files_and_dirs(local_output_dir, dirs_to_delete)
+            delete_selected_files_and_dirs(local_output_dir(), dirs_to_delete)
 
             # Rerun since this potentially changes outputs
             st.rerun()
@@ -688,7 +691,7 @@ class Platform:
     # Create a snapshot of the session state in the "output" directory
     def create_session_state_snapshot(self):
         st.subheader(':tractor: Create snapshot of session state')
-        st.button(':camera: Create snapshot', on_click=memory_analyzer.save_session_state, args=(local_output_dir))
+        st.button(':camera: Create snapshot', on_click=memory_analyzer.save_session_state, args=(local_output_dir()))
 
 # Determine whether a full string contains any of a tuple of substrings
 def multi_contains(full_str, substrs):
