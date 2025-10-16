@@ -11,10 +11,11 @@ import streamlit as st
 import streamlit_dataframe_editor as sde
 import utils
 from pages2 import memory_analyzer
+import framework.utils as framework_utils
 
 # Constant
-local_input_dir = os.path.join('.', 'input')
-local_output_dir = os.path.join('.', 'output')
+local_input_dir = os.path.join(framework_utils.session_dir(), 'input')
+local_output_dir = os.path.join(framework_utils.session_dir(), 'output')
 
 # Write a dataframe from a file listing with columns for selection, filename, # of files inside (for directories), and modification time, sorted descending by modification time
 # Note this is primarily for local listings, not remote listings
