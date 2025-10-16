@@ -46,6 +46,7 @@ def submit_job(job_id: str, username: str, session: Session):
                   ARCHIVES_BUCKET_NAME: archives
                   JOB_INPUTS_BUCKET_NAME: inputs
                   JOB_OUTPUTS_BUCKET_NAME: outputs
+                  DATA_OBJECTS_BUCKET_NAME: objects
                   APP_PLATFORM: snowflake
                 volumeMounts:                       # optional list
                   - name: tmp

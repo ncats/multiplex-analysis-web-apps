@@ -20,6 +20,7 @@ services:
       ARCHIVES_BUCKET_NAME: archives
       JOB_INPUTS_BUCKET_NAME: inputs
       JOB_OUTPUTS_BUCKET_NAME: outputs
+      DATA_OBJECTS_BUCKET_NAME: objects
       APP_USER: ${USER}  # Delete this (and modify get_current_username()) in the future when we implement running the container as non-root.
       APP_PLATFORM: local
     stop_grace_period: 1s
@@ -74,6 +75,7 @@ services:
       ARCHIVES_BUCKET_NAME: archives
       JOB_INPUTS_BUCKET_NAME: inputs
       JOB_OUTPUTS_BUCKET_NAME: outputs
+      DATA_OBJECTS_BUCKET_NAME: objects
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:rw
 
