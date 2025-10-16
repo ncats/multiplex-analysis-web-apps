@@ -15,6 +15,8 @@ WORKER_MEM = os.getenv("WORKER_MEM")    # e.g., "2g"
 
 ENV_KEYS = [
     "DATABASE_URL",
+    "DB_URL_GROUP",
+    "DB_URL_COMMON",
     "TZ",
     "MINIO_ENDPOINT",
     "MINIO_ACCESS_KEY",

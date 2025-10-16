@@ -20,17 +20,19 @@ ST_KEY_PREFIX_STARTUP = "startup.py__"
 
 
 DATABASE_URL = os.getenv('DATABASE_URL')
+DB_URL_GROUP = os.getenv('DB_URL_GROUP')
+DB_URL_COMMON = os.getenv('DB_URL_COMMON')
 
 
 @st.cache_resource()
-def get_database_pool():
+def get_database_pool(db_url):
     if utils.platform() == "local":
         # Note we could use atexit to gracefully close the db connection pool. Note that nothing is needed for minio as shutdown is already clean.
         try:
             pool = psycopg2.pool.ThreadedConnectionPool(
                 minconn=1,
                 maxconn=10,
-                dsn=DATABASE_URL
+                dsn=db_url
             )
             atexit.register(lambda: pool.closeall())
             return pool
@@ -42,10 +44,10 @@ def get_database_pool():
 
 
 # Note we could set this and the following up using @contextmanager as in 8/28/25 chat with GH Copilot, but keeping out for now for simplicity.
-def get_database_connection():
+def get_database_connection(db_url):
     if utils.platform() == "local":
         try:
-            db_pool = get_database_pool()
+            db_pool = get_database_pool(db_url)
             if db_pool:
                 return db_pool.getconn()
         except Exception as e:
@@ -55,10 +57,10 @@ def get_database_connection():
         pass
 
 
-def return_database_connection(conn):
+def return_database_connection(conn, db_url):
     if utils.platform() == "local":
         try:
-            db_pool = get_database_pool()
+            db_pool = get_database_pool(db_url)
             if db_pool and conn:
                 db_pool.putconn(conn)
             return True
@@ -69,13 +71,13 @@ def return_database_connection(conn):
         pass
 
 # Helper to avoid repeating rollback logic in postgresql.
-def _rollback_and_return(conn):
+def _rollback_and_return(conn, db_url):
     if conn:
         try:
             conn.rollback()
         except Exception:
             pass
-        return_database_connection(conn)
+        return_database_connection(conn, db_url)
 
 
 # Create four tables for the app. Note it should be largely consistent with what's in 01_set_up_non_user_objects.sql for now, and later on we should probably have this function, if even still necessary, just run setup.sql so we don't have to maintain this logic in two places.
@@ -83,7 +85,7 @@ def _rollback_and_return(conn):
 def set_up_database():
     if utils.platform() == "local":
         try:
-            conn = get_database_connection()
+            conn = get_database_connection(DATABASE_URL)
             with conn.cursor() as cur:
                 # Create schema if it doesn't exist
                 cur.execute(f"""
@@ -168,11 +170,11 @@ def set_up_database():
                     )
                 """)
             conn.commit()
-            return_database_connection(conn)
+            return_database_connection(conn, DATABASE_URL)
             return True
         except Exception as e:
             st.error(f"Failed to set up database: {e}")
-            _rollback_and_return(conn)
+            _rollback_and_return(conn, DATABASE_URL)
             return False
     elif utils.platform() == "snowflake":
         pass
@@ -181,18 +183,18 @@ def set_up_database():
 def write_archive_database_data(row_tuple):
     if utils.platform() == "local":
         try:
-            conn = get_database_connection()
+            conn = get_database_connection(DATABASE_URL)
             with conn.cursor() as cur:
                 cur.execute(f"""
                     INSERT INTO {utils.app_schema_name()}.archives (creator, user_group, archive_description, current_git_commit, container_image_id, archive_id, app_session_id)
                     VALUES (%s, %s, %s, %s, %s, %s, %s)
                 """, row_tuple)
             conn.commit()
-            return_database_connection(conn)
+            return_database_connection(conn, DATABASE_URL)
             return True
         except Exception as e:
             st.error(f"Failed to write archive database data: {e}")
-            _rollback_and_return(conn)
+            _rollback_and_return(conn, DATABASE_URL)
             return False
     elif utils.platform() == "snowflake":
         try:
@@ -210,18 +212,18 @@ def write_archive_database_data(row_tuple):
 def log_app_session(row_tuple):
     if utils.platform() == "local":
         try:
-            conn = get_database_connection()
+            conn = get_database_connection(DATABASE_URL)
             with conn.cursor() as cur:
                 cur.execute(f"""
                     INSERT INTO {utils.app_schema_name()}.app_sessions (app_session_id, username, user_group, container_image_id)
                     VALUES (%s, %s, %s, %s)
                 """, row_tuple)
             conn.commit()
-            return_database_connection(conn)
+            return_database_connection(conn, DATABASE_URL)
             return True
         except Exception as e:
             st.error(f"Failed to log app session: {e}")
-            _rollback_and_return(conn)
+            _rollback_and_return(conn, DATABASE_URL)
             return False
     elif utils.platform() == "snowflake":
         try:
@@ -239,7 +241,7 @@ def log_app_session(row_tuple):
 def set_app_session_shutdown_time(app_session_id):
     if utils.platform() == "local":
         try:
-            conn = get_database_connection()
+            conn = get_database_connection(DATABASE_URL)
             with conn.cursor() as cur:
                 cur.execute(f"""
                     UPDATE {utils.app_schema_name()}.app_sessions
@@ -247,11 +249,11 @@ def set_app_session_shutdown_time(app_session_id):
                     WHERE app_session_id = %s
                 """, (utils.get_timestamp(), app_session_id))
             conn.commit()
-            return_database_connection(conn)
+            return_database_connection(conn, DATABASE_URL)
             return True
         except Exception as e:
             st.error(f"Failed to set app session shutdown time: {e}")
-            _rollback_and_return(conn)
+            _rollback_and_return(conn, DATABASE_URL)
             return False
     elif utils.platform() == "snowflake":
         try:
@@ -271,7 +273,7 @@ def set_app_session_shutdown_time(app_session_id):
 def get_user_group(username):
     if utils.platform() == "local":
         try:
-            conn = get_database_connection()
+            conn = get_database_connection(DATABASE_URL)
             with conn.cursor() as cur:
                 cur.execute(f"""
                     SELECT user_group
@@ -279,12 +281,46 @@ def get_user_group(username):
                     WHERE username = %s
                 """, (username,))
                 user_group = cur.fetchone()
-            return_database_connection(conn)
+            return_database_connection(conn, DATABASE_URL)
             return user_group[0] if user_group else None
         except Exception as e:
             st.error(f"Failed to retrieve user group: {e}")
             if conn:
-                return_database_connection(conn)
+                return_database_connection(conn, DATABASE_URL)
+            return None
+    elif utils.platform() == "snowflake":
+        try:
+            session = snowflake_connections.get_snowpark_session()
+            result = session.sql(f"""
+                SELECT user_group
+                FROM data_app_db.app_data_schema.user_groups_table
+                WHERE username = ?
+            """, (username,)).collect()
+            return result[0]["USER_GROUP"] if result else None
+        except Exception as e:
+            st.error(f"Failed to retrieve user group: {e}")
+            return None
+
+
+# This currently unused function should get the user group using the ideal organization scheme that I have not set up yet, e.g., the common_db database.
+@st.cache_data()
+def get_user_group_ideal(username):
+    if utils.platform() == "local":
+        try:
+            conn = get_database_connection(DATABASE_URL)
+            with conn.cursor() as cur:
+                cur.execute(f"""
+                    SELECT user_group
+                    FROM {utils.app_schema_name()}.user_groups
+                    WHERE username = %s
+                """, (username,))
+                user_group = cur.fetchone()
+            return_database_connection(conn, DATABASE_URL)
+            return user_group[0] if user_group else None
+        except Exception as e:
+            st.error(f"Failed to retrieve user group: {e}")
+            if conn:
+                return_database_connection(conn, DATABASE_URL)
             return None
     elif utils.platform() == "snowflake":
         try:
@@ -304,20 +340,20 @@ def get_user_group(username):
 def get_user_groups_table_data():
     if utils.platform() == "local":
         try:
-            conn = get_database_connection()
+            conn = get_database_connection(DATABASE_URL)
             with conn.cursor() as cur:
                 cur.execute(f"""
                     SELECT username, user_group, user_added_time, who_added, user_email
                     FROM {utils.app_schema_name()}.user_groups
                 """)
                 rows = cur.fetchall()
-            return_database_connection(conn)
+            return_database_connection(conn, DATABASE_URL)
             df = pl.DataFrame(rows, schema=["username", "user_group", "user_added_time", "who_added", "user_email"], strict=False, orient="row")
             return df
         except Exception as e:
             st.error(f"Failed to retrieve user groups table data: {e}")
             if conn:
-                return_database_connection(conn)
+                return_database_connection(conn, DATABASE_URL)
             return None
     elif utils.platform() == "snowflake":
         try:
@@ -337,7 +373,7 @@ def get_user_groups_table_data():
 def get_app_sessions_table_data():
     if utils.platform() == "local":
         try:
-            conn = get_database_connection()
+            conn = get_database_connection(DATABASE_URL)
             with conn.cursor() as cur:
                 cur.execute(f"""
                     SELECT app_session_id, username, user_group, startup_time, explicit_shutdown_time, container_image_id
@@ -345,13 +381,13 @@ def get_app_sessions_table_data():
                     ORDER BY startup_time DESC
                 """)
                 rows = cur.fetchall()
-            return_database_connection(conn)
+            return_database_connection(conn, DATABASE_URL)
             df = pl.DataFrame(rows, schema=["app_session_id", "username", "user_group", "startup_time", "explicit_shutdown_time", "container_image_id"], strict=False, orient="row")
             return df
         except Exception as e:
             st.error(f"Failed to retrieve app sessions table data: {e}")
             if conn:
-                return_database_connection(conn)
+                return_database_connection(conn, DATABASE_URL)
             return None
     elif utils.platform() == "snowflake":
         try:
@@ -372,7 +408,7 @@ def get_app_sessions_table_data():
 def get_archives_table_data():
     if utils.platform() == "local":
         try:
-            conn = get_database_connection()
+            conn = get_database_connection(DATABASE_URL)
             with conn.cursor() as cur:
                 cur.execute(f"""
                     SELECT creator, user_group, archive_description, current_git_commit, container_image_id, archive_id, app_session_id, creation_time
@@ -380,13 +416,13 @@ def get_archives_table_data():
                     ORDER BY creation_time DESC
                 """)
                 rows = cur.fetchall()
-            return_database_connection(conn)
+            return_database_connection(conn, DATABASE_URL)
             df = pl.DataFrame(rows, schema=["creator", "user_group", "archive_description", "current_git_commit", "container_image_id", "archive_id", "app_session_id", "creation_time"], strict=False, orient="row")
             return df
         except Exception as e:
             st.error(f"Failed to retrieve archives table data: {e}")
             if conn:
-                return_database_connection(conn)
+                return_database_connection(conn, DATABASE_URL)
             return None
     elif utils.platform() == "snowflake":
         try:
@@ -407,7 +443,7 @@ def get_archives_table_data():
 def get_jobs_table_data(user_group=None):
     if utils.platform() == "local":
         try:
-            conn = get_database_connection()
+            conn = get_database_connection(DATABASE_URL)
             with conn.cursor() as cur:
                 columns = "job_id, job_name, job_status, submitter, submitter_group, app_session_id, worker_image_id, submission_time, start_time, completion_time, failure_time"
                 if user_group is not None:
@@ -424,13 +460,13 @@ def get_jobs_table_data(user_group=None):
                         ORDER BY submission_time DESC NULLS LAST
                     """)
                 rows = cur.fetchall()
-            return_database_connection(conn)
+            return_database_connection(conn, DATABASE_URL)
             df = pl.DataFrame(rows, schema=["job_id", "job_name", "job_status", "submitter", "submitter_group", "app_session_id", "worker_image_id", "submission_time", "start_time", "completion_time", "failure_time"], strict=False, orient="row")
             return df
         except Exception as e:
             st.error(f"Failed to retrieve jobs table data: {e}")
             if conn:
-                return_database_connection(conn)
+                return_database_connection(conn, DATABASE_URL)
             return None
     elif utils.platform() == "snowflake":
         try:
@@ -460,7 +496,7 @@ def get_jobs_table_data(user_group=None):
 def get_available_archives(user_group):
     if utils.platform() == "local":
         try:
-            conn = get_database_connection()
+            conn = get_database_connection(DATABASE_URL)
             with conn.cursor() as cur:
                 cur.execute(f"""
                     SELECT creator, creation_time, archive_description, archive_id, app_session_id
@@ -469,13 +505,13 @@ def get_available_archives(user_group):
                     ORDER BY creation_time DESC
                 """, (user_group,))
                 rows = cur.fetchall()
-            return_database_connection(conn)
+            return_database_connection(conn, DATABASE_URL)
             df = pl.DataFrame(rows, schema=["Creator", "Creation time", "Archive description", "Archive ID", "App session ID"], strict=False, orient="row")
             return df
         except Exception as e:
             st.error(f"Failed to retrieve available archives: {e}")
             if conn:
-                return_database_connection(conn)
+                return_database_connection(conn, DATABASE_URL)
             return None
     elif utils.platform() == "snowflake":
         try:
@@ -496,18 +532,18 @@ def get_available_archives(user_group):
 def log_job(row_tuple):
     if utils.platform() == "local":
         try:
-            conn = get_database_connection()
+            conn = get_database_connection(DATABASE_URL)
             with conn.cursor() as cur:
                 cur.execute(f"""
                     INSERT INTO {utils.app_schema_name()}.jobs (job_id, job_name, submitter, submitter_group, app_session_id)
                     VALUES (%s, %s, %s, %s, %s)
                 """, row_tuple)
             conn.commit()
-            return_database_connection(conn)
+            return_database_connection(conn, DATABASE_URL)
             return True
         except Exception as e:
             st.error(f"Failed to log job: {e}. It's possible that job with ID {row_tuple[0]} already exists (unique constraint violated), which would indicate a job ID generation bug.")
-            _rollback_and_return(conn)
+            _rollback_and_return(conn, DATABASE_URL)
             return False
     elif utils.platform() == "snowflake":
         try:
@@ -525,7 +561,7 @@ def log_job(row_tuple):
 def update_job_status(job_id, new_status, time_column):
     if utils.platform() == "local":
         try:
-            conn = get_database_connection()
+            conn = get_database_connection(DATABASE_URL)
             with conn.cursor() as cur:
                 cur.execute(f"""
                     UPDATE {utils.app_schema_name()}.jobs
@@ -533,11 +569,11 @@ def update_job_status(job_id, new_status, time_column):
                     WHERE job_id = %s
                 """, (new_status, utils.get_timestamp(), job_id))
             conn.commit()
-            return_database_connection(conn)
+            return_database_connection(conn, DATABASE_URL)
             return True
         except Exception as e:
             st.error(f"Failed to update status of job {job_id} to {new_status} and update {time_column}: {e}")
-            _rollback_and_return(conn)
+            _rollback_and_return(conn, DATABASE_URL)
             return False
     elif utils.platform() == "snowflake":
         try:
@@ -556,7 +592,7 @@ def update_job_status(job_id, new_status, time_column):
 def get_job_status(job_id):
     if utils.platform() == "local":
         try:
-            conn = get_database_connection()
+            conn = get_database_connection(DATABASE_URL)
             with conn.cursor() as cur:
                 cur.execute(f"""
                     SELECT job_status
@@ -564,12 +600,12 @@ def get_job_status(job_id):
                     WHERE job_id = %s
                 """, (job_id,))
                 job_status = cur.fetchone()
-            return_database_connection(conn)
+            return_database_connection(conn, DATABASE_URL)
             return job_status[0] if job_status else None
         except Exception as e:
             st.error(f"Failed to retrieve status of job {job_id}: {e}")
             if conn:
-                return_database_connection(conn)
+                return_database_connection(conn, DATABASE_URL)
             return None
     elif utils.platform() == "snowflake":
         try:
@@ -589,7 +625,7 @@ def get_job_status(job_id):
 def get_job_function_name(job_id):
     if utils.platform() == "local":
         try:
-            conn = get_database_connection()
+            conn = get_database_connection(DATABASE_URL)
             with conn.cursor() as cur:
                 cur.execute(f"""
                     SELECT job_name
@@ -597,12 +633,12 @@ def get_job_function_name(job_id):
                     WHERE job_id = %s
                 """, (job_id,))
                 job_name = cur.fetchone()
-            return_database_connection(conn)
+            return_database_connection(conn, DATABASE_URL)
             return job_name[0] if job_name else None
         except Exception as e:
             st.error(f"Failed to retrieve function name of job {job_id}: {e}")
             if conn:
-                return_database_connection(conn)
+                return_database_connection(conn, DATABASE_URL)
             return None
     elif utils.platform() == "snowflake":
         try:
@@ -621,7 +657,7 @@ def get_job_function_name(job_id):
 def set_worker_image_id(job_id, worker_image_id):
     if utils.platform() == "local":
         try:
-            conn = get_database_connection()
+            conn = get_database_connection(DATABASE_URL)
             with conn.cursor() as cur:
                 cur.execute(f"""
                     UPDATE {utils.app_schema_name()}.jobs
@@ -629,11 +665,11 @@ def set_worker_image_id(job_id, worker_image_id):
                     WHERE job_id = %s
                 """, (worker_image_id, job_id))
             conn.commit()
-            return_database_connection(conn)
+            return_database_connection(conn, DATABASE_URL)
             return True
         except Exception as e:
             st.error(f"Failed to set worker image ID for job {job_id} to {worker_image_id}: {e}")
-            _rollback_and_return(conn)
+            _rollback_and_return(conn, DATABASE_URL)
             return False
     elif utils.platform() == "snowflake":
         try:
@@ -652,7 +688,7 @@ def set_worker_image_id(job_id, worker_image_id):
 def record_explicit_shutdown_time(app_session_id):
     if utils.platform() == "local":
         try:
-            conn = get_database_connection()
+            conn = get_database_connection(DATABASE_URL)
             with conn.cursor() as cur:
                 cur.execute(f"""
                     UPDATE {utils.app_schema_name()}.app_sessions
@@ -660,11 +696,11 @@ def record_explicit_shutdown_time(app_session_id):
                     WHERE app_session_id = %s
                 """, (utils.get_timestamp(), app_session_id))
             conn.commit()
-            return_database_connection(conn)
+            return_database_connection(conn, DATABASE_URL)
             return True
         except Exception as e:
             st.error(f"Failed to record explicit shutdown time for app session {app_session_id}: {e}")
-            _rollback_and_return(conn)
+            _rollback_and_return(conn, DATABASE_URL)
             return False
     elif utils.platform() == "snowflake":
         try:
@@ -792,6 +828,28 @@ def download_object_data(bucket_name, zip_id):
             return bytes_io
         except Exception as e:
             st.error(f"Failed to download {zip_id}.zip from bucket {bucket_name}: {e}")
+            return None
+        
+
+def list_object_data(bucket_name):
+    if utils.platform() == "local":
+        try:
+            client = get_object_storage_client()
+            objects = client.list_objects(bucket_name)
+            object_list = [obj.object_name for obj in objects]
+            return object_list
+        except Exception as e:
+            st.error(f"Failed to list objects in bucket {bucket_name}: {e}")
+            return None
+    elif utils.platform() == "snowflake":
+        try:
+            session = snowflake_connections.get_snowpark_session()
+            stage_location = f"@data_app_db.app_data_schema.{bucket_name}_stage"
+            files = session.file.list(stage_location=stage_location)
+            object_list = [file['name'] for file in files]
+            return object_list
+        except Exception as e:
+            st.error(f"Failed to list objects in bucket {bucket_name}: {e}")
             return None
 
 

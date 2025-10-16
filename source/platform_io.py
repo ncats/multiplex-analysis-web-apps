@@ -118,7 +118,11 @@ def write_current_environment_to_disk(output_dir):
     environment_yaml_filename = 'environment_as_of_{}.yml'.format(utils.get_timestamp())
     pathname = os.path.join(output_dir, environment_yaml_filename)
     if not os.path.exists(pathname):
-        subprocess.run('conda env export > {}'.format(pathname), shell=True, capture_output=True)
+        try:
+            subprocess.run('conda env export > {}'.format(pathname), shell=True, capture_output=True, check=True)
+        except subprocess.CalledProcessError as e:
+            print('Error occurred while exporting conda environment; assuming conda isn\'t installed and trying micromamba now: {}'.format(e))
+            subprocess.run('micromamba env export > {}'.format(pathname), shell=True, capture_output=True)
     else:
         st.warning('File {} already exists; not overwriting it'.format(pathname))
 
