@@ -336,40 +336,6 @@ def get_user_group_ideal(username):
             return None
 
 
-# This currently unused function should get the user group using the ideal organization scheme that I have not set up yet, e.g., the common_db database.
-@st.cache_data()
-def get_group_db_schema(group):
-    if utils.platform() == "local":
-        try:
-            conn = get_database_connection(DB_URL_COMMON)
-            with conn.cursor() as cur:
-                cur.execute(f"""
-                    SELECT user_group
-                    FROM admin_schema.user_groups_table
-                    WHERE username = %s
-                """, (group,))
-                user_group = cur.fetchone()
-            return_database_connection(conn, DB_URL_COMMON)
-            return user_group[0] if user_group else None
-        except Exception as e:
-            st.error(f"Failed to retrieve user group: {e}")
-            if conn:
-                return_database_connection(conn, DB_URL_COMMON)
-            return None
-    elif utils.platform() == "snowflake":
-        try:
-            session = snowflake_connections.get_snowpark_session()
-            result = session.sql(f"""
-                SELECT user_group
-                FROM common_db.admin_schema.user_groups_table
-                WHERE username = ?
-            """, (group,)).collect()
-            return result[0]["USER_GROUP"] if result else None
-        except Exception as e:
-            st.error(f"Failed to retrieve user group: {e}")
-            return None
-
-
 @st.cache_data()
 def get_user_groups_table_data():
     if utils.platform() == "local":
@@ -865,25 +831,26 @@ def download_object_data(bucket_name, zip_id):
             return None
         
 
-def list_object_data(bucket_name):
+def list_group_curated_object_data():
     if utils.platform() == "local":
         try:
             client = get_object_storage_client()
-            objects = client.list_objects(bucket_name)
+            objects = client.list_objects(DATA_OBJECTS_BUCKET_NAME)
             object_list = [obj.object_name for obj in objects]
             return object_list
         except Exception as e:
-            st.error(f"Failed to list objects in bucket {bucket_name}: {e}")
+            st.error(f"Failed to list group curated data in {DATA_OBJECTS_BUCKET_NAME} bucket: {e}")
             return None
     elif utils.platform() == "snowflake":
         try:
+            user_group = get_user_group(get_current_username())
             session = snowflake_connections.get_snowpark_session()
-            stage_location = f"@data_app_db.app_data_schema.{bucket_name}_stage"
+            stage_location = f"@{user_group}_group_db.curated_schema.{DATA_OBJECTS_BUCKET_NAME}_stage"
             files = session.file.list(stage_location=stage_location)
             object_list = [file['name'] for file in files]
             return object_list
         except Exception as e:
-            st.error(f"Failed to list objects in bucket {bucket_name}: {e}")
+            st.error(f"Failed to list group curated data in {DATA_OBJECTS_BUCKET_NAME} stage: {e}")
             return None
 
 
