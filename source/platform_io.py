@@ -1,5 +1,5 @@
 '''
-Set of functions for managing the MAWA platform
+Set of functions for managing different platforms on which MAWA runs. In the new container-based workflow, the important platform-dependent stuff is in source/framework/platform_abstraction.py.
 '''
 
 # Import relevant libraries
@@ -12,6 +12,7 @@ import streamlit_dataframe_editor as sde
 import utils
 from pages2 import memory_analyzer
 import framework.utils as framework_utils
+import framework.platform_abstraction as pa
 
 
 def local_input_dir():
@@ -221,9 +222,8 @@ class Platform:
     def get_available_inputs_listing(self):
         # Potentially slow
 
-        # When running locally, this is irrelevant as we can easily place all input files into the same ./input directory, as opposed to having to read them in from a remote
         if self.platform == 'local':
-            available_inputs = []
+            available_inputs = pa.list_group_curated_object_data()
 
         # On NIDAP, load the metadata for the "input" unstructured dataset
         elif self.platform == 'nidap':
@@ -239,9 +239,19 @@ class Platform:
     # Write a dataframe of the available inputs on the remote
     def display_available_inputs_df(self):
 
-        # Again, irrelevant for local
         if self.platform == 'local':
-            pass
+
+            st.subheader(':open_file_folder: Available local input data')
+
+            # If we've never determined the inputs available on the remote (e.g., when the script first starts), do so now
+            if self.available_inputs is None:
+                self.get_available_inputs_listing()
+
+            # Get a shortcut to the available input list
+            available_inputs = self.available_inputs
+
+            # Create a simple editable dataframe of the available input filenames
+            make_simple_dataframe_from_file_listing(available_files=available_inputs, df_session_state_key_basename='available_inputs', streamlit_key_for_available_filenames_srs='srs_available_input_filenames', editable=True)
 
         # If on NIDAP...
         elif self.platform == 'nidap':
@@ -261,9 +271,10 @@ class Platform:
     # Add a button to re-read the available input files on the remote
     def add_refresh_available_inputs_button(self):
 
-        # Irrelevant for local
         if self.platform == 'local':
-            pass
+            if st.button(':arrows_clockwise: Refresh available input data'):
+                self.get_available_inputs_listing()
+                st.rerun()  # rerun since this potentially changes outputs... rule of thumb for rerunning the page should probably be that if this method changes outputs, will those possibly changed outputs definitely get redrawn? If not, do a rerun! Consider where this method falls in the top-down rerun of the calling script, are the outputs before or after the method is called?
 
         # If on NIDAP, create a button to simply update the available inputs
         elif self.platform == 'nidap':
