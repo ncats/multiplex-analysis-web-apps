@@ -1,7 +1,0 @@
-general:
-  app_title: "Multiplex Analysis Web Apps"
-  session_dir: "app_session_data"  # Logical name; utils.session_dir() maps this under /scratch. Actually, should be used there but probably currently isn't.
-  app_schema_name: "multiplex_analysis_web_apps"
-
-monitor_jobs:
-  refresh_interval_seconds: 5
