@@ -3,8 +3,10 @@ import time
 import framework.analysis_framework as analysis_framework
 import framework.utils as utils
 import framework.platform_abstraction as pa
+import os
 
 ST_KEY_PREFIX_STARTUP = "startup.py__"
+REFRESH_INTERVAL_SECONDS = os.getenv("MONITOR_JOBS_REFRESH_INTERVAL_SECONDS")
 
 
 def check_for_updates(c):
@@ -31,7 +33,7 @@ def main():
         user_group = pa.get_user_group(username)
         jobs_data = pa.get_jobs_table_data(user_group)
         c2.dataframe(jobs_data)
-        time.sleep(st.session_state[ST_KEY_PREFIX_STARTUP + "app_settings"]["monitor_jobs"]["refresh_interval_seconds"])
+        time.sleep(REFRESH_INTERVAL_SECONDS)
 
 
 if __name__ == "__main__":

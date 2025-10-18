@@ -48,9 +48,12 @@ def submit_job(job_id: str, username: str, session: Session):
                   JOB_OUTPUTS_BUCKET_NAME: outputs
                   DATA_OBJECTS_BUCKET_NAME: objects
                   APP_PLATFORM: snowflake
+                  APP_NAME: mawa
+                  APP_TITLE: "Multiplex Analysis Web Apps"
+                  MONITOR_JOBS_REFRESH_INTERVAL_SECONDS: 5
                 volumeMounts:                       # optional list
                   - name: tmp
-                    mountPath: /tmp/full_stack_data_app
+                    mountPath: /tmp/multiplex_analysis_web_apps
                 resources:                          # optional
                   requests:
                     memory: 28Gi

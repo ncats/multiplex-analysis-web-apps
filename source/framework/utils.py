@@ -9,14 +9,18 @@ import dill
 import os
 import zipfile
 import io
-import yaml
 
 ST_KEY_PREFIX_STARTUP = "startup.py__"
-SETTINGS_FILENAME = "settings.yaml"
+APP_TITLE = os.getenv("APP_TITLE")
+
+
+@st.cache_data()
+def _app_title_simple():
+    return APP_TITLE.replace(" ", "_").lower()
 
 
 # Not caching since the user could connect to the same Streamlit server by e.g. hitting refresh or opening a new tab at the same URL and would expect a new session directory.
-# This function, session_dir(), and jobs_dir() below are the two places in the codebase that hardcode the local container directory to where any files are written in the app. Also, on Snowflake etc. we mount local storage at /tmp/full_stack_data_app, so this is the isolated location where we can modify and understand these settings clearly, i.e., the only places where the app interacts with the local filesystem.
+# This function, session_dir(), and jobs_dir() below are the two places in the codebase that hardcode the local container directory to where any files are written in the app. Also, on Snowflake etc. we mount local storage at /tmp/multiplex_analysis_web_apps, so this is the isolated location where we can modify and understand these settings clearly, i.e., the only places where the app interacts with the local filesystem.
 def session_dir():
 
     if ST_KEY_PREFIX_STARTUP + "app_session_id" not in st.session_state:
@@ -24,8 +28,8 @@ def session_dir():
         return None
     
     app_session_id = st.session_state[ST_KEY_PREFIX_STARTUP + "app_session_id"]
-    
-    session_dir = f"/tmp/full_stack_data_app/app_session_data/{app_session_id}"
+
+    session_dir = f"/tmp/{_app_title_simple()}/app_session_data/{app_session_id}"
 
     os.makedirs(session_dir, exist_ok=True)
 
@@ -36,7 +40,7 @@ def session_dir():
 def jobs_dir():
     """Root directory for per-job temporary data.
     """
-    jobs_dir = "/tmp/full_stack_data_app/job_data"
+    jobs_dir = f"/tmp/{_app_title_simple()}/job_data"
     os.makedirs(jobs_dir, exist_ok=True)
     return jobs_dir
 
@@ -151,10 +155,6 @@ def unzip_buffer_to_directory(zip_buffer, directory):
 
 @st.cache_data()
 def platform():
-    key = ST_KEY_PREFIX_STARTUP + "app_settings"
-    if key not in st.session_state:  # When run as a Streamlit app, this will be False as this gets set in startup.py. However, as a worker, startup.py does not get run, so this will be True, so we need to rerun here what startup.py does.
-        with open(SETTINGS_FILENAME, 'r') as f:
-            st.session_state[key] = yaml.safe_load(f)
     app_platform = os.getenv("APP_PLATFORM")
     if app_platform in ("local", "snowflake"):
         return app_platform
@@ -164,9 +164,3 @@ def platform():
         return "snowflake"
     else:
         return "local"
-    # return st.session_state[key]["general"]["platform"]
-
-
-@st.cache_data()
-def app_schema_name():
-    return st.session_state[ST_KEY_PREFIX_STARTUP + "app_settings"]["general"]["app_schema_name"]

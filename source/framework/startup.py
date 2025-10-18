@@ -4,27 +4,20 @@
 # Also when the user loads a session state, as in manage_sessions.load_session_state().
 
 import streamlit as st
-import yaml
 import framework.utils as utils
 import framework.platform_abstraction as pa
 import os
 import platform_io
 
 ST_KEY_PREFIX = "startup.py__"
-SETTINGS_FILENAME = "settings.yaml"
+APP_TITLE = os.getenv("APP_TITLE")
 
 
 def initialize():
 
-    # Store the app settings in the session state if not already present.
-    # I should probably get rid of this eventually in favor of environment variables.
-    key = ST_KEY_PREFIX + "app_settings"
-    with open(SETTINGS_FILENAME, 'r') as f:
-        st.session_state[key] = yaml.safe_load(f)
-
     # Set page configuration.
     st.set_page_config(
-        page_title=st.session_state[key]['general']['app_title'],
+        page_title=APP_TITLE,
         layout='wide'
         )
 

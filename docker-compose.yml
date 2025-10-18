@@ -25,6 +25,9 @@ services:
       DATA_OBJECTS_BUCKET_NAME: objects
       APP_USER: ${USER}  # Delete this (and modify get_current_username()) in the future when we implement running the container as non-root.
       APP_PLATFORM: local
+      APP_NAME: mawa
+      APP_TITLE: "Multiplex Analysis Web Apps"
+      MONITOR_JOBS_REFRESH_INTERVAL_SECONDS: 5
     stop_grace_period: 1s
 
   database:
@@ -80,6 +83,9 @@ services:
       JOB_INPUTS_BUCKET_NAME: inputs
       JOB_OUTPUTS_BUCKET_NAME: outputs
       DATA_OBJECTS_BUCKET_NAME: objects
+      APP_NAME: mawa
+      APP_TITLE: "Multiplex Analysis Web Apps"
+      MONITOR_JOBS_REFRESH_INTERVAL_SECONDS: 5
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:rw
 
