@@ -29,9 +29,7 @@ def main():
     while True:
         check_for_updates(c1)
         pa.get_jobs_table_data.clear()
-        username = pa.get_current_username()
-        user_group = pa.get_user_group(username)
-        jobs_data = pa.get_jobs_table_data(user_group)
+        jobs_data = pa.get_jobs_table_data()
         c2.dataframe(jobs_data)
         time.sleep(REFRESH_INTERVAL_SECONDS)
 

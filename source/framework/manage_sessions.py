@@ -180,14 +180,12 @@ def main():
         pa.get_available_archives.clear()
 
     # Display all archives the current user has access to based on their group.
-    username = pa.get_current_username()
-    user_group = pa.get_user_group(username)
-    df = pa.get_available_archives(user_group)
+    df = pa.get_available_archives()
     key = ST_KEY_PREFIX + "archive_selection" + "__do_not_persist"
     if not df.is_empty():
         st.dataframe(df, on_select="rerun", selection_mode="single-row", key=key)
     else:
-        st.info(f"No app session archives found for user {username}.")
+        st.info(f"No app session archives found.")
 
     if (key in st.session_state) and (st.session_state[key]["selection"]["rows"]):
         selected_row_index = st.session_state[key]["selection"]["rows"][0]

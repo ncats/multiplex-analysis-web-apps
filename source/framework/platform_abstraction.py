@@ -411,25 +411,17 @@ def get_archives_table_data():
 
 
 @st.cache_data()
-def get_jobs_table_data(user_group=None):
+def get_jobs_table_data():
     if utils.platform() == "local":
         try:
             conn = get_database_connection(DB_URL_GROUP)
             with conn.cursor() as cur:
                 columns = "job_id, job_name, job_status, submitter, submitter_group, app_session_id, worker_image_id, submission_time, start_time, completion_time, failure_time"
-                if user_group is not None:
-                    cur.execute(f"""
-                        SELECT {columns}
-                        FROM {APP_NAME}_schema.jobs_table
-                        WHERE submitter_group = %s
-                        ORDER BY submission_time DESC NULLS LAST
-                    """, (user_group,))
-                else:
-                    cur.execute(f"""
-                        SELECT {columns}
-                        FROM {APP_NAME}_schema.jobs_table
-                        ORDER BY submission_time DESC NULLS LAST
-                    """)
+                cur.execute(f"""
+                    SELECT {columns}
+                    FROM {APP_NAME}_schema.jobs_table
+                    ORDER BY submission_time DESC NULLS LAST
+                """)
                 rows = cur.fetchall()
             return_database_connection(conn, DB_URL_GROUP)
             df = pl.DataFrame(rows, schema=["job_id", "job_name", "job_status", "submitter", "submitter_group", "app_session_id", "worker_image_id", "submission_time", "start_time", "completion_time", "failure_time"], strict=False, orient="row")
@@ -443,19 +435,11 @@ def get_jobs_table_data(user_group=None):
         try:
             session = snowflake_connections.get_snowpark_session()
             columns = "job_id, job_name, job_status, submitter, submitter_group, app_session_id, worker_image_id, submission_time, start_time, completion_time, failure_time"
-            if user_group is not None:
-                rows = session.sql(f"""
-                    SELECT {columns}
-                    FROM {get_user_group(get_current_username())}_group_db.{APP_NAME}_schema.jobs_table
-                    WHERE submitter_group = ?
-                    ORDER BY submission_time DESC NULLS LAST
-                """, (user_group,)).collect()
-            else:
-                rows = session.sql(f"""
-                    SELECT {columns}
-                    FROM {get_user_group(get_current_username())}_group_db.{APP_NAME}_schema.jobs_table
-                    ORDER BY submission_time DESC NULLS LAST
-                """).collect()
+            rows = session.sql(f"""
+                SELECT {columns}
+                FROM {get_user_group(get_current_username())}_group_db.{APP_NAME}_schema.jobs_table
+                ORDER BY submission_time DESC NULLS LAST
+            """).collect()
             df = pl.DataFrame(rows, schema=["job_id", "job_name", "job_status", "submitter", "submitter_group", "app_session_id", "worker_image_id", "submission_time", "start_time", "completion_time", "failure_time"], strict=False, orient="row")
             return df
         except Exception as e:
@@ -464,7 +448,7 @@ def get_jobs_table_data(user_group=None):
 
 
 @st.cache_data()
-def get_available_archives(user_group):
+def get_available_archives():
     if utils.platform() == "local":
         try:
             conn = get_database_connection(DB_URL_GROUP)
@@ -472,9 +456,8 @@ def get_available_archives(user_group):
                 cur.execute(f"""
                     SELECT creator, creation_time, archive_description, archive_id, app_session_id
                     FROM {APP_NAME}_schema.archives_table
-                    WHERE user_group = %s
                     ORDER BY creation_time DESC
-                """, (user_group,))
+                """)
                 rows = cur.fetchall()
             return_database_connection(conn, DB_URL_GROUP)
             df = pl.DataFrame(rows, schema=["Creator", "Creation time", "Archive description", "Archive ID", "App session ID"], strict=False, orient="row")
@@ -490,9 +473,8 @@ def get_available_archives(user_group):
             rows = session.sql(f"""
                 SELECT creator, creation_time, archive_description, archive_id, app_session_id
                 FROM {get_user_group(get_current_username())}_group_db.{APP_NAME}_schema.archives_table
-                WHERE user_group = ?
                 ORDER BY creation_time DESC
-            """, (user_group,)).collect()
+            """).collect()
             df = pl.DataFrame(rows, schema=["Creator", "Creation time", "Archive description", "Archive ID", "App session ID"], strict=False, orient="row")
             return df
         except Exception as e:
