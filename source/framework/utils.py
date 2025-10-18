@@ -123,18 +123,37 @@ def deserialize_binary_files_to_dictionary(dict_name, directory, dictionary=None
 
 
 def zip_directory_to_buffer(directory, compresslevel=6):
-    """Create a zip archive of a directory"""
+    """Create a zip archive of a directory (includes hidden files and empty dirs; no symlink handling)."""
     try:
         main_path = pathlib.Path(directory)
+        if not main_path.is_dir():
+            st.error(f"Not a directory: {directory}")
+            return None
         zip_buffer = io.BytesIO()
         with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED, compresslevel=compresslevel) as zip_file:
-            for file_path in main_path.rglob('*'):
-                if file_path.is_file() and not file_path.name.startswith('.'):
-                    arcname = file_path.relative_to(main_path)
-                    try:
-                        zip_file.write(file_path, arcname)
-                    except (OSError, IOError) as e:
-                        st.warning(f"Skipping file {file_path}: {e}")
+            all_paths = sorted(main_path.rglob('*'), key=lambda p: p.as_posix())
+            for file_path in all_paths:
+                rel = file_path.relative_to(main_path).as_posix()
+
+                if file_path.is_dir():
+                    if rel:
+                        st_mode = file_path.stat().st_mode
+                        mtime = file_path.stat().st_mtime
+                        dt = datetime.datetime.fromtimestamp(mtime)
+                        zinfo = zipfile.ZipInfo(
+                            rel.rstrip('/') + '/',
+                            date_time=(dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second)
+                        )
+                        zinfo.external_attr = st_mode << 16
+                        zip_file.writestr(zinfo, '')
+                    continue
+
+                try:
+                    zip_file.write(file_path, rel)  # retains original mtime automatically
+                    zip_file.getinfo(rel).external_attr = file_path.stat().st_mode << 16
+                except (OSError, IOError) as e:
+                    st.warning(f"Skipping file {file_path}: {e}")
+
         zip_buffer.seek(0)
         return zip_buffer
     except Exception as e:
