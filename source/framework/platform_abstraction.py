@@ -128,6 +128,11 @@ def set_up_database():
                 
             conn_group = get_database_connection(DB_URL_GROUP)
             with conn_group.cursor() as cur:
+                # Create schema if it doesn't exist
+                cur.execute(f"""
+                    CREATE SCHEMA IF NOT EXISTS {APP_NAME}_schema
+                """)
+                
                 # Create app_sessions_table table.
                 cur.execute(f"""
                     CREATE TABLE IF NOT EXISTS {APP_NAME}_schema.app_sessions_table (

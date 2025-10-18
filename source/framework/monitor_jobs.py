@@ -6,7 +6,7 @@ import framework.platform_abstraction as pa
 import os
 
 ST_KEY_PREFIX_STARTUP = "startup.py__"
-REFRESH_INTERVAL_SECONDS = os.getenv("MONITOR_JOBS_REFRESH_INTERVAL_SECONDS")
+REFRESH_INTERVAL_SECONDS = int(os.getenv("MONITOR_JOBS_REFRESH_INTERVAL_SECONDS"))
 
 
 def check_for_updates(c):

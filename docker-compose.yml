@@ -12,7 +12,6 @@ services:
       - database
       - object_storage
     environment:
-      DATABASE_URL: postgresql://postgres:password@database:5432/main_db
       DB_URL_GROUP: postgresql://postgres:password@database:5432/group_alpha_group_db
       DB_URL_COMMON: postgresql://postgres:password@database:5432/common_db
       TZ: America/New_York
@@ -34,7 +33,6 @@ services:
     image: postgres:15
     container_name: postgres
     environment:
-      POSTGRES_DB: main_db
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
       TZ: America/New_York
@@ -43,6 +41,7 @@ services:
       - "5432:5432"
     volumes:
       - database_data:/var/lib/postgresql/data
+      - ./deploy/docker/postgres-init:/docker-entrypoint-initdb.d
     restart: unless-stopped
 
   object_storage:
@@ -72,7 +71,6 @@ services:
       WORKER_CPUS: "16.0"
       WORKER_MEM: "8g"
       # Pass-through envs required by the worker
-      DATABASE_URL: postgresql://postgres:password@database:5432/main_db
       DB_URL_GROUP: postgresql://postgres:password@database:5432/group_alpha_group_db
       DB_URL_COMMON: postgresql://postgres:password@database:5432/common_db
       TZ: America/New_York

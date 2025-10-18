@@ -14,7 +14,6 @@ WORKER_CPUS = os.getenv("WORKER_CPUS")  # e.g., "1.0"
 WORKER_MEM = os.getenv("WORKER_MEM")    # e.g., "2g"
 
 ENV_KEYS = [
-    "DATABASE_URL",
     "DB_URL_GROUP",
     "DB_URL_COMMON",
     "TZ",
