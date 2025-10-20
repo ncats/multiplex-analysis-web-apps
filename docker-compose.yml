@@ -1,6 +1,6 @@
 services:
   frontend:
-    image: frontend
+    image: frontend:${IMAGE_TAG}
     container_name: streamlit
     build:
       context: .
@@ -60,7 +60,7 @@ services:
     restart: unless-stopped
 
   docker_orchestrator:
-    image: orchestrator
+    image: orchestrator:${IMAGE_TAG}
     container_name: docker_orchestrator
     build:
       context: .
@@ -68,7 +68,7 @@ services:
     environment:
       # Worker image to launch (reuses frontend image for parity)
       WORKER_IMAGE: frontend  ## ENSURE THIS MATCHES FRONTEND IMAGE NAME
-      WORKER_CPUS: "16.0"
+      WORKER_CPUS: "16.0"  # Note some machines may not have 16 CPUs available so we need to change this.
       WORKER_MEM: "8g"
       # Pass-through envs required by the worker
       DB_URL_GROUP: postgresql://postgres:password@database:5432/group_alpha_group_db

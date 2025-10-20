@@ -14,6 +14,8 @@ from pages2 import memory_analyzer
 import framework.utils as framework_utils
 import framework.platform_abstraction as pa
 
+ST_KEY_PREFIX = "platform_io.py__"
+
 
 def local_input_dir():
     return os.path.join(framework_utils.session_dir(), 'input')
@@ -30,8 +32,8 @@ def make_complex_dataframe_from_file_listing(dirpath, item_names, df_session_sta
     selecteds = [False for _ in item_names]
     df = pd.DataFrame({'Selected': selecteds, 'File or directory name': item_names, '# of files within': num_contents, 'Modification time': [time.ctime(x) for x in modification_times], 'mod_time_sec': modification_times}).sort_values('mod_time_sec', ascending=False).reset_index(drop=True)
     if editable:
-        ss_de_key_name = 'loader__de_' + df_session_state_key_basename
-        ss_df_key_name = 'loader__df_' + df_session_state_key_basename
+        ss_de_key_name = ST_KEY_PREFIX + 'de_' + df_session_state_key_basename
+        ss_df_key_name = ST_KEY_PREFIX + 'df_' + df_session_state_key_basename
         # st.session_state[ss_df_key_name] = st.data_editor(df.iloc[:, :-1], key=(ss_df_key_name + '_input__do_not_persist'))
         if ss_de_key_name in st.session_state:
             if set(df['File or directory name']) != set(st.session_state[ss_de_key_name].reconstruct_edited_dataframe()['File or directory name']):
@@ -59,8 +61,8 @@ def make_simple_dataframe_from_file_listing(available_files, df_session_state_ke
 
     # Display an editable dataframe version of this
     if editable:
-        ss_de_key_name = 'loader__de_' + df_session_state_key_basename
-        ss_df_key_name = 'loader__df_' + df_session_state_key_basename
+        ss_de_key_name = ST_KEY_PREFIX + 'de_' + df_session_state_key_basename
+        ss_df_key_name = ST_KEY_PREFIX + 'df_' + df_session_state_key_basename
         # st.session_state[ss_df_key_name] = st.data_editor(df, key=(ss_df_key_name + '_input__do_not_persist'))
         if ss_de_key_name in st.session_state:
             if set(df['File or directory name']) != set(st.session_state[ss_de_key_name].reconstruct_edited_dataframe()['File or directory name']):
@@ -287,7 +289,44 @@ class Platform:
 
         # Irrelevant for local
         if self.platform == 'local':
-            pass
+
+            st.subheader(':tractor: Load input data into MAWA')
+
+            # If a load button is clicked...
+            if st.button('Load selected NIDAP input data :arrow_right:'):
+
+                # Get the selected filenames
+                df_available_inputs = st.session_state[ST_KEY_PREFIX + 'de_available_inputs'].reconstruct_edited_dataframe()
+                srs_available_input_filenames = st.session_state['srs_available_input_filenames']
+                selected_input_filenames = srs_available_input_filenames[df_available_inputs['Selected']].tolist()
+
+                # Download the selected files
+                results = pa.download_objects_parallel(object_names=selected_input_filenames, dest_dir=local_input_dir())
+                # {object_name: {'status': 'ok', 'path': local_path} or {'status': 'error', 'error': Exception}}
+
+                # For each downloaded file, move it to the local input directory
+                for object_name, status_dict in results.items():
+
+                    # Populate the local input directory with the current selection
+                    # Rules:
+                    #   * If it's not a .zip file, just copy it over
+                    #   * If it's a .zip file, there can be either 1 or 2 periods in the full filename including extension
+                    #   * If there's just a single period (e.g., asdf.zip), it must be a zipped directory with name following either DIRNAME.zip or DIRNAME--bleh.zip
+                    #   * If there are two periods (e.g., asdf.csv.zip), it must be a zipped datafile with name following asdf.csv
+                    if object_name.endswith('.zip'):
+                        splitted = object_name.split('.')  # should be of length 2 or 3 (for, e.g., asdf.csv.zip)
+                        num_periods = len(splitted) - 1  # should be 1 or 2
+                        if num_periods == 1:  # it's a zipped directory, by specification
+                            if '--' not in object_name:
+                                dirpath = os.path.join(local_input_dir(), object_name.rstrip('.zip'))
+                            else:
+                                dirpath = os.path.join(local_input_dir(), object_name.split('--')[0])
+                            ensure_empty_directory(dirpath)
+                            shutil.unpack_archive(status_dict["path"], dirpath)
+                        else:  # it's a zipped datafile
+                            shutil.unpack_archive(status_dict["path"], local_input_dir())
+                        # Delete the zipfile after unpacking.
+                        os.remove(status_dict["path"])
 
         # If on NIDAP...
         elif self.platform == 'nidap':
@@ -299,13 +338,12 @@ class Platform:
 
                 # Import relevant libraries
                 import nidap_io
-                import sys
 
                 # # Get "shortcuts" to the object properties
                 # dataset_file_objects = self.dataset_file_objects_for_available_inputs
 
                 # Get the selected filenames
-                df_available_inputs = st.session_state['loader__de_available_inputs'].reconstruct_edited_dataframe()
+                df_available_inputs = st.session_state[ST_KEY_PREFIX + 'de_available_inputs'].reconstruct_edited_dataframe()
                 srs_available_input_filenames = st.session_state['srs_available_input_filenames']
                 selected_input_filenames = srs_available_input_filenames[df_available_inputs['Selected']].tolist()
 
@@ -363,18 +401,18 @@ class Platform:
             keys = list(mawa_unified_datafiles_dict.keys())
 
             # If the session state key doesn't exist, create it and set it to the first key in the list (if it exists)
-            if ('loader__mawa_unified_datafile_to_save' not in st.session_state) or (st.session_state['loader__mawa_unified_datafile_to_save'] not in keys):
-                st.session_state['loader__mawa_unified_datafile_to_save'] = keys[0] if keys else None
-            st.selectbox('Select MAWA-unified datafile to save:', keys, key='loader__mawa_unified_datafile_to_save')
+            if (ST_KEY_PREFIX + 'mawa_unified_datafile_to_save' not in st.session_state) or (st.session_state[ST_KEY_PREFIX + 'mawa_unified_datafile_to_save'] not in keys):
+                st.session_state[ST_KEY_PREFIX + 'mawa_unified_datafile_to_save'] = keys[0] if keys else None
+            st.selectbox('Select MAWA-unified datafile to save:', keys, key=ST_KEY_PREFIX + 'mawa_unified_datafile_to_save')
 
             # Create a button to zip the selected file and save it to NIDAP
-            if st.button('Save selected (above) MAWA-unified datafile to NIDAP :arrow_left:', help='This will zip the selected file and save it to NIDAP. We generally don\'t want to save a file **generated** in the app to the **`input`** dataset on NIDAP on principle, but this is a reasonable exception so that the file can be used again or in other use cases.', disabled=st.session_state['loader__mawa_unified_datafile_to_save'] is None):
+            if st.button('Save selected (above) MAWA-unified datafile to NIDAP :arrow_left:', help='This will zip the selected file and save it to NIDAP. We generally don\'t want to save a file **generated** in the app to the **`input`** dataset on NIDAP on principle, but this is a reasonable exception so that the file can be used again or in other use cases.', disabled=st.session_state[ST_KEY_PREFIX + 'mawa_unified_datafile_to_save'] is None):
 
                 # Create a spinner to indicate that the zipping and saving is in progress
                 with st.spinner('Zipping and saving...'):
 
                     # Zip the selected file
-                    selected_mawa_unified_datafile = mawa_unified_datafiles_dict[st.session_state['loader__mawa_unified_datafile_to_save']]
+                    selected_mawa_unified_datafile = mawa_unified_datafiles_dict[st.session_state[ST_KEY_PREFIX + 'mawa_unified_datafile_to_save']]
                     shutil.make_archive(os.path.join(local_input_dir(), selected_mawa_unified_datafile), 'zip', local_input_dir(), selected_mawa_unified_datafile)
 
                     # Transfer the zipped file to NIDAP
@@ -411,7 +449,7 @@ class Platform:
         # Delete local input files on NIDAP which is safe because they are backed up to NIDAP and deletion here will only be for the *loaded* input files
         elif self.platform == 'nidap':
             if st.button(':x: Delete selected (above) loaded input files'):
-                df_local_inputs = st.session_state['loader__de_local_inputs'].reconstruct_edited_dataframe()
+                df_local_inputs = st.session_state[ST_KEY_PREFIX + 'de_local_inputs'].reconstruct_edited_dataframe()
                 local_input_files_to_delete = df_local_inputs[df_local_inputs['Selected']]['File or directory name']
                 delete_selected_files_and_dirs(local_input_dir(), local_input_files_to_delete)
                 st.rerun()
@@ -475,7 +513,7 @@ class Platform:
             if st.button(':x: Delete selected (above) results archives'):
 
                 # Get the editable dataframe of the available archives from Streamlit
-                df_available_archives = st.session_state['loader__de_available_archives'].reconstruct_edited_dataframe()
+                df_available_archives = st.session_state[ST_KEY_PREFIX + 'de_available_archives'].reconstruct_edited_dataframe()
 
                 # Get the names of just the selected directories
                 dirs_to_delete = df_available_archives[df_available_archives['Selected']]['File or directory name']
@@ -645,7 +683,7 @@ class Platform:
         if st.button(':x: Delete selected (above) results files or directories'):
 
             # Store the output results dataframe
-            df_local_results = st.session_state['loader__de_local_results'].reconstruct_edited_dataframe()
+            df_local_results = st.session_state[ST_KEY_PREFIX + 'de_local_results'].reconstruct_edited_dataframe()
 
             # Get just the file or directory names they want to delete
             selected_items_to_delete = df_local_results[df_local_results['Selected']]['File or directory name']
@@ -692,7 +730,7 @@ class Platform:
         if st.button(':x: Delete empty local results archive directories'):
         
             # Store the local results dataframe
-            df_local_results = st.session_state['loader__de_local_results'].reconstruct_edited_dataframe()
+            df_local_results = st.session_state[ST_KEY_PREFIX + 'de_local_results'].reconstruct_edited_dataframe()
 
             # Obtain the directories to delete as the empty ones that start with "output_archive-"
             dirs_to_delete = df_local_results[(df_local_results['# of files within'] == 0) & (df_local_results['File or directory name'].apply(lambda x: x.startswith('output_archive-')))]['File or directory name']

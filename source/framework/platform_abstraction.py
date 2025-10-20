@@ -11,6 +11,9 @@ import framework.utils as utils
 import framework.analysis_framework as analysis_framework
 import framework.snowflake_connections as snowflake_connections
 import framework.snowflake_orchestrator as snowflake_orchestrator
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import time
+import hashlib
 
 
 ST_KEY_PREFIX_STARTUP = "startup.py__"
@@ -809,6 +812,165 @@ def list_group_curated_object_data():
             return object_list
         except Exception as e:
             st.error(f"Failed to list group curated data in {DATA_OBJECTS_BUCKET_NAME} stage: {e}")
+            return None
+
+
+def download_objects_parallel(
+    object_names: list[str],
+    dest_dir: str,
+    max_workers: int = 8,
+    chunk_size: int = 1024 * 1024,
+    retries: int = 3,
+    backoff_base: float = 0.3,
+    verify_etag: bool = False
+):
+    """
+    Download arbitrary objects from MinIO in parallel.
+    object_names: list of object keys exactly as stored (may include extensions or paths).
+    dest_dir: local directory root to place downloaded files (object key subpaths preserved).
+    Returns dict {object_name: {'status': 'ok', 'path': local_path} or {'status': 'error', 'error': Exception}}.
+    """
+    if utils.platform() == "local":
+        try:
+            client = get_object_storage_client()
+
+            os.makedirs(dest_dir, exist_ok=True)
+
+            def fetch(obj_name: str):
+                attempt = 0
+                while attempt < retries:
+                    response = None
+                    try:
+                        response = client.get_object(DATA_OBJECTS_BUCKET_NAME, obj_name)
+                        local_path = os.path.join(dest_dir, obj_name)
+                        parent = os.path.dirname(local_path)
+                        if parent:
+                            os.makedirs(parent, exist_ok=True)
+                        with open(local_path, "wb") as f:
+                            while True:
+                                data = response.read(chunk_size)
+                                if not data:
+                                    break
+                                f.write(data)
+                        response.close()
+
+                        if verify_etag:
+                            # NOTE: For multipart uploads the ETag is not a simple MD5; skip strict verify in that case.
+                            stat = client.stat_object(DATA_OBJECTS_BUCKET_NAME, obj_name)
+                            etag = getattr(stat, "etag", None)
+                            if etag and "-" not in etag:  # Heuristic: multipart ETags contain '-'
+                                h = hashlib.md5()
+                                with open(local_path, "rb") as f:
+                                    for block in iter(lambda: f.read(chunk_size), b""):
+                                        h.update(block)
+                                if h.hexdigest() != etag.lower():
+                                    raise ValueError(f"ETag mismatch for {obj_name}: expected {etag}, got {h.hexdigest()}")
+                        return obj_name, {'status': 'ok', 'path': local_path}
+                    except Exception as e:
+                        if response:
+                            try:
+                                response.close()
+                            except Exception:
+                                pass
+                        attempt += 1
+                        if attempt < retries:
+                            time.sleep(backoff_base * (2 ** (attempt - 1)))
+                        else:
+                            return obj_name, {'status': 'error', 'error': e}
+
+            results: dict[str, dict] = {}
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                future_map = {executor.submit(fetch, name): name for name in object_names}
+                for fut in as_completed(future_map):
+                    name = future_map[fut]
+                    try:
+                        obj_name, res = fut.result()
+                        results[obj_name] = res
+                    except Exception as e:
+                        results[name] = {'status': 'error', 'error': e}
+
+            failures = [k for k, v in results.items() if v['status'] == 'error']
+            if failures:
+                st.warning(f"{len(failures)} downloads failed.")
+            else:
+                st.success(f"Downloaded {len(results)} objects.")
+            return results
+        except Exception as e:
+            st.error(f"Failed to download objects from MinIO bucket: {e}")
+            return None
+    elif utils.platform() == "snowflake":
+        try:
+            user_group = get_user_group(get_current_username())
+            session = snowflake_connections.get_snowpark_session()
+            os.makedirs(dest_dir, exist_ok=True)
+
+            stage_prefix = f"@{user_group}_group_db.curated_schema.{DATA_OBJECTS_BUCKET_NAME}_stage"
+
+            def fetch(obj_name: str):
+                attempt = 0
+                while attempt < retries:
+                    stream = None
+                    try:
+                        stage_location = f"{stage_prefix}/{obj_name}"
+                        stream = session.file.get_stream(stage_location=stage_location)
+                        local_path = os.path.join(dest_dir, obj_name)
+                        parent = os.path.dirname(local_path)
+                        if parent:
+                            os.makedirs(parent, exist_ok=True)
+                        with open(local_path, "wb") as f:
+                            while True:
+                                chunk = stream.read(chunk_size)
+                                if not chunk:
+                                    break
+                                f.write(chunk)
+                        stream.close()
+
+                        if verify_etag:
+                            # Use MD5 from stage listing when available.
+                            dir_part = os.path.dirname(obj_name)
+                            list_location = stage_prefix + ("/" + dir_part if dir_part else "")
+                            files = session.file.list(stage_location=list_location)
+                            meta = next((m for m in files if m.get("name") == os.path.basename(obj_name)), None)
+                            remote_md5 = meta.get("md5") if meta else None
+                            if remote_md5:
+                                h = hashlib.md5()
+                                with open(local_path, "rb") as f:
+                                    for block in iter(lambda: f.read(chunk_size), b""):
+                                        h.update(block)
+                                if h.hexdigest().lower() != remote_md5.lower():
+                                    raise ValueError(f"MD5 mismatch for {obj_name}: expected {remote_md5}, got {h.hexdigest()}")
+                        return obj_name, {'status': 'ok', 'path': local_path}
+                    except Exception as e:
+                        attempt += 1
+                        if stream:
+                            try:
+                                stream.close()
+                            except Exception:
+                                pass
+                        if attempt < retries:
+                            time.sleep(backoff_base * (2 ** (attempt - 1)))
+                        else:
+                            return obj_name, {'status': 'error', 'error': e}
+
+            results: dict[str, dict] = {}
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                future_map = {executor.submit(fetch, name): name for name in object_names}
+                for fut in as_completed(future_map):
+                    name = future_map[fut]
+                    try:
+                        obj_name, res = fut.result()
+                        results[obj_name] = res
+                    except Exception as e:
+                        results[name] = {'status': 'error', 'error': e}
+
+            failures = [k for k, v in results.items() if v['status'] == 'error']
+            if failures:
+                st.warning(f"{len(failures)} downloads failed.")
+            else:
+                st.success(f"Downloaded {len(results)} objects.")
+            return results
+        except Exception as e:
+            st.error(f"Failed to download objects from Snowflake stage: {e}")
             return None
 
 
