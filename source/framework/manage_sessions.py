@@ -83,7 +83,7 @@ def load_session_state():
         return False
 
 
-def reset_session_state():
+def reset_session_state(extra_keys_to_keep=[], delete_input_dir=True):
     """Load the session state from the session directory."""
     try:
         # Back up app session-specific (i.e., startup.py-defined) variables we ultimately don't want to overwrite.
@@ -91,11 +91,12 @@ def reset_session_state():
 
         # Delete everything in the session state but the keys to keep.
         for key in list(st.session_state.keys()):
-            if key not in keys_to_keep:
+            if (key not in keys_to_keep) and (key not in extra_keys_to_keep):
                 del st.session_state[key]
 
         # Delete everything from the input and output directories.
-        utils.ensure_empty_directory(os.path.join(utils.session_dir(), "input"))
+        if delete_input_dir:
+            utils.ensure_empty_directory(os.path.join(utils.session_dir(), "input"))
         utils.ensure_empty_directory(os.path.join(utils.session_dir(), "output"))
 
         return True

@@ -6,6 +6,8 @@ import os
 import streamlit as st
 import streamlit_utils
 import utils
+import framework.utils as framework_utils
+import framework.manage_sessions as manage_sessions
 
 ST_KEY_PREFIX_APP = "app.py__"
 
@@ -15,10 +17,12 @@ def clear_session_state():
     Function to clear all session state variables 
     except for the ones that are needed for the app to run.
     '''
-    session_state_keys = list(st.session_state.keys())
-    for key in session_state_keys:
-        if (not key.startswith(('unifier__', 'opener__'))) and (not key in ['session_selection', ST_KEY_PREFIX_APP + 'app_initialized']):
-            del st.session_state[key]
+    keys_to_keep = ['session_selection']
+    for key in st.session_state.keys():
+        if key.startswith(('unifier__', 'opener__')):
+            keys_to_keep.append(key)
+    manage_sessions.reset_session_state(extra_keys_to_keep=keys_to_keep, delete_input_dir=False)
+    
 
 def load_input_dataset():
     '''
@@ -27,6 +31,7 @@ def load_input_dataset():
     clear_session_state()
     st.session_state['opener__load_input_dataset'] = True
     st.session_state['input_dataset'] = None
+
 
 def toggle_changed():
     """
@@ -42,7 +47,7 @@ def main():
     """
 
     # Constant
-    input_dir = os.path.join('.', 'input')
+    input_dir = os.path.join(framework_utils.session_dir(), 'input')
     num_rows_to_sample = 100
 
     # Initialization

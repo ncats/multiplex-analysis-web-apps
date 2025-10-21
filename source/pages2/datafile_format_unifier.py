@@ -5,7 +5,7 @@ import pandas as pd
 import streamlit_dataframe_editor as sde
 import re
 import utils
-
+import framework.utils as framework_utils
 
 def callback_for_combining_datafiles(filenames):
 
@@ -63,7 +63,7 @@ def main():
     """
 
     # Constants
-    directory = os.path.join('.', 'input')
+    directory = os.path.join(framework_utils.session_dir(), 'input')
     valid_extensions = ('.csv', '.tsv', '.txt')
 
     # Initialization
@@ -673,7 +673,7 @@ def main():
                 if st.button(':star2: Save dataframe to CSV :star2:'):
 
                     # Create the full file path
-                    file_path = os.path.join('.', 'input', filename)
+                    file_path = os.path.join(directory, filename)
 
                     # Render a progress spinner while the dataframe is being saved to a CSV file
                     with st.spinner('Saving dataframe to CSV...'):

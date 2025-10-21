@@ -287,7 +287,6 @@ class Platform:
     # Load any selected available inputs on the remote to the local machine
     def load_selected_inputs(self):
 
-        # Irrelevant for local
         if self.platform == 'local':
 
             st.subheader(':tractor: Load input data into MAWA')
@@ -387,8 +386,41 @@ class Platform:
     # Save a MAWA-unified datafile to NIDAP
     def save_selected_input(self):
 
+        if self.platform == 'local':
+
+            # Write a header
+            st.subheader(':tractor: Save MAWA-unified datafile to server')
+
+            # Create a list of the CSV files having a "mawa-unified_datafile-" prefix and ".csv" suffix in the local input directory
+            mawa_unified_datafiles = [x for x in os.listdir(local_input_dir()) if x.startswith('mawa-unified_datafile-') and x.endswith('.csv')]
+
+            # Create a dictionary of the stripped filenames and their corresponding full filenames
+            mawa_unified_datafiles_dict = {x.split('mawa-unified_datafile-')[1].split('.csv')[0]: x for x in mawa_unified_datafiles}
+            keys = list(mawa_unified_datafiles_dict.keys())
+
+            # If the session state key doesn't exist, create it and set it to the first key in the list (if it exists)
+            if (ST_KEY_PREFIX + 'mawa_unified_datafile_to_save' not in st.session_state) or (st.session_state[ST_KEY_PREFIX + 'mawa_unified_datafile_to_save'] not in keys):
+                st.session_state[ST_KEY_PREFIX + 'mawa_unified_datafile_to_save'] = keys[0] if keys else None
+            st.selectbox('Select MAWA-unified datafile to save:', keys, key=ST_KEY_PREFIX + 'mawa_unified_datafile_to_save')
+
+            # Create a button to zip the selected file and save it to NIDAP
+            if st.button('Save selected (above) MAWA-unified datafile to NIDAP :arrow_left:', help='This will zip the selected file and save it to NIDAP. We generally don\'t want to save a file **generated** in the app to the **`input`** dataset on NIDAP on principle, but this is a reasonable exception so that the file can be used again or in other use cases.', disabled=st.session_state[ST_KEY_PREFIX + 'mawa_unified_datafile_to_save'] is None):
+
+                # Create a spinner to indicate that the zipping and saving is in progress
+                with st.spinner('Zipping and saving...'):
+
+                    # Zip the selected file
+                    selected_mawa_unified_datafile = mawa_unified_datafiles_dict[st.session_state[ST_KEY_PREFIX + 'mawa_unified_datafile_to_save']]
+                    shutil.make_archive(os.path.join(local_input_dir(), selected_mawa_unified_datafile), 'zip', local_input_dir(), selected_mawa_unified_datafile)
+
+                    # Transfer the zipped file to NIDAP
+                    pa.upload_objects_parallel(bucket_name=os.getenv("DATA_OBJECTS_BUCKET_NAME"), file_paths=[os.path.join(local_input_dir(), selected_mawa_unified_datafile + '.zip')])
+
+                    # Delete the zipped file from the local input directory
+                    os.remove(os.path.join(local_input_dir(), selected_mawa_unified_datafile + '.zip'))
+
         # If working on NIDAP...
-        if self.platform == 'nidap':
+        elif self.platform == 'nidap':
 
             # Write a header
             st.subheader(':tractor: Save MAWA-unified datafile to NIDAP')
