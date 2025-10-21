@@ -22,8 +22,8 @@ def initialize():
         )
 
     # Set up database, object storage, and session directory.
-    pa.set_up_database()
-    pa.set_up_object_storage()
+    pa.set_up_postgresql()
+    pa.set_up_minio()
 
     # Generate a unique session ID.
     app_session_id = utils.get_unique_id()

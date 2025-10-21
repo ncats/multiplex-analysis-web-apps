@@ -170,7 +170,7 @@ def main():
         save_session_state()  # Writes session_state.pkl, session_state.dill, and session_state_contents.txt to the session directory.
         zip_buffer = utils.zip_directory_to_buffer(utils.session_dir())
         pa.write_archive_database_data(tuple(archive_metadata.values()))
-        pa.write_object_data(ARCHIVES_BUCKET_NAME, archive_id, zip_buffer)
+        pa.upload_zip_object_data(ARCHIVES_BUCKET_NAME, archive_id, zip_buffer)
         pa.get_available_archives.clear()  # Do this to refresh the archive listing below.
         st.success("✅ App session saved successfully!")
 
@@ -193,7 +193,7 @@ def main():
         st.write(f"Selected archive ID: {selected_archive_id}")
 
         if st.button("Load selected app session archive"):
-            zip_buffer = pa.download_object_data(ARCHIVES_BUCKET_NAME, selected_archive_id)
+            zip_buffer = pa.download_zip_object_data(ARCHIVES_BUCKET_NAME, selected_archive_id)
             utils.ensure_empty_directory(utils.session_dir())
             utils.unzip_buffer_to_directory(zip_buffer, utils.session_dir())
             load_session_state()

@@ -34,7 +34,7 @@ def save_job_input_data(job_id, inputs):
         utils.serialize_dictionary_to_binary_files(inputs, "inputs", inputs_directory)  # Writes inputs.pkl and inputs.dill to inputs_directory from the inputs dictionary.
         inputs_buffer = utils.zip_directory_to_buffer(inputs_directory)  # Zip the entire inputs_directory to a buffer.
         utils.ensure_empty_directory(inputs_directory, create_if_missing=False)  # Recursively delete the inputs_directory, including the directory itself.
-        pa.write_object_data(JOB_INPUTS_BUCKET_NAME, job_id, inputs_buffer)  # Write the zip buffer to object storage.
+        pa.upload_zip_object_data(JOB_INPUTS_BUCKET_NAME, job_id, inputs_buffer)  # Write the zip buffer to object storage.
         return True
     except Exception as e:
         st.error(f"Error occurred while saving job input data: {e}")
@@ -44,7 +44,7 @@ def save_job_input_data(job_id, inputs):
 def load_job_input_data(job_id, job_dir):
     try:
         inputs_directory = os.path.join(job_dir, "inputs")
-        inputs_buffer = pa.download_object_data(JOB_INPUTS_BUCKET_NAME, job_id)
+        inputs_buffer = pa.download_zip_object_data(JOB_INPUTS_BUCKET_NAME, job_id)
         utils.ensure_empty_directory(inputs_directory)
         utils.unzip_buffer_to_directory(inputs_buffer, inputs_directory)
         inputs = utils.deserialize_binary_files_to_dictionary("inputs", inputs_directory)  # Loads inputs.pkl and inputs.dill from inputs_directory into an inputs dictionary.
@@ -63,7 +63,7 @@ def save_job_output_data(job_id, outputs, job_dir):
             utils.serialize_dictionary_to_binary_files(outputs, "outputs", outputs_directory)  # Writes outputs.pkl and outputs.dill to outputs_directory.
             outputs_buffer = utils.zip_directory_to_buffer(outputs_directory)
             utils.ensure_empty_directory(outputs_directory, create_if_missing=False)
-            pa.write_object_data(JOB_OUTPUTS_BUCKET_NAME, job_id, outputs_buffer)
+            pa.upload_zip_object_data(JOB_OUTPUTS_BUCKET_NAME, job_id, outputs_buffer)
             return True
         else:
             return False
@@ -96,7 +96,7 @@ def load_job_output_data(job_id, outputs_directory):
         elif job_status == "Running":
             pass
         elif job_status == "Completed":
-            outputs_buffer = pa.download_object_data(JOB_OUTPUTS_BUCKET_NAME, job_id)  # Creates a buffer of the job results. Buffer likely contains both .pkl/.dill files and any other output files the job may have created.
+            outputs_buffer = pa.download_zip_object_data(JOB_OUTPUTS_BUCKET_NAME, job_id)  # Creates a buffer of the job results. Buffer likely contains both .pkl/.dill files and any other output files the job may have created.
             utils.unzip_buffer_to_directory(outputs_buffer, outputs_directory)  # Unzips the buffer to the session directory.
             outputs = utils.deserialize_binary_files_to_dictionary("outputs", outputs_directory)  # Loads outputs.pkl and outputs.dill from the session directory into an "outputs" dictionary.
             delete_serialized_files("outputs", outputs_directory)  # Delete the .pkl/.dill files from the session directory.

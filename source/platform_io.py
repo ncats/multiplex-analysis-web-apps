@@ -225,7 +225,7 @@ class Platform:
         # Potentially slow
 
         if self.platform == 'local':
-            available_inputs = pa.list_group_curated_object_data()
+            available_inputs = pa.list_objects_in_bucket(os.getenv('DATA_OBJECTS_BUCKET_NAME'))
 
         # On NIDAP, load the metadata for the "input" unstructured dataset
         elif self.platform == 'nidap':
@@ -301,7 +301,7 @@ class Platform:
                 selected_input_filenames = srs_available_input_filenames[df_available_inputs['Selected']].tolist()
 
                 # Download the selected files
-                results = pa.download_objects_parallel(object_names=selected_input_filenames, dest_dir=local_input_dir())
+                results = pa.download_objects_parallel(bucket_name=os.getenv("DATA_OBJECTS_BUCKET_NAME"), object_names=selected_input_filenames, dest_dir=local_input_dir())
                 # {object_name: {'status': 'ok', 'path': local_path} or {'status': 'error', 'error': Exception}}
 
                 # For each downloaded file, move it to the local input directory

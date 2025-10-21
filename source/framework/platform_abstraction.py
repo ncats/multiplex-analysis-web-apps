@@ -28,7 +28,7 @@ APP_NAME = os.getenv('APP_NAME')
 
 
 @st.cache_resource()
-def get_database_pool(db_url):
+def get_connection_pool(db_url):
     if utils.platform() == "local":
         # Note we could use atexit to gracefully close the db connection pool. Note that nothing is needed for minio as shutdown is already clean.
         try:
@@ -50,7 +50,7 @@ def get_database_pool(db_url):
 def get_database_connection(db_url):
     if utils.platform() == "local":
         try:
-            db_pool = get_database_pool(db_url)
+            db_pool = get_connection_pool(db_url)
             if db_pool:
                 return db_pool.getconn()
         except Exception as e:
@@ -63,7 +63,7 @@ def get_database_connection(db_url):
 def return_database_connection(conn, db_url):
     if utils.platform() == "local":
         try:
-            db_pool = get_database_pool(db_url)
+            db_pool = get_connection_pool(db_url)
             if db_pool and conn:
                 db_pool.putconn(conn)
             return True
@@ -85,7 +85,7 @@ def _rollback_and_return(conn, db_url):
 
 # Create four tables for the app. Note it should be largely consistent with what's in 01_set_up_non_user_objects.sql for now, and later on we should probably have this function, if even still necessary, just run setup.sql so we don't have to maintain this logic in two places.
 @st.cache_data()
-def set_up_database():
+def set_up_postgresql():
     if utils.platform() == "local":
         try:
             conn_common = get_database_connection(DB_URL_COMMON)
@@ -707,7 +707,7 @@ def get_object_storage_client():
 
 
 @st.cache_data()
-def set_up_object_storage():
+def set_up_minio():
     if utils.platform() == "local":
         try:
             client = get_object_storage_client()
@@ -727,7 +727,7 @@ def set_up_object_storage():
         pass
 
 
-def write_object_data(bucket_name, zip_id, zip_buffer):
+def upload_zip_object_data(bucket_name, zip_name, zip_buffer, db_schema: str = None):
     if utils.platform() == "local":
         try:
             client = get_object_storage_client()
@@ -739,37 +739,39 @@ def write_object_data(bucket_name, zip_id, zip_buffer):
 
             client.put_object(
                 bucket_name=bucket_name,
-                object_name=f"{zip_id}.zip",
+                object_name=f"{zip_name}.zip",
                 data=zip_buffer,
                 length=zip_size,
                 content_type='application/zip'
             )
             return True
         except Exception as e:
-            st.error(f"Failed to write {zip_id}.zip to bucket {bucket_name}: {e}")
+            st.error(f"Failed to write {zip_name}.zip to bucket {bucket_name}: {e}")
             return False
     elif utils.platform() == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
             zip_buffer.seek(0)
+            if db_schema is None:
+                db_schema = f"{get_user_group(get_current_username())}_group_db.{APP_NAME}_schema"
             results = session.file.put_stream(
                 input_stream=zip_buffer,
-                stage_location=f"@{get_user_group(get_current_username())}_group_db.{APP_NAME}_schema.{bucket_name}_stage/{zip_id}.zip",
+                stage_location=f"@{db_schema}.{bucket_name}_stage/{zip_name}.zip",
                 auto_compress=False,
             )
             return results
         except Exception as e:
-            st.error(f"Failed to write {zip_id}.zip to bucket {bucket_name}: {e}")
+            st.error(f"Failed to write {zip_name}.zip to bucket {bucket_name}: {e}")
             return None
 
 
 # This could potentially be a lot of data, so we don't want to cache it using st.cache_data().
-def download_object_data(bucket_name, zip_id):
+def download_zip_object_data(bucket_name, zip_name, db_schema: str = None):
     if utils.platform() == "local":
         response = None
         try:
             client = get_object_storage_client()
-            object_name = f"{zip_id}.zip"
+            object_name = f"{zip_name}.zip"
             response = client.get_object(bucket_name, object_name)
             # NOTE: For very large objects consider streaming in chunks instead of reading all at once.
             data = response.read()
@@ -783,41 +785,47 @@ def download_object_data(bucket_name, zip_id):
     elif utils.platform() == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
-            stage_path = f"@{get_user_group(get_current_username())}_group_db.{APP_NAME}_schema.{bucket_name}_stage/{zip_id}.zip"
+            if db_schema is None:
+                db_schema = f"{get_user_group(get_current_username())}_group_db.{APP_NAME}_schema"
+            stage_path = f"@{db_schema}.{bucket_name}_stage/{zip_name}.zip"
             bytes_io = session.file.get_stream(stage_location=stage_path)
             bytes_io.seek(0)
             return bytes_io
         except Exception as e:
-            st.error(f"Failed to download {zip_id}.zip from bucket {bucket_name}: {e}")
+            st.error(f"Failed to download {zip_name}.zip from bucket {bucket_name}: {e}")
             return None
         
 
-def list_group_curated_object_data():
+def list_objects_in_bucket(bucket_name: str, db_schema: str = None):
     if utils.platform() == "local":
         try:
             client = get_object_storage_client()
-            objects = client.list_objects(DATA_OBJECTS_BUCKET_NAME)
+            objects = client.list_objects(bucket_name)
             object_list = [obj.object_name for obj in objects]
             return object_list
         except Exception as e:
-            st.error(f"Failed to list group curated data in {DATA_OBJECTS_BUCKET_NAME} bucket: {e}")
+            st.error(f"Failed to list objects in {bucket_name} bucket: {e}")
             return None
     elif utils.platform() == "snowflake":
         try:
-            user_group = get_user_group(get_current_username())
             session = snowflake_connections.get_snowpark_session()
-            stage_location = f"@{user_group}_group_db.curated_schema.{DATA_OBJECTS_BUCKET_NAME}_stage"
+            if db_schema is None:
+                user_group = get_user_group(get_current_username())
+                db_schema = f"{user_group}_group_db.curated_schema"
+            stage_location = f"@{db_schema}.{bucket_name}_stage"
             files = session.file.list(stage_location=stage_location)
             object_list = [file['name'] for file in files]
             return object_list
         except Exception as e:
-            st.error(f"Failed to list group curated data in {DATA_OBJECTS_BUCKET_NAME} stage: {e}")
+            st.error(f"Failed to list objects in {bucket_name} stage in database.schema {db_schema}: {e}")
             return None
 
 
 def download_objects_parallel(
+    bucket_name: str,
     object_names: list[str],
     dest_dir: str,
+    db_schema: str = None,
     max_workers: int = 8,
     chunk_size: int = 1024 * 1024,
     retries: int = 3,
@@ -841,7 +849,7 @@ def download_objects_parallel(
                 while attempt < retries:
                     response = None
                     try:
-                        response = client.get_object(DATA_OBJECTS_BUCKET_NAME, obj_name)
+                        response = client.get_object(bucket_name, obj_name)
                         local_path = os.path.join(dest_dir, obj_name)
                         parent = os.path.dirname(local_path)
                         if parent:
@@ -856,7 +864,7 @@ def download_objects_parallel(
 
                         if verify_etag:
                             # NOTE: For multipart uploads the ETag is not a simple MD5; skip strict verify in that case.
-                            stat = client.stat_object(DATA_OBJECTS_BUCKET_NAME, obj_name)
+                            stat = client.stat_object(bucket_name, obj_name)
                             etag = getattr(stat, "etag", None)
                             if etag and "-" not in etag:  # Heuristic: multipart ETags contain '-'
                                 h = hashlib.md5()
@@ -900,11 +908,13 @@ def download_objects_parallel(
             return None
     elif utils.platform() == "snowflake":
         try:
-            user_group = get_user_group(get_current_username())
             session = snowflake_connections.get_snowpark_session()
             os.makedirs(dest_dir, exist_ok=True)
 
-            stage_prefix = f"@{user_group}_group_db.curated_schema.{DATA_OBJECTS_BUCKET_NAME}_stage"
+            if db_schema is None:
+                user_group = get_user_group(get_current_username())
+                db_schema = f"{user_group}_group_db.curated_schema"
+            stage_prefix = f"@{db_schema}.{bucket_name}_stage"
 
             def fetch(obj_name: str):
                 attempt = 0
