@@ -14,6 +14,7 @@ import framework.snowflake_orchestrator as snowflake_orchestrator
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
 import hashlib
+import mimetypes
 
 
 ST_KEY_PREFIX_STARTUP = "startup.py__"
@@ -844,7 +845,7 @@ def download_objects_parallel(
 
             os.makedirs(dest_dir, exist_ok=True)
 
-            def fetch(obj_name: str):
+            def download_one(obj_name: str):
                 attempt = 0
                 while attempt < retries:
                     response = None
@@ -888,7 +889,7 @@ def download_objects_parallel(
 
             results: dict[str, dict] = {}
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                future_map = {executor.submit(fetch, name): name for name in object_names}
+                future_map = {executor.submit(download_one, name): name for name in object_names}
                 for fut in as_completed(future_map):
                     name = future_map[fut]
                     try:
@@ -916,7 +917,7 @@ def download_objects_parallel(
                 db_schema = f"{user_group}_group_db.curated_schema"
             stage_prefix = f"@{db_schema}.{bucket_name}_stage"
 
-            def fetch(obj_name: str):
+            def download_one(obj_name: str):
                 attempt = 0
                 while attempt < retries:
                     stream = None
@@ -964,7 +965,7 @@ def download_objects_parallel(
 
             results: dict[str, dict] = {}
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                future_map = {executor.submit(fetch, name): name for name in object_names}
+                future_map = {executor.submit(download_one, name): name for name in object_names}
                 for fut in as_completed(future_map):
                     name = future_map[fut]
                     try:
@@ -981,6 +982,180 @@ def download_objects_parallel(
             return results
         except Exception as e:
             st.error(f"Failed to download objects from Snowflake stage: {e}")
+            return None
+
+
+def upload_objects_parallel(
+    bucket_name: str,
+    file_paths: list[str],
+    base_dir: str | None = None,
+    db_schema: str = None,
+    max_workers: int = 8,
+    retries: int = 3,
+    backoff_base: float = 0.3,
+    guess_content_type: bool = True,
+    verify_etag: bool = False
+):
+    """
+    Upload arbitrary local files to object storage in parallel.
+
+    file_paths: list of absolute or relative local file paths.
+    base_dir: if provided, object names are path-relative to this directory; else filename only.
+    Returns dict {object_name: {'status': 'ok', 'size': bytes} or {'status': 'error', 'error': Exception}}.
+    """
+
+    def compute_object_name(path: str):
+        if base_dir:
+            b = os.path.abspath(base_dir)
+            p = os.path.abspath(path)
+            rel = os.path.relpath(p, b)
+            if rel.startswith(".."):
+                raise ValueError(f"{path} outside base_dir {base_dir}")
+            return rel.replace("\\", "/")
+        return os.path.basename(path)
+
+    if utils.platform() == "local":
+        try:
+            client = get_object_storage_client()
+
+            def upload_one(local_path: str):
+                object_name = compute_object_name(local_path)
+                attempt = 0
+                while attempt < retries:
+                    f = None
+                    try:
+                        size = os.path.getsize(local_path)
+                        f = open(local_path, "rb")
+                        content_type = None
+                        if guess_content_type:
+                            content_type = mimetypes.guess_type(local_path)[0] or "application/octet-stream"
+                        client.put_object(
+                            bucket_name=bucket_name,
+                            object_name=object_name,
+                            data=f,
+                            length=size,
+                            content_type=content_type
+                        )
+                        if f:
+                            f.close()
+
+                        if verify_etag:
+                            # Only reliable for single-part uploads (heuristic: size <= 64MB default MinIO part size).
+                            stat = client.stat_object(bucket_name, object_name)
+                            etag = getattr(stat, "etag", None)
+                            if etag and "-" not in etag:
+                                h = hashlib.md5()
+                                with open(local_path, "rb") as vf:
+                                    for block in iter(lambda: vf.read(1024 * 1024), b""):
+                                        h.update(block)
+                                if h.hexdigest() != etag.lower():
+                                    raise ValueError(f"ETag mismatch for {object_name}: expected {etag}, got {h.hexdigest()}")
+                        return object_name, {'status': 'ok', 'size': size}
+                    except Exception as e:
+                        attempt += 1
+                        if f:
+                            try:
+                                f.close()
+                            except Exception:
+                                pass
+                        if attempt < retries:
+                            time.sleep(backoff_base * (2 ** (attempt - 1)))
+                        else:
+                            return object_name, {'status': 'error', 'error': e}
+
+            results: dict[str, dict] = {}
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                future_map = {executor.submit(upload_one, p): p for p in file_paths}
+                for fut in as_completed(future_map):
+                    try:
+                        obj_name, res = fut.result()
+                        results[obj_name] = res
+                    except Exception as e:
+                        # Should rarely happen since we catch inside fetch, but just in case.
+                        fallback_name = compute_object_name(future_map[fut])
+                        results[fallback_name] = {'status': 'error', 'error': e}
+
+            failures = [k for k, v in results.items() if v['status'] != 'ok']
+            if failures:
+                st.warning(f"{len(failures)} uploads failed.")
+            else:
+                st.success(f"Uploaded {len(results)} objects.")
+            return results
+        except Exception as e:
+            st.error(f"Failed to upload objects to MinIO: {e}")
+            return None
+
+    elif utils.platform() == "snowflake":
+        try:
+            session = snowflake_connections.get_snowpark_session()
+
+            if db_schema is None:
+                user_group = get_user_group(get_current_username())
+                db_schema = f"{user_group}_group_db.curated_schema"
+            stage_prefix = f"@{db_schema}.{bucket_name}_stage"
+
+            def upload_one(local_path: str):
+                object_name = compute_object_name(local_path)
+                attempt = 0
+                while attempt < retries:
+                    f = None
+                    try:
+                        size = os.path.getsize(local_path)
+                        f = open(local_path, "rb")
+                        session.file.put_stream(
+                            input_stream=f,
+                            stage_location=f"{stage_prefix}/{object_name}",
+                            auto_compress=False
+                        )
+                        if f:
+                            f.close()
+
+                        if verify_etag:
+                            # List the directory to get md5.
+                            dir_part = os.path.dirname(object_name)
+                            list_location = stage_prefix + ("/" + dir_part if dir_part else "")
+                            files = session.file.list(stage_location=list_location)
+                            meta = next((m for m in files if m.get("name") == os.path.basename(object_name)), None)
+                            remote_md5 = meta.get("md5") if meta else None
+                            if remote_md5:
+                                h = hashlib.md5()
+                                with open(local_path, "rb") as vf:
+                                    for block in iter(lambda: vf.read(1024 * 1024), b""):
+                                        h.update(block)
+                                if h.hexdigest().lower() != remote_md5.lower():
+                                    raise ValueError(f"MD5 mismatch for {object_name}: expected {remote_md5}, got {h.hexdigest()}")
+                        return object_name, {'status': 'ok', 'size': size}
+                    except Exception as e:
+                        attempt += 1
+                        if f:
+                            try:
+                                f.close()
+                            except Exception:
+                                pass
+                        if attempt < retries:
+                            time.sleep(backoff_base * (2 ** (attempt - 1)))
+                        else:
+                            return object_name, {'status': 'error', 'error': e}
+
+            results: dict[str, dict] = {}
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                future_map = {executor.submit(upload_one, p): p for p in file_paths}
+                for fut in as_completed(future_map):
+                    try:
+                        obj_name, res = fut.result()
+                        results[obj_name] = res
+                    except Exception as e:
+                        fallback_name = compute_object_name(future_map[fut])
+                        results[fallback_name] = {'status': 'error', 'error': e}
+
+            failures = [k for k, v in results.items() if v['status'] != 'ok']
+            if failures:
+                st.warning(f"{len(failures)} uploads failed.")
+            else:
+                st.success(f"Uploaded {len(results)} objects.")
+            return results
+        except Exception as e:
+            st.error(f"Failed to upload objects to Snowflake stage: {e}")
             return None
 
 
