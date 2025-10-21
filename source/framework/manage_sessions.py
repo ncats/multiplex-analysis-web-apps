@@ -12,6 +12,15 @@ ST_KEY_PREFIX_STARTUP = "startup.py__"
 ST_KEY_PREFIX_APP = "app.py__"
 ARCHIVES_BUCKET_NAME = os.getenv('ARCHIVES_BUCKET_NAME')
 
+def check_session_initialized():
+    """Check if session is properly initialized, return True if OK, False otherwise."""
+    session_id_key = ST_KEY_PREFIX_STARTUP + "app_session_id"
+    if session_id_key not in st.session_state:
+        st.error("Session not properly initialized. Please refresh the page or return to the main page.")
+        st.stop()
+        return False
+    return True
+
 
 @st.cache_data()
 def export_conda_environment():
@@ -138,6 +147,10 @@ def write_dictionary_to_text_file(dictionary, dict_name, directory):
 
 
 def main():
+
+    # Check if session is properly initialized
+    if not check_session_initialized():
+        return
 
     st.header("Save app session")
 

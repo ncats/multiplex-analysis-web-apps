@@ -11,7 +11,7 @@ import dataset_formats
 import copy
 
 # Input/output directory initializations
-input_directory = os.path.join('.', 'input')
+input_directory = '/app/input'
 output_directory = os.path.join('.', 'output')
 
 

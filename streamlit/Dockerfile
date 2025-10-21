@@ -18,6 +18,9 @@ RUN tar -xzvf foundry_transforms_lib_python-0.881.0.tar.gz -C /opt/conda/lib/pyt
 # Copy source files to the container
 COPY source/ .
 
+# Copy input directory to the container
+COPY input/ ./input/
+
 # Copy .git to get commit hash
 COPY .git .git
 

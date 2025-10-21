@@ -11,6 +11,12 @@ services:
     depends_on:
       - database
       - object_storage
+    volumes:
+      - ./input:/app/input
+      - ./output:/app/output
+      - ./saved_streamlit_session_states:/app/saved_streamlit_session_states
+      - ./tmp_mawa_data:/tmp/mawa
+      - ./output:/app/output
     environment:
       DB_URL_GROUP: postgresql://postgres:password@database:5432/group_alpha_group_db
       DB_URL_COMMON: postgresql://postgres:password@database:5432/common_db

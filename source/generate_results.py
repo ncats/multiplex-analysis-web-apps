@@ -6,10 +6,24 @@ import framework.analysis_framework as analysis_framework
 
 # Global variable.
 ST_KEY_PREFIX = 'generate_results.py__'
+ST_KEY_PREFIX_STARTUP = "startup.py__"
+
+def check_session_initialized():
+    """Check if session is properly initialized, return True if OK, False otherwise."""
+    session_id_key = ST_KEY_PREFIX_STARTUP + "app_session_id"
+    if session_id_key not in st.session_state:
+        st.error("Session not properly initialized. Please refresh the page or return to the main page.")
+        st.stop()
+        return False
+    return True
 
 
 # Main function.
 def main():
+
+    # Check if session is properly initialized
+    if not check_session_initialized():
+        return
 
     # What does this page demonstrate?
     st.write("This page demonstrates generating results potentially asynchronously.")
@@ -55,7 +69,13 @@ def main():
     # Obtain the path to the generated results file, stored efficiently in memory.
     key = ST_KEY_PREFIX + 'primes_results_file'
     if (key not in st.session_state) or (not os.path.exists(st.session_state[key])):  # The second condition is needed since the session-stored directory may be old and no longer current. I know this is inefficient (may as well simply have "primes_results_file = os.path.join(utils.session_dir(), "results", "primes", "primes.txt")") but it's a good conceptual example.
-        st.session_state[key] = os.path.join(utils.session_dir(), "results", "primes", "primes.txt")
+        session_dir = utils.session_dir()
+        if session_dir is not None:
+            st.session_state[key] = os.path.join(session_dir, "results", "primes", "primes.txt")
+        else:
+            # Fallback to output directory if session dir not available
+            st.session_state[key] = "/app/output/results/primes/primes.txt"
+            os.makedirs("/app/output/results/primes", exist_ok=True)
     primes_results_file = st.session_state[key]
 
     # If this file, primes.txt, exists, write the contents to the screen.

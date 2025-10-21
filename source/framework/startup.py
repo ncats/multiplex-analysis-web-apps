@@ -29,8 +29,9 @@ def initialize():
     app_session_id = utils.get_unique_id()
     st.session_state[ST_KEY_PREFIX + "app_session_id"] = app_session_id
 
-    # Create the session directory.
-    session_dir = utils.session_dir()  # This creates the session directory if it doesn't already exist.
+    # Create the session directory directly (avoid calling utils.session_dir() here to prevent circular dependency).
+    session_dir = f"/tmp/{utils._app_title_simple()}/app_session_data/{app_session_id}"
+    os.makedirs(session_dir, exist_ok=True)
 
     # Get the current username.
     current_username = pa.get_current_username()

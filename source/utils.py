@@ -315,7 +315,7 @@ def validate_presets_and_map_to_settings(preset_settings, possible_phenotype_ide
             return val
         
     # Constants
-    input_directory = os.path.join('.', 'input')
+    input_directory = '/app/input'
 
     # Initialize the dictionary holding the actual settings dictionary to be used in the workflow
     settings = dict()
@@ -430,7 +430,7 @@ def get_settings_defaults(options_for_input_datafiles, options_for_phenotype_ide
     import dataset_formats
     import os
     if settings['input_datafile']['filename'] is not None:
-        settings['input_datafile']['format'] = dataset_formats.extract_datafile_metadata(os.path.join('.', 'input', settings['input_datafile']['filename']))[4]
+        settings['input_datafile']['format'] = dataset_formats.extract_datafile_metadata(os.path.join('/app/input', settings['input_datafile']['filename']))[4]
     else:
         settings['input_datafile']['format'] = get_first_element_or_none(options_for_input_datafile_formats)
 

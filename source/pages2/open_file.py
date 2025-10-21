@@ -42,7 +42,7 @@ def main():
     """
 
     # Constant
-    input_dir = os.path.join('.', 'input')
+    input_dir = '/app/input'  # Use the mounted input directory
     num_rows_to_sample = 100
 
     # Initialization

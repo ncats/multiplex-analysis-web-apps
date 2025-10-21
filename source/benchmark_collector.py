@@ -39,7 +39,10 @@ class benchmark_collector:
             self.on_nidap = self.fiol.onNIDAP
 
         sharepoint_path = "C:/Users/smithdaj/OneDrive - National Institutes of Health/Documents - NCATS-NCI-DMAP/MAWA/"
-        localdir = os.path.join(utils.session_dir(), 'output')
+        
+        # Use the mounted output directory directly
+        localdir = '/app/output'
+        
         if os.path.exists(sharepoint_path):
             print('Sharepoint path found, using it for benchmarking csv file.')
             localdir = sharepoint_path

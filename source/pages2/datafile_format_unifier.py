@@ -63,7 +63,7 @@ def main():
     """
 
     # Constants
-    directory = os.path.join('.', 'input')
+    directory = '/app/input'
     valid_extensions = ('.csv', '.tsv', '.txt')
 
     # Initialization
