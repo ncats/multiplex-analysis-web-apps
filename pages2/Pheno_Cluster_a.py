@@ -1279,7 +1279,10 @@ def phenocluster__plotly_umaps(adata, umap_cur_col, umap_cur_groups, umap_color_
                     y=-0.2,
                     xanchor="right",
                     x=1
-                )
+                ),
+                xaxis=dict(
+                    scaleanchor="y",
+                    scaleratio=1)
             )
             if i % 2 == 0:
                 subcol1.plotly_chart(fig, use_container_width=True)

@@ -63,6 +63,38 @@ def main():
             slide_suffix = ('' if st.session_state['display_slide_patching'] == 'not patched' else '_patched')
             st.image(df_paths_per_slide.loc[st.session_state['slide_name_to_visualize'], 'slide{}'.format(slide_suffix)])
 
+        # If we're requesting to save the heatmap data, then there should be files that end with "_log_dens_pvals.csv" in ('.', 'output', 'images', 'dens_pvals_per_slide'). If so, then create a button that finds all such files, zips them up, and saves them to the output directory.
+        if st.session_state['sit__used_settings']['plotting']['save_heatmap_data']:
+            # Get the directory where the heatmap data is stored.
+            heatmap_data_dir = os.path.join('.', 'output', 'images', 'dens_pvals_per_slide')
+
+            # Check if directory exists and find CSV files
+            if os.path.exists(heatmap_data_dir):
+                csv_files = [f for f in os.listdir(heatmap_data_dir) if f.endswith('_log_dens_pvals.csv')]
+
+                if not csv_files:
+                    st.warning('No heatmap data files found. Please select this option in the tool parameter selection.', icon='⚠️')
+                else:
+                    # Function to create zip file in output directory
+                    def create_zip_file():
+                        import zipfile
+
+                        output_dir = os.path.join('.', 'output')
+                        zip_path = os.path.join(output_dir, 'heatmap_data.zip')
+
+                        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+                            for csv_file in csv_files:
+                                file_path = os.path.join(heatmap_data_dir, csv_file)
+                                zip_file.write(file_path, csv_file)
+
+                        return zip_path
+
+                    # Create button to generate zip file
+                    if st.button(f'Create heatmap data zip file ({len(csv_files)} files)'):
+                        zip_path = create_zip_file()
+                        st.success(f'Zip file created at: {zip_path}')
+            else:
+                st.warning('Heatmap data directory not found. Please run the analysis first.', icon='⚠️')
     else:
         st.warning('At least one of the two sets of per-slide plots does not exist; please run all per-slide components of the workflow on the "Run workflow" page', icon='⚠️')
 

@@ -1,11 +1,16 @@
-import streamlit as st
+'''
+Top level Streamlit Application for MAWA
+'''
 import os
+import re
+import subprocess
+import numpy as np
+
+import streamlit as st
 from streamlit_extras.app_logo import add_logo
 import streamlit_session_state_management
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
 import streamlit_utils
-import numpy as np
-import subprocess
 import platform_io
 import install_missing_packages
 
@@ -15,6 +20,7 @@ install_missing_packages.live_package_installation()
 from pages2 import data_import_and_export
 from pages2 import datafile_format_unifier
 from pages2 import open_file
+from pages2 import feature_creation
 from pages2 import robust_scatter_plotter
 from pages2 import multiaxial_gating
 from pages2 import thresholded_phenotyping  # slow due to things ultimately importing umap
@@ -39,16 +45,28 @@ from pages2 import results_transfer
 
 
 def welcome_page():
+    '''
+    First page displayed when the app opens
+    '''
     # Markdown text
-    intro_markdown = ndl.read_markdown_file('markdown/MAWA_WelcomePage.md')
-    st.markdown(intro_markdown, unsafe_allow_html=True)
+    with open("markdown/MAWA_WelcomePage.md", "r", encoding="utf-8") as f:
+        md_content = f.read()
+
+    parts = re.split(r"!\[(.*?)\]\((.*?)\)", md_content)
+    for i, part in enumerate(parts):
+        if i % 3 == 0:
+            st.markdown(part, unsafe_allow_html=True)
+        elif i % 3 == 1:
+            title = part
+        else:
+            st.image(part)
 
 
 def platform_is_nidap():
     '''
     Check if the Streamlit application is operating on NIDAP
     '''
-    return np.any(['nidap.nih.gov' in x for x in subprocess.run('conda config --show channels', shell=True, capture_output=True).stdout.decode().split('\n')[1:-1]])
+    return np.any(['foundry-artifacts' in x for x in subprocess.run('conda config --show channels', shell=True, capture_output=True).stdout.decode().split('\n')[1:-1]])
 
 
 def check_for_platform(session_state):
@@ -77,8 +95,9 @@ def main():
                 st.Page(datafile_format_unifier.main, title="Datafile Unification", url_path='datafile_unification'),
                 st.Page(open_file.main, title="Open File", url_path='open_file')
             ],
-        'Coordinate Scatter Plotter 🌟':
+        'Dataset Investigation 🌟':
             [
+                st.Page(feature_creation.main, title="Feature Creation", url_path='feature_creation'),
                 st.Page(robust_scatter_plotter.main, title="Coordinate Scatter Plotter", url_path='coordinate_scatter_plotter')
             ],
         'Phenotyping 🧬':
@@ -119,7 +138,7 @@ def main():
                 st.Page(results_transfer.main, title="Results Transfer", url_path='results_transfer'),
                 # st.Page(forking_test.main, title="Forking Test", url_path='forking_test')
             ]
-        })
+        }, expanded=True)
 
     # Ensure the input/output directories exist
     input_path = './input'
@@ -189,6 +208,7 @@ def main():
     st.session_state['previous_page_name'] = st.session_state['current_page_name']
 
 
-# Needed for rendering pages which use multiprocessing (https://docs.python.org/3/library/multiprocessing.html#the-spawn-and-forkserver-start-methods)
+# Needed for rendering pages which use multiprocessing
+# (https://docs.python.org/3/library/multiprocessing.html#the-spawn-and-forkserver-start-methods)
 if __name__ == '__main__':
     main()

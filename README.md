@@ -17,20 +17,32 @@ streamlit run Multiplex_Analysis_Web_Apps.py
 
 Each page or app within MAWA is located in the `pages` folder in this repo. The pages are as follows:
 
-1. 01_data_import_and_export.py
+1. data_import_and_export.py
+1. datafile_format_unifier.py
+1. open_file.py
+1. robust_scatter_plotter.py
+1. thresholded_phenotyping.py
 1. multiaxial_gating.py
-1. 02_phenotyping.py
-1. 03a_Tool_parameter_selection.py
-1. 03b_Run_workflow.py
-1. 03c_Display_individual_ROI_heatmaps.py
-1. 03d_Display_average_heatmaps.py
-1. 03e_Display_average_heatmaps_per_annotation.py
-1. 03f_Display_ROI_P_values_overlaid_on_slides.py
-1. 04a_Neighborhood Profiles.py
-1. 04b_UMAP Analyzer.py
-1. 04c_Clusters Analyzer.py
+1. adaptive_phenotyping.py
+1. Pheno_Cluster_a.py
+1. Pheno_Cluster_b.py
+1. Tool_parameter_selection.py
+1. Run_workflow.py
+1. Display_individual_ROI_heatmaps.py
+1. Display_average_heatmaps.py
+1. Display_average_heatmaps_per_annotation.py
+1. Display_ROI_P_values_overlaid_on_slides.py
+1. Neighborhood_Profiles.py
+1. UMAP_Analyzer.py
+1. Clusters_Analyzer.py
+1. radial_bins_plots.py
+1. radial_profiles_analysis.py
+1. preprocessing.py
+1. memory_analyzer.py
+1. results_transfer.py
 
 ## Authors
 
 [Andrew Weisman](mailto:andrew.weisman@nih.gov)  
-[Dante Smith](mailto:dante.smith@nih.gov)
+[Dante Smith](mailto:dante.smith@nih.gov)  
+[Andrei Bombin](mailto:andrei.bombin@nih.gov)

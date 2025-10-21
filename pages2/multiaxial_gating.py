@@ -587,7 +587,7 @@ def main():
                     categorical_integer_columns = srs_integer_columns.loc[pd.Index([len(st.session_state['mg__df'][int_column].unique()) <= num_categorical_values_cutoff for int_column in srs_integer_columns])].to_list()
                     st.session_state['mg__all_numeric_columns'] = st.session_state['mg__df'].select_dtypes(include='number').columns.drop(categorical_integer_columns)
                     st.session_state['mg__all_columns'] = st.session_state['mg__df'].columns
-                    st.session_state['mg__column_config'] = {"Corresponding thresholded marker field": st.column_config.SelectboxColumn("Corresponding thresholded marker field", help="Tresholded marker field corresponding to the intensity at left", options=st.session_state['mg__all_columns'], required=True)}
+                    st.session_state['mg__column_config'] = {"Corresponding thresholded marker field": st.column_config.SelectboxColumn("Corresponding thresholded marker field", help="Tresholded marker field corresponding to the intensity at left", options=list(st.session_state['mg__all_columns']), required=True)}
                     st.session_state['mg__df_batch_normalized'] = batch_normalization_func(st.session_state['mg__df'], st.session_state['mg__all_numeric_columns'])
                     
         # Warn the user that they need to load the data at least once
