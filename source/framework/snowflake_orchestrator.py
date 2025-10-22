@@ -44,6 +44,7 @@ def submit_job(job_id: str, username: str, session: Session):
                   SNOWFLAKE_WAREHOUSE: data_app_warehouse   # must inject manually; Snowflake does not inject
                   TZ: America/New_York
                   ARCHIVES_BUCKET_NAME: archives
+                  OLD_ARCHIVES_BUCKET_NAME: old_archives
                   JOB_INPUTS_BUCKET_NAME: inputs
                   JOB_OUTPUTS_BUCKET_NAME: outputs
                   DATA_OBJECTS_BUCKET_NAME: objects

@@ -33,6 +33,8 @@ CREATE STAGE IF NOT EXISTS data_app_db.app_data_schema.inputs_stage
   DIRECTORY = ( ENABLE = TRUE );
 CREATE STAGE IF NOT EXISTS data_app_db.app_data_schema.outputs_stage
   DIRECTORY = ( ENABLE = TRUE );
+CREATE STAGE IF NOT EXISTS data_app_db.app_data_schema.old_archives_stage
+  DIRECTORY = ( ENABLE = TRUE );
 
 -- Tables
 CREATE TABLE IF NOT EXISTS data_app_db.app_data_schema.user_groups_table (

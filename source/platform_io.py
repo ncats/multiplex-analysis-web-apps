@@ -13,6 +13,8 @@ import utils
 from pages2 import memory_analyzer
 import framework.utils as framework_utils
 import framework.platform_abstraction as pa
+import nidap_io
+import sys
 
 ST_KEY_PREFIX = "platform_io.py__"
 
@@ -224,16 +226,16 @@ class Platform:
     def get_available_inputs_listing(self):
         # Potentially slow
 
-        if self.platform == 'local':
-            available_inputs = pa.list_objects_in_bucket(os.getenv('DATA_OBJECTS_BUCKET_NAME'))
-
         # On NIDAP, load the metadata for the "input" unstructured dataset
-        elif self.platform == 'nidap':
+        if self.platform == 'nidap':
             import nidap_io
             dataset = nidap_io.get_foundry_dataset(alias='input')
             dataset_file_objects = nidap_io.get_file_objects_from_dataset(dataset)  # slow
             available_inputs = nidap_io.list_files_in_dataset(dataset_file_objects)
             self.dataset_file_objects_for_available_inputs = dataset_file_objects  # save the values *that we'll need later* that result from the long calculation (1-2 sec) as properties of the object so they're stored rather than discarded
+
+        else:
+            available_inputs = pa.list_objects_in_bucket(os.getenv('DATA_OBJECTS_BUCKET_NAME'))
 
         # Save the values *that we'll need later* that result from the long calculation (1-2 sec) as properties of the object so they're stored rather than discarded
         self.available_inputs = sorted(available_inputs)
@@ -241,110 +243,40 @@ class Platform:
     # Write a dataframe of the available inputs on the remote
     def display_available_inputs_df(self):
 
-        if self.platform == 'local':
+        st.subheader(':open_file_folder: Available input data on server')
 
-            st.subheader(':open_file_folder: Available local input data')
+        # If we've never determined the inputs available on the remote (e.g., when the script first starts), do so now
+        if self.available_inputs is None:
+            self.get_available_inputs_listing()
 
-            # If we've never determined the inputs available on the remote (e.g., when the script first starts), do so now
-            if self.available_inputs is None:
-                self.get_available_inputs_listing()
+        # Get a shortcut to the available input list
+        available_inputs = self.available_inputs
 
-            # Get a shortcut to the available input list
-            available_inputs = self.available_inputs
+        # Create a simple editable dataframe of the available input filenames
+        make_simple_dataframe_from_file_listing(available_files=available_inputs, df_session_state_key_basename='available_inputs', streamlit_key_for_available_filenames_srs='srs_available_input_filenames', editable=True)
 
-            # Create a simple editable dataframe of the available input filenames
-            make_simple_dataframe_from_file_listing(available_files=available_inputs, df_session_state_key_basename='available_inputs', streamlit_key_for_available_filenames_srs='srs_available_input_filenames', editable=True)
-
-        # If on NIDAP...
-        elif self.platform == 'nidap':
-
-            st.subheader(':open_file_folder: Available input data on NIDAP')
-
-            # If we've never determined the inputs available on the remote (e.g., when the script first starts), do so now
-            if self.available_inputs is None:
-                self.get_available_inputs_listing()
-
-            # Get a shortcut to the available input list
-            available_inputs = self.available_inputs
-
-            # Create a simple editable dataframe of the available input filenames
-            make_simple_dataframe_from_file_listing(available_files=available_inputs, df_session_state_key_basename='available_inputs', streamlit_key_for_available_filenames_srs='srs_available_input_filenames', editable=True)
-            
     # Add a button to re-read the available input files on the remote
     def add_refresh_available_inputs_button(self):
 
-        if self.platform == 'local':
-            if st.button(':arrows_clockwise: Refresh available input data'):
-                self.get_available_inputs_listing()
-                st.rerun()  # rerun since this potentially changes outputs... rule of thumb for rerunning the page should probably be that if this method changes outputs, will those possibly changed outputs definitely get redrawn? If not, do a rerun! Consider where this method falls in the top-down rerun of the calling script, are the outputs before or after the method is called?
-
-        # If on NIDAP, create a button to simply update the available inputs
-        elif self.platform == 'nidap':
-            if st.button(':arrows_clockwise: Refresh available input data'):
-                self.get_available_inputs_listing()
-                st.rerun()  # rerun since this potentially changes outputs... rule of thumb for rerunning the page should probably be that if this method changes outputs, will those possibly changed outputs definitely get redrawn? If not, do a rerun! Consider where this method falls in the top-down rerun of the calling script, are the outputs before or after the method is called?
+        if st.button(':arrows_clockwise: Refresh available input data'):
+            self.get_available_inputs_listing()
+            st.rerun()  # rerun since this potentially changes outputs... rule of thumb for rerunning the page should probably be that if this method changes outputs, will those possibly changed outputs definitely get redrawn? If not, do a rerun! Consider where this method falls in the top-down rerun of the calling script, are the outputs before or after the method is called?
     
     # Load any selected available inputs on the remote to the local machine
     def load_selected_inputs(self):
 
-        if self.platform == 'local':
+        st.subheader(':tractor: Load input data into MAWA')
 
-            st.subheader(':tractor: Load input data into MAWA')
+        # If a load button is clicked...
+        if st.button('Load selected input data :arrow_right:'):
 
-            # If a load button is clicked...
-            if st.button('Load selected NIDAP input data :arrow_right:'):
+            # Get the selected filenames
+            df_available_inputs = st.session_state[ST_KEY_PREFIX + 'de_available_inputs'].reconstruct_edited_dataframe()
+            srs_available_input_filenames = st.session_state['srs_available_input_filenames']
+            selected_input_filenames = srs_available_input_filenames[df_available_inputs['Selected']].tolist()
 
-                # Get the selected filenames
-                df_available_inputs = st.session_state[ST_KEY_PREFIX + 'de_available_inputs'].reconstruct_edited_dataframe()
-                srs_available_input_filenames = st.session_state['srs_available_input_filenames']
-                selected_input_filenames = srs_available_input_filenames[df_available_inputs['Selected']].tolist()
-
-                # Download the selected files
-                results = pa.download_objects_parallel(bucket_name=os.getenv("DATA_OBJECTS_BUCKET_NAME"), object_names=selected_input_filenames, dest_dir=local_input_dir())
-                # {object_name: {'status': 'ok', 'path': local_path} or {'status': 'error', 'error': Exception}}
-
-                # For each downloaded file, move it to the local input directory
-                for object_name, status_dict in results.items():
-
-                    # Populate the local input directory with the current selection
-                    # Rules:
-                    #   * If it's not a .zip file, just copy it over
-                    #   * If it's a .zip file, there can be either 1 or 2 periods in the full filename including extension
-                    #   * If there's just a single period (e.g., asdf.zip), it must be a zipped directory with name following either DIRNAME.zip or DIRNAME--bleh.zip
-                    #   * If there are two periods (e.g., asdf.csv.zip), it must be a zipped datafile with name following asdf.csv
-                    if object_name.endswith('.zip'):
-                        splitted = object_name.split('.')  # should be of length 2 or 3 (for, e.g., asdf.csv.zip)
-                        num_periods = len(splitted) - 1  # should be 1 or 2
-                        if num_periods == 1:  # it's a zipped directory, by specification
-                            if '--' not in object_name:
-                                dirpath = os.path.join(local_input_dir(), object_name.rstrip('.zip'))
-                            else:
-                                dirpath = os.path.join(local_input_dir(), object_name.split('--')[0])
-                            ensure_empty_directory(dirpath)
-                            shutil.unpack_archive(status_dict["path"], dirpath)
-                        else:  # it's a zipped datafile
-                            shutil.unpack_archive(status_dict["path"], local_input_dir())
-                        # Delete the zipfile after unpacking.
-                        os.remove(status_dict["path"])
-
-        # If on NIDAP...
-        elif self.platform == 'nidap':
-
-            st.subheader(':tractor: Load input data into MAWA')
-
-            # If a load button is clicked...
-            if st.button('Load selected NIDAP input data :arrow_right:'):
-
-                # Import relevant libraries
-                import nidap_io
-
-                # # Get "shortcuts" to the object properties
-                # dataset_file_objects = self.dataset_file_objects_for_available_inputs
-
-                # Get the selected filenames
-                df_available_inputs = st.session_state[ST_KEY_PREFIX + 'de_available_inputs'].reconstruct_edited_dataframe()
-                srs_available_input_filenames = st.session_state['srs_available_input_filenames']
-                selected_input_filenames = srs_available_input_filenames[df_available_inputs['Selected']].tolist()
+            # If on NIDAP...
+            if self.platform == 'nidap':
 
                 # Download the selected files
                 all_downloaded_files = nidap_io.download_files_from_dataset(nidap_io.get_foundry_dataset(alias='input'), dataset_filter_func=lambda f: f.path in selected_input_filenames, limit=15)
@@ -383,78 +315,79 @@ class Platform:
                     else:
                         shutil.copy(local_download_path, local_input_dir())
     
+            else:
+
+                # Download the selected files
+                results = pa.download_objects_parallel(bucket_name=os.getenv("DATA_OBJECTS_BUCKET_NAME"), object_names=selected_input_filenames, dest_dir=local_input_dir())
+                # {object_name: {'status': 'ok', 'path': local_path} or {'status': 'error', 'error': Exception}}
+
+                # For each downloaded file, move it to the local input directory
+                for object_name, status_dict in results.items():
+
+                    # Populate the local input directory with the current selection
+                    # Rules:
+                    #   * If it's not a .zip file, just copy it over
+                    #   * If it's a .zip file, there can be either 1 or 2 periods in the full filename including extension
+                    #   * If there's just a single period (e.g., asdf.zip), it must be a zipped directory with name following either DIRNAME.zip or DIRNAME--bleh.zip
+                    #   * If there are two periods (e.g., asdf.csv.zip), it must be a zipped datafile with name following asdf.csv
+                    if object_name.endswith('.zip'):
+                        splitted = object_name.split('.')  # should be of length 2 or 3 (for, e.g., asdf.csv.zip)
+                        num_periods = len(splitted) - 1  # should be 1 or 2
+                        if num_periods == 1:  # it's a zipped directory, by specification
+                            if '--' not in object_name:
+                                dirpath = os.path.join(local_input_dir(), object_name.rstrip('.zip'))
+                            else:
+                                dirpath = os.path.join(local_input_dir(), object_name.split('--')[0])
+                            ensure_empty_directory(dirpath)
+                            shutil.unpack_archive(status_dict["path"], dirpath)
+                        else:  # it's a zipped datafile
+                            shutil.unpack_archive(status_dict["path"], local_input_dir())
+                        # Delete the zipfile after unpacking.
+                        os.remove(status_dict["path"])
+
     # Save a MAWA-unified datafile to NIDAP
     def save_selected_input(self):
 
-        if self.platform == 'local':
+        # Write a header
+        st.subheader(':tractor: Save MAWA-unified datafile to server')
 
-            # Write a header
-            st.subheader(':tractor: Save MAWA-unified datafile to server')
+        # Create a list of the CSV files having a "mawa-unified_datafile-" prefix and ".csv" suffix in the local input directory
+        mawa_unified_datafiles = [x for x in os.listdir(local_input_dir()) if x.startswith('mawa-unified_datafile-') and x.endswith('.csv')]
 
-            # Create a list of the CSV files having a "mawa-unified_datafile-" prefix and ".csv" suffix in the local input directory
-            mawa_unified_datafiles = [x for x in os.listdir(local_input_dir()) if x.startswith('mawa-unified_datafile-') and x.endswith('.csv')]
+        # Create a dictionary of the stripped filenames and their corresponding full filenames
+        mawa_unified_datafiles_dict = {x.split('mawa-unified_datafile-')[1].split('.csv')[0]: x for x in mawa_unified_datafiles}
+        keys = list(mawa_unified_datafiles_dict.keys())
 
-            # Create a dictionary of the stripped filenames and their corresponding full filenames
-            mawa_unified_datafiles_dict = {x.split('mawa-unified_datafile-')[1].split('.csv')[0]: x for x in mawa_unified_datafiles}
-            keys = list(mawa_unified_datafiles_dict.keys())
+        # If the session state key doesn't exist, create it and set it to the first key in the list (if it exists)
+        if (ST_KEY_PREFIX + 'mawa_unified_datafile_to_save' not in st.session_state) or (st.session_state[ST_KEY_PREFIX + 'mawa_unified_datafile_to_save'] not in keys):
+            st.session_state[ST_KEY_PREFIX + 'mawa_unified_datafile_to_save'] = keys[0] if keys else None
+        st.selectbox('Select MAWA-unified datafile to save:', keys, key=ST_KEY_PREFIX + 'mawa_unified_datafile_to_save')
 
-            # If the session state key doesn't exist, create it and set it to the first key in the list (if it exists)
-            if (ST_KEY_PREFIX + 'mawa_unified_datafile_to_save' not in st.session_state) or (st.session_state[ST_KEY_PREFIX + 'mawa_unified_datafile_to_save'] not in keys):
-                st.session_state[ST_KEY_PREFIX + 'mawa_unified_datafile_to_save'] = keys[0] if keys else None
-            st.selectbox('Select MAWA-unified datafile to save:', keys, key=ST_KEY_PREFIX + 'mawa_unified_datafile_to_save')
+        # Create a button to zip the selected file and save it to NIDAP
+        if st.button('Save selected (above) MAWA-unified datafile to NIDAP :arrow_left:', help='This will zip the selected file and save it to NIDAP. We generally don\'t want to save a file **generated** in the app to the **`input`** dataset on NIDAP on principle, but this is a reasonable exception so that the file can be used again or in other use cases.', disabled=st.session_state[ST_KEY_PREFIX + 'mawa_unified_datafile_to_save'] is None):
 
-            # Create a button to zip the selected file and save it to NIDAP
-            if st.button('Save selected (above) MAWA-unified datafile to NIDAP :arrow_left:', help='This will zip the selected file and save it to NIDAP. We generally don\'t want to save a file **generated** in the app to the **`input`** dataset on NIDAP on principle, but this is a reasonable exception so that the file can be used again or in other use cases.', disabled=st.session_state[ST_KEY_PREFIX + 'mawa_unified_datafile_to_save'] is None):
+            # Create a spinner to indicate that the zipping and saving is in progress
+            with st.spinner('Zipping and saving...'):
 
-                # Create a spinner to indicate that the zipping and saving is in progress
-                with st.spinner('Zipping and saving...'):
+                # Zip the selected file
+                selected_mawa_unified_datafile = mawa_unified_datafiles_dict[st.session_state[ST_KEY_PREFIX + 'mawa_unified_datafile_to_save']]
+                shutil.make_archive(os.path.join(local_input_dir(), selected_mawa_unified_datafile), 'zip', local_input_dir(), selected_mawa_unified_datafile)
 
-                    # Zip the selected file
-                    selected_mawa_unified_datafile = mawa_unified_datafiles_dict[st.session_state[ST_KEY_PREFIX + 'mawa_unified_datafile_to_save']]
-                    shutil.make_archive(os.path.join(local_input_dir(), selected_mawa_unified_datafile), 'zip', local_input_dir(), selected_mawa_unified_datafile)
-
-                    # Transfer the zipped file to NIDAP
-                    pa.upload_objects_parallel(bucket_name=os.getenv("DATA_OBJECTS_BUCKET_NAME"), file_paths=[os.path.join(local_input_dir(), selected_mawa_unified_datafile + '.zip')])
-
-                    # Delete the zipped file from the local input directory
-                    os.remove(os.path.join(local_input_dir(), selected_mawa_unified_datafile + '.zip'))
-
-        # If working on NIDAP...
-        elif self.platform == 'nidap':
-
-            # Write a header
-            st.subheader(':tractor: Save MAWA-unified datafile to NIDAP')
-
-            # Create a list of the CSV files having a "mawa-unified_datafile-" prefix and ".csv" suffix in the local input directory
-            mawa_unified_datafiles = [x for x in os.listdir(local_input_dir()) if x.startswith('mawa-unified_datafile-') and x.endswith('.csv')]
-
-            # Create a dictionary of the stripped filenames and their corresponding full filenames
-            mawa_unified_datafiles_dict = {x.split('mawa-unified_datafile-')[1].split('.csv')[0]: x for x in mawa_unified_datafiles}
-            keys = list(mawa_unified_datafiles_dict.keys())
-
-            # If the session state key doesn't exist, create it and set it to the first key in the list (if it exists)
-            if (ST_KEY_PREFIX + 'mawa_unified_datafile_to_save' not in st.session_state) or (st.session_state[ST_KEY_PREFIX + 'mawa_unified_datafile_to_save'] not in keys):
-                st.session_state[ST_KEY_PREFIX + 'mawa_unified_datafile_to_save'] = keys[0] if keys else None
-            st.selectbox('Select MAWA-unified datafile to save:', keys, key=ST_KEY_PREFIX + 'mawa_unified_datafile_to_save')
-
-            # Create a button to zip the selected file and save it to NIDAP
-            if st.button('Save selected (above) MAWA-unified datafile to NIDAP :arrow_left:', help='This will zip the selected file and save it to NIDAP. We generally don\'t want to save a file **generated** in the app to the **`input`** dataset on NIDAP on principle, but this is a reasonable exception so that the file can be used again or in other use cases.', disabled=st.session_state[ST_KEY_PREFIX + 'mawa_unified_datafile_to_save'] is None):
-
-                # Create a spinner to indicate that the zipping and saving is in progress
-                with st.spinner('Zipping and saving...'):
-
-                    # Zip the selected file
-                    selected_mawa_unified_datafile = mawa_unified_datafiles_dict[st.session_state[ST_KEY_PREFIX + 'mawa_unified_datafile_to_save']]
-                    shutil.make_archive(os.path.join(local_input_dir(), selected_mawa_unified_datafile), 'zip', local_input_dir(), selected_mawa_unified_datafile)
+                # If working on NIDAP...
+                if self.platform == 'nidap':
 
                     # Transfer the zipped file to NIDAP
-                    import nidap_io
                     dataset = nidap_io.get_foundry_dataset(alias='input')
                     upload_single_file_to_dataset((dataset, local_input_dir(), selected_mawa_unified_datafile + '.zip'))
                     # nidap_io.upload_file_to_dataset(dataset, selected_filepath=os.path.join(local_input_dir(), selected_mawa_unified_datafile + '.zip'))
 
-                    # Delete the zipped file from the local input directory
-                    os.remove(os.path.join(local_input_dir(), selected_mawa_unified_datafile + '.zip'))
+                else:
+
+                    # Transfer the zipped file to NIDAP
+                    pa.upload_objects_parallel(bucket_name=os.getenv("DATA_OBJECTS_BUCKET_NAME"), file_paths=[os.path.join(local_input_dir(), selected_mawa_unified_datafile + '.zip')])
+
+                # Delete the zipped file from the local input directory
+                os.remove(os.path.join(local_input_dir(), selected_mawa_unified_datafile + '.zip'))
 
     # Get a listing of the files/dirs in the local input directory, which is platform-independent because it's local
     def get_local_inputs_listing(self):
@@ -464,114 +397,71 @@ class Platform:
     def display_local_inputs_df(self):
         st.subheader(':open_file_folder: Input data in MAWA')
         local_inputs = self.get_local_inputs_listing()
-        if self.platform == 'local':  # not editable locally because deletion is disabled anyway so there'd be nothing to do with selected files
-            make_complex_dataframe_from_file_listing(dirpath=local_input_dir(), item_names=local_inputs, editable=False)
-        elif self.platform == 'nidap':  # editable on NIDAP because deletion is enabled since it's safe to delete loaded input files since they're backed up to NIDAP
-            make_complex_dataframe_from_file_listing(dirpath=local_input_dir(), item_names=local_inputs, df_session_state_key_basename='local_inputs', editable=True)
+        make_complex_dataframe_from_file_listing(dirpath=local_input_dir(), item_names=local_inputs, df_session_state_key_basename='local_inputs', editable=True)
 
     # Possibly allow for deletion of loaded input files
     def add_delete_local_inputs_button(self):
 
         # search for other calls to make_complex_dataframe_from_file_listing() and search for the key to ensure I'm consistent with how I'm grabbing the selected values from the edited dataframe!!
 
-        # Don't delete local input files because there are ostensibly no backups
-        if self.platform == 'local':
-            pass
+        if st.button(':x: Delete selected (above) loaded input files'):
+            df_local_inputs = st.session_state[ST_KEY_PREFIX + 'de_local_inputs'].reconstruct_edited_dataframe()
+            local_input_files_to_delete = df_local_inputs[df_local_inputs['Selected']]['File or directory name']
+            delete_selected_files_and_dirs(local_input_dir(), local_input_files_to_delete)
+            st.rerun()
 
-        # Delete local input files on NIDAP which is safe because they are backed up to NIDAP and deletion here will only be for the *loaded* input files
-        elif self.platform == 'nidap':
-            if st.button(':x: Delete selected (above) loaded input files'):
-                df_local_inputs = st.session_state[ST_KEY_PREFIX + 'de_local_inputs'].reconstruct_edited_dataframe()
-                local_input_files_to_delete = df_local_inputs[df_local_inputs['Selected']]['File or directory name']
-                delete_selected_files_and_dirs(local_input_dir(), local_input_files_to_delete)
-                st.rerun()
-    
     # List the results archives on the remote
     def get_archives_listing(self):
 
-        # List the output_archive-* folders
-        if self.platform == 'local':
-            available_archives = [x for x in os.listdir(local_output_dir()) if (x.startswith('output_archive-') and (not x.endswith('.zip')))]  # locally, archives shouldn't be zipped (rather in directories), though for setup/transfer-to-nidap purposes, there may exist corresponding zip files
-            available_archives_trimmed = available_archives
-
         # List the contents of the output unstructured dataset (there should only be output_archive-*.zip files)
-        elif self.platform == 'nidap':
-            import nidap_io
+        if self.platform == 'nidap':
             dataset = nidap_io.get_foundry_dataset(alias='output')
             dataset_file_objects = nidap_io.get_file_objects_from_dataset(dataset)  # slow
             available_archives = [x for x in nidap_io.list_files_in_dataset(dataset_file_objects) if (x.startswith('output_archive-') and ('.zip' in x))]
-            available_archives_trimmed = []
-            for archive_basename in set([x.split('.zip')[0] for x in available_archives]):
-                curr_parts_files = [x for x in available_archives if x.startswith(archive_basename + '.zip.')]
-                num_parts_files = len(curr_parts_files)
-                if num_parts_files > 0:  # it's in parts
-                    num_expected_parts = int(curr_parts_files[0].split('_')[-1])
-                    if num_parts_files == num_expected_parts:
-                        print('{} is a complete set of zip parts; adding it to the list'.format(archive_basename))
-                        available_archives_trimmed.append(archive_basename + '.zip.')
-                    else:
-                        print('WARNING: {} is not a complete set of zip parts: {} files expected, found {}. Not adding it to the list'.format(archive_basename, num_expected_parts, num_parts_files))
-                else:  # it's a single normal zip file
-                    print('{} is a regular, single zip file; adding it to the list'.format(archive_basename))
-                    available_archives_trimmed.append(archive_basename + '.zip')
             self.dataset_file_objects_for_available_archives = dataset_file_objects  # save the results of the long calculations that we'll need later as object properties
+
+        # List the output_archive-* folders
+        else:
+            user_group = pa.get_user_group(pa.get_current_username())
+            app_name = os.getenv('APP_NAME')
+            db_schema = f"{user_group}_group_db.{app_name}_schema"
+            available_archives = [x for x in pa.list_objects_in_bucket(os.getenv('OLD_ARCHIVES_BUCKET_NAME'), db_schema=db_schema) if (x.startswith('output_archive-') and ('.zip' in x))]
+
+        available_archives_trimmed = []
+        for archive_basename in set([x.split('.zip')[0] for x in available_archives]):
+            curr_parts_files = [x for x in available_archives if x.startswith(archive_basename + '.zip.')]
+            num_parts_files = len(curr_parts_files)
+            if num_parts_files > 0:  # it's in parts
+                num_expected_parts = int(curr_parts_files[0].split('_')[-1])
+                if num_parts_files == num_expected_parts:
+                    print('{} is a complete set of zip parts; adding it to the list'.format(archive_basename))
+                    available_archives_trimmed.append(archive_basename + '.zip.')
+                else:
+                    print('WARNING: {} is not a complete set of zip parts: {} files expected, found {}. Not adding it to the list'.format(archive_basename, num_expected_parts, num_parts_files))
+            else:  # it's a single normal zip file
+                print('{} is a regular, single zip file; adding it to the list'.format(archive_basename))
+                available_archives_trimmed.append(archive_basename + '.zip')
 
         # Save the results of the long calculations that we'll need later as object properties
         self.available_archives = sorted(available_archives_trimmed)
     
     # Write a dataframe of the available archives
     def display_archives_df(self):
-
-        # Always get the listing locally because that's fast
-        if self.platform == 'local':
-            st.subheader(':open_file_folder: Available results archives (i.e., saved results)')
+        st.subheader(':open_file_folder: Available results archives (i.e., saved results)')
+        if self.available_archives is None:
             self.get_archives_listing()
-            make_complex_dataframe_from_file_listing(dirpath=local_output_dir(), item_names=self.available_archives, df_session_state_key_basename='available_archives', editable=True)
-
-        # Only get the listing on NIDAP when it's not already loaded (or when the refresh button is hit, below) because that's "slow"
-        elif self.platform == 'nidap':
-            st.subheader(':open_file_folder: Available results archives (i.e., saved results) on NIDAP')
-            if self.available_archives is None:
-                self.get_archives_listing()
-            make_simple_dataframe_from_file_listing(available_files=self.available_archives, editable=False)
+        make_simple_dataframe_from_file_listing(available_files=self.available_archives, editable=False)
     
     # Add a button for deleting available archives
     def add_delete_archives_button(self):
-
-        # If working locally...
-        if self.platform == 'local':
-
-            # If the button is hit...
-            if st.button(':x: Delete selected (above) results archives'):
-
-                # Get the editable dataframe of the available archives from Streamlit
-                df_available_archives = st.session_state[ST_KEY_PREFIX + 'de_available_archives'].reconstruct_edited_dataframe()
-
-                # Get the names of just the selected directories
-                dirs_to_delete = df_available_archives[df_available_archives['Selected']]['File or directory name']
-
-                # Delete them from the output results directory
-                delete_selected_files_and_dirs(local_output_dir(), dirs_to_delete)
-
-                # Rerun since deleting archives changes outputs
-                st.rerun()
-
-        # Don't do this on NIDAP, if it were even possible
-        elif self.platform == 'nidap':
-            pass
+        pass
 
     # Add a button to refresh the results archives listing
     def add_refresh_archives_button(self):
 
-        # No need to do this if working locally because the listing is always refreshed when the dataframe is drawn
-        if self.platform == 'local':
-            pass
-
-        # Do this on NIDAP manually because it's "slow"
-        elif self.platform == 'nidap':
-            if st.button(':arrows_clockwise: Refresh available results archives'):
-                self.get_archives_listing()
-                st.rerun()  # this may change outputs so refresh
+        if st.button(':arrows_clockwise: Refresh available results archives'):
+            self.get_archives_listing()
+            st.rerun()  # this may change outputs so refresh
     
     # Load the selected results archives so calculations can be resumed or results can be visualized
     # def load_selected_archive(self, nworkers_for_data_transfer=8):
@@ -579,63 +469,32 @@ class Platform:
 
         st.subheader(':tractor: Load results')
 
-        # If working locally...
-        if self.platform == 'local':
+        # Account for possibly stale values of the session state key
+        current_options = [x.split('.zip')[0] for x in self.available_archives]
+        account_for_stale_streamlit_values('archive_to_load', current_options)
 
-            # Account for possibly stale values of the session state key
-            account_for_stale_streamlit_values('archive_to_load', self.available_archives)
+        # Make a dropdown of currently available results archives
+        st.selectbox('Select available results archive to load:', current_options, key='archive_to_load')
 
-            # Make a dropdown of currently available results archives
-            st.selectbox('Select available results archive to load:', self.available_archives, key='archive_to_load')
+        # If the user wants to load the selected archive...
+        if st.button('Load selected (above) results archive :arrow_right:', help='WARNING: This will copy the contents of the selected archive to the results directory and will overwrite currently loaded results; please ensure they are backed up (you can just use the functions on this page)!'):
 
-            # If the user wants to load the selected archive...
-            if st.button('Load selected results archive :arrow_right:', help='WARNING: This will copy the contents of the selected archive to the results directory and will overwrite currently loaded results; please ensure they are backed up (you can just use the functions on this page)!'):
+            # Delete all files currently present in the output results directory
+            delete_selected_files_and_dirs(local_output_dir(), self.get_local_results_listing())
+            
+            # Obtain the full filename corresponding to the selected archive to load and run a check
+            list_of_len_1 = [x for x in self.available_archives if x.startswith(st.session_state['archive_to_load'])]
+            if len(list_of_len_1) != 1:
+                print('ERROR: More than one available archive found ({}) for selected archive to load ({})'.format(list_of_len_1, st.session_state['archive_to_load']))
+                sys.exit()
+            selected_archive_with_proper_extension = list_of_len_1[0]
 
-                # First delete everything in currently in the output results directory (i.e., all currently loaded data) that's not an output archive
-                delete_selected_files_and_dirs(local_output_dir(), self.get_local_results_listing())
-
-                # Copy everything from the selected output archive to the output directory
-                shutil.copytree(os.path.join(local_output_dir(), st.session_state['archive_to_load']), local_output_dir(), dirs_exist_ok=True)
-
-                # Mimic (sort of) callback behavior, especially because we want to see updated available session states
-                st.rerun()
-
-        # If working on NIDAP...
-        elif self.platform == 'nidap':
-
-            # Account for possibly stale values of the session state key
-            current_options = [x.split('.zip')[0] for x in self.available_archives]
-            account_for_stale_streamlit_values('archive_to_load', current_options)
-
-            # Make a dropdown of currently available results archives
-            st.selectbox('Select available results archive to load:', current_options, key='archive_to_load')
-
-            # If the user wants to load the selected archive...
-            if st.button('Load selected (above) results archive :arrow_right:', help='WARNING: This will copy the contents of the selected archive to the results directory and will overwrite currently loaded results; please ensure they are backed up (you can just use the functions on this page)!'):
-
-                # Import relevant libraries
-                import nidap_io
-                # import utils
-                # import multiprocessing
-
-                # Delete all files currently present in the output results directory
-                delete_selected_files_and_dirs(local_output_dir(), self.get_local_results_listing())
-                
-                # Obtain the full filename corresponding to the selected archive to load and run a check
-                list_of_len_1 = [x for x in self.available_archives if x.startswith(st.session_state['archive_to_load'])]
-                if len(list_of_len_1) != 1:
-                    import sys
-                    print('ERROR: More than one available archive found ({}) for selected archive to load ({})'.format(list_of_len_1, st.session_state['archive_to_load']))
-                    sys.exit()
-                selected_archive_with_proper_extension = list_of_len_1[0]
+            if self.platform == 'nidap':
 
                 # If it's a single normal zip file, download and unzip it
                 if not selected_archive_with_proper_extension.endswith('.'):
 
-                    # dataset_file_object = nidap_io.get_dataset_file_object(self.dataset_file_objects_for_available_archives, selected_filename=selected_archive_with_proper_extension)
-
                     start_time = time.time()
-                    # local_download_path = nidap_io.download_file_from_dataset(dataset_file_object)
                     all_downloaded_files = nidap_io.download_files_from_dataset(nidap_io.get_foundry_dataset(alias='output'), dataset_filter_func=lambda f: f.path == selected_archive_with_proper_extension, limit=15)
                     local_download_path = all_downloaded_files[selected_archive_with_proper_extension]
                     filesize = os.path.getsize(local_download_path) / 1024 ** 2
@@ -656,48 +515,92 @@ class Platform:
 
                     # Extract all downloaded parts
                     extract_zipfile_to_directory(filepaths=local_download_paths, extraction_path=local_output_dir())
-    
-                # Mimic (sort of) callback behavior, especially because we want to see updated available session states
-                st.rerun()
+
+            else:  # local
+
+                # If it's a single normal zip file, download and unzip it
+                if not selected_archive_with_proper_extension.endswith('.'):
+
+                    start_time = time.time()
+
+                    user_group = pa.get_user_group(pa.get_current_username())
+                    app_name = os.getenv('APP_NAME')
+                    db_schema = f"{user_group}_group_db.{app_name}_schema"
+                    results = pa.download_objects_parallel(bucket_name=os.getenv("OLD_ARCHIVES_BUCKET_NAME"), db_schema=db_schema, object_names=[selected_archive_with_proper_extension], dest_dir=local_output_dir())
+                    local_download_path = results[selected_archive_with_proper_extension]['path']
+
+                    filesize = os.path.getsize(local_download_path) / 1024 ** 2
+                    duration = time.time() - start_time
+                    print('  Download of {} ({:5.3f} MB) from object storage to the app took {:3.1f} seconds --> {:3.1f} MB/s'.format(selected_archive_with_proper_extension, filesize, duration, filesize / duration))
+
+                    extract_zipfile_to_directory(zipfile_name=local_download_path, extraction_path=local_output_dir())
+
+                    # Delete downloaded file.
+                    os.remove(local_download_path)
+
+                # If it corresponds to a chunked set of zip files...
+                else:
+
+
+                    # Obtain the corresponding chunked set of zip files
+                    user_group = pa.get_user_group(pa.get_current_username())
+                    app_name = os.getenv('APP_NAME')
+                    db_schema = f"{user_group}_group_db.{app_name}_schema"
+                    matching_archives_files = sorted([x for x in pa.list_objects_in_bucket(os.getenv('OLD_ARCHIVES_BUCKET_NAME'), db_schema=db_schema) if x.startswith(selected_archive_with_proper_extension)])  # there must be at least one
+
+                    # Download the files from the dataset in parallel
+                    results = pa.download_objects_parallel(bucket_name=os.getenv("OLD_ARCHIVES_BUCKET_NAME"), db_schema=db_schema, object_names=matching_archives_files, dest_dir=local_output_dir())
+                    local_download_paths = [results[zip_file_chunk]['path'] for zip_file_chunk in matching_archives_files]
+
+                    # Extract all downloaded parts
+                    extract_zipfile_to_directory(filepaths=local_download_paths, extraction_path=local_output_dir())
+
+                    # Delete downloaded files.
+                    for local_download_path in local_download_paths:
+                        os.remove(local_download_path)
+
+            # Mimic (sort of) callback behavior, especially because we want to see updated available session states
+            st.rerun()
 
     # Save the currently loaded results to a results archive
-    # def save_results_to_archive(self, nworkers_for_data_transfer=1):
     def save_results_to_archive(self):
 
-        st.subheader(':tractor: Save results')
+        pass
 
-        # Allow the user to add a custom basename for the new archive
-        st.text_input('Suffix for the basename of the new results archive to create:', key='basename_suffix_for_new_results_archive', help='The name will go after "output_archive" and a timestamp, e.g., "output_archive-20230920_003801-project_xxxx_panel_07".')
+        # st.subheader(':tractor: Save results')
 
-        # If the user is ready to save the current results to a new results archive...
-        if st.button(':arrow_left: Save current results to a new archive', help='This will copy all current results to a new archive, including job settings and environment information.'):
+        # # Allow the user to add a custom basename for the new archive
+        # st.text_input('Suffix for the basename of the new results archive to create:', key='basename_suffix_for_new_results_archive', help='The name will go after "output_archive" and a timestamp, e.g., "output_archive-20230920_003801-project_xxxx_panel_07".')
 
-            # Copy a YAML file of the current tool settings to the current/loaded results
-            write_current_tool_parameters_to_disk(local_output_dir())
+        # # If the user is ready to save the current results to a new results archive...
+        # if st.button(':arrow_left: Save current results to a new archive', help='This will copy all current results to a new archive, including job settings and environment information.'):
 
-            # Save the current environment to the current/loaded results
-            write_current_environment_to_disk(local_output_dir())
+        #     # Copy a YAML file of the current tool settings to the current/loaded results
+        #     write_current_tool_parameters_to_disk(local_output_dir())
 
-            # Delete any files in the local output directory that start with "streamlit_session_state-" because we're about to create a current one and we don't want to back up more than one as they're generally large
-            delete_selected_files_and_dirs(local_output_dir(), [x for x in os.listdir(local_output_dir()) if x.startswith('streamlit_session_state-')])
+        #     # Save the current environment to the current/loaded results
+        #     write_current_environment_to_disk(local_output_dir())
 
-            # Save the current session state to the current/loaded results
-            memory_analyzer.save_session_state(local_output_dir())
+        #     # Delete any files in the local output directory that start with "streamlit_session_state-" because we're about to create a current one and we don't want to back up more than one as they're generally large
+        #     delete_selected_files_and_dirs(local_output_dir(), [x for x in os.listdir(local_output_dir()) if x.startswith('streamlit_session_state-')])
 
-            # If working locally...
-            if self.platform == 'local':
+        #     # Save the current session state to the current/loaded results
+        #     memory_analyzer.save_session_state(local_output_dir())
 
-                # Copy everything in the local output directory except for files/dirs like ^output_archive- to a new archive directory
-                copy_output_dir_contents_to_output_archive(st.session_state['basename_suffix_for_new_results_archive'], local_output_dir())
+        #     # If working locally...
+        #     if self.platform == 'local':
 
-            # If working on NIDAP...
-            elif self.platform == 'nidap':
+        #         # Copy everything in the local output directory except for files/dirs like ^output_archive- to a new archive directory
+        #         copy_output_dir_contents_to_output_archive(st.session_state['basename_suffix_for_new_results_archive'], local_output_dir())
 
-                # Back up everything in the local output directory to the output dataset on NIDAP
-                back_up_results_to_nidap(local_output_dir(), st.session_state['basename_suffix_for_new_results_archive'])
+        #     # If working on NIDAP...
+        #     elif self.platform == 'nidap':
 
-            # Rerun since this potentially changes outputs
-            st.rerun()
+        #         # Back up everything in the local output directory to the output dataset on NIDAP
+        #         back_up_results_to_nidap(local_output_dir(), st.session_state['basename_suffix_for_new_results_archive'])
+
+        #     # Rerun since this potentially changes outputs
+        #     st.rerun()
             
     # List all currently loaded results that aren't output archives, which is platform-independent
     def get_local_results_listing(self):

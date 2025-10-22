@@ -685,6 +685,7 @@ MINIO_ENDPOINT = os.getenv('MINIO_ENDPOINT')
 MINIO_ACCESS_KEY = os.getenv('MINIO_ACCESS_KEY')
 MINIO_SECRET_KEY = os.getenv('MINIO_SECRET_KEY')
 ARCHIVES_BUCKET_NAME = os.getenv('ARCHIVES_BUCKET_NAME')
+OLD_ARCHIVES_BUCKET_NAME = os.getenv('OLD_ARCHIVES_BUCKET_NAME')
 JOB_INPUTS_BUCKET_NAME = os.getenv('JOB_INPUTS_BUCKET_NAME')
 JOB_OUTPUTS_BUCKET_NAME = os.getenv('JOB_OUTPUTS_BUCKET_NAME')
 DATA_OBJECTS_BUCKET_NAME = os.getenv('DATA_OBJECTS_BUCKET_NAME')
@@ -720,6 +721,8 @@ def set_up_minio():
                 client.make_bucket(JOB_OUTPUTS_BUCKET_NAME)
             if not client.bucket_exists(DATA_OBJECTS_BUCKET_NAME):
                 client.make_bucket(DATA_OBJECTS_BUCKET_NAME)
+            if not client.bucket_exists(OLD_ARCHIVES_BUCKET_NAME):
+                client.make_bucket(OLD_ARCHIVES_BUCKET_NAME)
             return True
         except Exception as e:
             st.error(f"Failed to set up object storage: {e}")
