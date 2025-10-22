@@ -19,7 +19,7 @@ services:
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadmin123
       ARCHIVES_BUCKET_NAME: archives
-      OLD_ARCHIVES_BUCKET_NAME: old_archives
+      OLD_ARCHIVES_BUCKET_NAME: oldarchives
       JOB_INPUTS_BUCKET_NAME: inputs
       JOB_OUTPUTS_BUCKET_NAME: outputs
       DATA_OBJECTS_BUCKET_NAME: objects
@@ -79,7 +79,7 @@ services:
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadmin123
       ARCHIVES_BUCKET_NAME: archives
-      OLD_ARCHIVES_BUCKET_NAME: old_archives
+      OLD_ARCHIVES_BUCKET_NAME: oldarchives
       JOB_INPUTS_BUCKET_NAME: inputs
       JOB_OUTPUTS_BUCKET_NAME: outputs
       DATA_OBJECTS_BUCKET_NAME: objects
