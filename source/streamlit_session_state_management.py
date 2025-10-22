@@ -10,6 +10,7 @@ import utils
 from objsize import get_deep_size as deep_mem_usage_in_bytes
 import time
 from pages2 import memory_analyzer
+import framework.utils as framework_utils
 
 
 def load_session_state_preprocessing(saved_streamlit_session_states_dir, saved_streamlit_session_state_prefix='streamlit_session_state-', saved_streamlit_session_state_key='session_selection', selected_session=None):
@@ -245,11 +246,12 @@ def app_session_management(saved_streamlit_session_states_dir, saved_streamlit_s
     
     # Check if the right type of pickle file exists in the "output" directory, and if so, create a symbolic link to it from the saved_streamlit_session_states_dir directory
     session_state_files_in_output_dir = []
-    if os.path.exists('output'):
-        for f in os.listdir('output'):
+    output_dir = os.path.join(framework_utils.session_dir(), 'output')
+    if os.path.exists(output_dir):
+        for f in os.listdir(output_dir):
             if f.endswith(('.pkl', '.pickle', '.dill')) and f.startswith(saved_streamlit_session_state_prefix):
                 symlink_path = os.path.join(saved_streamlit_session_states_dir, f)
-                os.symlink(os.path.join('..', 'output', f), symlink_path)
+                os.symlink(os.path.join(output_dir, f), symlink_path)
                 session_state_files_in_output_dir.append(f)
 
     # Get the list of pickle files in the saved session state directory (unsorted)

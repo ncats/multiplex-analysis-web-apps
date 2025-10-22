@@ -9,6 +9,9 @@ import os
 import utils
 import time
 
+ST_KEY_PREFIX_STARTUP = "startup.py__"
+ST_KEY_PREFIX_APP = "app.py__"
+
 # For each custom class, add a key-value pair where the class is the key and the value is a list of picklable attributes of that class. Only do this if the size of that attribute can be larger than 1 MB, which you can assess by using this app. See possible classes (at least as of 5/1/24) in the get_object_class function below, which is not used right now
 picklable_attributes_per_class = {
     'dataset_formats.Standardized': ['data', 'input_datafile'],
@@ -160,8 +163,9 @@ def load_session_state_from_disk(saved_streamlit_session_states_dir, saved_strea
     filepath_without_extension = os.path.join(saved_streamlit_session_states_dir, saved_streamlit_session_state_prefix + selected_session)
 
     # Delete every key in the current session state except for the selected session
+    keys_to_keep = [ST_KEY_PREFIX_STARTUP + "app_session_id", "previous_page_name", "current_page_name", ST_KEY_PREFIX_APP + "app_initialized", "platform"]  # From manage_sessions.py; should be synced.
     for key in st.session_state.keys():
-        if key != saved_streamlit_session_state_key:
+        if key not in [saved_streamlit_session_state_key] + keys_to_keep:
             del st.session_state[key]
 
     # Load the state (as a dictionary) from the binary files
