@@ -158,6 +158,31 @@ class DataframeEditor:
     def dataframe_editor(self, current_page_key='current_page_name', previous_page_key='previous_page_name', dynamic_rows=True, reset_data_editor_button=True, reset_data_editor_button_text='Reset data editor', on_change=None, hide_index=None, column_config=None, debug=False):
         '''
         Function to perform all data editor functionalities for a dataframe that users should be able to manipulate
+
+        Parameters
+        ----------
+        current_page_key : str
+            The key for the current page in the Streamlit session state.
+        previous_page_key : str
+            The key for the previous page in the Streamlit session state.
+        dynamic_rows : bool
+            Whether the number of rows in the data editor should be dynamic or fixed.
+        reset_data_editor_button : bool
+            Whether to show a button to reset the data editor.
+        reset_data_editor_button_text : str
+            The text to display on the reset button.
+        on_change : callable, optional
+            A callback function to run when the data editor changes.
+        hide_index : bool, optional
+            Whether to hide the index column in the data editor.
+        column_config : dict, optional
+            A dictionary to configure the columns in the data editor.
+        debug : bool, optional
+            Whether to enable debug mode.
+
+        Returns
+        -------
+        None
         '''
 
         # Shortcuts to object attributes
@@ -168,15 +193,20 @@ class DataframeEditor:
         previous_page_name = st.session_state[previous_page_key]
         key_for_data_editor_widget = st.session_state[df_name + '_key']
 
-        # If the user switches to this page, then 
-        # have the data editor input be the previously saved data editor "output". 
+        # If the user switches to this page, then
+        # have the data editor input be the previously saved data editor "output".
         # Note doing this provide a smooth and hiccup-free experience
         # e.g., no scrollbar snapping back to the topmost location
         if current_page_name != previous_page_name:
             self.update_editor_contents(new_df_contents=self.reconstruct_edited_dataframe(), reset_key=False)
 
         # Output a data editor for a dataframe of interest
-        st.data_editor(st.session_state[df_name], key=key_for_data_editor_widget, on_change=save_data_editor_changes, args=(df_name + '_changes_dict', key_for_data_editor_widget, on_change), num_rows=('dynamic' if dynamic_rows else 'fixed'), hide_index=hide_index, column_config=column_config)
+        st.data_editor(st.session_state[df_name],
+                       key=key_for_data_editor_widget,
+                       on_change=save_data_editor_changes,
+                       args=(df_name + '_changes_dict', key_for_data_editor_widget, on_change),
+                       num_rows=('dynamic' if dynamic_rows else 'fixed'),
+                       hide_index=hide_index, column_config=column_config)
 
         # Debugging information
         if debug:

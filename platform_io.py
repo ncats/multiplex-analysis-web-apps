@@ -4,10 +4,12 @@ Set of functions for managing the MAWA platform
 
 # Import relevant libraries
 import os
+import sys
 import time
 import shutil
 import pandas as pd
 import streamlit as st
+import nidap_io
 import streamlit_dataframe_editor as sde
 import utils
 from pages import memory_analyzer
@@ -16,10 +18,30 @@ from pages import memory_analyzer
 local_input_dir = os.path.join('.', 'input')
 local_output_dir = os.path.join('.', 'output')
 
-# Write a dataframe from a file listing with columns for selection, filename, # of files inside (for directories), and modification time, sorted descending by modification time
-# Note this is primarily for local listings, not remote listings
 def make_complex_dataframe_from_file_listing(dirpath, item_names, df_session_state_key_basename=None, editable=True):
-    import time
+    '''Write a dataframe from a file listing with columns for selection, filename, # of files inside
+    (for directories), and modification time, sorted descending by modification time
+
+    
+    Note this is primarily for local listings, not remote listings
+    
+    Parameters
+    ----------
+    dirpath : str
+        The directory path to list files from.
+    item_names : list
+        The names of the items (files or directories) to include in the dataframe.
+    df_session_state_key_basename : str, optional
+        The base name for the session state keys to use for the dataframe and data editor.
+    editable : bool, optional
+        Whether the dataframe should be editable in the Streamlit app.
+
+    Returns
+    -------
+    pd.DataFrame
+        A dataframe containing the file listing information.
+    '''
+
     num_contents = [len(os.listdir(os.path.join(dirpath, x))) if os.path.isdir(os.path.join(dirpath, x)) else None for x in item_names]
     modification_times = [os.path.getmtime(os.path.join(dirpath, x)) for x in item_names]
     selecteds = [False for _ in item_names]
@@ -39,8 +61,26 @@ def make_complex_dataframe_from_file_listing(dirpath, item_names, df_session_sta
         if df_session_state_key_basename is not None:
             st.warning('Session state key {} is not being assigned since editable=False was selected in call to make_complex_dataframe_from_file_listing()'.format(ss_df_key_name))
 
-# Write an editable dataframe (simple, having only a selection column and filenames with .zip removed) for the available files, also saving the filenames with the possible .zip extensions to a separate Series
 def make_simple_dataframe_from_file_listing(available_files, df_session_state_key_basename=None, streamlit_key_for_available_filenames_srs=None, editable=True):
+    '''
+    Create a simple, editable dataframe from the available files.
+
+    This dataframe will have a selection column and will strip any .zip extensions
+    from the filenames. This is shown in the Data Import and Export Page.
+
+    Args:
+        available_files (list): A list of available file names (with .zip extensions).
+        df_session_state_key_basename (str, optional): The base name for the session state
+                                                       keys to use for the dataframe and data
+                                                       editor.
+        streamlit_key_for_available_filenames_srs (str, optional): The Streamlit key to use for
+                                                                   the Series containing the full
+                                                                   filenames.
+        editable (bool, optional): Whether the dataframe should be editable in the Streamlit app.
+
+    Returns:
+        pd.DataFrame: A simple, editable dataframe containing the available files.
+    '''
 
     # Save (to Streamlit, analogous to how it's done for the data editor, below), the full filenames of the available files
     if streamlit_key_for_available_filenames_srs is not None:
@@ -61,15 +101,26 @@ def make_simple_dataframe_from_file_listing(available_files, df_session_state_ke
             if set(df['File or directory name']) != set(st.session_state[ss_de_key_name].reconstruct_edited_dataframe()['File or directory name']):
                 del st.session_state[ss_de_key_name]
         if ss_de_key_name not in st.session_state:
-            st.session_state[ss_de_key_name] = sde.DataframeEditor(df_name=ss_df_key_name, default_df_contents=df)
+            st.session_state[ss_de_key_name] = sde.DataframeEditor(df_name=ss_df_key_name,
+                                                                   default_df_contents=df)
         st.session_state[ss_de_key_name].dataframe_editor(reset_data_editor_button_text='Reset file selections')
     else:
         st.dataframe(df)
         if df_session_state_key_basename is not None:
             st.warning('Session state key {} is not being assigned since editable=False was selected in call to make_simple_dataframe_from_file_listing()'.format(ss_df_key_name))
 
-# Delete selected files/dirs from a directory
 def delete_selected_files_and_dirs(directory, selected_files):
+    '''
+    Deletes the selected files and or directories
+
+    Args:
+        directory (str): The directory containing the files and directories to delete.
+        selected_files (list): A list of file and directory names to delete.
+
+    Returns:
+        None
+    '''
+
     for curr_file in selected_files:
         curr_path = os.path.join(directory, curr_file)
         if os.path.isfile(curr_path):
@@ -83,7 +134,6 @@ def write_current_tool_parameters_to_disk(output_dir):
     import subprocess
     import yaml
     import streamlit_utils
-    import sys
     print('Writing the current tool parameters to disk...')
     settings_yaml_filename = 'settings_as_of_{}.yml'.format(utils.get_timestamp())
     pathname = os.path.join(output_dir, settings_yaml_filename)
@@ -109,7 +159,6 @@ def write_current_tool_parameters_to_disk(output_dir):
 # Write the current conda/pip environment to disk
 def write_current_environment_to_disk(output_dir):
     import subprocess
-    import os
     print('Writing the current conda/pip environment to disk...')
     environment_yaml_filename = 'environment_as_of_{}.yml'.format(utils.get_timestamp())
     pathname = os.path.join(output_dir, environment_yaml_filename)
@@ -177,15 +226,16 @@ def create_zipfile_with_ignores(zipfile_dirpath, basename_suffix_for_zipfile, pr
     # Return the full path of the created zipfile
     return zipfile_basename + '.zip'
 
-# Ensure a directory exists but is empty
 def ensure_empty_directory(dirpath):
-    import shutil
-    import os
+    '''
+    Ensure a directory exists but is empty
+    '''
+
     if os.path.exists(dirpath):
         shutil.rmtree(dirpath)  # if it exists, then delete it
-        print('Tree {} deleted'.format(dirpath))
+        print(f'Tree {dirpath} deleted')
     os.mkdir(dirpath)  # create an empty destination directory
-    print('New directory {} created'.format(dirpath))
+    print(f'New directory {dirpath} created')
 
 # Logic in case currently selected value is no long present in directory listing as might happen when it has just been deleted
 def account_for_stale_streamlit_values(session_state_key, possible_values):
@@ -200,26 +250,39 @@ def account_for_stale_streamlit_values(session_state_key, possible_values):
     else:
         st.session_state[session_state_key] = None
 
-# Create a class that takes the platform type (e.g., local, nidap) as input and creates corresponding methods, with consisting naming, for performing the same function on different platforms
 class Platform:
+    '''
+    Create a class that takes the platform type (e.g., local, nidap) as input and
+    creates corresponding methods, with consisting naming, for performing the same
+    function on different platforms
+    '''
 
-    # Object instantiation
     def __init__(self, platform='local'):
+        '''
+        Object initialization
+
+        Args:
+            platform (str): The platform type, e.g., 'local' or 'nidap'.
+        '''
         self.platform = platform
         self.available_inputs = None
         self.available_archives = None
 
-    # Get a list of the files available to import locally to serve as input files for a workflow
     def get_available_inputs_listing(self):
-        # Potentially slow
+        '''
+        Returns a list of the files available to import locally to serve as input files
+        for a workflow.
 
-        # When running locally, this is irrelevant as we can easily place all input files into the same ./input directory, as opposed to having to read them in from a remote
+        Potentially slow
+        '''
+
+        # When running locally, this is irrelevant
         if self.platform == 'local':
             available_inputs = []
 
         # On NIDAP, load the metadata for the "input" unstructured dataset
         elif self.platform == 'nidap':
-            import nidap_io
+
             dataset = nidap_io.get_foundry_dataset(alias='input')
             dataset_file_objects = nidap_io.get_file_objects_from_dataset(dataset)  # slow
             available_inputs = nidap_io.list_files_in_dataset(dataset_file_objects)
@@ -227,11 +290,13 @@ class Platform:
 
         # Save the values *that we'll need later* that result from the long calculation (1-2 sec) as properties of the object so they're stored rather than discarded
         self.available_inputs = sorted(available_inputs)
-    
-    # Write a dataframe of the available inputs on the remote
-    def display_available_inputs_df(self):
 
-        # Again, irrelevant for local
+    def display_available_inputs_df(self):
+        '''
+        Write a dataframe of the available inputs on the remote
+        '''
+
+        # When running locally, this is irrelevant
         if self.platform == 'local':
             pass
 
@@ -240,7 +305,7 @@ class Platform:
 
             st.subheader(':open_file_folder: Available input data on NIDAP')
 
-            # If we've never determined the inputs available on the remote (e.g., when the script first starts), do so now
+            # Identify the available inputs
             if self.available_inputs is None:
                 self.get_available_inputs_listing()
 
@@ -248,10 +313,15 @@ class Platform:
             available_inputs = self.available_inputs
 
             # Create a simple editable dataframe of the available input filenames
-            make_simple_dataframe_from_file_listing(available_files=available_inputs, df_session_state_key_basename='available_inputs', streamlit_key_for_available_filenames_srs='srs_available_input_filenames', editable=True)
-            
-    # Add a button to re-read the available input files on the remote
+            make_simple_dataframe_from_file_listing(available_files=available_inputs,
+                                                    df_session_state_key_basename='available_inputs',
+                                                    streamlit_key_for_available_filenames_srs='srs_available_input_filenames',
+                                                    editable=True)
+
     def add_refresh_available_inputs_button(self):
+        '''
+        Add a button to re-read the available input files on remote
+        '''
 
         # Irrelevant for local
         if self.platform == 'local':
@@ -262,7 +332,7 @@ class Platform:
             if st.button(':arrows_clockwise: Refresh available input data'):
                 self.get_available_inputs_listing()
                 st.rerun()  # rerun since this potentially changes outputs... rule of thumb for rerunning the page should probably be that if this method changes outputs, will those possibly changed outputs definitely get redrawn? If not, do a rerun! Consider where this method falls in the top-down rerun of the calling script, are the outputs before or after the method is called?
-    
+
     # Load any selected available inputs on the remote to the local machine
     def load_selected_inputs(self):
 
@@ -277,10 +347,6 @@ class Platform:
 
             # If a load button is clicked...
             if st.button('Load selected NIDAP input data :arrow_right:'):
-
-                # Import relevant libraries
-                import nidap_io
-                import sys
 
                 # # Get "shortcuts" to the object properties
                 # dataset_file_objects = self.dataset_file_objects_for_available_inputs
@@ -326,7 +392,7 @@ class Platform:
                             shutil.unpack_archive(local_download_path, local_input_dir)
                     else:
                         shutil.copy(local_download_path, local_input_dir)
-    
+
     # Save a MAWA-unified datafile to NIDAP
     def save_selected_input(self):
 
@@ -359,7 +425,6 @@ class Platform:
                     shutil.make_archive(os.path.join(local_input_dir, selected_mawa_unified_datafile), 'zip', local_input_dir, selected_mawa_unified_datafile)
 
                     # Transfer the zipped file to NIDAP
-                    import nidap_io
                     dataset = nidap_io.get_foundry_dataset(alias='input')
                     upload_single_file_to_dataset((dataset, local_input_dir, selected_mawa_unified_datafile + '.zip'))
                     # nidap_io.upload_file_to_dataset(dataset, selected_filepath=os.path.join(local_input_dir, selected_mawa_unified_datafile + '.zip'))
@@ -396,7 +461,7 @@ class Platform:
                 local_input_files_to_delete = df_local_inputs[df_local_inputs['Selected']]['File or directory name']
                 delete_selected_files_and_dirs(local_input_dir, local_input_files_to_delete)
                 st.rerun()
-    
+
     # List the results archives on the remote
     def get_archives_listing(self):
 
@@ -407,7 +472,6 @@ class Platform:
 
         # List the contents of the output unstructured dataset (there should only be output_archive-*.zip files)
         elif self.platform == 'nidap':
-            import nidap_io
             dataset = nidap_io.get_foundry_dataset(alias='output')
             dataset_file_objects = nidap_io.get_file_objects_from_dataset(dataset)  # slow
             available_archives = [x for x in nidap_io.list_files_in_dataset(dataset_file_objects) if (x.startswith('output_archive-') and ('.zip' in x))]
@@ -429,7 +493,7 @@ class Platform:
 
         # Save the results of the long calculations that we'll need later as object properties
         self.available_archives = sorted(available_archives_trimmed)
-    
+
     # Write a dataframe of the available archives
     def display_archives_df(self):
 
@@ -444,8 +508,9 @@ class Platform:
             st.subheader(':open_file_folder: Available results archives (i.e., saved results) on NIDAP')
             if self.available_archives is None:
                 self.get_archives_listing()
-            make_simple_dataframe_from_file_listing(available_files=self.available_archives, editable=False)
-    
+            make_simple_dataframe_from_file_listing(available_files=self.available_archives,
+                                                    editable=False)
+
     # Add a button for deleting available archives
     def add_delete_archives_button(self):
 
@@ -483,7 +548,7 @@ class Platform:
             if st.button(':arrows_clockwise: Refresh available results archives'):
                 self.get_archives_listing()
                 st.rerun()  # this may change outputs so refresh
-    
+
     # Load the selected results archives so calculations can be resumed or results can be visualized
     # def load_selected_archive(self, nworkers_for_data_transfer=8):
     def load_selected_archive(self):
@@ -524,18 +589,12 @@ class Platform:
             # If the user wants to load the selected archive...
             if st.button('Load selected (above) results archive :arrow_right:', help='WARNING: This will copy the contents of the selected archive to the results directory and will overwrite currently loaded results; please ensure they are backed up (you can just use the functions on this page)!'):
 
-                # Import relevant libraries
-                import nidap_io
-                # import utils
-                # import multiprocessing
-
                 # Delete all files currently present in the output results directory
                 delete_selected_files_and_dirs(local_output_dir, self.get_local_results_listing())
-                
+
                 # Obtain the full filename corresponding to the selected archive to load and run a check
                 list_of_len_1 = [x for x in self.available_archives if x.startswith(st.session_state['archive_to_load'])]
                 if len(list_of_len_1) != 1:
-                    import sys
                     print('ERROR: More than one available archive found ({}) for selected archive to load ({})'.format(list_of_len_1, st.session_state['archive_to_load']))
                     sys.exit()
                 selected_archive_with_proper_extension = list_of_len_1[0]
@@ -609,11 +668,11 @@ class Platform:
 
             # Rerun since this potentially changes outputs
             st.rerun()
-            
+
     # List all currently loaded results that aren't output archives, which is platform-independent
     def get_local_results_listing(self):
         return sorted([x for x in os.listdir(local_output_dir) if not x.startswith('output_archive-')])  # only locally will there exist files/dirs that start with output_archive- but it doesn't hurt to keep this here
-    
+
     # Write a dataframe of the results in the local output directory, also obviously platform-independent
     def display_local_results_df(self):
         st.subheader(':open_file_folder: Results in MAWA')
@@ -633,10 +692,10 @@ class Platform:
 
             # Delete them
             delete_selected_files_and_dirs(local_output_dir, selected_items_to_delete)
-    
+
             # Rerun since this potentially changes outputs
             st.rerun()
-        
+
     # Write a YAML file of the current tool parameters to the loaded results directory
     def write_settings_to_local_results(self):
         st.subheader(':tractor: Write current tool parameters to loaded results')
@@ -663,7 +722,7 @@ class Platform:
         if st.button(':pencil2: Create empty results archive directory'):
             _ = create_empty_output_archive(st.session_state['basename_suffix_for_new_local_archive_dir'], local_output_dir)
             st.rerun()  # rerun since this potentially changes outputs
-    
+
     # Delete local empty results output archive directories
     def add_delete_empty_archives_button(self):
 
@@ -671,7 +730,7 @@ class Platform:
 
         # If the user wants to delete all empty local results archives...
         if st.button(':x: Delete empty local results archive directories'):
-        
+
             # Store the local results dataframe
             df_local_results = st.session_state['loader__de_local_results'].reconstruct_edited_dataframe()
 
@@ -697,9 +756,6 @@ def multi_contains(full_str, substrs):
 def get_recursive_file_listing_of_directory(topdir, dirpath_prefixes_to_exclude=(), dirpath_suffixes_to_exclude=(), dirpath_substrs_to_exclude=(), filename_prefixes_to_exclude=(), filename_suffixes_to_exclude=(), filename_substrs_to_exclude=()):
     # Sample usage: platform_io.get_recursive_file_listing_of_directory(os.path.join('.', 'config'))
 
-    # Import relevant library
-    import os
-
     # Initialize a list holding the file listing
     file_listing = []
 
@@ -720,7 +776,7 @@ def get_recursive_file_listing_of_directory(topdir, dirpath_prefixes_to_exclude=
 
 # From a file string that's either a path or just the filename, get the directory name and pure filename
 def get_dirname_and_basename_from_file(file_str):
-    import os
+
     if os.path.sep in file_str:
         file_dirname = os.path.dirname(file_str)
         file_basename = os.path.basename(file_str)
@@ -732,9 +788,6 @@ def get_dirname_and_basename_from_file(file_str):
 # Append the number of files in a group of files to all members of the group
 def append_group_size_to_all_files_in_group(file_path):
     # zipfile_path can be e.g. (1) os.path.join('..', 'my_zipfile.zip') or (2) 'my_zipfile.zip'
-
-    # Import relevant library
-    import os
 
     # Get the directory and basename of the file
     file_dirname, file_basename = get_dirname_and_basename_from_file(file_path)
@@ -794,7 +847,6 @@ def create_zipfile_from_files_in_dir(zipfile_name, topdir, chunksize_in_mb=None,
     #   platform_io.create_zipfile_from_files_in_dir('../dude2.zip', 'output/output_archive-probably_good_recent_lci_results_from_original_dataset-20230921_020450', chunksize_in_mb=250)
 
     # Import relevant libraries
-    import os
     import split_file_reader.split_file_writer
 
     # Get the absolute path of the zip file
@@ -850,7 +902,6 @@ def extract_zipfile_to_directory(zipfile_name='', extraction_path='', filepaths=
 
     # Import relevant library
     import split_file_reader.split_file_reader
-    import os
 
     # Get the list of zip files matching zipfile_name
     if filepaths is None:
@@ -869,12 +920,10 @@ def extract_zipfile_to_directory(zipfile_name='', extraction_path='', filepaths=
     # Run some checks
     if standard_zip:
         if len(filepaths) != 1:
-            import sys
             print('ERROR: At least one of the detected files ends with ".zip" alone, but more than one file was detected! Detected files: {}'.format(filepaths))
             sys.exit()
     else:
         if sum([not x.endswith('.zip') for x in filepaths]) != len(filepaths):
-            import sys
             print('ERROR: Not all detected files don\'t end purely with ".zip"! Detected files: {}'.format(filepaths))
             sys.exit()
 
@@ -895,9 +944,10 @@ def extract_zipfile_to_directory(zipfile_name='', extraction_path='', filepaths=
     print('{} zip file(s) {}{} extracted to {}'.format(num_parts, zipfile_name, suffix, extraction_path))
 
 def upload_single_file_to_dataset(args_as_single_tuple):
-    import os
-    import time
-    import nidap_io
+    '''
+    Upload a single file to a NIDAP dataset
+    '''
+
     dataset, filedir, filename = args_as_single_tuple
     print('Uploading zip file chunk {}...'.format(filename))
     filesize = os.path.getsize(os.path.join(filedir, filename)) / 1024 ** 2
@@ -907,9 +957,9 @@ def upload_single_file_to_dataset(args_as_single_tuple):
     print('  Upload of {} ({:5.3f} MB) from Workspaces to Compass took {:3.1f} seconds --> {:3.1f} MB/s'.format(filename, filesize, duration, filesize / duration))
 
 def back_up_results_to_nidap(local_output_dir, basename_suffix_for_new_results_archive, chunksize_in_mb=200):
-
-    # Import relevant library
-    import nidap_io
+    '''
+    Back up results to NIDAP
+    '''
 
     # Create a temporary transfer directory to hold the generated zip files
     local_transfer_dir = os.path.join('.', 'transfer')
