@@ -184,6 +184,9 @@ def load_session_state_from_disk(saved_streamlit_session_states_dir, saved_strea
     for key, value in session_dict.items():
         st.session_state[key] = value
 
+    if "platform" in st.session_state:
+        st.session_state["platform"].platform = os.getenv("APP_PLATFORM")
+
     # Return an informational message
     return f'{utils.get_timestamp(pretty=True)}: State loaded from {pickle_filepath} ({os.path.getsize(pickle_filepath) / bytes_per_mb:.2f} MB) and {dill_filepath} ({os.path.getsize(dill_filepath) / bytes_per_mb:.2f} MB)'
 
