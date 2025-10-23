@@ -1,6 +1,7 @@
 # Note, it would probably have been better to *not* have used class inheritance and to instead have multiple "classes" (i.e., a dataset_format *parameter*, not a whole class) per method, since otherwise we do lots of scrolling to look at the method definitions of previous classes. I.e., do it like we did in platform_io.py.
 
 import utils
+import framework.utils as framework_utils
 
 def reorder_column_in_dataframe(df, column_name, new_position):
     # Note that in this function df is modified in place!
@@ -456,7 +457,7 @@ class Native:
         if write_new_datafile:
             # output_datafile = add_suffix_to_pathname(input_datafile, new_datafile_suffix)
             extension = os.path.basename(input_datafile).split('.')[1]
-            output_datafile = os.path.join('.', 'output', os.path.basename(input_datafile).split('.')[0] + new_datafile_suffix + '.' + extension)
+            output_datafile = os.path.join(framework_utils.session_dir(), 'output', os.path.basename(input_datafile).split('.')[0] + new_datafile_suffix + '.' + extension)
             self.write_reformatted_datafile(output_datafile)
 
     def extract_original_parameters(self):

@@ -6,6 +6,7 @@ from datetime import datetime
 import pytz
 import zipfile
 import nidap_io
+import framework.utils as framework_utils
 
 # Global variable
 st_key_prefix = 'results_transfer__'
@@ -30,7 +31,7 @@ def main():
     """
 
     # Output directory
-    output_dir = 'output'
+    output_dir = os.path.join(framework_utils.session_dir(), 'output')
 
     # Get the list of files in the directory
     dir_listing = os.listdir(output_dir)

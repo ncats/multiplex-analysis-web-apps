@@ -8,7 +8,7 @@ import os
 import time
 import numpy as np
 import pandas as pd
-import framework.utils as utils
+import framework.utils as framework_utils
 
 class benchmark_collector:
     '''
@@ -39,7 +39,7 @@ class benchmark_collector:
             self.on_nidap = self.fiol.onNIDAP
 
         sharepoint_path = "C:/Users/smithdaj/OneDrive - National Institutes of Health/Documents - NCATS-NCI-DMAP/MAWA/"
-        localdir = os.path.join(utils.session_dir(), 'output')
+        localdir = os.path.join(framework_utils.session_dir(), 'output')
         if os.path.exists(sharepoint_path):
             print('Sharepoint path found, using it for benchmarking csv file.')
             localdir = sharepoint_path

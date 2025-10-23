@@ -2,6 +2,7 @@
 import os
 import streamlit as st
 import utils as utils
+import framework.utils as framework_utils
 
 
 def main():
@@ -12,14 +13,14 @@ def main():
     def update_roi_name(roi_names):
         st.session_state['roi_name_to_visualize'] = roi_names[st.session_state['roi_index_to_visualize']]
 
-    if os.path.exists(os.path.join('.', 'output', 'images', 'single_roi_outlines_on_whole_slides')) and os.path.exists(os.path.join('.', 'output', 'images', 'roi_plots')) and os.path.exists(os.path.join('.', 'output', 'images', 'dens_pvals_per_roi')):
+    if os.path.exists(os.path.join(framework_utils.session_dir(), 'output', 'images', 'single_roi_outlines_on_whole_slides')) and os.path.exists(os.path.join(framework_utils.session_dir(), 'output', 'images', 'roi_plots')) and os.path.exists(os.path.join(framework_utils.session_dir(), 'output', 'images', 'dens_pvals_per_roi')):
 
         # Create an expander to hide some optional widgets
         with st.expander('Optional: Image path extraction', expanded=False):
 
             # Get the possible analysis radii by analyzing the subdirectories present in the results directory
             # analysis_dir_listing = os.listdir(os.path.join(os.getcwd(), '..', 'results', 'webpage'))
-            # analysis_dir_listing = os.listdir(os.path.join('.', 'output', 'images'))
+            # analysis_dir_listing = os.listdir(os.path.join(framework_utils.session_dir(), 'output', 'images'))
             # st.selectbox('Select analysis radius in microns:', [int(x.lstrip('slices_1x')) for x in analysis_dir_listing], key='analysis_radius_in_microns')
             # st.write('Used to be here: "Select analysis radius in microns:"')
 

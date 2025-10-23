@@ -17,3 +17,7 @@ The other two images (`postgres` and `minio`) should be pulled when the multi-co
 
 * E.g., `IMAGE_TAG=2025-10-20-03 docker compose up`.
 * In a web browser go to http://localhost:8501.
+
+## Simultaneous build/run
+
+* E.g., `IMAGE_TAG=2025-10-20-03 docker compose up --build`.

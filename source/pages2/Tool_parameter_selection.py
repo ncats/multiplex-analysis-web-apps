@@ -9,10 +9,11 @@ import platform_io
 import utils
 import dataset_formats
 import copy
+import framework.utils as framework_utils
 
 # Input/output directory initializations
-input_directory = os.path.join('.', 'input')
-output_directory = os.path.join('.', 'output')
+input_directory = os.path.join(framework_utils.session_dir(), 'input')
+output_directory = os.path.join(framework_utils.session_dir(), 'output')
 
 
 def set_dataset_specific_options():
@@ -300,7 +301,7 @@ def load_dataset_and_settings(checkpoints_exist, existing_dirs_to_delete, orig_s
 
     # Delete any existing checkpoints so that both the preprocessing and the rest of the workflow will run from scratch
     if checkpoints_exist:
-        platform_io.delete_selected_files_and_dirs('output', existing_dirs_to_delete)
+        platform_io.delete_selected_files_and_dirs(output_directory, existing_dirs_to_delete)
 
     # Save to memory all settings that are actually being used to run the SIT
     st.session_state['sit__used_settings'] = orig_settings.copy()

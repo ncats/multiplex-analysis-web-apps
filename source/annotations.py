@@ -1,3 +1,5 @@
+import framework.utils as framework_utils
+
 save_image_ext = 'jpg'
 
 def full_df_to_just_coords_in_microns(df_full, coord_units_in_microns):
@@ -896,7 +898,7 @@ def average_pvals_over_annotation_new(df_data_by_roi, df_density_pvals_arrays, e
                                     warning_str = 'WARNING: There is no valid density P value data for ROI {}. There may be other ROIs with no valid density P value data, but this ROI failed this particular check.'.format(roi_index)
                                     print(warning_str)
                                     import os
-                                    logs_dir = os.path.join('.', 'output', 'logs')
+                                    logs_dir = os.path.join(os.path.join(framework_utils.session_dir(), 'output'), 'logs')
                                     if not os.path.exists(logs_dir):
                                         os.mkdir(logs_dir)
                                     with open(os.path.join(logs_dir, 'squidpy.log'), 'w') as f:
@@ -966,7 +968,7 @@ def average_over_rois_per_annotation_region_for_all_slides_and_annotations(df_da
     df_analysis_depatched, _ = tci.undo_patching_overlaps_and_decompounding(recreate_data_property(df_data_by_roi))
 
     # Load and plot the annotation data for all slides
-    df_annotations = load_annotation_data(os.path.join('.', 'input', 'annotations'), annotations_csv_files, phenotyping_method, phenotype_identification_file)
+    df_annotations = load_annotation_data(os.path.join(framework_utils.session_dir(), 'input', 'annotations'), annotations_csv_files, phenotyping_method, phenotype_identification_file)
     print('Plotting overall annotation data plot')
     fig_all_annotation_data = plot_annotation_data(df_annotations, generate_single_figure=True, coord_units_in_microns=annotation_coord_units_in_microns, alpha=alpha, buffer_frac=axis_buffer_frac, figsize=figsize)
     if save_figures:

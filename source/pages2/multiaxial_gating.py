@@ -11,6 +11,7 @@ import streamlit_dataframe_editor as sde
 import random
 import string
 import image_filter
+import framework.utils as framework_utils
 
 
 def generate_random_string(length=10):
@@ -422,7 +423,7 @@ def add_new_phenotypes_to_main_df(df, image_for_filtering):
         else:
             datafile_name = 'from_memory'
         gating_filename = 'gating_table_for_{}_for_datafile_{}-{}.csv'.format(filtering_section_name, datafile_name, utils.get_timestamp())
-        df_phenotype_assignments.to_csv(path_or_buf=os.path.join(os.path.join('.', 'output'), gating_filename), index=True)
+        df_phenotype_assignments.to_csv(path_or_buf=os.path.join(os.path.join(framework_utils.session_dir(), 'output'), gating_filename), index=True)
         st.info('File {} written to disk'.format(gating_filename))
 
 

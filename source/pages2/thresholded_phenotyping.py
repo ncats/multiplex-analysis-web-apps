@@ -8,6 +8,7 @@ from streamlit_extras.add_vertical_space import add_vertical_space
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
 import basic_phenotyper_lib as bpl  # Useful functions for phenotyping collections of cells
 import streamlit_dataframe_editor as sde
+import framework.utils as framework_utils
 
 def data_editor_change_callback():
     '''
@@ -118,7 +119,7 @@ def main():
         st.error('An input dataset has not yet been opened. Please do so using the "Open File" page in the sidebar.')
         return
 
-    output_directory = os.path.join('.', 'output')
+    output_directory = os.path.join(framework_utils.session_dir(), 'output')
     phenoFileOptions = [x for x in os.listdir(output_directory) if (x.startswith('phenotype_summary')) and (x.endswith(('.csv', '.tsv')))]
 
     data_load_cols = st.columns([2,2,2])
@@ -139,7 +140,7 @@ def main():
     with data_load_cols[1]:
         st.selectbox(label = 'Choose a previous phenotyping file', options = phenoFileOptions, key = 'phenoFileSelect', help='Loaded .csv files populate here when the file name begins with "phenotype_summary"')
         if (st.button('Load Phenotyping File')) and (st.session_state.phenoFileSelect is not None):
-            phenotype_file = os.path.join('output', st.session_state.phenoFileSelect)
+            phenotype_file = os.path.join(framework_utils.session_dir(), 'output', st.session_state.phenoFileSelect)
             st.session_state.spec_summ_load = bpl.load_previous_species_summary(phenotype_file)
             st.session_state.phenoMeth = 'Custom'
             st.session_state.selected_phenoMeth = 'Custom'

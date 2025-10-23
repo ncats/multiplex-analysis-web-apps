@@ -10,6 +10,7 @@ import multiprocessing
 import numpy as np
 import pandas as pd
 import utils
+import framework.utils as framework_utils
 
 class dummySessionState:
     '''
@@ -215,7 +216,7 @@ def main():
     # Constants
     num_cpus_to_use = int(multiprocessing.cpu_count() / 2)
     datafile = 'Combo_CSVfiles_20230327_152849.csv'
-    input_file = os.path.join('.', 'input', datafile)
+    input_file = os.path.join(framework_utils.session_dir(), 'input', datafile)
 
     # Read in the datafile
     df = pd.read_csv(input_file)

@@ -7,7 +7,7 @@ import getpass
 import polars as pl
 import requests
 import atexit
-import framework.utils as utils
+import framework.utils as framework_utils
 import framework.analysis_framework as analysis_framework
 import framework.snowflake_connections as snowflake_connections
 import framework.snowflake_orchestrator as snowflake_orchestrator
@@ -30,7 +30,7 @@ APP_NAME = os.getenv('APP_NAME')
 
 @st.cache_resource()
 def get_connection_pool(db_url):
-    if utils.platform() == "local":
+    if framework_utils.platform() == "local":
         # Note we could use atexit to gracefully close the db connection pool. Note that nothing is needed for minio as shutdown is already clean.
         try:
             pool = psycopg2.pool.ThreadedConnectionPool(
@@ -43,13 +43,13 @@ def get_connection_pool(db_url):
         except Exception as e:
             st.error(f"Failed to create database pool: {e}")
             return None
-    elif utils.platform() == "snowflake":
+    elif framework_utils.platform() == "snowflake":
         pass  # Like everything left as "pass", this is not needed on Snowflake.
 
 
 # Note we could set this and the following up using @contextmanager as in 8/28/25 chat with GH Copilot, but keeping out for now for simplicity.
 def get_database_connection(db_url):
-    if utils.platform() == "local":
+    if framework_utils.platform() == "local":
         try:
             db_pool = get_connection_pool(db_url)
             if db_pool:
@@ -57,12 +57,12 @@ def get_database_connection(db_url):
         except Exception as e:
             st.error(f"Failed to get database connection: {e}")
             return None
-    elif utils.platform() == "snowflake":
+    elif framework_utils.platform() == "snowflake":
         pass
 
 
 def return_database_connection(conn, db_url):
-    if utils.platform() == "local":
+    if framework_utils.platform() == "local":
         try:
             db_pool = get_connection_pool(db_url)
             if db_pool and conn:
@@ -71,7 +71,7 @@ def return_database_connection(conn, db_url):
         except Exception as e:
             st.error(f"Failed to return database connection: {e}")
             return False
-    elif utils.platform() == "snowflake":
+    elif framework_utils.platform() == "snowflake":
         pass
 
 # Helper to avoid repeating rollback logic in postgresql.
@@ -87,7 +87,7 @@ def _rollback_and_return(conn, db_url):
 # Create four tables for the app. Note it should be largely consistent with what's in 01_set_up_non_user_objects.sql for now, and later on we should probably have this function, if even still necessary, just run setup.sql so we don't have to maintain this logic in two places.
 @st.cache_data()
 def set_up_postgresql():
-    if utils.platform() == "local":
+    if framework_utils.platform() == "local":
         try:
             conn_common = get_database_connection(DB_URL_COMMON)
             with conn_common.cursor() as cur:
@@ -190,12 +190,12 @@ def set_up_postgresql():
             _rollback_and_return(conn_common, DB_URL_COMMON)
             _rollback_and_return(conn_group, DB_URL_GROUP)
             return False
-    elif utils.platform() == "snowflake":
+    elif framework_utils.platform() == "snowflake":
         pass
 
 
 def write_archive_database_data(row_tuple):
-    if utils.platform() == "local":
+    if framework_utils.platform() == "local":
         try:
             conn = get_database_connection(DB_URL_GROUP)
             with conn.cursor() as cur:
@@ -210,7 +210,7 @@ def write_archive_database_data(row_tuple):
             st.error(f"Failed to write archive database data: {e}")
             _rollback_and_return(conn, DB_URL_GROUP)
             return False
-    elif utils.platform() == "snowflake":
+    elif framework_utils.platform() == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
             session.sql(f"""
@@ -224,7 +224,7 @@ def write_archive_database_data(row_tuple):
 
 
 def log_app_session(row_tuple):
-    if utils.platform() == "local":
+    if framework_utils.platform() == "local":
         try:
             conn = get_database_connection(DB_URL_GROUP)
             with conn.cursor() as cur:
@@ -239,7 +239,7 @@ def log_app_session(row_tuple):
             st.error(f"Failed to log app session: {e}")
             _rollback_and_return(conn, DB_URL_GROUP)
             return False
-    elif utils.platform() == "snowflake":
+    elif framework_utils.platform() == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
             session.sql(f"""
@@ -253,7 +253,7 @@ def log_app_session(row_tuple):
 
 
 def set_app_session_shutdown_time(app_session_id):
-    if utils.platform() == "local":
+    if framework_utils.platform() == "local":
         try:
             conn = get_database_connection(DB_URL_GROUP)
             with conn.cursor() as cur:
@@ -261,7 +261,7 @@ def set_app_session_shutdown_time(app_session_id):
                     UPDATE {APP_NAME}_schema.app_sessions_table
                     SET explicit_shutdown_time = %s
                     WHERE app_session_id = %s
-                """, (utils.get_timestamp(), app_session_id))
+                """, (framework_utils.get_timestamp(), app_session_id))
             conn.commit()
             return_database_connection(conn, DB_URL_GROUP)
             return True
@@ -269,7 +269,7 @@ def set_app_session_shutdown_time(app_session_id):
             st.error(f"Failed to set app session shutdown time: {e}")
             _rollback_and_return(conn, DB_URL_GROUP)
             return False
-    elif utils.platform() == "snowflake":
+    elif framework_utils.platform() == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
             session.sql(f"""
@@ -285,7 +285,7 @@ def set_app_session_shutdown_time(app_session_id):
 
 @st.cache_data()
 def get_user_group(username):
-    if utils.platform() == "local":
+    if framework_utils.platform() == "local":
         try:
             conn = get_database_connection(DB_URL_COMMON)
             with conn.cursor() as cur:
@@ -302,7 +302,7 @@ def get_user_group(username):
             if conn:
                 return_database_connection(conn, DB_URL_COMMON)
             return None
-    elif utils.platform() == "snowflake":
+    elif framework_utils.platform() == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
             result = session.sql(f"""
@@ -318,7 +318,7 @@ def get_user_group(username):
 
 @st.cache_data()
 def get_user_groups_table_data():
-    if utils.platform() == "local":
+    if framework_utils.platform() == "local":
         try:
             conn = get_database_connection(DB_URL_COMMON)
             with conn.cursor() as cur:
@@ -335,7 +335,7 @@ def get_user_groups_table_data():
             if conn:
                 return_database_connection(conn, DB_URL_COMMON)
             return None
-    elif utils.platform() == "snowflake":
+    elif framework_utils.platform() == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
             rows = session.sql(f"""
@@ -351,7 +351,7 @@ def get_user_groups_table_data():
 
 @st.cache_data()
 def get_app_sessions_table_data():
-    if utils.platform() == "local":
+    if framework_utils.platform() == "local":
         try:
             conn = get_database_connection(DB_URL_GROUP)
             with conn.cursor() as cur:
@@ -369,7 +369,7 @@ def get_app_sessions_table_data():
             if conn:
                 return_database_connection(conn, DB_URL_GROUP)
             return None
-    elif utils.platform() == "snowflake":
+    elif framework_utils.platform() == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
             rows = session.sql(f"""
@@ -386,7 +386,7 @@ def get_app_sessions_table_data():
 
 @st.cache_data()
 def get_archives_table_data():
-    if utils.platform() == "local":
+    if framework_utils.platform() == "local":
         try:
             conn = get_database_connection(DB_URL_GROUP)
             with conn.cursor() as cur:
@@ -404,7 +404,7 @@ def get_archives_table_data():
             if conn:
                 return_database_connection(conn, DB_URL_GROUP)
             return None
-    elif utils.platform() == "snowflake":
+    elif framework_utils.platform() == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
             rows = session.sql(f"""
@@ -421,7 +421,7 @@ def get_archives_table_data():
 
 @st.cache_data()
 def get_jobs_table_data():
-    if utils.platform() == "local":
+    if framework_utils.platform() == "local":
         try:
             conn = get_database_connection(DB_URL_GROUP)
             with conn.cursor() as cur:
@@ -440,7 +440,7 @@ def get_jobs_table_data():
             if conn:
                 return_database_connection(conn, DB_URL_GROUP)
             return None
-    elif utils.platform() == "snowflake":
+    elif framework_utils.platform() == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
             columns = "job_id, job_name, job_status, submitter, submitter_group, app_session_id, worker_image_id, submission_time, start_time, completion_time, failure_time"
@@ -458,7 +458,7 @@ def get_jobs_table_data():
 
 @st.cache_data()
 def get_available_archives():
-    if utils.platform() == "local":
+    if framework_utils.platform() == "local":
         try:
             conn = get_database_connection(DB_URL_GROUP)
             with conn.cursor() as cur:
@@ -476,7 +476,7 @@ def get_available_archives():
             if conn:
                 return_database_connection(conn, DB_URL_GROUP)
             return None
-    elif utils.platform() == "snowflake":
+    elif framework_utils.platform() == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
             rows = session.sql(f"""
@@ -492,7 +492,7 @@ def get_available_archives():
 
 
 def log_job(row_tuple):
-    if utils.platform() == "local":
+    if framework_utils.platform() == "local":
         try:
             conn = get_database_connection(DB_URL_GROUP)
             with conn.cursor() as cur:
@@ -507,7 +507,7 @@ def log_job(row_tuple):
             st.error(f"Failed to log job: {e}. It's possible that job with ID {row_tuple[0]} already exists (unique constraint violated), which would indicate a job ID generation bug.")
             _rollback_and_return(conn, DB_URL_GROUP)
             return False
-    elif utils.platform() == "snowflake":
+    elif framework_utils.platform() == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
             session.sql(f"""
@@ -521,7 +521,7 @@ def log_job(row_tuple):
 
 
 def update_job_status(job_id, new_status, time_column):
-    if utils.platform() == "local":
+    if framework_utils.platform() == "local":
         try:
             conn = get_database_connection(DB_URL_GROUP)
             with conn.cursor() as cur:
@@ -529,7 +529,7 @@ def update_job_status(job_id, new_status, time_column):
                     UPDATE {APP_NAME}_schema.jobs_table
                     SET job_status = %s, {time_column} = %s
                     WHERE job_id = %s
-                """, (new_status, utils.get_timestamp(), job_id))
+                """, (new_status, framework_utils.get_timestamp(), job_id))
             conn.commit()
             return_database_connection(conn, DB_URL_GROUP)
             return True
@@ -537,7 +537,7 @@ def update_job_status(job_id, new_status, time_column):
             st.error(f"Failed to update status of job {job_id} to {new_status} and update {time_column}: {e}")
             _rollback_and_return(conn, DB_URL_GROUP)
             return False
-    elif utils.platform() == "snowflake":
+    elif framework_utils.platform() == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
             session.sql(f"""
@@ -552,7 +552,7 @@ def update_job_status(job_id, new_status, time_column):
 
 
 def get_job_status(job_id):
-    if utils.platform() == "local":
+    if framework_utils.platform() == "local":
         try:
             conn = get_database_connection(DB_URL_GROUP)
             with conn.cursor() as cur:
@@ -569,7 +569,7 @@ def get_job_status(job_id):
             if conn:
                 return_database_connection(conn, DB_URL_GROUP)
             return None
-    elif utils.platform() == "snowflake":
+    elif framework_utils.platform() == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
             result = session.sql(f"""
@@ -585,7 +585,7 @@ def get_job_status(job_id):
 
 @st.cache_data()
 def get_job_function_name(job_id):
-    if utils.platform() == "local":
+    if framework_utils.platform() == "local":
         try:
             conn = get_database_connection(DB_URL_GROUP)
             with conn.cursor() as cur:
@@ -602,7 +602,7 @@ def get_job_function_name(job_id):
             if conn:
                 return_database_connection(conn, DB_URL_GROUP)
             return None
-    elif utils.platform() == "snowflake":
+    elif framework_utils.platform() == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
             result = session.sql(f"""
@@ -617,7 +617,7 @@ def get_job_function_name(job_id):
 
 
 def set_worker_image_id(job_id, worker_image_id):
-    if utils.platform() == "local":
+    if framework_utils.platform() == "local":
         try:
             conn = get_database_connection(DB_URL_GROUP)
             with conn.cursor() as cur:
@@ -633,7 +633,7 @@ def set_worker_image_id(job_id, worker_image_id):
             st.error(f"Failed to set worker image ID for job {job_id} to {worker_image_id}: {e}")
             _rollback_and_return(conn, DB_URL_GROUP)
             return False
-    elif utils.platform() == "snowflake":
+    elif framework_utils.platform() == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
             session.sql(f"""
@@ -648,7 +648,7 @@ def set_worker_image_id(job_id, worker_image_id):
 
 
 def record_explicit_shutdown_time(app_session_id):
-    if utils.platform() == "local":
+    if framework_utils.platform() == "local":
         try:
             conn = get_database_connection(DB_URL_GROUP)
             with conn.cursor() as cur:
@@ -656,7 +656,7 @@ def record_explicit_shutdown_time(app_session_id):
                     UPDATE {APP_NAME}_schema.app_sessions_table
                     SET explicit_shutdown_time = %s
                     WHERE app_session_id = %s
-                """, (utils.get_timestamp(), app_session_id))
+                """, (framework_utils.get_timestamp(), app_session_id))
             conn.commit()
             return_database_connection(conn, DB_URL_GROUP)
             return True
@@ -664,7 +664,7 @@ def record_explicit_shutdown_time(app_session_id):
             st.error(f"Failed to record explicit shutdown time for app session {app_session_id}: {e}")
             _rollback_and_return(conn, DB_URL_GROUP)
             return False
-    elif utils.platform() == "snowflake":
+    elif framework_utils.platform() == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
             session.sql(f"""
@@ -693,7 +693,7 @@ DATA_OBJECTS_BUCKET_NAME = os.getenv('DATA_OBJECTS_BUCKET_NAME')
 
 @st.cache_resource()
 def get_object_storage_client():
-    if utils.platform() == "local":
+    if framework_utils.platform() == "local":
         try:
             return minio.Minio(
                 MINIO_ENDPOINT,
@@ -704,13 +704,13 @@ def get_object_storage_client():
         except Exception as e:
             st.error(f"Failed to create MinIO client: {e}")
             return None
-    elif utils.platform() == "snowflake":
+    elif framework_utils.platform() == "snowflake":
         pass
 
 
 @st.cache_data()
 def set_up_minio():
-    if utils.platform() == "local":
+    if framework_utils.platform() == "local":
         try:
             client = get_object_storage_client()
             if not client.bucket_exists(ARCHIVES_BUCKET_NAME):
@@ -727,12 +727,12 @@ def set_up_minio():
         except Exception as e:
             st.error(f"Failed to set up object storage: {e}")
             return False
-    elif utils.platform() == "snowflake":
+    elif framework_utils.platform() == "snowflake":
         pass
 
 
 def upload_zip_object_data(bucket_name, zip_name, zip_buffer, db_schema: str = None):
-    if utils.platform() == "local":
+    if framework_utils.platform() == "local":
         try:
             client = get_object_storage_client()
 
@@ -752,7 +752,7 @@ def upload_zip_object_data(bucket_name, zip_name, zip_buffer, db_schema: str = N
         except Exception as e:
             st.error(f"Failed to write {zip_name}.zip to bucket {bucket_name}: {e}")
             return False
-    elif utils.platform() == "snowflake":
+    elif framework_utils.platform() == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
             zip_buffer.seek(0)
@@ -771,7 +771,7 @@ def upload_zip_object_data(bucket_name, zip_name, zip_buffer, db_schema: str = N
 
 # This could potentially be a lot of data, so we don't want to cache it using st.cache_data().
 def download_zip_object_data(bucket_name, zip_name, db_schema: str = None):
-    if utils.platform() == "local":
+    if framework_utils.platform() == "local":
         response = None
         try:
             client = get_object_storage_client()
@@ -786,7 +786,7 @@ def download_zip_object_data(bucket_name, zip_name, db_schema: str = None):
             if response:
                 response.close()
             return None
-    elif utils.platform() == "snowflake":
+    elif framework_utils.platform() == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
             if db_schema is None:
@@ -801,7 +801,7 @@ def download_zip_object_data(bucket_name, zip_name, db_schema: str = None):
         
 
 def list_objects_in_bucket(bucket_name: str, db_schema: str = None):
-    if utils.platform() == "local":
+    if framework_utils.platform() == "local":
         try:
             client = get_object_storage_client()
             objects = client.list_objects(bucket_name)
@@ -810,7 +810,7 @@ def list_objects_in_bucket(bucket_name: str, db_schema: str = None):
         except Exception as e:
             st.error(f"Failed to list objects in {bucket_name} bucket: {e}")
             return None
-    elif utils.platform() == "snowflake":
+    elif framework_utils.platform() == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
             if db_schema is None:
@@ -842,7 +842,7 @@ def download_objects_parallel(
     dest_dir: local directory root to place downloaded files (object key subpaths preserved).
     Returns dict {object_name: {'status': 'ok', 'path': local_path} or {'status': 'error', 'error': Exception}}.
     """
-    if utils.platform() == "local":
+    if framework_utils.platform() == "local":
         try:
             client = get_object_storage_client()
 
@@ -910,7 +910,7 @@ def download_objects_parallel(
         except Exception as e:
             st.error(f"Failed to download objects from MinIO bucket: {e}")
             return None
-    elif utils.platform() == "snowflake":
+    elif framework_utils.platform() == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
             os.makedirs(dest_dir, exist_ok=True)
@@ -1017,7 +1017,7 @@ def upload_objects_parallel(
             return rel.replace("\\", "/")
         return os.path.basename(path)
 
-    if utils.platform() == "local":
+    if framework_utils.platform() == "local":
         try:
             client = get_object_storage_client()
 
@@ -1088,7 +1088,7 @@ def upload_objects_parallel(
             st.error(f"Failed to upload objects to MinIO: {e}")
             return None
 
-    elif utils.platform() == "snowflake":
+    elif framework_utils.platform() == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
 
@@ -1167,7 +1167,7 @@ def upload_objects_parallel(
 
 @st.cache_data()
 def get_frontend_image_id():
-    if utils.platform() == "local":
+    if framework_utils.platform() == "local":
         try:
             resp = requests.get("http://docker_orchestrator:8080/frontend_id", timeout=3)
             resp.raise_for_status()
@@ -1176,7 +1176,7 @@ def get_frontend_image_id():
         except Exception as e:
             st.error(f"Could not retrieve frontend image id: {e}")
             return None
-    elif utils.platform() == "snowflake":
+    elif framework_utils.platform() == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
             return snowflake_orchestrator.frontend_id(username=get_current_username(), session=session)
@@ -1186,7 +1186,7 @@ def get_frontend_image_id():
 
 
 def submit_job(job_id, blocking=True):
-    if utils.platform() == "local":
+    if framework_utils.platform() == "local":
         try:
             update_job_status(job_id, "Submitted", "submission_time")
             if blocking:
@@ -1204,7 +1204,7 @@ def submit_job(job_id, blocking=True):
         except Exception as e:
             st.error(f"Failed to submit job: {e}")
             return False
-    elif utils.platform() == "snowflake":
+    elif framework_utils.platform() == "snowflake":
         try:
             update_job_status(job_id, "Submitted", "submission_time")
             if blocking:
@@ -1221,7 +1221,7 @@ def submit_job(job_id, blocking=True):
 
 
 def shut_down_app():
-    if utils.platform() == "local":
+    if framework_utils.platform() == "local":
         try:
             resp = requests.post("http://docker_orchestrator:8080/shutdown", timeout=10)
             resp.raise_for_status()
@@ -1230,7 +1230,7 @@ def shut_down_app():
         except Exception as e:
             st.error(f"Failed to shut down app: {e}")
             return False
-    elif utils.platform() == "snowflake":
+    elif framework_utils.platform() == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
             snowflake_orchestrator.shutdown(username=get_current_username(), session=session)
@@ -1246,7 +1246,7 @@ def shut_down_app():
 
 @st.cache_data()
 def get_current_username():
-    if utils.platform() == "local":
+    if framework_utils.platform() == "local":
         try:
             try:
                 return os.getlogin()
@@ -1259,7 +1259,7 @@ def get_current_username():
         except Exception as e:
             st.error(f"Failed to get current username: {e}")
             return None
-    elif utils.platform() == "snowflake":
+    elif framework_utils.platform() == "snowflake":
         try:
             return os.getenv("SNOWFLAKE_USER")
         except Exception as e:

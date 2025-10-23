@@ -4,7 +4,7 @@
 # Also when the user loads a session state, as in manage_sessions.load_session_state().
 
 import streamlit as st
-import framework.utils as utils
+import framework.utils as framework_utils
 import framework.platform_abstraction as pa
 import os
 import platform_io
@@ -26,11 +26,11 @@ def initialize():
     pa.set_up_minio()
 
     # Generate a unique session ID.
-    app_session_id = utils.get_unique_id()
+    app_session_id = framework_utils.get_unique_id()
     st.session_state[ST_KEY_PREFIX + "app_session_id"] = app_session_id
 
     # Create the session directory.
-    session_dir = utils.session_dir()  # This creates the session directory if it doesn't already exist.
+    session_dir = framework_utils.session_dir()  # This creates the session directory if it doesn't already exist.
 
     # Get the current username.
     current_username = pa.get_current_username()

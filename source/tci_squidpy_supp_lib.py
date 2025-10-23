@@ -1,3 +1,5 @@
+import framework.utils as framework_utils
+
 save_image_ext = 'jpg'
 
 def get_anndata_object(coordinates=None, labels=None, seed=None, label_name='label'):
@@ -225,7 +227,7 @@ def calculate_squidpy_pvals(coordinates=None, labels=None, seed=None, label_name
         
     else:
         import os
-        logs_dir = os.path.join('.', 'output', 'logs')
+        logs_dir = os.path.join(framework_utils.session_dir(), 'output', 'logs')
         if not os.path.exists(logs_dir):
             os.mkdir(logs_dir)
         with open(os.path.join(logs_dir, 'squidpy.log'), 'w') as f:

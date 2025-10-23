@@ -1,5 +1,4 @@
 import importlib
-import sys
 from typing import Dict, Any
 
 def import_and_show_versions(package_names: list) -> Dict[str, Any]:

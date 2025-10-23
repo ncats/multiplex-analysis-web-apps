@@ -3,12 +3,13 @@ import streamlit as st
 import annotations
 import os
 import streamlit_utils
+import framework.utils as framework_utils
 
 save_image_ext = 'jpg'
 
 def main():
 
-    if os.path.exists(os.path.join('.', 'output', 'images', 'raw_weights_check')) and os.path.exists(os.path.join('.', 'output', 'images', f'all_annotation_data.{save_image_ext}')) and os.path.exists(os.path.join('.', 'output', 'images', 'weight_heatmaps_on_annot')) and os.path.exists(os.path.join('.', 'output', 'images', 'pixel_plot')) and os.path.exists(os.path.join('.', 'output', 'images', 'analysis_overlaid_on_annotation')) and os.path.exists(os.path.join('.', 'output', 'images', 'dens_pvals_per_annotation')):
+    if os.path.exists(os.path.join(framework_utils.session_dir(), 'output', 'images', 'raw_weights_check')) and os.path.exists(os.path.join(framework_utils.session_dir(), 'output', 'images', f'all_annotation_data.{save_image_ext}')) and os.path.exists(os.path.join(framework_utils.session_dir(), 'output', 'images', 'weight_heatmaps_on_annot')) and os.path.exists(os.path.join(framework_utils.session_dir(), 'output', 'images', 'pixel_plot')) and os.path.exists(os.path.join(framework_utils.session_dir(), 'output', 'images', 'analysis_overlaid_on_annotation')) and os.path.exists(os.path.join(framework_utils.session_dir(), 'output', 'images', 'dens_pvals_per_annotation')):
 
         # Constant: annotation-dependent plot types (there are two more that are annotation-independent; see the "Optional plots" section)
         annotation_dependent_plot_types = ['Average density P value heatmaps', 'Per-pixel "images" of annotation data', 'Annotation weights heatmaps overlaid on annotation data', 'Analysis data overlaid on annotation data']
@@ -21,7 +22,7 @@ def main():
 
         # Determine the paths to all annotation-related images
         # df_paths = annotations.get_annotation_plots_paths(top_plot_dir='../results/webpage/slices_1x{}/real'.format(st.session_state['thickness']))
-        df_paths = annotations.get_annotation_plots_paths(top_plot_dir=os.path.join('.', 'output', 'images'))
+        df_paths = annotations.get_annotation_plots_paths(top_plot_dir=os.path.join(framework_utils.session_dir(), 'output', 'images'))
 
         # Get arrays of the unique parameters on which the annotation plots depend
         image_ids = [x for x in df_paths['image_id'].unique() if x is not None]

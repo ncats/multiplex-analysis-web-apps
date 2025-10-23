@@ -2,6 +2,7 @@
 import streamlit as st
 import utils as utils
 import os
+import framework.utils as framework_utils
 
 save_image_ext = 'jpg'
 
@@ -21,7 +22,7 @@ def main():
     def update_neighbor_species_name(neighbor_species_names):
         st.session_state['neighbor_species_name_to_visualize'] = neighbor_species_names[st.session_state['neighbor_species_index_to_visualize']]
 
-    if os.path.exists(os.path.join('.', 'output', 'images', 'density_pvals_over_slide_spatial_plot')):
+    if os.path.exists(os.path.join(framework_utils.session_dir(), 'output', 'images', 'density_pvals_over_slide_spatial_plot')):
 
         # Create an expander to hide some optional widgets
         with st.expander('Optional: Overlay information extraction', expanded=False):

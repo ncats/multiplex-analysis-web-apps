@@ -1,6 +1,7 @@
 import utils
 import new_phenotyping_lib
 import pandas as pd
+import framework.utils as framework_utils
 
 save_image_ext = 'jpg'
 # save_image_ext = 'png'
@@ -23,10 +24,10 @@ class TIMECellInteraction:
         # Set local variables
         thickness = thickness_new / coord_units_in_microns  # we want "thickness" to be in the same units as the coordinates in the input file. Essentially, we're just making sure the units match from the get-go
         dataset_name = 'slices_{}x{}'.format(nslices, thickness_new)
-        pickle_dir = os.path.join('.', 'output', 'checkpoints')
+        pickle_dir = os.path.join(framework_utils.session_dir(), 'output', 'checkpoints')
         if not os.path.exists(pickle_dir):
             os.makedirs(pickle_dir)
-        webpage_dir = os.path.join('.', 'output', 'images')
+        webpage_dir = os.path.join(framework_utils.session_dir(), 'output', 'images')
         if not os.path.exists(webpage_dir):
             os.makedirs(webpage_dir)
 
@@ -245,7 +246,7 @@ class TIMECellInteraction:
             make_pickle(data_by_slide, pickle_dir, pickle_file)
 
             # Concatenate all metrics calculation log files (one per ROI) into a single log file
-            logs_dir = os.path.join('.', 'output', 'logs')
+            logs_dir = os.path.join(framework_utils.session_dir(), 'output', 'logs')
             if not os.path.exists(logs_dir):
                 os.makedirs(logs_dir)
             with open(os.path.join(logs_dir, log_file), 'w') as outfile:
@@ -1504,7 +1505,7 @@ class TIMECellInteraction:
         filedata_list = []
 
         # Open a log file for writing notes about the data as we add it to the filedata structure
-        logs_dir = os.path.join('.', 'output', 'logs')
+        logs_dir = os.path.join(framework_utils.session_dir(), 'output', 'logs')
         if not os.path.exists(logs_dir):
             os.makedirs(logs_dir)
         with open(os.path.join(logs_dir, 'metrics_check.log'), 'wt') as f:
@@ -3198,7 +3199,7 @@ def preprocess_dataset(format, input_datafile, coord_units_in_microns, images_to
     # Determine the path of the pickle file holding the dataset object using the input data file name
     # pickle_path = os.path.splitext(input_datafile)[0] + '.pkl'
     # pickle_dir = os.path.dirname(pickle_path)
-    pickle_dir = os.path.join('.', 'output', 'checkpoints')
+    pickle_dir = os.path.join(framework_utils.session_dir(), 'output', 'checkpoints')
     pickle_file = os.path.basename(os.path.splitext(input_datafile)[0] + '.pkl')
 
     # If the pickle file doesn't already exist, create the dataset object and store it in a pickle file
@@ -3525,7 +3526,7 @@ def calculate_metrics_for_roi(args_as_single_tuple):
                 else:
 
                     # Create and store the name of the directory in which to store Squidpy's scatter plots and heatmaps
-                    squidpy_dir = os.path.join('.', 'output', 'images', 'squidpy')
+                    squidpy_dir = os.path.join(framework_utils.session_dir(), 'output', 'images', 'squidpy')
                     if not os.path.exists(squidpy_dir):
                         os.makedirs(squidpy_dir)
                     image_path_prefix = os.path.join(squidpy_dir, 'roi_index-{}__roi_name-{}-'.format(roi_index, uroi))

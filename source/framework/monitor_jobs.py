@@ -1,7 +1,7 @@
 import streamlit as st
 import time
 import framework.analysis_framework as analysis_framework
-import framework.utils as utils
+import framework.utils as framework_utils
 import framework.platform_abstraction as pa
 import os
 
@@ -12,7 +12,7 @@ REFRESH_INTERVAL_SECONDS = int(os.getenv("MONITOR_JOBS_REFRESH_INTERVAL_SECONDS"
 def check_for_updates(c):
     if "JOB_PENDING" in st.session_state:
         job_id = st.session_state["JOB_PENDING"]["job_id"]
-        job_status, outputs = analysis_framework.load_job_output_data(job_id, utils.session_dir())
+        job_status, outputs = analysis_framework.load_job_output_data(job_id, framework_utils.session_dir())
         if job_status == "Completed":
             c.success(f"Job {job_id} completed.")  # Note completion time and duration.
             st.session_state[st.session_state["JOB_PENDING"]["key_for_results"]] = outputs

@@ -6,6 +6,7 @@ import numpy as np
 import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
+import framework.utils as framework_utils
 
 
 def plotly_scatter_plot(df_to_plot, x_colname='x coord', y_colname='y coord', label_colname='my_label', unique_labels=[0, 1], plot_title='My Plot', opacity_colname=None):
@@ -284,7 +285,7 @@ def main():
 
         # Click a button to load the data
         if st.button('Load data'):
-            st.session_state['df'] = pd.read_csv(os.path.join('.', 'input', data_filename))
+            st.session_state['df'] = pd.read_csv(os.path.join(framework_utils.session_dir(), 'input', data_filename))
             st.session_state['unique_images'] = list(st.session_state['df'][image_colname].unique())
 
         # Ensure the data has been loaded
@@ -296,7 +297,7 @@ def main():
             unique_images = st.session_state['unique_images']
 
         # Click a button to load the densities from disk
-        densities_path = os.path.join('.', 'output', 'npc_densities.pkl')
+        densities_path = os.path.join(framework_utils.session_dir(), 'output', 'npc_densities.pkl')
         densities_file_exists = os.path.exists(densities_path)
         if not densities_file_exists:
             load_densities_help = f'Densities file {densities_path} not found'
@@ -390,7 +391,7 @@ def main():
                 df = st.session_state['df']
             
             # Click a button to load the UMAP from disk
-            umap_path = os.path.join('.', 'output', 'npc_umap.pkl')
+            umap_path = os.path.join(framework_utils.session_dir(), 'output', 'npc_umap.pkl')
             umap_file_exists = os.path.exists(umap_path)
             if not umap_file_exists:
                 load_umap_help = f'UMAP file {umap_path} not found'

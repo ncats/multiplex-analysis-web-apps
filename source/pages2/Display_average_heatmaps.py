@@ -2,6 +2,7 @@
 import streamlit as st
 import utils as utils
 import os
+import framework.utils as framework_utils
 
 
 def main():
@@ -13,7 +14,7 @@ def main():
         st.session_state['slide_name_to_visualize'] = slide_names[st.session_state['slide_index_to_visualize']]
 
 
-    if os.path.exists(os.path.join('.', 'output', 'images', 'whole_slide_patches')) and os.path.exists(os.path.join('.', 'output', 'images', 'dens_pvals_per_slide')):
+    if os.path.exists(os.path.join(framework_utils.session_dir(), 'output', 'images', 'whole_slide_patches')) and os.path.exists(os.path.join(framework_utils.session_dir(), 'output', 'images', 'dens_pvals_per_slide')):
 
         # Create an expander to hide some optional widgets
         with st.expander('Optional: Image path extraction', expanded=False):
@@ -63,10 +64,10 @@ def main():
             slide_suffix = ('' if st.session_state['display_slide_patching'] == 'not patched' else '_patched')
             st.image(df_paths_per_slide.loc[st.session_state['slide_name_to_visualize'], 'slide{}'.format(slide_suffix)])
 
-        # If we're requesting to save the heatmap data, then there should be files that end with "_log_dens_pvals.csv" in ('.', 'output', 'images', 'dens_pvals_per_slide'). If so, then create a button that finds all such files, zips them up, and saves them to the output directory.
+        # If we're requesting to save the heatmap data, then there should be files that end with "_log_dens_pvals.csv" in (framework_utils.session_dir(), 'output', 'images', 'dens_pvals_per_slide'). If so, then create a button that finds all such files, zips them up, and saves them to the output directory.
         if st.session_state['sit__used_settings']['plotting']['save_heatmap_data']:
             # Get the directory where the heatmap data is stored.
-            heatmap_data_dir = os.path.join('.', 'output', 'images', 'dens_pvals_per_slide')
+            heatmap_data_dir = os.path.join(framework_utils.session_dir(), 'output', 'images', 'dens_pvals_per_slide')
 
             # Check if directory exists and find CSV files
             if os.path.exists(heatmap_data_dir):
@@ -79,7 +80,7 @@ def main():
                     def create_zip_file():
                         import zipfile
 
-                        output_dir = os.path.join('.', 'output')
+                        output_dir = os.path.join(framework_utils.session_dir(), 'output')
                         zip_path = os.path.join(output_dir, 'heatmap_data.zip')
 
                         with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zip_file:

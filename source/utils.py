@@ -13,6 +13,8 @@ from datetime import datetime
 import anndata
 import time
 import pickle
+import framework.utils as framework_utils
+
 
 def set_filename_corresp_to_roi(df_paths, roi_name, curr_colname, curr_dir, curr_dir_listing):
     """Update the path in a main paths-holding dataframe corresponding to a particular ROI in a particular directory.
@@ -63,8 +65,8 @@ def get_paths_for_rois():
 
     # Obtain the directory holding the subdirectories containing various types of plots (in this case, three types)
     # plots_dir = os.path.join(os.getcwd(), '..', 'results', 'webpage', 'slices_1x{}'.format(radius_in_microns), 'real')
-    plots_dir = os.path.join('.', 'output', 'images')
-    pickle_dir = os.path.join('.', 'output', 'checkpoints')
+    plots_dir = os.path.join(framework_utils.session_dir(), 'output', 'images')
+    pickle_dir = os.path.join(framework_utils.session_dir(), 'output', 'checkpoints')
     pickle_file = 'initial_data.pkl'
 
     # Obtain the paths to the subdirectories
@@ -128,7 +130,7 @@ def get_paths_for_slides():
 
     # Obtain the directory holding the subdirectories containing various types of plots (in this case, two types)
     # plots_dir = os.path.join(os.getcwd(), '..', 'results', 'webpage', 'slices_1x{}'.format(radius_in_microns), 'real')
-    plots_dir = os.path.join('.', 'output', 'images')
+    plots_dir = os.path.join(framework_utils.session_dir(), 'output', 'images')
 
     # Obtain the paths to the subdirectories
     slides_dir = os.path.join(plots_dir, 'whole_slide_patches')
@@ -197,7 +199,7 @@ def get_overlay_info():
 
     # Obtain the directory holding the subdirectory of interest
     # plots_dir = os.path.join(os.getcwd(), '..', 'results', 'webpage', 'slices_1x{}'.format(radius_in_microns), 'real')
-    plots_dir = os.path.join('.', 'output', 'images')
+    plots_dir = os.path.join(framework_utils.session_dir(), 'output', 'images')
 
     # Obtain the path to the subdirectory
     overlays_dir = os.path.join(plots_dir, 'density_pvals_over_slide_spatial_plot')
@@ -260,7 +262,7 @@ def detect_markers_in_annotation_files(selected_annotation_files):
     import dataset_formats
 
     # Constant
-    annotations_dir = os.path.join('input', 'annotations')
+    annotations_dir = os.path.join(framework_utils.session_dir(), 'input', 'annotations')
 
     # Initialize an empty list to hold all the annotation markers in the annotation files
     annotation_markers = []
@@ -315,7 +317,7 @@ def validate_presets_and_map_to_settings(preset_settings, possible_phenotype_ide
             return val
         
     # Constants
-    input_directory = os.path.join('.', 'input')
+    input_directory = os.path.join(framework_utils.session_dir(), 'input')
 
     # Initialize the dictionary holding the actual settings dictionary to be used in the workflow
     settings = dict()
@@ -430,7 +432,7 @@ def get_settings_defaults(options_for_input_datafiles, options_for_phenotype_ide
     import dataset_formats
     import os
     if settings['input_datafile']['filename'] is not None:
-        settings['input_datafile']['format'] = dataset_formats.extract_datafile_metadata(os.path.join('.', 'input', settings['input_datafile']['filename']))[4]
+        settings['input_datafile']['format'] = dataset_formats.extract_datafile_metadata(os.path.join(framework_utils.session_dir(), 'input', settings['input_datafile']['filename']))[4]
     else:
         settings['input_datafile']['format'] = get_first_element_or_none(options_for_input_datafile_formats)
 

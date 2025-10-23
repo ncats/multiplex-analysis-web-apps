@@ -4,7 +4,7 @@ import subprocess
 import os
 import pathlib
 import copy
-import framework.utils as utils
+import framework.utils as framework_utils
 import framework.platform_abstraction as pa
 
 ST_KEY_PREFIX = "manage_sessions.py__"
@@ -39,8 +39,8 @@ def write_conda_environment(filename, directory):
 
 def save_session_state():
     try:
-        session_state_directory = utils.session_dir()
-        serializable_objects, unserializable_objects = utils.serialize_dictionary_to_binary_files(st.session_state, "session_state", session_state_directory, ignore_do_not_persist_flag=False)
+        session_state_directory = framework_utils.session_dir()
+        serializable_objects, unserializable_objects = framework_utils.serialize_dictionary_to_binary_files(st.session_state, "session_state", session_state_directory, ignore_do_not_persist_flag=False)
 
         # Write out what was serialized and how.
         info_file = os.path.join(session_state_directory, f'session_state_contents.txt')
@@ -62,7 +62,7 @@ def load_session_state():
     """Load the session state from the session directory."""
     try:
         # Must save session_dir and not use utils.session_dir() in utils.deserialize... since the session_dir() depends on the session state, which would have just been cleared.
-        session_dir = utils.session_dir()
+        session_dir = framework_utils.session_dir()
 
         # Back up app session-specific (i.e., startup.py-defined) variables we ultimately don't want to overwrite.
         keys_to_keep = [ST_KEY_PREFIX_STARTUP + "app_session_id", "previous_page_name", "current_page_name", ST_KEY_PREFIX_APP + "app_initialized", "platform"]
@@ -72,7 +72,7 @@ def load_session_state():
         for key in list(st.session_state.keys()):
             del st.session_state[key]
 
-        utils.deserialize_binary_files_to_dictionary("session_state", session_dir, dictionary=st.session_state)
+        framework_utils.deserialize_binary_files_to_dictionary("session_state", session_dir, dictionary=st.session_state)
 
         # Restore the startup keys.
         st.session_state.update(startup_keys)
@@ -96,8 +96,8 @@ def reset_session_state(extra_keys_to_keep=[], delete_input_dir=True):
 
         # Delete everything from the input and output directories.
         if delete_input_dir:
-            utils.ensure_empty_directory(os.path.join(utils.session_dir(), "input"))
-        utils.ensure_empty_directory(os.path.join(utils.session_dir(), "output"))
+            framework_utils.ensure_empty_directory(os.path.join(framework_utils.session_dir(), "input"))
+        framework_utils.ensure_empty_directory(os.path.join(framework_utils.session_dir(), "output"))
 
         return True
     except Exception as e:
@@ -128,7 +128,7 @@ def write_dictionary_to_text_file(dictionary, dict_name, directory):
                 f.write(f"{key}: {value}\n")
 
             # Add timestamp
-            timestamp = utils.get_timestamp()
+            timestamp = framework_utils.get_timestamp()
             f.write(f"timestamp: {timestamp.strftime('%Y-%m-%d %H:%M:%S %Z')}\n")
 
         return True
@@ -163,13 +163,13 @@ def main():
         user_group = pa.get_user_group(username)
         current_git_commit = get_current_git_commit()
         container_image_id = pa.get_frontend_image_id()
-        archive_id = utils.get_unique_id()
+        archive_id = framework_utils.get_unique_id()
         app_session_id = st.session_state[ST_KEY_PREFIX_STARTUP + "app_session_id"]
         archive_metadata = {"username": username, "user_group": user_group, "session_description": session_description, "current_git_commit": current_git_commit, "container_image_id": container_image_id, "archive_id": archive_id, "app_session_id": app_session_id}
-        write_dictionary_to_text_file(archive_metadata, "archive_metadata", utils.session_dir())  # Writes archive_metadata.txt to the session directory.
-        write_conda_environment("environment.yml", utils.session_dir())  # Writes environment.yml to the session directory.
+        write_dictionary_to_text_file(archive_metadata, "archive_metadata", framework_utils.session_dir())  # Writes archive_metadata.txt to the session directory.
+        write_conda_environment("environment.yml", framework_utils.session_dir())  # Writes environment.yml to the session directory.
         save_session_state()  # Writes session_state.pkl, session_state.dill, and session_state_contents.txt to the session directory.
-        zip_buffer = utils.zip_directory_to_buffer(utils.session_dir())
+        zip_buffer = framework_utils.zip_directory_to_buffer(framework_utils.session_dir())
         pa.write_archive_database_data(tuple(archive_metadata.values()))
         pa.upload_zip_object_data(ARCHIVES_BUCKET_NAME, archive_id, zip_buffer)
         pa.get_available_archives.clear()  # Do this to refresh the archive listing below.
@@ -195,8 +195,8 @@ def main():
 
         if st.button("Load selected app session archive"):
             zip_buffer = pa.download_zip_object_data(ARCHIVES_BUCKET_NAME, selected_archive_id)
-            utils.ensure_empty_directory(utils.session_dir())
-            utils.unzip_buffer_to_directory(zip_buffer, utils.session_dir())
+            framework_utils.ensure_empty_directory(framework_utils.session_dir())
+            framework_utils.unzip_buffer_to_directory(zip_buffer, framework_utils.session_dir())
             load_session_state()
             st.rerun()  # Keeping this rerun because masking of errors here is less risky and it's really helpful to see the archive description just pop up when loading an archive.
 

@@ -3,7 +3,7 @@
 import streamlit as st
 import os
 import framework.platform_abstraction as pa
-import framework.utils as utils
+import framework.utils as framework_utils
 import framework.analysis_functions as analysis_functions
 
 ST_KEY_PREFIX_STARTUP = "startup.py__"
@@ -13,7 +13,7 @@ JOB_OUTPUTS_BUCKET_NAME = os.getenv('JOB_OUTPUTS_BUCKET_NAME')
 
 def initialize_job(function_name):
     try:
-        job_id = utils.get_unique_id()
+        job_id = framework_utils.get_unique_id()
         job_name = function_name
         submitter = pa.get_current_username()
         submitter_group = pa.get_user_group(submitter)
@@ -29,11 +29,11 @@ def initialize_job(function_name):
 
 def save_job_input_data(job_id, inputs):
     try:
-        inputs_directory = os.path.join(utils.session_dir(), "tmp_job_inputs")
-        utils.ensure_empty_directory(inputs_directory)  # Ensure the inputs directory is empty (create it if necessary).
-        utils.serialize_dictionary_to_binary_files(inputs, "inputs", inputs_directory)  # Writes inputs.pkl and inputs.dill to inputs_directory from the inputs dictionary.
-        inputs_buffer = utils.zip_directory_to_buffer(inputs_directory)  # Zip the entire inputs_directory to a buffer.
-        utils.ensure_empty_directory(inputs_directory, create_if_missing=False)  # Recursively delete the inputs_directory, including the directory itself.
+        inputs_directory = os.path.join(framework_utils.session_dir(), "tmp_job_inputs")
+        framework_utils.ensure_empty_directory(inputs_directory)  # Ensure the inputs directory is empty (create it if necessary).
+        framework_utils.serialize_dictionary_to_binary_files(inputs, "inputs", inputs_directory)  # Writes inputs.pkl and inputs.dill to inputs_directory from the inputs dictionary.
+        inputs_buffer = framework_utils.zip_directory_to_buffer(inputs_directory)  # Zip the entire inputs_directory to a buffer.
+        framework_utils.ensure_empty_directory(inputs_directory, create_if_missing=False)  # Recursively delete the inputs_directory, including the directory itself.
         pa.upload_zip_object_data(JOB_INPUTS_BUCKET_NAME, job_id, inputs_buffer)  # Write the zip buffer to object storage.
         return True
     except Exception as e:
@@ -45,10 +45,10 @@ def load_job_input_data(job_id, job_dir):
     try:
         inputs_directory = os.path.join(job_dir, "inputs")
         inputs_buffer = pa.download_zip_object_data(JOB_INPUTS_BUCKET_NAME, job_id)
-        utils.ensure_empty_directory(inputs_directory)
-        utils.unzip_buffer_to_directory(inputs_buffer, inputs_directory)
-        inputs = utils.deserialize_binary_files_to_dictionary("inputs", inputs_directory)  # Loads inputs.pkl and inputs.dill from inputs_directory into an inputs dictionary.
-        utils.ensure_empty_directory(inputs_directory, create_if_missing=False)
+        framework_utils.ensure_empty_directory(inputs_directory)
+        framework_utils.unzip_buffer_to_directory(inputs_buffer, inputs_directory)
+        inputs = framework_utils.deserialize_binary_files_to_dictionary("inputs", inputs_directory)  # Loads inputs.pkl and inputs.dill from inputs_directory into an inputs dictionary.
+        framework_utils.ensure_empty_directory(inputs_directory, create_if_missing=False)
         return inputs
     except Exception as e:
         st.error(f"Error occurred while loading job input data: {e}")
@@ -60,9 +60,9 @@ def save_job_output_data(job_id, outputs, job_dir):
         if outputs is not None:
             outputs_directory = os.path.join(job_dir, "outputs")
             os.makedirs(outputs_directory, exist_ok=True)  # We don't ensure this is an empty directory because it may potentially contain output files from a job.
-            utils.serialize_dictionary_to_binary_files(outputs, "outputs", outputs_directory)  # Writes outputs.pkl and outputs.dill to outputs_directory.
-            outputs_buffer = utils.zip_directory_to_buffer(outputs_directory)
-            utils.ensure_empty_directory(outputs_directory, create_if_missing=False)
+            framework_utils.serialize_dictionary_to_binary_files(outputs, "outputs", outputs_directory)  # Writes outputs.pkl and outputs.dill to outputs_directory.
+            outputs_buffer = framework_utils.zip_directory_to_buffer(outputs_directory)
+            framework_utils.ensure_empty_directory(outputs_directory, create_if_missing=False)
             pa.upload_zip_object_data(JOB_OUTPUTS_BUCKET_NAME, job_id, outputs_buffer)
             return True
         else:
@@ -97,8 +97,8 @@ def load_job_output_data(job_id, outputs_directory):
             pass
         elif job_status == "Completed":
             outputs_buffer = pa.download_zip_object_data(JOB_OUTPUTS_BUCKET_NAME, job_id)  # Creates a buffer of the job results. Buffer likely contains both .pkl/.dill files and any other output files the job may have created.
-            utils.unzip_buffer_to_directory(outputs_buffer, outputs_directory)  # Unzips the buffer to the session directory.
-            outputs = utils.deserialize_binary_files_to_dictionary("outputs", outputs_directory)  # Loads outputs.pkl and outputs.dill from the session directory into an "outputs" dictionary.
+            framework_utils.unzip_buffer_to_directory(outputs_buffer, outputs_directory)  # Unzips the buffer to the session directory.
+            outputs = framework_utils.deserialize_binary_files_to_dictionary("outputs", outputs_directory)  # Loads outputs.pkl and outputs.dill from the session directory into an "outputs" dictionary.
             delete_serialized_files("outputs", outputs_directory)  # Delete the .pkl/.dill files from the session directory.
         elif job_status == "Failed":
             pass
@@ -114,7 +114,7 @@ def load_job_output_data(job_id, outputs_directory):
 def run_local_analysis(job_id):
     try:
         pa.update_job_status(job_id, "Running", "start_time")
-        job_dir = os.path.join(utils.jobs_dir(), job_id)
+        job_dir = os.path.join(framework_utils.jobs_dir(), job_id)
         function_name = pa.get_job_function_name(job_id)
         inputs = load_job_input_data(job_id, job_dir)
         outputs = analysis_functions.run_analysis_job(function_name, inputs, job_dir)

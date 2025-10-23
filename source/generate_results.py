@@ -1,7 +1,7 @@
 # Import necessary libraries.
 import streamlit as st
 import os
-import framework.utils as utils
+import framework.utils as framework_utils
 import framework.analysis_framework as analysis_framework
 
 # Global variable.
@@ -55,7 +55,7 @@ def main():
     # Obtain the path to the generated results file, stored efficiently in memory.
     key = ST_KEY_PREFIX + 'primes_results_file'
     if (key not in st.session_state) or (not os.path.exists(st.session_state[key])):  # The second condition is needed since the session-stored directory may be old and no longer current. I know this is inefficient (may as well simply have "primes_results_file = os.path.join(utils.session_dir(), "results", "primes", "primes.txt")") but it's a good conceptual example.
-        st.session_state[key] = os.path.join(utils.session_dir(), "results", "primes", "primes.txt")
+        st.session_state[key] = os.path.join(framework_utils.session_dir(), "results", "primes", "primes.txt")
     primes_results_file = st.session_state[key]
 
     # If this file, primes.txt, exists, write the contents to the screen.

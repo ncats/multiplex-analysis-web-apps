@@ -5,6 +5,7 @@ import os
 import pandas as pd
 import multiprocessing
 import time
+import framework.utils as framework_utils
 
 def calculate_density_matrix_for_all_images(image_names, df, phenotypes, phenotype_column_name, image_column_name, coord_column_names, radii, num_ranges, range_strings, debug_output=False, num_cpus_to_use=1, swap_inequalities=False, cast_to_float32=False):
     """
@@ -161,7 +162,7 @@ def test_neighbors_counts(num_cpus_to_use=None, method='kdtree', num_images_to_r
     """
 
     # Parameters
-    input_file = os.path.join('.', 'input', 'Combo_CSVfiles_20230327_152849.csv')
+    input_file = os.path.join(framework_utils.session_dir(), 'input', 'Combo_CSVfiles_20230327_152849.csv')
     radii = np.array([0, 25, 50, 100, 150, 200])
     coord_column_names = ['CentroidX', 'CentroidY']
     image_column_name = 'ShortName'

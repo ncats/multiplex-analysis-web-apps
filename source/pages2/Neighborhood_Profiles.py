@@ -13,6 +13,7 @@ from natsort import natsorted
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
 import basic_phenotyper_lib as bpl  # Useful functions for phenotyping collections of cells
 from neighborhood_profiles import NeighborhoodProfiles, UMAPDensityProcessing
+import framework.utils as framework_utils
 
 def get_spatialUMAP(spatial_umap, bc, umap_subset_per_fit, umap_subset_toggle, umap_subset_per):
     '''
@@ -906,7 +907,7 @@ def main():
 
                     if st.button('Save to Output Folder'):
                         st.toast(f"Saving neighborhood profile: {download_file_suffix}")
-                        nei_pro_df.to_csv(f"./output/neighborhood_profiles_{st.session_state['datafile']}_{download_file_suffix}.csv", index=False)
+                        nei_pro_df.to_csv(f"{framework_utils.session_dir()}/output/neighborhood_profiles_{st.session_state['datafile']}_{download_file_suffix}.csv", index=False)
 
                     # # Create widgets for exporting the Neighborhood Profile images
                     # neigh_prof_col = st.columns([2, 1])
@@ -1053,7 +1054,7 @@ def main():
             if st.button('Save All Subplots to Output Folder'):
                 for i, nei_pro_df in enumerate(st.session_state['nei_pro_dfs']):
                     st.toast(f"Saving neighborhood profile: {st.session_state['suffix_list'][i]}")
-                    nei_pro_df.to_csv(f"./output/neighborhood_profiles_{st.session_state['datafile']}_{st.session_state['suffix_list'][i]}.csv", index=False)
+                    nei_pro_df.to_csv(f"{framework_utils.session_dir()}/output/neighborhood_profiles_{st.session_state['datafile']}_{st.session_state['suffix_list'][i]}.csv", index=False)
 
         plot_title = ''
         for i in title_supp:
