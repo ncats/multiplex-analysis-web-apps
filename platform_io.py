@@ -276,9 +276,9 @@ class Platform:
         Potentially slow
         '''
 
-        # When running locally, this is irrelevant
+        # When running locally, this will duplicate what is in ./input
         if self.platform == 'local':
-            available_inputs = []
+            available_inputs = self.get_local_inputs_listing()
 
         # On NIDAP, load the metadata for the "input" unstructured dataset
         elif self.platform == 'nidap':
@@ -296,148 +296,145 @@ class Platform:
         Write a dataframe of the available inputs on the remote
         '''
 
-        # When running locally, this is irrelevant
-        if self.platform == 'local':
-            pass
+        st.subheader(':open_file_folder: Available input data on NIDAP')
 
-        # If on NIDAP...
-        elif self.platform == 'nidap':
+        # Identify the available inputs
+        if self.available_inputs is None:
+            self.get_available_inputs_listing()
 
-            st.subheader(':open_file_folder: Available input data on NIDAP')
+        # Get a shortcut to the available input list
+        available_inputs = self.available_inputs
 
-            # Identify the available inputs
-            if self.available_inputs is None:
-                self.get_available_inputs_listing()
-
-            # Get a shortcut to the available input list
-            available_inputs = self.available_inputs
-
-            # Create a simple editable dataframe of the available input filenames
-            make_simple_dataframe_from_file_listing(available_files=available_inputs,
-                                                    df_session_state_key_basename='available_inputs',
-                                                    streamlit_key_for_available_filenames_srs='srs_available_input_filenames',
-                                                    editable=True)
+        # Create a simple editable dataframe of the available input filenames
+        make_simple_dataframe_from_file_listing(available_files=available_inputs,
+                                                df_session_state_key_basename='available_inputs',
+                                                streamlit_key_for_available_filenames_srs='srs_available_input_filenames',
+                                                editable=True)
 
     def add_refresh_available_inputs_button(self):
         '''
         Add a button to re-read the available input files on remote
+
+        rerun is used at the end since this potentially changes outputs.
+        Rule of thumb for rerunning the page should probably be that if
+        this method changes outputs, will those possibly changed outputs
+        definitely get redrawn? If not, do a rerun! Consider where this method
+        falls in the top-down rerun of the calling script, are the outputs before
+        or after the method is called?
         '''
 
-        # Irrelevant for local
-        if self.platform == 'local':
-            pass
+        if st.button(':arrows_clockwise: Refresh available input data'):
+            self.get_available_inputs_listing()
+            st.rerun()
 
-        # If on NIDAP, create a button to simply update the available inputs
-        elif self.platform == 'nidap':
-            if st.button(':arrows_clockwise: Refresh available input data'):
-                self.get_available_inputs_listing()
-                st.rerun()  # rerun since this potentially changes outputs... rule of thumb for rerunning the page should probably be that if this method changes outputs, will those possibly changed outputs definitely get redrawn? If not, do a rerun! Consider where this method falls in the top-down rerun of the calling script, are the outputs before or after the method is called?
-
-    # Load any selected available inputs on the remote to the local machine
     def load_selected_inputs(self):
+        '''
+        Load any selected available inputs on the remote to the local machine
+        
+        '''
 
-        # Irrelevant for local
-        if self.platform == 'local':
-            pass
+        st.subheader(':tractor: Load input data into MAWA')
 
-        # If on NIDAP...
-        elif self.platform == 'nidap':
+        # If a load button is clicked...
+        if st.button('Load selected NIDAP input data :arrow_right:'):
 
-            st.subheader(':tractor: Load input data into MAWA')
+            # # Get "shortcuts" to the object properties
+            # dataset_file_objects = self.dataset_file_objects_for_available_inputs
 
-            # If a load button is clicked...
-            if st.button('Load selected NIDAP input data :arrow_right:'):
+            # Get the selected filenames
+            df_available_inputs = st.session_state['loader__de_available_inputs'].reconstruct_edited_dataframe()
+            srs_available_input_filenames = st.session_state['srs_available_input_filenames']
+            selected_input_filenames = srs_available_input_filenames[df_available_inputs['Selected']].tolist()
 
-                # # Get "shortcuts" to the object properties
-                # dataset_file_objects = self.dataset_file_objects_for_available_inputs
+            # Download the selected files
+            all_downloaded_files = nidap_io.download_files_from_dataset(nidap_io.get_foundry_dataset(alias='input'), dataset_filter_func=lambda f: f.path in selected_input_filenames, limit=15)
 
-                # Get the selected filenames
-                df_available_inputs = st.session_state['loader__de_available_inputs'].reconstruct_edited_dataframe()
-                srs_available_input_filenames = st.session_state['srs_available_input_filenames']
-                selected_input_filenames = srs_available_input_filenames[df_available_inputs['Selected']].tolist()
+            # For each downloaded file, move it to the local input directory
+            for selected_input_filename, local_download_path in all_downloaded_files.items():
 
-                # Download the selected files
-                all_downloaded_files = nidap_io.download_files_from_dataset(nidap_io.get_foundry_dataset(alias='input'), dataset_filter_func=lambda f: f.path in selected_input_filenames, limit=15)
+            # # For each selected available input file...
+            # for selected_input_filename in selected_input_filenames:
 
-                # For each downloaded file, move it to the local input directory
-                for selected_input_filename, local_download_path in all_downloaded_files.items():
+                # # Download the file and get its local download path
+                # dataset_file_object = nidap_io.get_dataset_file_object(dataset_file_objects, selected_filename=selected_input_filename)
+                # local_download_path = nidap_io.download_file_from_dataset(dataset_file_object)  # slow
 
-                # # For each selected available input file...
-                # for selected_input_filename in selected_input_filenames:
+                # Populate the local input directory with the current selection
+                # Rules:
+                #   * If it's not a .zip file, just copy it over
+                #   * If it's a .zip file, there can be either 1 or 2 periods in the full filename including extension
+                #   * If there's just a single period (e.g., asdf.zip), it must be a zipped directory with name following either DIRNAME.zip or DIRNAME--bleh.zip
+                #   * If there are two periods (e.g., asdf.csv.zip), it must be a zipped datafile with name following asdf.csv
+                if selected_input_filename.endswith('.zip'):
+                    splitted = selected_input_filename.split('.')  # should be of length 2 or 3 (for, e.g., asdf.csv.zip)
+                    num_periods = len(splitted) - 1  # should be 1 or 2
+                    # if (num_periods < 1) or (num_periods > 2):
+                    #     st.error('Available .zip input filename {} has a bad number of periods ({}... it should have 1-2 periods); please fix this.'.format(selected_input_filename, num_periods))
+                    #     sys.exit()
+                    if num_periods == 1:  # it's a zipped directory, by specification
+                        if '--' not in selected_input_filename:
+                            dirpath = os.path.join(local_input_dir, selected_input_filename.rstrip('.zip'))
+                        else:
+                            dirpath = os.path.join(local_input_dir, selected_input_filename.split('--')[0])
+                        ensure_empty_directory(dirpath)
+                        shutil.unpack_archive(local_download_path, dirpath)
+                    else:  # it's a zipped datafile
+                        shutil.unpack_archive(local_download_path, local_input_dir)
+                else:
+                    shutil.copy(local_download_path, local_input_dir)
 
-                    # # Download the file and get its local download path
-                    # dataset_file_object = nidap_io.get_dataset_file_object(dataset_file_objects, selected_filename=selected_input_filename)
-                    # local_download_path = nidap_io.download_file_from_dataset(dataset_file_object)  # slow
-
-                    # Populate the local input directory with the current selection
-                    # Rules:
-                    #   * If it's not a .zip file, just copy it over
-                    #   * If it's a .zip file, there can be either 1 or 2 periods in the full filename including extension
-                    #   * If there's just a single period (e.g., asdf.zip), it must be a zipped directory with name following either DIRNAME.zip or DIRNAME--bleh.zip
-                    #   * If there are two periods (e.g., asdf.csv.zip), it must be a zipped datafile with name following asdf.csv
-                    if selected_input_filename.endswith('.zip'):
-                        splitted = selected_input_filename.split('.')  # should be of length 2 or 3 (for, e.g., asdf.csv.zip)
-                        num_periods = len(splitted) - 1  # should be 1 or 2
-                        # if (num_periods < 1) or (num_periods > 2):
-                        #     st.error('Available .zip input filename {} has a bad number of periods ({}... it should have 1-2 periods); please fix this.'.format(selected_input_filename, num_periods))
-                        #     sys.exit()
-                        if num_periods == 1:  # it's a zipped directory, by specification
-                            if '--' not in selected_input_filename:
-                                dirpath = os.path.join(local_input_dir, selected_input_filename.rstrip('.zip'))
-                            else:
-                                dirpath = os.path.join(local_input_dir, selected_input_filename.split('--')[0])
-                            ensure_empty_directory(dirpath)
-                            shutil.unpack_archive(local_download_path, dirpath)
-                        else:  # it's a zipped datafile
-                            shutil.unpack_archive(local_download_path, local_input_dir)
-                    else:
-                        shutil.copy(local_download_path, local_input_dir)
-
-    # Save a MAWA-unified datafile to NIDAP
     def save_selected_input(self):
+        '''
+        Save a MAWA-unified datafile to NIDAP
+        '''
 
-        # If working on NIDAP...
-        if self.platform == 'nidap':
+        # Write a header
+        st.subheader(':tractor: Save MAWA-unified datafile to NIDAP')
 
-            # Write a header
-            st.subheader(':tractor: Save MAWA-unified datafile to NIDAP')
+        # Create a list of the CSV files having a "mawa-unified_datafile-" prefix and ".csv" suffix in the local input directory
+        mawa_unified_datafiles = [x for x in os.listdir(local_input_dir) if x.startswith('mawa-unified_datafile-') and x.endswith('.csv')]
 
-            # Create a list of the CSV files having a "mawa-unified_datafile-" prefix and ".csv" suffix in the local input directory
-            mawa_unified_datafiles = [x for x in os.listdir(local_input_dir) if x.startswith('mawa-unified_datafile-') and x.endswith('.csv')]
+        # Create a dictionary of the stripped filenames and their corresponding full filenames
+        mawa_unified_datafiles_dict = {x.split('mawa-unified_datafile-')[1].split('.csv')[0]: x for x in mawa_unified_datafiles}
+        keys = list(mawa_unified_datafiles_dict.keys())
 
-            # Create a dictionary of the stripped filenames and their corresponding full filenames
-            mawa_unified_datafiles_dict = {x.split('mawa-unified_datafile-')[1].split('.csv')[0]: x for x in mawa_unified_datafiles}
-            keys = list(mawa_unified_datafiles_dict.keys())
+        # If the session state key doesn't exist, create it and set it to the first key in the list (if it exists)
+        if ('loader__mawa_unified_datafile_to_save' not in st.session_state) or (st.session_state['loader__mawa_unified_datafile_to_save'] not in keys):
+            st.session_state['loader__mawa_unified_datafile_to_save'] = keys[0] if keys else None
+        st.selectbox('Select MAWA-unified datafile to save:', keys, key='loader__mawa_unified_datafile_to_save')
 
-            # If the session state key doesn't exist, create it and set it to the first key in the list (if it exists)
-            if ('loader__mawa_unified_datafile_to_save' not in st.session_state) or (st.session_state['loader__mawa_unified_datafile_to_save'] not in keys):
-                st.session_state['loader__mawa_unified_datafile_to_save'] = keys[0] if keys else None
-            st.selectbox('Select MAWA-unified datafile to save:', keys, key='loader__mawa_unified_datafile_to_save')
+        # Create a button to zip the selected file and save it to NIDAP
+        if st.button('Save selected (above) MAWA-unified datafile to NIDAP :arrow_left:', help='This will zip the selected file and save it to NIDAP. We generally don\'t want to save a file **generated** in the app to the **`input`** dataset on NIDAP on principle, but this is a reasonable exception so that the file can be used again or in other use cases.', disabled=st.session_state['loader__mawa_unified_datafile_to_save'] is None):
 
-            # Create a button to zip the selected file and save it to NIDAP
-            if st.button('Save selected (above) MAWA-unified datafile to NIDAP :arrow_left:', help='This will zip the selected file and save it to NIDAP. We generally don\'t want to save a file **generated** in the app to the **`input`** dataset on NIDAP on principle, but this is a reasonable exception so that the file can be used again or in other use cases.', disabled=st.session_state['loader__mawa_unified_datafile_to_save'] is None):
+            # Create a spinner to indicate that the zipping and saving is in progress
+            with st.spinner('Zipping and saving...'):
 
-                # Create a spinner to indicate that the zipping and saving is in progress
-                with st.spinner('Zipping and saving...'):
+                # Zip the selected file
+                selected_mawa_unified_datafile = mawa_unified_datafiles_dict[st.session_state['loader__mawa_unified_datafile_to_save']]
+                shutil.make_archive(os.path.join(local_input_dir, selected_mawa_unified_datafile), 'zip', local_input_dir, selected_mawa_unified_datafile)
 
-                    # Zip the selected file
-                    selected_mawa_unified_datafile = mawa_unified_datafiles_dict[st.session_state['loader__mawa_unified_datafile_to_save']]
-                    shutil.make_archive(os.path.join(local_input_dir, selected_mawa_unified_datafile), 'zip', local_input_dir, selected_mawa_unified_datafile)
+                # Transfer the zipped file to NIDAP
+                dataset = nidap_io.get_foundry_dataset(alias='input')
+                upload_single_file_to_dataset((dataset, local_input_dir, selected_mawa_unified_datafile + '.zip'))
+                # nidap_io.upload_file_to_dataset(dataset, selected_filepath=os.path.join(local_input_dir, selected_mawa_unified_datafile + '.zip'))
 
-                    # Transfer the zipped file to NIDAP
-                    dataset = nidap_io.get_foundry_dataset(alias='input')
-                    upload_single_file_to_dataset((dataset, local_input_dir, selected_mawa_unified_datafile + '.zip'))
-                    # nidap_io.upload_file_to_dataset(dataset, selected_filepath=os.path.join(local_input_dir, selected_mawa_unified_datafile + '.zip'))
+                # Delete the zipped file from the local input directory
+                os.remove(os.path.join(local_input_dir, selected_mawa_unified_datafile + '.zip'))
 
-                    # Delete the zipped file from the local input directory
-                    os.remove(os.path.join(local_input_dir, selected_mawa_unified_datafile + '.zip'))
-
-    # Get a listing of the files/dirs in the local input directory, which is platform-independent because it's local
     def get_local_inputs_listing(self):
-        return sorted([x for x in os.listdir(local_input_dir) if not x.endswith('.zip')])  # ignore zip files, which can appear locally only on a local platform, since for a remote platform such as NIDAP, per above, all zip files get unzipped
-    
-    # Write a dataframe of the local input files, which we don't want to be editable because we don't want to mess with the local inputs (for now), even though they're basically a local copy
+        '''
+        Get a listing of the files/dirs in the local ./input directory
+
+        This will ignore zip files, which can appear locally on a local platform,
+        since for a remote platform such as NIDAP, per above, all zip files get unzipped
+        '''
+
+        return sorted([x for x in os.listdir(local_input_dir) if not x.endswith('.zip')])
+
     def display_local_inputs_df(self):
+        '''
+        Write a dataframe of the local input files, which we don't want to be editable because we don't want to mess with the local inputs (for now), even though they're basically a local copy
+        '''
         st.subheader(':open_file_folder: Input data in MAWA')
         local_inputs = self.get_local_inputs_listing()
         if self.platform == 'local':  # not editable locally because deletion is disabled anyway so there'd be nothing to do with selected files
