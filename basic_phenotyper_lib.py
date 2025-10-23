@@ -100,7 +100,9 @@ def init_pheno_cols(df, marker_names, marker_col_prefix):
             df_markers = df[marker_cols]
 
         df_markers = df_markers.map(lambda x: {'+': '1', '-': '0'}[x[-1]])
-    df['mark_bits'] = df_markers.astype(str).apply(''.join, axis='columns')  # efficiently create a series of strings that are the columns (in string format) concatenated together
+
+    # Vectorized creation of 'mark_bits'
+    df['mark_bits'] = df_markers.astype(str).agg(''.join, axis=1)
 
     # Add a column of prettier names for the species, e.g., 'VIM- ECAD+ COX2+ NOS2-'
     df['species_name_long'] = df['mark_bits'].apply(lambda mark_bits: ' '.join([marker_name + ('+' if marker_bit == '1' else '-') for marker_name, marker_bit in zip(marker_names, mark_bits)]))
