@@ -11,9 +11,14 @@ import dataset_formats
 import copy
 import framework.utils as framework_utils
 
+
 # Input/output directory initializations
-input_directory = os.path.join(framework_utils.session_dir(), 'input')
-output_directory = os.path.join(framework_utils.session_dir(), 'output')
+def local_input_dir():  # input_directory
+    return os.path.join(framework_utils.session_dir(), 'input')
+
+
+def local_output_dir():  # output_directory
+    return os.path.join(framework_utils.session_dir(), 'output')
 
 
 def set_dataset_specific_options():
@@ -71,12 +76,12 @@ def load_phenotyping_settings_from_thresholded_phenotyper():
 def copy_input_file_from_output_dir_to_input_dir(input_filename, input_subdir=None):
     import shutil
     if input_subdir is not None:
-        input_directory2 = os.path.join(input_directory, input_subdir)
+        input_directory2 = os.path.join(local_input_dir(), input_subdir)
         if not os.path.exists(input_directory2):
             os.makedirs(input_directory2)
     else:
-        input_directory2 = input_directory
-    shutil.copy(os.path.join(output_directory, input_filename), os.path.join(input_directory2, input_filename))
+        input_directory2 = local_input_dir()
+    shutil.copy(os.path.join(local_output_dir(), input_filename), os.path.join(input_directory2, input_filename))
 
 
 def update_dependencies_of_input_datafile_filename():
@@ -86,7 +91,7 @@ def update_dependencies_of_input_datafile_filename():
     if st.session_state['settings__input_datafile__filename'] is not None:
 
         # Set full pathname to input datafile
-        input_datafile_path = os.path.join(input_directory, st.session_state['settings__input_datafile__filename'])
+        input_datafile_path = os.path.join(local_input_dir(), st.session_state['settings__input_datafile__filename'])
 
         # Update input_datafile__format value
         _, _, _, _, file_format, _ = dataset_formats.extract_datafile_metadata(input_datafile_path)
@@ -108,7 +113,7 @@ def update_dependencies_of_phenotyping_method():
 def update_dependencies_of_analysis_images_to_analyze():
 
     # annotation__used_annotation_files options
-    annotations_dir_listing = ([x for x in os.listdir(os.path.join(input_directory, 'annotations')) if x.endswith('.csv')] if os.path.exists(os.path.join(input_directory, 'annotations')) else [])
+    annotations_dir_listing = ([x for x in os.listdir(os.path.join(local_input_dir(), 'annotations')) if x.endswith('.csv')] if os.path.exists(os.path.join(local_input_dir(), 'annotations')) else [])
     st.session_state['options_for_annotation_files'] = [x for x in annotations_dir_listing if x.split('__')[0] in st.session_state['settings__analysis__images_to_analyze']]
 
     # annotation__used_annotation_files values
@@ -174,7 +179,7 @@ def create_phenotype_assignments_file_from_phenotyper(df_phenotype_assignments):
     import numpy as np
 
     # Set the full directory path to the phenotypes files
-    phenotypes_path = os.path.join(input_directory, 'phenotypes')
+    phenotypes_path = os.path.join(local_input_dir(), 'phenotypes')
 
     # Create this path if it doesn't already exist
     if not os.path.exists(phenotypes_path):
@@ -202,7 +207,7 @@ def create_phenotype_assignments_file_from_phenotyper(df_phenotype_assignments):
 
     # Write the dataframe to disk, also making a copy in the output directory so it can optionally be saved for good
     df_phenotype_assignments_to_write.to_csv(path_or_buf=os.path.join(phenotypes_path, filename), sep='\t', header=False)
-    df_phenotype_assignments_to_write.to_csv(path_or_buf=os.path.join(output_directory, filename), sep='\t', header=False)
+    df_phenotype_assignments_to_write.to_csv(path_or_buf=os.path.join(local_output_dir(), filename), sep='\t', header=False)
 
     # Return the filename of the written file
     return filename
@@ -217,9 +222,9 @@ def write_dataframe_to_disk(df, prefix='phenotyped_datafile_from_gater'):
     filename = '{}-{}.csv'.format(prefix, utils.get_timestamp())
 
     # Save the dataframe to disk in both the output and input directories (the former for posterity, the latter so that it can be read in later)
-    filepath_to_write = os.path.join(output_directory, filename)
+    filepath_to_write = os.path.join(local_output_dir(), filename)
     df.to_csv(path_or_buf=filepath_to_write, index=False)
-    shutil.copy(filepath_to_write, input_directory)
+    shutil.copy(filepath_to_write, local_input_dir())
 
     # Return the filename of the written file
     return filename
@@ -245,12 +250,12 @@ def load_relevant_settings_from_phenotyper():
         sep = (',' if orig_filename.endswith('.csv') else '\t')
 
         # If the original datafile is not present in the input directory, then don't do anything
-        if not os.path.exists(os.path.join(input_directory, orig_filename)):
+        if not os.path.exists(os.path.join(local_input_dir(), orig_filename)):
             st.error(f'The input file {orig_filename} does not appear to be present in the input directory. Please ensure it is there and try again.')
             return
 
         # Read in this original datafile from disk
-        orig_df = pd.read_csv(os.path.join(input_directory, orig_filename), sep=sep)
+        orig_df = pd.read_csv(os.path.join(local_input_dir(), orig_filename), sep=sep)
 
         # Obtain the columns from the new datafile to paste on to the end of the original one
         new_df_to_add = new_df[[column for column in new_df_columns if column.startswith('Phenotype ')]]
@@ -301,7 +306,7 @@ def load_dataset_and_settings(checkpoints_exist, existing_dirs_to_delete, orig_s
 
     # Delete any existing checkpoints so that both the preprocessing and the rest of the workflow will run from scratch
     if checkpoints_exist:
-        platform_io.delete_selected_files_and_dirs(output_directory, existing_dirs_to_delete)
+        platform_io.delete_selected_files_and_dirs(local_output_dir(), existing_dirs_to_delete)
 
     # Save to memory all settings that are actually being used to run the SIT
     st.session_state['sit__used_settings'] = orig_settings.copy()
@@ -353,9 +358,9 @@ def load_dataset_and_settings(checkpoints_exist, existing_dirs_to_delete, orig_s
 def main():
 
     # Data needed for widget options
-    options_for_parameter_files =                [os.path.join(input_directory, x) for x in os.listdir(input_directory) if x.endswith('.yml')] + \
-                                                 [os.path.join(output_directory, x) for x in os.listdir(output_directory) if (x.endswith('.yml') and ('environment_as_of_' not in x))]
-    options_for_phenotype_identification_files = ([x for x in os.listdir(os.path.join(input_directory, 'phenotypes')) if x.endswith('.tsv')] if os.path.exists(os.path.join(input_directory, 'phenotypes')) else [])
+    options_for_parameter_files =                [os.path.join(local_input_dir(), x) for x in os.listdir(local_input_dir()) if x.endswith('.yml')] + \
+                                                 [os.path.join(local_output_dir(), x) for x in os.listdir(local_output_dir()) if (x.endswith('.yml') and ('environment_as_of_' not in x))]
+    options_for_phenotype_identification_files = ([x for x in os.listdir(os.path.join(local_input_dir(), 'phenotypes')) if x.endswith('.tsv')] if os.path.exists(os.path.join(local_input_dir(), 'phenotypes')) else [])
     options_for_phenotyping_methods = ['Species', 'Marker', 'Custom']
     options_for_significance_calculation_methods = ['Poisson (radius)', 'Permutation (radius)', 'Permutation (k-nearest neighbors)']
 
@@ -452,7 +457,7 @@ def main():
         st.button('Load phenotyping settings from the thresholded phenotyper', on_click=load_phenotyping_settings_from_thresholded_phenotyper, disabled=('phenoMeth' not in st.session_state))
         st.selectbox('Method:', options_for_phenotyping_methods, key='settings__phenotyping__method', help='Species: phenotypes defined by the unique combinations of markers present in the input file. Marker: each marker is its own phenotype. Custom: custom phenotyping using a text file.', on_change=update_dependencies_of_phenotyping_method)
         if st.session_state['settings__phenotyping__phenotype_identification_file'] is not None:
-            if (not os.path.exists(os.path.join(input_directory, 'phenotypes', st.session_state['settings__phenotyping__phenotype_identification_file']))) and (os.path.exists(os.path.join(output_directory, st.session_state['settings__phenotyping__phenotype_identification_file']))):
+            if (not os.path.exists(os.path.join(local_input_dir(), 'phenotypes', st.session_state['settings__phenotyping__phenotype_identification_file']))) and (os.path.exists(os.path.join(local_output_dir(), st.session_state['settings__phenotyping__phenotype_identification_file']))):
                 copy_input_file_from_output_dir_to_input_dir(st.session_state['settings__phenotyping__phenotype_identification_file'], input_subdir='phenotypes')
                 st.rerun()
         st.selectbox('Phenotype identification file:', options_for_phenotype_identification_files, key='settings__phenotyping__phenotype_identification_file', help='See [here](https://github.com/ncats/spatial-interaction-tool/blob/4e1240fba45cb3bc2290be18903af03f9d3fdf6a/config/phenotype_identifications/gmb_phenotype_ids_as_of_2022-07-05.tsv) for a sample phenotype identification file, which must be present in the input/phenotypes directory and have a .tsv extension.', disabled=st.session_state['phenotyping_phenotype_identification_file_is_disabled'])
@@ -497,7 +502,7 @@ def main():
     orig_settings['dataset'], orig_settings['analysis'], orig_settings['plotting'], orig_settings['annotation'], orig_settings['phenotyping'] = dict(), dict(), dict(), dict(), dict()
     orig_settings['phenotyping']['method'] = st.session_state['settings__phenotyping__method']
     orig_settings['analysis']['allow_compound_species'] = (False if orig_settings['phenotyping']['method'] == 'Marker' else True)
-    orig_settings['dataset']['phenotype_identification_tsv_file'] = (os.path.join(input_directory, 'phenotypes', st.session_state['settings__phenotyping__phenotype_identification_file']) if orig_settings['phenotyping']['method'] == 'Custom' else None)
+    orig_settings['dataset']['phenotype_identification_tsv_file'] = (os.path.join(local_input_dir(), 'phenotypes', st.session_state['settings__phenotyping__phenotype_identification_file']) if orig_settings['phenotyping']['method'] == 'Custom' else None)
     orig_settings['dataset']['roi_width'] = (st.session_state['settings__analysis__roi_width'] if st.session_state['settings__analysis__partition_slides_into_rois'] else None)
     orig_settings['dataset']['overlap'] = (st.session_state['settings__analysis__roi_overlap'] if st.session_state['settings__analysis__partition_slides_into_rois'] else 0)
     orig_settings['analysis']['thickness'] = st.session_state['settings__analysis__neighbor_radius']
@@ -539,7 +544,7 @@ def main():
             break
 
     # Determine if any checkpoints (which are directories of pickle files or images) exist
-    output_dir_listing = os.listdir(output_directory)
+    output_dir_listing = os.listdir(local_output_dir())
     dirs_to_delete = ['checkpoints', 'images', 'logs']
     existing_dirs_to_delete = set(dirs_to_delete).intersection(set(output_dir_listing))
     if len(existing_dirs_to_delete) > 0:
