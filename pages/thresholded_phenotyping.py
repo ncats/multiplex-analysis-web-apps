@@ -172,10 +172,14 @@ def main():
 
     mid_col = st.columns(2)
     with mid_col[1]:
-        with st.expander('Choose Markers to include'):
+        with st.form('Choose Markers to include'):
             st.multiselect('Markers', options = st.session_state.loaded_marker_names,
-                                      key = 'marker_multi_sel',
-                                      on_change=marker_multiselect_callback)
+                                      key = 'marker_multi_sel')
+
+            # Every form must have a submit button.
+            submitted = st.form_submit_button('Apply Changes')
+            if submitted:
+                marker_multiselect_callback()
 
     ## In-App Instructions
     if st.session_state.data_loaded is False:

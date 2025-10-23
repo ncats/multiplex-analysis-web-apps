@@ -14,12 +14,10 @@ import altair as alt
 alt.data_transformers.disable_max_rows()
 from natsort import natsorted
 from pathlib import Path
-from datetime import datetime
 import basic_phenotyper_lib as bpl                  # Useful functions for cell phenotyping
 from foundry_IO_lib import foundry_IO_lib           # Foundry Input/Output Class
 from benchmark_collector import benchmark_collector # Benchmark Collector Class
 from neighborhood_profiles import NeighborhoodProfiles, UMAPDensityProcessing  # slow because this imports umap
-import PlottingTools as umPT
 
 def identify_col_type(col):
     '''
@@ -327,9 +325,8 @@ def set_phenotyping_elements(session_state, df_orig):
     if hasattr(session_state, 'dataeditor__do_not_persist'):
         delattr(session_state, 'dataeditor__do_not_persist')
 
-    # Initalize Phenotyping Settings (Radio BUttons)
+    # Initalize Phenotyping Settings (Radio Buttons)
     session_state.noPhenoOpt = 'Not Selected'
-    session_state.phenoMeth  = 'Species'                         # Default when first loaded
     session_state.selected_phenoMeth = session_state.noPhenoOpt  # Default when first loaded
 
     return session_state
