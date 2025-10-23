@@ -149,36 +149,15 @@ def init_pheno_assign(df):
                                       of each "exclusive" species
     '''
 
-    st_init_species = time.time()
-    spec_summ = df[['species_name_short', 'phenotype', 'species_name_long']]
-    sp_init_species = time.time()
-    elapsed = round(sp_init_species - st_init_species, 3)
-    print(f'        Initalizing Phenotying Assignments: {elapsed}s')
+    spec_summ = df[['species_name_short', 'phenotype', 'species_name_long']].copy()
 
-    # This line seems to throw a TypeError: unhashable type: 'numpy.ndarray' error
-    spec_summ['species_count'] = spec_summ['species_name_short'].groupby(spec_summ['species_name_short']).transform('count')
-    spec_summ = spec_summ.drop_duplicates().reset_index(drop=True)
+    species_counts = spec_summ['species_name_short'].value_counts().reset_index()
+    species_counts.columns = ['species_name_short', 'species_count']
 
-    # The above seems a bit inefficient and should probably be replaced with something like this:
-    # spec_summ = spec_summ['species_name_short'].value_counts().reset_index()
-    # spec_summ.columns = ['species_name_short', 'species_count']
+    spec_summ = spec_summ.drop_duplicates(subset=['species_name_short']).merge(species_counts, on='species_name_short')
+    spec_summ['species_percent'] = (spec_summ['species_count'] / spec_summ['species_count'].sum() * 100).round(2)
 
-    sp_species_count = time.time()
-    elapsed_counts = round(sp_species_count - sp_init_species, 3)
-    print(f'        Phenotying Assignments Counts Calculations: {elapsed_counts}s')
-
-    spec_summ['species_percent'] = [round(100*x/sum(spec_summ['species_count']), 2) for x in spec_summ['species_count']]
-    sp_species_per = time.time()
-    elapsed_per = round(sp_species_per - sp_species_count, 3)
-    print(f'        Phenotying Assignments Percents Calculations: {elapsed_per}s')
-
-    spec_summ = spec_summ.sort_values(by='species_count', ascending= False).reset_index(drop=True)
-    sp_species_sort = time.time()
-    elapsed_sort = round(sp_species_sort - sp_species_per, 3)
-    print(f'        Phenotying Assignments sorting: {elapsed_sort}s')
-
-    # Return the created dataframe
-    return spec_summ
+    return spec_summ.sort_values(by='species_count', ascending=False).reset_index(drop=True)
 
 def init_pheno_summ(df):
     '''For each unique species (elsewhere called "exclusive" phenotyping),
