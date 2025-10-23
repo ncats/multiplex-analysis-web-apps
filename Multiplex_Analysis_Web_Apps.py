@@ -48,7 +48,10 @@ logger = logging.getLogger(__name__)
 
 def welcome_page():
     '''
-    First page displayed when the app opens
+    First page displayed when the app opens.
+
+    This requires some extra work to make the markdown rendering
+    work properly.
     '''
     # Markdown text
     with open("markdown/MAWA_WelcomePage.md", "r", encoding="utf-8") as f:
@@ -75,9 +78,13 @@ def check_for_platform(session_state):
     '''
     Set the platform parameters based on the platform the Streamlit app is running on
     '''
+
     # Initialize the platform object
     if 'platform' not in session_state:
+        logger.info('Platform initialization starting.')
+
         session_state['platform'] = platform_io.Platform(platform=('nidap' if platform_is_nidap() else 'local'))
+        logger.info('Platform initialization complete.')
     return session_state
 
 
