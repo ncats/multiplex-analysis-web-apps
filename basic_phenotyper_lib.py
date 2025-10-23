@@ -105,7 +105,11 @@ def init_pheno_cols(df, marker_names, marker_col_prefix):
     df['mark_bits'] = df_markers.astype(str).agg(''.join, axis=1)
 
     # Add a column of prettier names for the species, e.g., 'VIM- ECAD+ COX2+ NOS2-'
-    df['species_name_long'] = df['mark_bits'].apply(lambda mark_bits: ' '.join([marker_name + ('+' if marker_bit == '1' else '-') for marker_name, marker_bit in zip(marker_names, mark_bits)]))
+    df['species_name_long'] = df['mark_bits'].apply(
+        lambda mark_bits: ' '.join(
+            [f"{marker_name}{'+' if bit == '1' else '-'}" for marker_name, bit in zip(marker_names, mark_bits)]
+        )
+    )
 
     # Add a column dropping the negative markers from these pretty names, e.g., 'ECAD+ COX2+'
     def species_name_long_to_short(species_name_long):
@@ -118,6 +122,7 @@ def init_pheno_cols(df, marker_names, marker_col_prefix):
         #     return 'Other'
         # return ' + '.join(marker_names[i] for i in marker_indices) + '+'
     df['species_name_short'] = df['species_name_long'].apply(species_name_long_to_short)
+    # df['species_name_short'] = df['species_name_long'].str.extractall(r'(\w+)\+').groupby(level=0).agg(' + '.join).fillna('Other') + '+'
 
     # Create a new column called 'has pos mark' identifying which species_name_shorts are not Other
     df['has_pos_mark'] = True
