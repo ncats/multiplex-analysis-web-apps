@@ -124,9 +124,8 @@ def init_pheno_cols(df, marker_names, marker_col_prefix):
     df['species_name_short'] = df['species_name_long'].apply(species_name_long_to_short)
     # df['species_name_short'] = df['species_name_long'].str.extractall(r'(\w+)\+').groupby(level=0).agg(' + '.join).fillna('Other') + '+'
 
-    # Create a new column called 'has pos mark' identifying which species_name_shorts are not Other
-    df['has_pos_mark'] = True
-    df.loc[df['species_name_short'] == 'Other', 'has_pos_mark'] = False
+    # Create a new column called 'has pos mark' identifying which species_name_shorts are not "Other"
+    df['has_pos_mark'] = df['species_name_short'] != 'Other'
 
     # Create phenotype column and assign a value of 'unassigned'
     df['phenotype'] = 'unassigned'
