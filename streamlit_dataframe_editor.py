@@ -117,7 +117,11 @@ class DataframeEditor:
 
     def __init__(self, df_name, default_df_contents):
         '''
-        Object instantiation
+        DataframeEditor instantiation
+
+        Args:
+            df_name (str): The name of the dataframe.
+            default_df_contents (pd.DataFrame): The default contents of the dataframe.
         '''
         self.df_name = df_name
         self.default_df_contents = cast_column_labels_to_strings(default_df_contents)
@@ -201,12 +205,15 @@ class DataframeEditor:
             self.update_editor_contents(new_df_contents=self.reconstruct_edited_dataframe(), reset_key=False)
 
         # Output a data editor for a dataframe of interest
-        st.data_editor(st.session_state[df_name],
-                       key=key_for_data_editor_widget,
-                       on_change=save_data_editor_changes,
-                       args=(df_name + '_changes_dict', key_for_data_editor_widget, on_change),
-                       num_rows=('dynamic' if dynamic_rows else 'fixed'),
-                       hide_index=hide_index, column_config=column_config)
+        edited_df = st.data_editor(
+            st.session_state[df_name],
+            key=key_for_data_editor_widget,
+            on_change=save_data_editor_changes,
+            args=(df_name + '_changes_dict', key_for_data_editor_widget, on_change),
+            num_rows=('dynamic' if dynamic_rows else 'fixed'),
+            hide_index=hide_index,
+            column_config=column_config     
+        )
 
         # Debugging information
         if debug:
@@ -215,3 +222,5 @@ class DataframeEditor:
         # Create a button to reset the data in the data editor
         if reset_data_editor_button:
             st.button(reset_data_editor_button_text, on_click=self.reset_dataframe_content, key=(df_name + '_button__do_not_persist'), kwargs={'additional_callback': on_change})
+
+        return edited_df

@@ -89,13 +89,15 @@ def make_simple_dataframe_from_file_listing(available_files, df_session_state_ke
     # Make a copy of the available files with the .zip extensions removed, if present
     available_files = [filename.split('.zip')[0] for filename in available_files]
 
-    # Create a simple dataframe of the available files, with a selection column and stripped of any .zip extensions
-    df = pd.DataFrame({'Selected': [False for _ in available_files], 'File or directory name': available_files})
+    # Create a simple dataframe of listed files
+    df = pd.DataFrame({'File or directory name': available_files})
 
     # Display an editable dataframe version of this
     if editable:
         ss_de_key_name = 'loader__de_' + df_session_state_key_basename
         ss_df_key_name = 'loader__df_' + df_session_state_key_basename
+
+        print(ss_de_key_name)
         # st.session_state[ss_df_key_name] = st.data_editor(df, key=(ss_df_key_name + '_input__do_not_persist'))
         if ss_de_key_name in st.session_state:
             if set(df['File or directory name']) != set(st.session_state[ss_de_key_name].reconstruct_edited_dataframe()['File or directory name']):
@@ -306,10 +308,25 @@ class Platform:
         available_inputs = self.available_inputs
 
         # Create a simple editable dataframe of the available input filenames
-        make_simple_dataframe_from_file_listing(available_files=available_inputs,
+        edited_df = make_simple_dataframe_from_file_listing(available_files=available_inputs,
                                                 df_session_state_key_basename='available_inputs',
                                                 streamlit_key_for_available_filenames_srs='srs_available_input_filenames',
                                                 editable=True)
+        
+        # If checkboxes (row selection) are used, Streamlit returns a special attribute: edited_df["__selected_rows__"]
+        # You can access the indices of selected rows like this:
+        selected_rows = []
+        if isinstance(edited_df, pd.DataFrame) and "__selected_rows__" in edited_df.columns:
+            selected_rows = edited_df["__selected_rows__"].to_list()
+            # Optionally, get the actual selected rows:
+            selected_df = edited_df[edited_df["__selected_rows__"]]
+        else:
+            selected_df = pd.DataFrame()  # Empty if nothing selected
+
+        self.loader__de_available_inputs_selected_rows = selected_rows
+        self.loader__de_available_inputs_selected_df = selected_df
+
+        st.write(f'Selected files are {self.loader__de_available_inputs_selected_rows}')
 
     def add_refresh_available_inputs_button(self):
         '''
