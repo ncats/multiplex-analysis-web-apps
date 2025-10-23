@@ -22,6 +22,31 @@ The other two images (`postgres` and `minio`) should be pulled when the multi-co
 
 * E.g., `IMAGE_TAG=2025-10-20-03 docker compose up --build`.
 
+## Tag and push images to Docker Hub after building
+
+E.g.:
+
+```bash
+IMAGE_TAG=2025-10-22-05
+docker tag postgres:15 andrewweisman/mawa-postgres:$IMAGE_TAG && docker push andrewweisman/mawa-postgres:$IMAGE_TAG
+docker tag minio/minio:RELEASE.2025-09-07T16-13-09Z-cpuv1 andrewweisman/mawa-minio:$IMAGE_TAG && docker push andrewweisman/mawa-minio:$IMAGE_TAG
+docker tag orchestrator:$IMAGE_TAG andrewweisman/mawa-orchestrator:$IMAGE_TAG && docker push andrewweisman/mawa-orchestrator:$IMAGE_TAG
+docker tag frontend:$IMAGE_TAG andrewweisman/mawa-frontend:$IMAGE_TAG && docker push andrewweisman/mawa-frontend:$IMAGE_TAG
+```
+
+The images in this example are located at https://hub.docker.com/repositories/andrewweisman.
+
+## Testing external loading of archives created on NIDAP
+
+* Place archive `.zip` files (e.g., from the `output` dataset on NIDAP) from NIDAP into the `oldarchives` bucket.
+* Use the "Data Import and Export" page to load these archives (don't forget to subsequently use the sidebar to actually load the sessions into the session state instead of only extracting the `.zip` files).
+* Press through all the pages and ensure there are no errors at any point, **including at the bottom of each page**.
+* Record somewhere which archive you tried as well as the tag for the containers so we know which containers were used for the testing.
+* Testing notes:
+  * For loading archives created on NIDAP, we cannot use a Mac since we require amd64-compiled libraries (`.tar.gz` file) which are incompatible with arm64-based Mac.
+  * For general testing, we are fine using a Mac; everything should work probably even without any emulation.
+  * For prod, we need to ensure we test on amd64 architecture.
+
 ## Notes
 
 * Reference for buckets/stages:
@@ -30,21 +55,25 @@ The other two images (`postgres` and `minio`) should be pulled when the multi-co
   * outputs --> these hold results from ephemeral jobs
   * oldarchives --> temporary bucket to hold archives from NIDAP (like the "output" dataset on NIDAP)
   * objects --> this holds user input files (like the "input" dataset on NIDAP)
-
   The "input" and "output" directories are purely local folders existing in the containers and have nothing to do with the "input" and "output" buckets, which have to do with asynchronous job inputs/outputs. The local "input" and "output" directories are not buckets (Docker) or stages (Snowflake) like everything above.
 * To access any of these buckets, go to http://127.0.0.1:9001. Username=`minioadmin` and password=`minioadmin123`.
 * To use full stack MAWA, place input .csv etc. files into the `objects` bucket. These files are then accessible in the app via the Data Import and Export page as usual (previously on NIDAP).
-* Testing:
-  * Place archive `.zip` files (e.g., from the `output` dataset on NIDAP) from NIDAP into the `oldarchives` bucket.
-  * Use the "Data Import and Export" page to load these archives (don't forget to subsequently use the sidebar to actually load the sessions into the session state instead of only extracting the `.zip` files).
-  * Press through all the pages and ensure there are no errors at any point.
-  * Record somewhere which archive you tried as well as the tag for the containers so we know which containers were used for the testing.
-  * Testing notes:
-    * For loading archives created on NIDAP, we cannot use a Mac since we require amd64-compiled libraries (`.tar.gz file`) which are incompatible with arm64-based Mac.
-    * For general testing, we are fine using a Mac; everything should work probably even without any emulation.
-    * For prod, we need to ensure we test on amd64 architecture.
 * At some point we want to implement multi-arch builds using `docker buildx`.
-* Here are the containers in the app:
-  ![alt text](app_containers.png)
-* Here is the ideal organization scheme for the app:
-  ![alt text](ideal_organization_scheme.png)
+* Asynchronous execution is not yet implemented. For guidance, see `generate_results.py`.
+
+## Links
+
+* [Codebase](https://github.com/ncats/multiplex-analysis-web-apps/tree/full-stack)
+* This is [all MAWA user data](<https://axleinfo-my.sharepoint.com/:f:/r/personal/andrew_weisman_axleinfo_com/Documents/NIH/NIDAP migration/user_data_backup?e=5%3af5b9a4743b3a4ad48260a466f31d1555&sharingv2=true&fromShare=true&at=9>) (input and output datasets) as of 10/1/25. This includes the foundry_transforms_lib_python-0.881.0.tar.gz file.
+* [User data locations on NIDAP](<https://axleinfo-my.sharepoint.com/:x:/r/personal/andrew_weisman_axleinfo_com/Documents/NIH/NIDAP migration/users.xlsx?d=wcf7286526ae547a9b5abc51d33ba7ff9&e=4%3afbf01da7919942748e988c4218f8d591&sharingv2=true&fromShare=true&at=9>)
+* [Diagrams](https://lucid.app/lucidchart/da710fee-56ce-4fa3-9d07-d9a4a97e6f60/edit)
+
+## Diagrams (as of 10/23/24)
+
+Containers in the app:
+
+![alt text](app_containers.png)
+
+Here is the ideal organization scheme for the app:
+
+![alt text](ideal_organization_scheme.png)
