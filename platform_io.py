@@ -46,6 +46,12 @@ def make_complex_dataframe_from_file_listing(dirpath, item_names, df_session_sta
     modification_times = [os.path.getmtime(os.path.join(dirpath, x)) for x in item_names]
     selecteds = [False for _ in item_names]
     df = pd.DataFrame({'Selected': selecteds, 'File or directory name': item_names, '# of files within': num_contents, 'Modification time': [time.ctime(x) for x in modification_times], 'mod_time_sec': modification_times}).sort_values('mod_time_sec', ascending=False).reset_index(drop=True)
+
+    column_config = {
+        "Selected": st.column_config.CheckboxColumn(label="Select", width=75),
+        "File or directory name": st.column_config.TextColumn(label="File or directory name"),
+        "# of files within": st.column_config.NumberColumn(label="Number of files within", width=125),
+    }
     if editable:
         ss_de_key_name = 'loader__de_' + df_session_state_key_basename
         ss_df_key_name = 'loader__df_' + df_session_state_key_basename
@@ -55,7 +61,8 @@ def make_complex_dataframe_from_file_listing(dirpath, item_names, df_session_sta
                 del st.session_state[ss_de_key_name]
         if ss_de_key_name not in st.session_state:
             st.session_state[ss_de_key_name] = sde.DataframeEditor(df_name=ss_df_key_name, default_df_contents=df.iloc[:, :-1])
-        st.session_state[ss_de_key_name].dataframe_editor(reset_data_editor_button_text='Reset file selections')
+        st.session_state[ss_de_key_name].dataframe_editor(reset_data_editor_button_text='Reset file selections',
+                                                          column_config=column_config)
     else:
         st.dataframe(df.iloc[:, 1:-1])
         if df_session_state_key_basename is not None:
@@ -92,6 +99,11 @@ def make_simple_dataframe_from_file_listing(available_files, df_session_state_ke
     # Create a simple dataframe of the available files, with a selection column and stripped of any .zip extensions
     df = pd.DataFrame({'Selected': [False for _ in available_files], 'File or directory name': available_files})
 
+    column_config = {
+        "Selected": st.column_config.CheckboxColumn(label="Select", width=75),
+        "File or directory name": st.column_config.TextColumn(label="File or directory name")
+    }
+
     # Display an editable dataframe version of this
     if editable:
         ss_de_key_name = 'loader__de_' + df_session_state_key_basename
@@ -103,9 +115,10 @@ def make_simple_dataframe_from_file_listing(available_files, df_session_state_ke
         if ss_de_key_name not in st.session_state:
             st.session_state[ss_de_key_name] = sde.DataframeEditor(df_name=ss_df_key_name,
                                                                    default_df_contents=df)
-        st.session_state[ss_de_key_name].dataframe_editor(reset_data_editor_button_text='Reset file selections')
+        st.session_state[ss_de_key_name].dataframe_editor(reset_data_editor_button_text='Reset file selections',
+                                                          column_config=column_config)
     else:
-        st.dataframe(df)
+        st.dataframe(df, column_config=column_config)
         if df_session_state_key_basename is not None:
             st.warning('Session state key {} is not being assigned since editable=False was selected in call to make_simple_dataframe_from_file_listing()'.format(ss_df_key_name))
 

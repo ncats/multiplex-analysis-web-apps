@@ -117,7 +117,11 @@ class DataframeEditor:
 
     def __init__(self, df_name, default_df_contents):
         '''
-        Object instantiation
+        DataframeEditor instantiation
+
+        Args:
+            df_name (str): The name of the dataframe.
+            default_df_contents (pd.DataFrame): The default contents of the dataframe.
         '''
         self.df_name = df_name
         self.default_df_contents = cast_column_labels_to_strings(default_df_contents)
@@ -206,7 +210,8 @@ class DataframeEditor:
                        on_change=save_data_editor_changes,
                        args=(df_name + '_changes_dict', key_for_data_editor_widget, on_change),
                        num_rows=('dynamic' if dynamic_rows else 'fixed'),
-                       hide_index=hide_index, column_config=column_config)
+                       hide_index=hide_index,
+                       column_config=column_config)
 
         # Debugging information
         if debug:
