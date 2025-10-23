@@ -172,11 +172,21 @@ def init_pheno_summ(df):
                                         each "exclusive" species
     '''
 
-    assign_pheno = df[['phenotype', 'species_name_short', 'species_name_long']].groupby(by='phenotype', as_index = False).agg(lambda x: np.unique(list(x)))
+    # Group by phenotype and aggregate unique values for species_name_short and species_name_long
+    assign_pheno = df.groupby('phenotype', as_index=False).agg({
+        'species_name_short': lambda x: ', '.join(str(val) for val in pd.unique(x.dropna())),   
+        'species_name_long': lambda x: ', '.join(str(val) for val in pd.unique(x.dropna()))
+    })
 
-    assign_pheno['phenotype_count'] = [sum(df['phenotype'] == x) for x in assign_pheno.phenotype]
-    assign_pheno['phenotype_percent'] = [round(100*x/sum(assign_pheno['phenotype_count']), 2) for x in assign_pheno['phenotype_count']]
-    assign_pheno = assign_pheno.sort_values(by='phenotype_count', ascending=False)
+    # Calculate phenotype counts and percentages
+    phenotype_counts = df['phenotype'].value_counts()
+    total_count = phenotype_counts.sum()
+
+    assign_pheno['phenotype_count'] = assign_pheno['phenotype'].map(phenotype_counts)
+    assign_pheno['phenotype_percent'] = (assign_pheno['phenotype_count'] / total_count * 100).round(2)
+
+    # Sort by phenotype count in descending order
+    assign_pheno = assign_pheno.sort_values(by='phenotype_count', ascending=False).reset_index(drop=True)
 
     return assign_pheno
 
