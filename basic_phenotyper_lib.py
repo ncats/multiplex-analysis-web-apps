@@ -111,18 +111,18 @@ def init_pheno_cols(df, marker_names, marker_col_prefix):
         )
     )
 
-    # Add a column dropping the negative markers from these pretty names, e.g., 'ECAD+ COX2+'
-    def species_name_long_to_short(species_name_long):
-        x = '+ '.join([marker_names[iy] for iy, y in enumerate([x for x in species_name_long if x in ('+', '-')]) if y == '+']) + '+'
-        species_name_short = x if len(x) != 1 else 'Other'
-        return species_name_short
-    # This can possibly be made faster (if it's correct) via but I haven't tested it:
-        # marker_indices = [i for i, x in enumerate(species_name_long) if x == '+']
-        # if not marker_indices:
-        #     return 'Other'
-        # return ' + '.join(marker_names[i] for i in marker_indices) + '+'
-    df['species_name_short'] = df['species_name_long'].apply(species_name_long_to_short)
-    # df['species_name_short'] = df['species_name_long'].str.extractall(r'(\w+)\+').groupby(level=0).agg(' + '.join).fillna('Other') + '+'
+    # # Add a column dropping the negative markers from these pretty names, e.g., 'ECAD+ COX2+'
+    # def species_name_long_to_short(species_name_long):
+    #     x = '+ '.join([marker_names[iy] for iy, y in enumerate([x for x in species_name_long if x in ('+', '-')]) if y == '+']) + '+'
+    #     species_name_short = x if len(x) != 1 else 'Other'
+    #     return species_name_short
+    # # This can possibly be made faster (if it's correct) via but I haven't tested it:
+    #     # marker_indices = [i for i, x in enumerate(species_name_long) if x == '+']
+    #     # if not marker_indices:
+    #     #     return 'Other'
+    #     # return ' + '.join(marker_names[i] for i in marker_indices) + '+'
+    # df['species_name_short'] = df['species_name_long'].apply(species_name_long_to_short)
+    df['species_name_short'] = df['species_name_long'].str.extractall(r'(\w+)\+').groupby(level=0).agg(' + '.join).fillna('Other') + '+'
 
     # Create a new column called 'has pos mark' identifying which species_name_shorts are not "Other"
     df['has_pos_mark'] = df['species_name_short'] != 'Other'
