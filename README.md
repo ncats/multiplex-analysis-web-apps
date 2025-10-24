@@ -93,6 +93,12 @@ Ensure the previously run app is fully shut down using e.g. `IMAGE_TAG=2025-10-2
 
 Run using e.g. `IMAGE_TAG=2025-10-24-01-ana docker compose up`.
 
+Did similar dependency resolution for Ana's last archive. Now have three different environments with the following tags on Andrew's laptop:
+
+* environment-ana-20240814_to_20241219-compatible.yml --> `ana-older`: Should work for all of Ana's previous archives. Note that Leandro's environment works for Ana's oldest archive actually.
+* environment-ana-20250605-compatible.yml --> `ana-latest`: Should work for Ana's latest archive.
+* environment-leandro-compatible.yml --> `leandro`: Should work for all of Leandro's (and Robert's once confirmed) archives. Not the most up-to-date packages as these are based on some of Leandro's original archives to ensure compatibility with those.
+
 ## Notes
 
 * Reference for buckets/stages:
