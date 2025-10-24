@@ -6,12 +6,12 @@ FROM mambaorg/micromamba:latest
 WORKDIR /app
 
 # Copy ONLY the environment file first (changes less frequently)
-# COPY source/environment.yml .
+# COPY source/environment-leandro-compatible.yml .
 # COPY source/environment-ana.yml .
 COPY source/environment-ana-20250605-compatible.yml .
 
 # Create conda environment from environment.yml
-# RUN micromamba install -y -f environment.yml && micromamba clean --all --yes
+# RUN micromamba install -y -f environment-leandro-compatible.yml && micromamba clean --all --yes
 # RUN micromamba install -y -f environment-ana.yml && micromamba clean --all --yes
 RUN micromamba install -y -f environment-ana-20250605-compatible.yml && micromamba clean --all --yes
 
