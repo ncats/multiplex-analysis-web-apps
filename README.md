@@ -47,6 +47,52 @@ The images in this example are located at https://hub.docker.com/repositories/an
   * For general testing, we are fine using a Mac; everything should work probably even without any emulation.
   * For prod, we need to ensure we test on amd64 architecture.
 
+## To use a different environment
+
+Figure out the new environment, and then create a new corresponding `.yml` file, e.g., `source/environment-ana.yml`. Confirm it builds successfully locally, ensure necessary packages import, etc. Make sure that environment is solid.
+
+Modify the three lines (see commented lines) in `streamlit/Dockerfile` as, e.g.:
+
+```dockerfile
+# Use Micromamba as base image
+# In the future, pin this version to ensure consistency.
+FROM mambaorg/micromamba:latest
+
+# Set the working directory in the container
+WORKDIR /app
+
+# Copy ONLY the environment file first (changes less frequently)
+# COPY source/environment.yml .
+COPY source/environment-ana.yml .
+
+# Create conda environment from environment.yml
+# RUN micromamba install -y -f environment.yml && micromamba clean --all --yes
+RUN micromamba install -y -f environment-ana.yml && micromamba clean --all --yes
+
+# "Install" foundry_transforms_lib_python by unpacking it into site-packages.
+COPY temp_vendor/foundry_transforms_lib_python-0.881.0.tar.gz .
+# RUN tar -xzvf foundry_transforms_lib_python-0.881.0.tar.gz -C /opt/conda/lib/python3.12/site-packages/ && rm foundry_transforms_lib_python-0.881.0.tar.gz
+RUN tar -xzvf foundry_transforms_lib_python-0.881.0.tar.gz -C /opt/conda/lib/python3.9/site-packages/ && rm foundry_transforms_lib_python-0.881.0.tar.gz
+
+# Copy source files to the container
+COPY source/ .
+
+# Copy .git to get commit hash
+COPY .git .git
+
+# Expose the port that Streamlit runs on
+EXPOSE 8501
+
+# Run the Streamlit app when the container starts
+CMD ["streamlit", "run", "app.py", "--server.address", "0.0.0.0", "--server.port", "8501"]
+```
+
+Build a new image using e.g. `IMAGE_TAG=2025-10-24-01-ana docker compose build`.
+
+Ensure the previously run app is fully shut down using e.g. `IMAGE_TAG=2025-10-22-05 docker compose down`.
+
+Run using e.g. `IMAGE_TAG=2025-10-24-01-ana docker compose up`.
+
 ## Notes
 
 * Reference for buckets/stages:
