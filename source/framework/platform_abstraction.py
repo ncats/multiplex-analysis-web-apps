@@ -800,6 +800,76 @@ def download_zip_object_data(bucket_name, zip_name, db_schema: str = None):
             return None
         
 
+def upload_object_data(bucket_name, object_name, data_buffer, db_schema: str = None):
+    """Upload raw object data to storage."""
+    if framework_utils.platform() == "local":
+        try:
+            client = get_object_storage_client()
+            
+            # Ensure data_buffer is bytes
+            if isinstance(data_buffer, str):
+                data_buffer = data_buffer.encode()
+            
+            # If it's already bytes, wrap in BytesIO
+            if isinstance(data_buffer, bytes):
+                data_buffer = io.BytesIO(data_buffer)
+            
+            # Get the size of the buffer
+            data_buffer.seek(0, io.SEEK_END)
+            data_size = data_buffer.tell()
+            data_buffer.seek(0)
+
+            client.put_object(
+                bucket_name=bucket_name,
+                object_name=object_name,
+                data=data_buffer,
+                length=data_size,
+                content_type='application/octet-stream'
+            )
+            return True
+        except Exception as e:
+            st.error(f"Failed to upload object data: {e}")
+            return False
+    elif framework_utils.platform() == "snowflake":
+        # Not implemented for snowflake yet
+        st.error("Object data upload not implemented for snowflake platform")
+        return False
+
+
+def download_object_data(bucket_name, object_name, db_schema: str = None):
+    """Download raw object data from storage."""
+    if framework_utils.platform() == "local":
+        try:
+            client = get_object_storage_client()
+            response = client.get_object(bucket_name, object_name)
+            data = response.read()
+            response.close()
+            return data
+        except Exception as e:
+            st.error(f"Failed to download object data: {e}")
+            return None
+    elif framework_utils.platform() == "snowflake":
+        # Not implemented for snowflake yet
+        st.error("Object data download not implemented for snowflake platform")
+        return None
+
+
+def delete_object_data(bucket_name, object_name, db_schema: str = None):
+    """Delete object data from storage."""
+    if framework_utils.platform() == "local":
+        try:
+            client = get_object_storage_client()
+            client.remove_object(bucket_name, object_name)
+            return True
+        except Exception as e:
+            st.error(f"Failed to delete object data: {e}")
+            return False
+    elif framework_utils.platform() == "snowflake":
+        # Not implemented for snowflake yet
+        st.error("Object data deletion not implemented for snowflake platform")
+        return False
+
+
 def list_objects_in_bucket(bucket_name: str, db_schema: str = None):
     if framework_utils.platform() == "local":
         try:
