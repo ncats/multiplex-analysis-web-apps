@@ -7,11 +7,13 @@ WORKDIR /app
 
 # Copy ONLY the environment file first (changes less frequently)
 # COPY source/environment.yml .
-COPY source/environment-ana.yml .
+# COPY source/environment-ana.yml .
+COPY source/environment-ana-20250605-compatible.yml .
 
 # Create conda environment from environment.yml
 # RUN micromamba install -y -f environment.yml && micromamba clean --all --yes
-RUN micromamba install -y -f environment-ana.yml && micromamba clean --all --yes
+# RUN micromamba install -y -f environment-ana.yml && micromamba clean --all --yes
+RUN micromamba install -y -f environment-ana-20250605-compatible.yml && micromamba clean --all --yes
 
 # "Install" foundry_transforms_lib_python by unpacking it into site-packages.
 COPY temp_vendor/foundry_transforms_lib_python-0.881.0.tar.gz .
