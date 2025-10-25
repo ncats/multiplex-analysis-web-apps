@@ -1,3 +1,4 @@
+-- Become admin.
 use role accountadmin;
 
 ---------------- Database group_alpha_group_db. ---------------------------------------------------

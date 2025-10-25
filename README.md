@@ -100,6 +100,7 @@ Did similar dependency resolution for Ana's last archive. Now have three differe
 * environment-leandro-compatible.yml --> `leandro`: Should work for all of Leandro's (and Robert's once confirmed) archives. Not the most up-to-date packages as these are based on some of Leandro's original archives to ensure compatibility with those.
 * environment-gmb-20240628_to_20240701-compatible.yml --> `gmb-earliest`
 * environment-gmb-20240917_to_20241003-compatible.yml --> `gmb-latest`
+* environment-dceg-compatible.yml --> `dceg`
 
 ## Notes
 
