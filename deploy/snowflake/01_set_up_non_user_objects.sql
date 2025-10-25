@@ -1,3 +1,86 @@
+use role accountadmin;
+
+create database if not exists group_alpha_group_db;
+create schema if not exists group_alpha_group_db.curated_schema;
+create schema if not exists group_alpha_group_db.app_a_schema;
+create stage if not exists group_alpha_group_db.curated_schema.objects_stage
+  directory = ( enable = true );
+create stage if not exists group_alpha_group_db.app_a_schema.archives_stage
+  directory = ( enable = true );
+create stage if not exists group_alpha_group_db.app_a_schema.inputs_stage
+  directory = ( enable = true );
+create stage if not exists group_alpha_group_db.app_a_schema.outputs_stage
+  directory = ( enable = true );
+create stage if not exists group_alpha_group_db.app_a_schema.oldarchives_stage
+  directory = ( enable = true );
+create table if not exists group_alpha_group_db.app_a_schema.app_sessions_table;
+create table if not exists group_alpha_group_db.app_a_schema.archives_table;
+create table if not exists group_alpha_group_db.app_a_schema.jobs_table;
+create database role if not exists group_alpha_group_db.curated_schema_rw_db_role;
+create database role if not exists group_alpha_group_db.app_a_schema_rw_db_role;
+GRANT USAGE ON DATABASE group_alpha_group_db  -- Let the database role see the database and schema
+  TO DATABASE ROLE group_alpha_group_db.curated_schema_rw_db_role;
+GRANT USAGE ON SCHEMA group_alpha_group_db.curated_schema
+  TO DATABASE ROLE group_alpha_group_db.curated_schema_rw_db_role;
+GRANT READ ON STAGE group_alpha_group_db.curated_schema.objects_stage  -- Allow reading files from the stage (LIST/GET, COPY INTO <table> FROM @stage)
+  TO DATABASE ROLE group_alpha_group_db.curated_schema_rw_db_role;
+GRANT WRITE ON STAGE group_alpha_group_db.curated_schema.objects_stage  -- Allow writing files to the stage (PUT/REMOVE, COPY INTO @stage)
+  TO DATABASE ROLE group_alpha_group_db.curated_schema_rw_db_role;
+GRANT USAGE ON DATABASE group_alpha_group_db  -- Let the database role see the database and schema
+  TO DATABASE ROLE group_alpha_group_db.app_a_schema_rw_db_role;
+GRANT USAGE ON SCHEMA group_alpha_group_db.app_a_schema
+  TO DATABASE ROLE group_alpha_group_db.app_a_schema_rw_db_role;
+GRANT READ ON STAGE group_alpha_group_db.app_a_schema.archives_stage  -- Allow reading files from the stage (LIST/GET, COPY INTO <table> FROM @stage)
+  TO DATABASE ROLE group_alpha_group_db.app_a_schema_rw_db_role;
+GRANT WRITE ON STAGE group_alpha_group_db.app_a_schema.archives_stage  -- Allow writing files to the stage (PUT/REMOVE, COPY INTO @stage)
+  TO DATABASE ROLE group_alpha_group_db.app_a_schema_rw_db_role;
+GRANT READ ON STAGE group_alpha_group_db.app_a_schema.inputs_stage  -- Allow reading files from the stage (LIST/GET, COPY INTO <table> FROM @stage)
+  TO DATABASE ROLE group_alpha_group_db.app_a_schema_rw_db_role;
+GRANT WRITE ON STAGE group_alpha_group_db.app_a_schema.inputs_stage  -- Allow writing files to the stage (PUT/REMOVE, COPY INTO @stage)
+  TO DATABASE ROLE group_alpha_group_db.app_a_schema_rw_db_role;
+GRANT READ ON STAGE group_alpha_group_db.app_a_schema.outputs_stage  -- Allow reading files from the stage (LIST/GET, COPY INTO <table> FROM @stage)
+  TO DATABASE ROLE group_alpha_group_db.app_a_schema_rw_db_role;
+GRANT WRITE ON STAGE group_alpha_group_db.app_a_schema.outputs_stage  -- Allow writing files to the stage (PUT/REMOVE, COPY INTO @stage)
+  TO DATABASE ROLE group_alpha_group_db.app_a_schema_rw_db_role;
+GRANT READ ON STAGE group_alpha_group_db.app_a_schema.oldarchives_stage  -- Allow reading files from the stage (LIST/GET, COPY INTO <table> FROM @stage)
+  TO DATABASE ROLE group_alpha_group_db.app_a_schema_rw_db_role;
+-- Note that even though the db role is called ...RW_db_role, we do not give WRITE permissions on the oldarchives_stage since the app won't do that.
+GRANT SELECT, INSERT, UPDATE  -- Table-level privileges (read + write)
+  ON TABLE group_alpha_group_db.app_a_schema.app_sessions_table
+  TO DATABASE ROLE group_alpha_group_db.app_a_schema_rw_db_role;
+
+GRANT SELECT, INSERT, UPDATE
+  ON TABLE group_alpha_group_db.app_a_schema.archives_table
+  TO DATABASE ROLE group_alpha_group_db.app_a_schema_rw_db_role;
+
+GRANT SELECT, INSERT, UPDATE
+  ON TABLE group_alpha_group_db.app_a_schema.jobs_table
+  TO DATABASE ROLE group_alpha_group_db.app_a_schema_rw_db_role;
+-- Note that we probably don't need all of select, insert, update on all tables, but for simplicity we give all three here.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 USE ROLE ACCOUNTADMIN;
 
 CREATE ROLE IF NOT EXISTS data_app_role;
