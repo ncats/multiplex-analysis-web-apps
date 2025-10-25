@@ -98,6 +98,8 @@ Did similar dependency resolution for Ana's last archive. Now have three differe
 * environment-ana-20240814_to_20241219-compatible.yml --> `ana-older`: Should work for all of Ana's previous archives. Note that Leandro's environment works for Ana's oldest archive actually.
 * environment-ana-20250605-compatible.yml --> `ana-latest`: Should work for Ana's latest archive.
 * environment-leandro-compatible.yml --> `leandro`: Should work for all of Leandro's (and Robert's once confirmed) archives. Not the most up-to-date packages as these are based on some of Leandro's original archives to ensure compatibility with those.
+* environment-gmb-20240628_to_20240701-compatible.yml --> `gmb-earliest`
+* environment-gmb-20240917_to_20241003-compatible.yml --> `gmb-latest`
 
 ## Notes
 
