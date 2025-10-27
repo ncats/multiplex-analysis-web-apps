@@ -120,15 +120,33 @@ GRANT USAGE ON DATABASE app_a_app_db
 GRANT USAGE ON SCHEMA group_alpha_schema
   TO ROLE app_a_group_alpha_role;
 
--- Allow this account role to create services in the schema.
-GRANT CREATE SERVICE ON SCHEMA group_alpha_schema
-  TO ROLE app_a_group_alpha_role;
+-- **** CREATE THE APP.
+
+-- **** CHANGE THE OWNER OF THE APP TO app_a_group_alpha_role.
 
 -- Give this account role the appropriate database roles.
 grant database role app_a_schema_rw_db_role to role app_a_group_alpha_role;
 grant database role curated_schema_rw_db_role to role app_a_group_alpha_role;
 grant database role admin_schema_ro_db_role to role app_a_group_alpha_role;
 ---------------- End database app_a_app_db. -----------------------------------------------
+
+
+---------------- Database app_launcher_db. ---------------------------------------------------
+-- Create the database and schemas.
+create database if not exists app_launcher_db;
+use database app_launcher_db;
+create schema if not exists group_alpha_schema;
+
+-- Grant app_a_group_alpha_role privileges to see the database and schema.
+GRANT USAGE ON DATABASE app_launcher_db
+  TO ROLE data_app_user_1_role;
+GRANT USAGE ON SCHEMA group_alpha_schema
+  TO ROLE data_app_user_1_role;
+
+-- **** CREATE THE LAUNCHER APP.
+
+-- **** CHANGE THE OWNER OF THE LAUNCHER APP TO data_app_user_1_role.
+---------------- End database app_launcher_db. -----------------------------------------------
 
 
 
