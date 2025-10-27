@@ -1,6 +1,13 @@
 -- Become admin.
 use role accountadmin;
 
+-- Create a warehouse for setup purposes.
+CREATE WAREHOUSE IF NOT EXISTS setup_warehouse
+  WAREHOUSE_SIZE = 'XSMALL'
+  AUTO_RESUME = TRUE
+  INITIALLY_SUSPENDED = TRUE;
+use warehouse setup_warehouse;
+
 
 ---------------- Database group_alpha_group_db. ---------------------------------------------------
 -- Create the database and schemas.
@@ -114,20 +121,29 @@ create schema if not exists group_alpha_schema;
 create role if not exists app_a_group_alpha_role; -- This is the account role that owns and operates the app.
 create role if not exists data_app_user_1_role; -- This is the account role that will be granted the service role for the app.
 
+-- Create a warehouse for the app.
+CREATE WAREHOUSE IF NOT EXISTS app_a_app_warehouse
+  WAREHOUSE_SIZE = 'XSMALL'
+  AUTO_RESUME = TRUE
+  INITIALLY_SUSPENDED = TRUE;
+
+-- **** CREATE THE APP, app_a_user_1, that uses app_a_app_warehouse.
+
+-- **** CHANGE THE OWNER OF THE APP TO app_a_group_alpha_role.
+
 -- Grant app_a_group_alpha_role privileges to see the database and schema.
 GRANT USAGE ON DATABASE app_a_app_db
   TO ROLE app_a_group_alpha_role;
 GRANT USAGE ON SCHEMA group_alpha_schema
   TO ROLE app_a_group_alpha_role;
 
--- **** CREATE THE APP, app_a_user_1.
-
--- **** CHANGE THE OWNER OF THE APP TO app_a_group_alpha_role.
-
 -- Give this account role the appropriate database roles.
 grant database role group_alpha_group_db.app_a_schema_rw_db_role to role app_a_group_alpha_role;
 grant database role group_alpha_group_db.curated_schema_rw_db_role to role app_a_group_alpha_role;
 grant database role common_db.admin_schema_ro_db_role to role app_a_group_alpha_role;
+
+-- Grant access to the warehouse.
+GRANT USAGE, OPERATE, MONITOR ON WAREHOUSE app_a_app_warehouse TO ROLE app_a_group_alpha_role;
 ---------------- End database app_a_app_db. -----------------------------------------------
 
 
@@ -137,15 +153,24 @@ create database if not exists app_launcher_db;
 use database app_launcher_db;
 create schema if not exists group_alpha_schema;
 
+-- Create a warehouse for the app.
+CREATE WAREHOUSE IF NOT EXISTS app_launcher_warehouse
+  WAREHOUSE_SIZE = 'XSMALL'
+  AUTO_RESUME = TRUE
+  INITIALLY_SUSPENDED = TRUE;
+
+-- **** CREATE THE LAUNCHER APP, app_launcher_user_1.
+
+-- **** CHANGE THE OWNER OF THE LAUNCHER APP TO data_app_user_1_role.
+
 -- Grant app_a_group_alpha_role privileges to see the database and schema.
 GRANT USAGE ON DATABASE app_launcher_db
   TO ROLE data_app_user_1_role;
 GRANT USAGE ON SCHEMA group_alpha_schema
   TO ROLE data_app_user_1_role;
 
--- **** CREATE THE LAUNCHER APP, app_launcher_user_1.
-
--- **** CHANGE THE OWNER OF THE LAUNCHER APP TO data_app_user_1_role.
+-- Grant access to the warehouse.
+GRANT USAGE, OPERATE, MONITOR ON WAREHOUSE app_launcher_warehouse TO ROLE data_app_user_1_role;
 ---------------- End database app_launcher_db. -----------------------------------------------
 
 
@@ -158,19 +183,28 @@ create schema if not exists group_alpha_schema;
 -- Create roles.
 create role if not exists data_manager_group_alpha_role; -- This is the account role that owns and operates the app.
 
+-- Create a warehouse for the app.
+CREATE WAREHOUSE IF NOT EXISTS data_manager_warehouse
+  WAREHOUSE_SIZE = 'XSMALL'
+  AUTO_RESUME = TRUE
+  INITIALLY_SUSPENDED = TRUE;
+
+-- **** CREATE THE APP, data_manager_user_1.
+
+-- **** CHANGE THE OWNER OF THE APP TO data_manager_group_alpha_role.
+
 -- Grant data_manager_group_alpha_role privileges to see the database and schema.
 GRANT USAGE ON DATABASE data_manager_db
   TO ROLE data_manager_group_alpha_role;
 GRANT USAGE ON SCHEMA group_alpha_schema
   TO ROLE data_manager_group_alpha_role;
 
--- **** CREATE THE APP, data_manager_user_1.
-
--- **** CHANGE THE OWNER OF THE APP TO data_manager_group_alpha_role.
-
 -- Give this account role the appropriate database roles.
 grant database role group_alpha_group_db.curated_schema_rw_db_role to role data_manager_group_alpha_role;
 grant database role common_db.admin_schema_ro_db_role to role data_manager_group_alpha_role;
+
+-- Grant access to the warehouse.
+GRANT USAGE, OPERATE, MONITOR ON WAREHOUSE data_manager_warehouse TO ROLE data_manager_group_alpha_role;
 ---------------- End database data_manager_db. -----------------------------------------------
 
 
@@ -199,11 +233,7 @@ USE ROLE ACCOUNTADMIN;
 
 CREATE ROLE IF NOT EXISTS data_app_role;
 
-CREATE WAREHOUSE IF NOT EXISTS data_app_warehouse
-  WAREHOUSE_SIZE = 'XSMALL'
-  AUTO_RESUME = TRUE
-  INITIALLY_SUSPENDED = TRUE;
-GRANT USAGE, OPERATE, MONITOR ON WAREHOUSE data_app_warehouse TO ROLE data_app_role;
+
 
 CREATE DATABASE IF NOT EXISTS data_app_db;
 GRANT OWNERSHIP ON DATABASE data_app_db TO ROLE data_app_role COPY CURRENT GRANTS;
