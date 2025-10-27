@@ -104,6 +104,33 @@ GRANT SELECT  -- Table-level privileges (read only)
 ---------------- End database common_db. -----------------------------------------------
 
 
+---------------- Database app_a_app_db. ---------------------------------------------------
+-- Create the database and schemas.
+create database if not exists app_a_app_db;
+use database app_a_app_db;
+create schema if not exists group_alpha_schema;
+
+-- Create roles.
+create role if not exists app_a_group_alpha_role; -- This is the account role that owns and operates the app.
+create role if not exists data_app_user_1_role; -- This is the account role that will be granted the service role for the app.
+
+-- Grant app_a_group_alpha_role privileges to see the database and schema.
+GRANT USAGE ON DATABASE app_a_app_db
+  TO ROLE app_a_group_alpha_role;
+GRANT USAGE ON SCHEMA group_alpha_schema
+  TO ROLE app_a_group_alpha_role;
+
+-- Allow this account role to create services in the schema.
+GRANT CREATE SERVICE ON SCHEMA group_alpha_schema
+  TO ROLE app_a_group_alpha_role;
+
+-- Give this account role the appropriate database roles.
+grant database role app_a_schema_rw_db_role to role app_a_group_alpha_role;
+grant database role curated_schema_rw_db_role to role app_a_group_alpha_role;
+grant database role admin_schema_ro_db_role to role app_a_group_alpha_role;
+---------------- End database app_a_app_db. -----------------------------------------------
+
+
 
 
 
