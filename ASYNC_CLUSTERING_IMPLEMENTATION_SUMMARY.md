@@ -52,27 +52,31 @@ The new functions enable passing complex, serialized Python objects between cont
 - Worker containers run in isolation and can't access frontend container's filesystem
 - Need shared storage (MinIO) to pass adata objects between frontend and worker containers
 
-### 3. `/source/Pheno_Cluster_a.py` (NEW FILE - copied from pages2/)
-**Purpose**: Moved clustering page to main directory for easier importing by worker containers
+### 3. `/source/pages2/Pheno_Cluster_a.py` (MOVED BACK from main directory)
+**Purpose**: Clustering page with UI and async support, returned to pages2/ subdirectory
 
 **Changes**:
-- Copied from `/source/pages2/Pheno_Cluster_a.py` to `/source/Pheno_Cluster_a.py`
-- Added imports for analysis framework and object storage
-- Added `submit_clustering_job()` function that:
-  - Saves adata object to MinIO storage
-  - Submits async job using analysis framework
-  - Handles UI toggle for async/sync execution
-- Modified clustering execution logic to support both sync and async modes
-- Added job completion handling and result loading
+- Moved back from `/source/Pheno_Cluster_a.py` to `/source/pages2/Pheno_Cluster_a.py` 
+- Retained all async functionality including `submit_clustering_job()` function
+- Contains both sync and async execution modes for clustering algorithms
 
 ### 4. `/source/app.py`
-**Purpose**: Updated import to reference moved clustering page
+**Purpose**: Updated import to reference clustering page in pages2/ subdirectory
 
 **Changes**:
-- Changed `from pages2 import Pheno_Cluster_a` to `import Pheno_Cluster_a`
-- This allows the app to find the clustering page in its new location
+- Changed `import Pheno_Cluster_a` back to `from pages2 import Pheno_Cluster_a`
+- This restores the original file organization while maintaining async functionality
 
-### 5. `/docker-compose.yml`
+### 5. `/source/framework/analysis_functions.py` 
+**Purpose**: Updated worker functions to handle pages2/ import path
+
+**Changes**:
+- Added dynamic Python path modification in both clustering functions
+- Uses `sys.path.insert()` to add source directory to Python path at runtime
+- Imports from `pages2.Pheno_Cluster_a` instead of direct import
+- This enables worker containers to find clustering functions in subdirectory
+
+### 6. `/docker-compose.yml`
 **Purpose**: Fixed async job execution and enabled live code development
 
 **Changes**:
@@ -116,6 +120,33 @@ Frontend Container                    Worker Container
      | 6. Poll for completion         <----|
      | 7. Load results                     |
 ```
+
+### Import Path Resolution for Subdirectories
+
+**The Challenge**: Worker containers execute in a different Python path context than the frontend container. When clustering functions are in `pages2/` subdirectory, worker containers cannot automatically resolve the import path.
+
+**The Solution**: Dynamic Python path modification in worker functions:
+
+```python
+# Add the source directory to Python path to ensure pages2 can be imported
+source_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if source_dir not in sys.path:
+    sys.path.insert(0, source_dir)
+
+from pages2.Pheno_Cluster_a import RunPhenographClust
+```
+
+**How it works**:
+1. `__file__` points to `analysis_functions.py` in `framework/` subdirectory
+2. `os.path.dirname(os.path.dirname())` goes up two levels to reach `source/` directory  
+3. Adding `source/` to `sys.path` allows Python to resolve `pages2.Pheno_Cluster_a` imports
+4. This happens at runtime in each worker container, ensuring imports work regardless of working directory
+
+**Why this approach**:
+- Maintains original file organization with pages in subdirectories
+- Enables async functionality without restructuring the entire codebase
+- Self-contained solution that doesn't require external configuration changes
+- Works consistently across different container execution contexts
 
 ## Benefits
 - **Responsiveness**: UI doesn't freeze during long clustering operations

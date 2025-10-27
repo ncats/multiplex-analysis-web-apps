@@ -74,7 +74,15 @@ def run_phenograph_clustering(adata_object_id, n_neighbors, clustering_algo, min
     
     Parameters match those from RunPhenographClust function in Pheno_Cluster_a.py
     """
-    from Pheno_Cluster_a import RunPhenographClust
+    import sys
+    import os
+    
+    # Add the source directory to Python path to ensure pages2 can be imported
+    source_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if source_dir not in sys.path:
+        sys.path.insert(0, source_dir)
+    
+    from pages2.Pheno_Cluster_a import RunPhenographClust
     import framework.platform_abstraction as pa
     
     start_time = time.time()
@@ -144,7 +152,15 @@ def run_neighb_clustering(adata_object_id, n_neighbors, metric, resolution, rand
     
     Parameters match those from RunNeighbClust function in Pheno_Cluster_a.py
     """
-    from Pheno_Cluster_a import RunNeighbClust
+    import sys
+    import os
+    
+    # Add the source directory to Python path to ensure pages2 can be imported
+    source_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if source_dir not in sys.path:
+        sys.path.insert(0, source_dir)
+    
+    from pages2.Pheno_Cluster_a import RunNeighbClust
     import framework.platform_abstraction as pa
     
     start_time = time.time()

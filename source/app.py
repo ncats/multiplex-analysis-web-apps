@@ -18,7 +18,7 @@ from pages2 import robust_scatter_plotter
 from pages2 import multiaxial_gating
 from pages2 import thresholded_phenotyping  # slow due to things ultimately importing umap
 from pages2 import adaptive_phenotyping
-import Pheno_Cluster_a  # Moved to main directory for async support
+from pages2 import Pheno_Cluster_a  # In pages2 subdirectory
 from pages2 import Pheno_Cluster_b  # "slow" for forking test initialization
 from pages2 import Tool_parameter_selection
 from pages2 import Run_workflow
