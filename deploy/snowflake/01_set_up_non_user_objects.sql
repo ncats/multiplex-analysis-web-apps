@@ -1,6 +1,7 @@
 -- Become admin.
 use role accountadmin;
 
+
 ---------------- Database group_alpha_group_db. ---------------------------------------------------
 -- Create the database and schemas.
 create database if not exists group_alpha_group_db;
@@ -76,6 +77,31 @@ GRANT SELECT, INSERT, UPDATE
   ON TABLE app_a_schema.jobs_table
   TO DATABASE ROLE app_a_schema_rw_db_role;
 ---------------- End database group_alpha_group_db. -----------------------------------------------
+
+
+---------------- Database common_db. ---------------------------------------------------
+-- Create the database and schemas.
+create database if not exists common_db;
+use database common_db;
+create schema if not exists admin_schema;
+
+-- Create tables.
+create table if not exists admin_schema.user_groups_table;
+
+-- Create database roles.
+create database role if not exists admin_schema_ro_db_role;
+
+-- Grant admin_schema_ro_db_role privileges to see the database and schema.
+GRANT USAGE ON DATABASE common_db
+  TO DATABASE ROLE admin_schema_ro_db_role;
+GRANT USAGE ON SCHEMA admin_schema
+  TO DATABASE ROLE admin_schema_ro_db_role;
+
+-- Grant admin_schema_ro_db_role privileges to read data from the tables.
+GRANT SELECT  -- Table-level privileges (read only)
+  ON TABLE admin_schema.user_groups_table
+  TO DATABASE ROLE admin_schema_ro_db_role;
+---------------- End database common_db. -----------------------------------------------
 
 
 
