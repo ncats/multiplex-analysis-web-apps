@@ -244,10 +244,39 @@ grant database role group_alpha_group_db.app_a_schema_rw_db_role to role app_a_g
 grant database role group_alpha_group_db.curated_schema_rw_db_role to role app_a_group_alpha_role;
 grant database role common_db.admin_schema_ro_db_role to role app_a_group_alpha_role;
 
--- Grant access to the compute resources.
+-- Grant access to using the compute resources for the actual "service" role app_a_group_alpha_role.
 GRANT USAGE ON WAREHOUSE app_a_user_1_xs_warehouse TO ROLE app_a_group_alpha_role;
-GRANT USAGE ON COMPUTE POOL app_a_user_1_frontend_xs_compute_pool TO ROLE app_a_group_alpha_role;
-GRANT USAGE ON COMPUTE POOL app_a_user_1_workers_m_compute_pool TO ROLE app_a_group_alpha_role;
+GRANT USAGE ON COMPUTE POOL app_a_user_1_frontend_CPU_X64_XS_1vcpu_6gib_1x_compute_pool TO ROLE app_a_group_alpha_role;
+GRANT USAGE ON COMPUTE POOL app_a_user_1_frontend_CPU_X64_S_3vcpu_13gib_2x_compute_pool TO ROLE app_a_group_alpha_role;
+GRANT USAGE ON COMPUTE POOL app_a_user_1_frontend_CPU_X64_M_6vcpu_28gib_4x_compute_pool TO ROLE app_a_group_alpha_role;
+GRANT USAGE ON COMPUTE POOL app_a_user_1_frontend_HIGHMEM_X64_S_6vcpu_58gib_5x_compute_pool TO ROLE app_a_group_alpha_role;
+GRANT USAGE ON COMPUTE POOL app_a_user_1_frontend_CPU_X64_SL_14vcpu_58gib_7x_compute_pool TO ROLE app_a_group_alpha_role;
+GRANT USAGE ON COMPUTE POOL app_a_user_1_frontend_CPU_X64_L_28vcpu_116gib_14x_compute_pool TO ROLE app_a_group_alpha_role;
+GRANT USAGE ON COMPUTE POOL app_a_user_1_frontend_HIGHMEM_X64_M_28vcpu_240gib_19x_compute_pool TO ROLE app_a_group_alpha_role;
+GRANT USAGE ON COMPUTE POOL app_a_user_1_workers_CPU_X64_XS_1vcpu_6gib_1x_compute_pool TO ROLE app_a_group_alpha_role;
+GRANT USAGE ON COMPUTE POOL app_a_user_1_workers_CPU_X64_S_3vcpu_13gib_2x_compute_pool TO ROLE app_a_group_alpha_role;
+GRANT USAGE ON COMPUTE POOL app_a_user_1_workers_CPU_X64_M_6vcpu_28gib_4x_compute_pool TO ROLE app_a_group_alpha_role;
+GRANT USAGE ON COMPUTE POOL app_a_user_1_workers_HIGHMEM_X64_S_6vcpu_58gib_5x_compute_pool TO ROLE app_a_group_alpha_role;
+GRANT USAGE ON COMPUTE POOL app_a_user_1_workers_CPU_X64_SL_14vcpu_58gib_7x_compute_pool TO ROLE app_a_group_alpha_role;
+GRANT USAGE ON COMPUTE POOL app_a_user_1_workers_CPU_X64_L_28vcpu_116gib_14x_compute_pool TO ROLE app_a_group_alpha_role;
+GRANT USAGE ON COMPUTE POOL app_a_user_1_workers_HIGHMEM_X64_M_28vcpu_240gib_19x_compute_pool TO ROLE app_a_group_alpha_role;
+
+-- Grant monitor and operate on the compute resources to the user role data_app_user_1_role so that users can monitor and operate the app.
+GRANT MONITOR, OPERATE ON WAREHOUSE app_a_user_1_xs_warehouse TO ROLE data_app_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_frontend_CPU_X64_XS_1vcpu_6gib_1x_compute_pool TO ROLE data_app_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_frontend_CPU_X64_S_3vcpu_13gib_2x_compute_pool TO ROLE data_app_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_frontend_CPU_X64_M_6vcpu_28gib_4x_compute_pool TO ROLE data_app_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_frontend_HIGHMEM_X64_S_6vcpu_58gib_5x_compute_pool TO ROLE data_app_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_frontend_CPU_X64_SL_14vcpu_58gib_7x_compute_pool TO ROLE data_app_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_frontend_CPU_X64_L_28vcpu_116gib_14x_compute_pool TO ROLE data_app_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_frontend_HIGHMEM_X64_M_28vcpu_240gib_19x_compute_pool TO ROLE data_app_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_CPU_X64_XS_1vcpu_6gib_1x_compute_pool TO ROLE data_app_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_CPU_X64_S_3vcpu_13gib_2x_compute_pool TO ROLE data_app_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_CPU_X64_M_6vcpu_28gib_4x_compute_pool TO ROLE data_app_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_HIGHMEM_X64_S_6vcpu_58gib_5x_compute_pool TO ROLE data_app_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_CPU_X64_SL_14vcpu_58gib_7x_compute_pool TO ROLE data_app_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_CPU_X64_L_28vcpu_116gib_14x_compute_pool TO ROLE data_app_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_HIGHMEM_X64_M_28vcpu_240gib_19x_compute_pool TO ROLE data_app_user_1_role;
 ---------------- End database app_a_app_db. -----------------------------------------------
 
 
@@ -318,6 +347,10 @@ grant database role common_db.admin_schema_ro_db_role to role data_manager_group
 -- Grant access to the compute resources.
 GRANT USAGE ON WAREHOUSE data_manager_user_1_xs_warehouse TO ROLE data_manager_group_alpha_role;
 GRANT USAGE ON COMPUTE POOL data_manager_user_1_xs_compute_pool TO ROLE data_manager_group_alpha_role;
+
+-- Grant resource management to the user.
+GRANT MONITOR, OPERATE ON WAREHOUSE data_manager_user_1_xs_warehouse TO ROLE data_app_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL data_manager_user_1_xs_compute_pool TO ROLE data_app_user_1_role;
 ---------------- End database data_manager_db. -----------------------------------------------
 
 
