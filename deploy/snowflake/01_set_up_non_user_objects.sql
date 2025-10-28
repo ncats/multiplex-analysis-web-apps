@@ -229,7 +229,15 @@ CREATE COMPUTE POOL IF NOT EXISTS app_a_user_1_workers_HIGHMEM_X64_M_28vcpu_240g
     INITIALLY_SUSPENDED = TRUE
     AUTO_SUSPEND_SECS = 600;
 
--- **** CREATE THE APP, app_a_user_1, that uses app_a_user_1_xs_warehouse and app_a_user_1_frontend_xs_compute_pool.
+-- **** CREATE THE 7 APPS like:
+--   group_alpha_schema.app_a_user_1_frontend_CPU_X64_XS_1vcpu_6gib_1x_service
+--   group_alpha_schema.app_a_user_1_frontend_CPU_X64_S_3vcpu_13gib_2x_service
+--   group_alpha_schema.app_a_user_1_frontend_CPU_X64_M_6vcpu_28gib_4x_service
+--   group_alpha_schema.app_a_user_1_frontend_HIGHMEM_X64_S_6vcpu_58gib_5x_service
+--   group_alpha_schema.app_a_user_1_frontend_CPU_X64_SL_14vcpu_58gib_7x_service
+--   group_alpha_schema.app_a_user_1_frontend_CPU_X64_L_28vcpu_116gib_14x_service
+--   group_alpha_schema.app_a_user_1_frontend_HIGHMEM_X64_M_28vcpu_240gib_19x_service
+-- **** SEND IN THE LIST OF WORKER COMPUTE POOLS AS AN ENV OR SOMETHING LIKE THAT SO THE USER CAN CHOOSE THE WORKER COMPUTE POOL THEY WANT TO USE. I can perhaps hardcode this for the time being since we're in a rush.
 
 -- Grant app_a_group_alpha_role privileges to see the database and schema.
 GRANT USAGE ON DATABASE app_a_app_db
@@ -237,7 +245,14 @@ GRANT USAGE ON DATABASE app_a_app_db
 GRANT USAGE ON SCHEMA group_alpha_schema
   TO ROLE app_a_group_alpha_role;
 
--- **** CHANGE THE OWNER OF THE APP TO app_a_group_alpha_role.
+-- Change the owner of the apps to the service role app_a_group_alpha_role.
+GRANT OWNERSHIP ON SERVICE group_alpha_schema.app_a_user_1_frontend_CPU_X64_XS_1vcpu_6gib_1x_service TO ROLE app_a_group_alpha_role COPY CURRENT GRANTS;
+GRANT OWNERSHIP ON SERVICE group_alpha_schema.app_a_user_1_frontend_CPU_X64_S_3vcpu_13gib_2x_service TO ROLE app_a_group_alpha_role COPY CURRENT GRANTS;
+GRANT OWNERSHIP ON SERVICE group_alpha_schema.app_a_user_1_frontend_CPU_X64_M_6vcpu_28gib_4x_service TO ROLE app_a_group_alpha_role COPY CURRENT GRANTS;
+GRANT OWNERSHIP ON SERVICE group_alpha_schema.app_a_user_1_frontend_HIGHMEM_X64_S_6vcpu_58gib_5x_service TO ROLE app_a_group_alpha_role COPY CURRENT GRANTS;
+GRANT OWNERSHIP ON SERVICE group_alpha_schema.app_a_user_1_frontend_CPU_X64_SL_14vcpu_58gib_7x_service TO ROLE app_a_group_alpha_role COPY CURRENT GRANTS;
+GRANT OWNERSHIP ON SERVICE group_alpha_schema.app_a_user_1_frontend_CPU_X64_L_28vcpu_116gib_14x_service TO ROLE app_a_group_alpha_role COPY CURRENT GRANTS;
+GRANT OWNERSHIP ON SERVICE group_alpha_schema.app_a_user_1_frontend_HIGHMEM_X64_M_28vcpu_240gib_19x_service TO ROLE app_a_group_alpha_role COPY CURRENT GRANTS;
 
 -- Give this account role the appropriate database roles.
 grant database role group_alpha_group_db.app_a_schema_rw_db_role to role app_a_group_alpha_role;
@@ -292,7 +307,7 @@ CREATE WAREHOUSE IF NOT EXISTS app_launcher_user_1_xs_warehouse
   AUTO_RESUME = TRUE
   INITIALLY_SUSPENDED = TRUE;
 
--- **** CREATE THE LAUNCHER STREAMLIT APP, app_launcher_user_1.
+-- **** CREATE THE LAUNCHER STREAMLIT APP, group_alpha_schema.app_launcher_user_1_streamlit.
 
 -- Grant app_a_group_alpha_role privileges to see the database and schema.
 GRANT USAGE ON DATABASE app_launcher_db
@@ -300,7 +315,8 @@ GRANT USAGE ON DATABASE app_launcher_db
 GRANT USAGE ON SCHEMA group_alpha_schema
   TO ROLE data_app_user_1_role;
 
--- **** CHANGE THE OWNER OF THE LAUNCHER APP TO data_app_user_1_role.
+-- Change the owner of the launcher app to the user role data_app_user_1_role.
+GRANT OWNERSHIP ON STREAMLIT group_alpha_schema.app_launcher_user_1_streamlit TO ROLE data_app_user_1_role COPY CURRENT GRANTS;
 
 -- Grant access to the warehouse.
 GRANT USAGE, OPERATE, MONITOR ON WAREHOUSE app_launcher_user_1_xs_warehouse TO ROLE data_app_user_1_role;
@@ -330,7 +346,7 @@ CREATE COMPUTE POOL IF NOT EXISTS data_manager_user_1_xs_compute_pool
     INITIALLY_SUSPENDED = TRUE
     AUTO_SUSPEND_SECS = 600;
 
--- **** CREATE THE APP, data_manager_user_1.
+-- **** CREATE THE APP, group_alpha_schema.data_manager_user_1_service.
 
 -- Grant data_manager_group_alpha_role privileges to see the database and schema.
 GRANT USAGE ON DATABASE data_manager_db
@@ -338,7 +354,8 @@ GRANT USAGE ON DATABASE data_manager_db
 GRANT USAGE ON SCHEMA group_alpha_schema
   TO ROLE data_manager_group_alpha_role;
 
--- **** CHANGE THE OWNER OF THE APP TO data_manager_group_alpha_role.
+-- Change the owner of the app to the service role data_manager_group_alpha_role.
+GRANT OWNERSHIP ON SERVICE group_alpha_schema.data_manager_user_1_service TO ROLE data_manager_group_alpha_role COPY CURRENT GRANTS;
 
 -- Give this account role the appropriate database roles.
 grant database role group_alpha_group_db.curated_schema_rw_db_role to role data_manager_group_alpha_role;
@@ -375,13 +392,6 @@ GRANT MONITOR, OPERATE ON COMPUTE POOL data_manager_user_1_xs_compute_pool TO RO
 
 
 
-USE ROLE ACCOUNTADMIN;
-
-CREATE ROLE IF NOT EXISTS data_app_role;
-
-
-
-CREATE DATABASE IF NOT EXISTS data_app_db;
 GRANT OWNERSHIP ON DATABASE data_app_db TO ROLE data_app_role COPY CURRENT GRANTS;
 
 -------------------------------------------------
