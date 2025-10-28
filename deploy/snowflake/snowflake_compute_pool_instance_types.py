@@ -36,3 +36,5 @@ st.dataframe(df)
 st.write("Data source: Snowflake documentation on Compute Pool Instance Types from https://www.snowflake.com/legal-files/CreditConsumptionTable.pdf.")
 
 st.write("Note the two HIGHMEM variants are actually great value for the memory provided.")
+
+st.write("Note also the fold increase refers to cost relative to the XS instance type.")
