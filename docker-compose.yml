@@ -13,6 +13,7 @@ services:
       - object_storage
     environment:
       DB_URL_GROUP: postgresql://postgres:password@database:5432/group_alpha_group_db
+      DB_URL_APP: postgresql://postgres:password@database:5432/app_a_app_db
       DB_URL_COMMON: postgresql://postgres:password@database:5432/common_db
       TZ: America/New_York
       MINIO_ENDPOINT: minio:9000
@@ -73,6 +74,7 @@ services:
       WORKER_MEM: "8g"
       # Pass-through envs required by the worker
       DB_URL_GROUP: postgresql://postgres:password@database:5432/group_alpha_group_db
+      DB_URL_APP: postgresql://postgres:password@database:5432/app_a_app_db
       DB_URL_COMMON: postgresql://postgres:password@database:5432/common_db
       TZ: America/New_York
       MINIO_ENDPOINT: minio:9000

@@ -86,6 +86,10 @@ GRANT SELECT, INSERT, UPDATE
 ---------------- End database group_alpha_group_db. -----------------------------------------------
 
 
+-- **** add archive id and compute resources fields
+
+
+
 ---------------- Database common_db. ---------------------------------------------------
 -- Create the database and schemas.
 create database if not exists common_db;
@@ -116,10 +120,29 @@ GRANT SELECT  -- Table-level privileges (read only)
 create database if not exists app_a_app_db;
 use database app_a_app_db;
 create schema if not exists group_alpha_schema;
+create schema if not exists general_schema;
+
+-- Create an image repository.
+CREATE IMAGE REPOSITORY IF NOT EXISTS general_schema.image_repository;
+
+-- Create table.
+CREATE TABLE IF NOT EXISTS general_schema.image_metadata_table (
+  id INTEGER IDENTITY PRIMARY KEY,
+  image_id VARCHAR(255) UNIQUE NOT NULL,
+  name VARCHAR(255),
+  tag VARCHAR(255),
+  git_commit VARCHAR(255),
+  environment_yaml_file VARCHAR(255),
+  archive_compatibility_id INTEGER,
+  image_added_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  who_added VARCHAR(255)
+);
 
 -- Create roles.
 create role if not exists app_a_group_alpha_role; -- This is the account role that owns and operates the app.
 create role if not exists data_app_user_1_role; -- This is the account role that will be granted the service role for the app.
+create database role if not exists general_schema_ro_db_role;
+CREATE DATABASE ROLE IF NOT EXISTS group_alpha_schema_service_db_role;
 
 -- Create a warehouse for the app.
 CREATE WAREHOUSE IF NOT EXISTS app_a_user_1_xs_warehouse
@@ -246,6 +269,18 @@ GRANT USAGE ON DATABASE app_a_app_db
 GRANT USAGE ON SCHEMA group_alpha_schema
   TO ROLE app_a_group_alpha_role;
 
+-- Grant general_schema_ro_db_role privileges to see the database and schema.
+GRANT USAGE ON DATABASE app_a_app_db
+  TO DATABASE ROLE general_schema_ro_db_role;
+GRANT USAGE ON SCHEMA general_schema
+  TO DATABASE ROLE general_schema_ro_db_role;
+
+-- Grant group_alpha_schema_service_db_role privileges to see the database and schema.
+GRANT USAGE ON DATABASE app_a_app_db
+  TO DATABASE ROLE group_alpha_schema_service_db_role;
+GRANT USAGE ON SCHEMA group_alpha_schema
+  TO DATABASE ROLE group_alpha_schema_service_db_role;
+
 -- Change the owner of the apps to the service role app_a_group_alpha_role.
 GRANT OWNERSHIP ON SERVICE group_alpha_schema.app_a_user_1_frontend_CPU_X64_XS_1vcpu_6gib_1x_service TO ROLE app_a_group_alpha_role COPY CURRENT GRANTS;
 GRANT OWNERSHIP ON SERVICE group_alpha_schema.app_a_user_1_frontend_CPU_X64_S_3vcpu_13gib_2x_service TO ROLE app_a_group_alpha_role COPY CURRENT GRANTS;
@@ -259,6 +294,8 @@ GRANT OWNERSHIP ON SERVICE group_alpha_schema.app_a_user_1_frontend_HIGHMEM_X64_
 grant database role group_alpha_group_db.app_a_schema_rw_db_role to role app_a_group_alpha_role;
 grant database role group_alpha_group_db.curated_schema_rw_db_role to role app_a_group_alpha_role;
 grant database role common_db.admin_schema_ro_db_role to role app_a_group_alpha_role;
+grant database role app_a_app_db.general_schema_ro_db_role to role app_a_group_alpha_role;
+GRANT DATABASE ROLE app_a_app_db.group_alpha_schema_service_db_role TO ROLE app_a_group_alpha_role;
 
 -- Grant access to using the compute resources for the actual "service" role app_a_group_alpha_role.
 GRANT USAGE ON WAREHOUSE app_a_user_1_xs_warehouse TO ROLE app_a_group_alpha_role;
@@ -293,6 +330,17 @@ GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_HIGHMEM_X64_S_6vcpu_
 GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_CPU_X64_SL_14vcpu_58gib_7x_compute_pool TO ROLE data_app_user_1_role;
 GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_CPU_X64_L_28vcpu_116gib_14x_compute_pool TO ROLE data_app_user_1_role;
 GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_HIGHMEM_X64_M_28vcpu_240gib_19x_compute_pool TO ROLE data_app_user_1_role;
+
+-- Grant read permissions on the table.
+GRANT SELECT
+  ON TABLE general_schema.image_metadata_table
+  TO DATABASE ROLE general_schema_ro_db_role;
+
+-- Grant permissions to allow the database role to create serivces (such as for submitting a job service) and to use the images in the image repository for doing so.
+GRANT CREATE SERVICE ON SCHEMA group_alpha_schema
+  TO DATABASE ROLE group_alpha_schema_service_db_role;
+GRANT USAGE, READ ON IMAGE REPOSITORY general_schema.image_repository
+  TO DATABASE ROLE group_alpha_schema_service_db_role;
 ---------------- End database app_a_app_db. -----------------------------------------------
 
 
@@ -392,7 +440,7 @@ GRANT MONITOR, OPERATE ON COMPUTE POOL data_manager_user_1_xs_compute_pool TO RO
 
 
 
-CREATE IMAGE REPOSITORY IF NOT EXISTS data_app_db.app_runtime_schema.image_repository;
+
 
 CREATE STAGE IF NOT EXISTS data_app_db.app_data_schema.archives_stage
   DIRECTORY = ( ENABLE = TRUE );

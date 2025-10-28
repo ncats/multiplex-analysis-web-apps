@@ -24,6 +24,7 @@ ST_KEY_PREFIX_STARTUP = "startup.py__"
 
 
 DB_URL_GROUP = os.getenv('DB_URL_GROUP')
+DB_URL_APP = os.getenv('DB_URL_APP')  # Aren't actually using this yet, but it would be used to get the archive compatibility IDs so we only display archives that are compatible with the currently running image.
 DB_URL_COMMON = os.getenv('DB_URL_COMMON')
 APP_NAME = os.getenv('APP_NAME')
 
@@ -184,11 +185,58 @@ def set_up_postgresql():
                 """)
             conn_group.commit()
             return_database_connection(conn_group, DB_URL_GROUP)
+
+            conn_app = get_database_connection(DB_URL_APP)
+            with conn_app.cursor() as cur:
+                # Create schema if it doesn't exist
+                cur.execute(f"""
+                    CREATE SCHEMA IF NOT EXISTS general_schema
+                """)
+                
+                # Check if image_metadata_table table exists and is empty
+                cur.execute(f"""
+                    SELECT EXISTS (
+                        SELECT FROM information_schema.tables
+                        WHERE table_schema = 'general_schema'
+                        AND table_name = 'image_metadata_table'
+                    )
+                """)
+                table_exists = cur.fetchone()[0]
+                # Create image_metadata_table table.
+                cur.execute(f"""
+                    CREATE TABLE IF NOT EXISTS general_schema.image_metadata_table (
+                        id SERIAL PRIMARY KEY,
+                        image_id VARCHAR(255) UNIQUE NOT NULL,
+                        name VARCHAR(255),
+                        tag VARCHAR(255),
+                        git_commit VARCHAR(255),
+                        environment_yaml_file TEXT,
+                        archive_compatibility_id INTEGER,
+                        image_added_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        who_added VARCHAR(255)
+                    )
+                """)
+                # Modify this in the future.
+                # # Only insert initial data if table was just created (didn't exist before)
+                # if not table_exists:
+                #     initial_users = [
+                #         ('andrew', 'dmap', 'andrew', 'andrew@example.com'),
+                #         ('jessica', 'ABC Lab', 'andrew', 'jessica@example.com'),
+                #         ('Tessa', 'dmap', 'andrew', 'tessa@example.com')
+                #     ]
+                #     cur.executemany(f"""
+                #         INSERT INTO general_schema.image_metadata_table (username, user_group, who_added, user_email)
+                #         VALUES (%s, %s, %s, %s)
+                #     """, initial_users)
+            conn_app.commit()
+            return_database_connection(conn_app, DB_URL_APP)
+                
             return True
         except Exception as e:
             st.error(f"Failed to set up databases: {e}")
             _rollback_and_return(conn_common, DB_URL_COMMON)
             _rollback_and_return(conn_group, DB_URL_GROUP)
+            _rollback_and_return(conn_app, DB_URL_APP)
             return False
     elif framework_utils.platform() == "snowflake":
         pass
