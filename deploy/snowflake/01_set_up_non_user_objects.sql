@@ -237,7 +237,8 @@ CREATE COMPUTE POOL IF NOT EXISTS app_a_user_1_workers_HIGHMEM_X64_M_28vcpu_240g
 --   group_alpha_schema.app_a_user_1_frontend_CPU_X64_SL_14vcpu_58gib_7x_service
 --   group_alpha_schema.app_a_user_1_frontend_CPU_X64_L_28vcpu_116gib_14x_service
 --   group_alpha_schema.app_a_user_1_frontend_HIGHMEM_X64_M_28vcpu_240gib_19x_service
--- **** SEND IN THE LIST OF WORKER COMPUTE POOLS AS AN ENV OR SOMETHING LIKE THAT SO THE USER CAN CHOOSE THE WORKER COMPUTE POOL THEY WANT TO USE. I can perhaps hardcode this for the time being since we're in a rush.
+-- **** SEND IN THE LIST OF WORKER COMPUTE POOLS AS AN ENV OR SOMETHING LIKE THAT SO THE USER CAN CHOOSE THE WORKER COMPUTE POOL THEY WANT TO USE. I can perhaps hardcode this for the time being since we're in a rush:
+--   "CPU_X64_XS_1vcpu_6gib_1x CPU_X64_S_3vcpu_13gib_2x CPU_X64_M_6vcpu_28gib_4x HIGHMEM_X64_S_6vcpu_58gib_5x CPU_X64_SL_14vcpu_58gib_7x CPU_X64_L_28vcpu_116gib_14x HIGHMEM_X64_M_28vcpu_240gib_19x"
 
 -- Grant app_a_group_alpha_role privileges to see the database and schema.
 GRANT USAGE ON DATABASE app_a_app_db
@@ -390,23 +391,6 @@ GRANT MONITOR, OPERATE ON COMPUTE POOL data_manager_user_1_xs_compute_pool TO RO
 
 
 
-
-
-GRANT OWNERSHIP ON DATABASE data_app_db TO ROLE data_app_role COPY CURRENT GRANTS;
-
--------------------------------------------------
--- Since I do not want myself (an admin) to have data_app_role, temporarily grant it to myself to do the setup, and revoke it in 03_set_up_user_role_permissions.sql.
--- Note that a better strategy long-term is to "Create a dedicated service / CI user (e.g. data_app_provisioner_user) that permanently has data_app_role (or a separate provisioning role that then grants ownership to the runtime role)."
--- As SECURITYADMIN (or ACCOUNTADMIN if early bootstrap)
-GRANT ROLE data_app_role TO USER andrewweisman;
--------------------------------------------------
-
-USE ROLE data_app_role;
-USE WAREHOUSE data_app_warehouse;
-
-create schema if not exists data_app_db.user_data_schema;
-create schema if not exists data_app_db.app_data_schema;
-create schema if not exists data_app_db.app_runtime_schema;
 
 CREATE IMAGE REPOSITORY IF NOT EXISTS data_app_db.app_runtime_schema.image_repository;
 
