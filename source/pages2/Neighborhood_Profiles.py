@@ -14,6 +14,7 @@ import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected 
 import basic_phenotyper_lib as bpl  # Useful functions for phenotyping collections of cells
 from neighborhood_profiles import NeighborhoodProfiles, UMAPDensityProcessing
 import framework.utils as framework_utils
+import framework.analysis_framework as analysis_framework
 
 def get_spatialUMAP(spatial_umap, bc, umap_subset_per_fit, umap_subset_toggle, umap_subset_per):
     '''
@@ -58,37 +59,68 @@ def get_spatialUMAP(spatial_umap, bc, umap_subset_per_fit, umap_subset_toggle, u
 
 def init_spatial_umap():
     '''
-    Initalizing the spatial_umap object
+    Check for completed spatial UMAP initialization results and load them if available
     '''
+    # Define key constants
+    ST_KEY_PREFIX = 'neighborhood_profiles__'
+    results_key = ST_KEY_PREFIX + 'spatial_UMAP_initialization_results'
+    
+    # Check if job results are already available
+    if results_key in st.session_state:
+        # Set results from the completed job
+        results = st.session_state[results_key]
+        st.session_state.spatial_umap = results["spatial_umap"]
+        
+        # Update benchmark collector with timing information if available
+        if hasattr(st.session_state, 'bc') and st.session_state.bc is not None:
+            st.session_state.bc.set_value_df('time_to_run_counts', results["elapsed_time"])
+        
+        st.session_state.density_completed = True
+        return True
+    
+    return False
 
-    # Reset the settings required for Neighborhood Analysis
-    st.session_state = ndl.reset_neigh_profile_settings(st.session_state)
+def setup_spatial_umap_job():
+    '''
+    Set up the asynchronous job submission for spatial UMAP initialization
+    '''
+    # Reset the settings required for Neighborhood Analysis only if we're starting fresh
+    if not st.session_state.density_completed:
+        st.session_state = ndl.reset_neigh_profile_settings(st.session_state)
 
     if not st.session_state['calc_unique_areas_toggle']:
         area_filter = 0
     else:
         area_filter = st.session_state['area_filter_per']
 
-    st.session_state.bc.startTimer()
-    with st.spinner('Calculating Cell Counts and Areas', show_time=True):
-        st.session_state.spatial_umap = bpl.setup_Spatial_UMAP(df = st.session_state.df,
-                                                               marker_names = st.session_state.marker_multi_sel,
-                                                               pheno_order = st.session_state.phenoOrder,
-                                                               smallest_image_size = st.session_state.datafile_min_img_size)
+    # Prepare inputs for the asynchronous job
+    inputs = {
+        "df": st.session_state.df,
+        "marker_names": st.session_state.marker_multi_sel,
+        "pheno_order": st.session_state.phenoOrder,
+        "smallest_image_size": st.session_state.datafile_min_img_size,
+        "calc_unique_areas_toggle": st.session_state.calc_unique_areas_toggle,
+        "cpu_pool_size": st.session_state.cpu_pool_size,
+        "area_threshold": area_filter,
+        "results_subdir": "spatial_umap_init"
+    }
 
-        st.session_state.spatial_umap = bpl.perform_density_calc(st.session_state.spatial_umap,
-                                                                 st.session_state.bc,
-                                                                 st.session_state.calc_unique_areas_toggle,
-                                                                 st.session_state.cpu_pool_size,
-                                                                 area_threshold = area_filter)
-
-        # Record time elapsed
-        st.session_state.bc.set_value_df('time_to_run_counts', st.session_state.bc.elapsedTime())
-
-        st.session_state.density_completed = True
-
-        # Save checkpoint for Neighborhood Profile structure
-        # save_neipro_struct()
+    # Define key constants
+    ST_KEY_PREFIX = 'neighborhood_profiles__'
+    
+    # Determine the analysis purpose based on current state
+    if st.session_state.density_completed:
+        analysis_purpose = "spatial UMAP initialization (rerun)"
+    else:
+        analysis_purpose = "spatial UMAP initialization"
+    
+    # Use the job submission framework for asynchronous execution
+    analysis_framework.job_submission(
+        job_name="init_spatial_umap_analysis",
+        inputs=inputs,
+        analysis_purpose=analysis_purpose,
+        st_key_prefix=ST_KEY_PREFIX,
+    )
 
 def apply_umap(umap_style):
     '''
@@ -657,15 +689,25 @@ def main():
             butt_cols = st.columns(2)
             with butt_cols[0]:
 
-                dens_butt  = st.button('Perform Cell Density Analysis')
-                umap_butt  = st.button('Perform UMAP Analysis')
+                # Check if we have completed job results and load them
+                init_spatial_umap()
+                
+                # Set up the async job submission interface for spatial UMAP initialization
+                # Show this interface if phenotyping is completed (allows reruns even after completion)
+                if st.session_state.phenotyping_completed:
+                    setup_spatial_umap_job()
+                
+                # Only show the sync UMAP button if we have density completed and want to run UMAP analysis
+                if st.session_state.density_completed:
+                    umap_butt  = st.button('Perform UMAP Analysis')
+                else:
+                    umap_butt = False
+                    
                 clust_butt = st.button('Perform Clustering Analysis')
 
             # Button results and difference settings
             with butt_cols[1]:
                 if st.session_state.phenotyping_completed:
-                    if dens_butt:
-                        init_spatial_umap()
                     if not st.session_state.density_completed:
                         st.write(':x: Step 1: Perform Cell Density')
                     else:

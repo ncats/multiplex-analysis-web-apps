@@ -82,19 +82,41 @@ def init_pheno_cols(df, marker_names, marker_col_prefix):
         if ser_num_of_null_rows_in_each_column.sum() != 0:
 
             # For the time being, import Streamlit so warnings can be rendered. Otherwise, this file does not import streamlit and it should remain that way but this is a minimal fix for the time being
-            import streamlit as st
-
-            st.warning('Null values have been detected in the phenotype columns. Next time, please check for and remove null rows in the datafile unification step (File Handling > Datafile Unification). We are removing them for you now but it would be *much* better to do this in the Datafile Unifier now! Otherwise, downstream functionality may not work. Here are the numbers of null rows found in each column containing them:')
-            ser_num_of_null_rows_in_each_column.name = 'Number of null rows'
-            st.write(ser_num_of_null_rows_in_each_column[ser_num_of_null_rows_in_each_column != 0])
+            try:
+                import streamlit as st
+                from streamlit.runtime.scriptrunner import get_script_run_ctx
+                
+                # Only show streamlit warnings if we're in a streamlit context
+                if get_script_run_ctx() is not None:
+                    st.warning('Null values have been detected in the phenotype columns. Next time, please check for and remove null rows in the datafile unification step (File Handling > Datafile Unification). We are removing them for you now but it would be *much* better to do this in the Datafile Unifier now! Otherwise, downstream functionality may not work. Here are the numbers of null rows found in each column containing them:')
+                    ser_num_of_null_rows_in_each_column.name = 'Number of null rows'
+                    st.write(ser_num_of_null_rows_in_each_column[ser_num_of_null_rows_in_each_column != 0])
+                else:
+                    print('WARNING: Null values have been detected in the phenotype columns. Removing them now.')
+                    print(f'Number of null rows per column: {ser_num_of_null_rows_in_each_column[ser_num_of_null_rows_in_each_column != 0]}')
+            except:
+                # If streamlit is not available or there's any issue, just print a warning
+                print('WARNING: Null values have been detected in the phenotype columns. Removing them now.')
+                print(f'Number of null rows per column: {ser_num_of_null_rows_in_each_column[ser_num_of_null_rows_in_each_column != 0]}')
 
             # Perform the operation
             row_count_before = len(df)
             df = df.dropna(subset=marker_cols)
             row_count_after = len(df)
 
-            # Display a success message
-            st.write(f'{row_count_before - row_count_after} rows deleted')
+            # Display a success message only if in streamlit context
+            try:
+                import streamlit as st
+                from streamlit.runtime.scriptrunner import get_script_run_ctx
+                
+                # Only show streamlit message if we're in a streamlit context
+                if get_script_run_ctx() is not None:
+                    st.write(f'{row_count_before - row_count_after} rows deleted')
+                else:
+                    print(f'{row_count_before - row_count_after} rows deleted')
+            except:
+                # If streamlit is not available or there's any issue, just print
+                print(f'{row_count_before - row_count_after} rows deleted')
 
             # Update df_markers
             df_markers = df[marker_cols]
