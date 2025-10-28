@@ -1,7 +1,7 @@
 # export PATH=/home/andrew/apps/micromamba/bin:$PATH
 # cd deploy/snowflake
 # micromamba create -n basic -f environment.yml
-# micromamba run -n basic python snowflake_compute_pool_instance_types.py
+# micromamba run -n basic streamlit run snowflake_compute_pool_instance_types.py
 
 import streamlit as st
 import pandas as pd
