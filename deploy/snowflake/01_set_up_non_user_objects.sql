@@ -29,9 +29,44 @@ create stage if not exists app_a_schema.oldarchives_stage
   directory = ( enable = true );
 
 -- Create tables.
-create table if not exists app_a_schema.app_sessions_table;
-create table if not exists app_a_schema.archives_table;
-create table if not exists app_a_schema.jobs_table;
+CREATE TABLE IF NOT EXISTS app_a_schema.app_sessions_table (
+  id INTEGER IDENTITY PRIMARY KEY,
+  app_session_id VARCHAR(255) UNIQUE NOT NULL,
+  username VARCHAR(255),
+  user_group VARCHAR(255),
+  startup_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  explicit_shutdown_time TIMESTAMP,
+  container_image_id VARCHAR(255),
+  compute_resource VARCHAR(255)
+);
+CREATE TABLE IF NOT EXISTS app_a_schema.archives_table (
+  id INTEGER IDENTITY PRIMARY KEY,
+  creator VARCHAR(255),
+  user_group VARCHAR(255),
+  archive_description VARCHAR,
+  current_git_commit VARCHAR(255),
+  container_image_id VARCHAR(255),
+  archive_id VARCHAR(255) UNIQUE NOT NULL,
+  app_session_id VARCHAR(255),
+  archive_compatibility_id INTEGER,
+  creation_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS app_a_schema.jobs_table (
+  id INTEGER IDENTITY PRIMARY KEY,
+  job_id VARCHAR(255) UNIQUE NOT NULL,
+  job_name VARCHAR(255),
+  job_status VARCHAR(255),
+  submitter VARCHAR(255),
+  submitter_group VARCHAR(255),
+  app_session_id VARCHAR(255),
+  worker_image_id VARCHAR(255),
+  submission_time TIMESTAMP,
+  start_time TIMESTAMP,
+  completion_time TIMESTAMP,
+  failure_time TIMESTAMP,
+  compute_resource VARCHAR(255)
+);
+
 
 -- Create database roles.
 create database role if not exists curated_schema_rw_db_role;
@@ -86,10 +121,6 @@ GRANT SELECT, INSERT, UPDATE
 ---------------- End database group_alpha_group_db. -----------------------------------------------
 
 
--- **** add archive id and compute resources fields
-
-
-
 ---------------- Database common_db. ---------------------------------------------------
 -- Create the database and schemas.
 create database if not exists common_db;
@@ -97,7 +128,16 @@ use database common_db;
 create schema if not exists admin_schema;
 
 -- Create tables.
-create table if not exists admin_schema.user_groups_table;
+-- I believe this table is now primarily/only really for indicating into which database the app should write given the user running the app.
+CREATE TABLE IF NOT EXISTS admin_schema.user_groups_table (
+  id INTEGER IDENTITY PRIMARY KEY,
+  username VARCHAR(255) UNIQUE NOT NULL,
+  user_group VARCHAR(255),
+  user_added_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  who_added VARCHAR(255),
+  user_email VARCHAR(255)
+);
+
 
 -- Create database roles.
 create database role if not exists admin_schema_ro_db_role;
@@ -262,6 +302,7 @@ CREATE COMPUTE POOL IF NOT EXISTS app_a_user_1_workers_HIGHMEM_X64_M_28vcpu_240g
 --   group_alpha_schema.app_a_user_1_frontend_HIGHMEM_X64_M_28vcpu_240gib_19x_service
 -- **** SEND IN THE LIST OF WORKER COMPUTE POOLS AS AN ENV OR SOMETHING LIKE THAT SO THE USER CAN CHOOSE THE WORKER COMPUTE POOL THEY WANT TO USE. I can perhaps hardcode this for the time being since we're in a rush:
 --   "CPU_X64_XS_1vcpu_6gib_1x CPU_X64_S_3vcpu_13gib_2x CPU_X64_M_6vcpu_28gib_4x HIGHMEM_X64_S_6vcpu_58gib_5x CPU_X64_SL_14vcpu_58gib_7x CPU_X64_L_28vcpu_116gib_14x HIGHMEM_X64_M_28vcpu_240gib_19x"
+-- also send in the compute resource and all pieces of what's in the service name in general
 
 -- Grant app_a_group_alpha_role privileges to see the database and schema.
 GRANT USAGE ON DATABASE app_a_app_db
@@ -418,100 +459,3 @@ GRANT USAGE ON COMPUTE POOL data_manager_user_1_xs_compute_pool TO ROLE data_man
 GRANT MONITOR, OPERATE ON WAREHOUSE data_manager_user_1_xs_warehouse TO ROLE data_app_user_1_role;
 GRANT MONITOR, OPERATE ON COMPUTE POOL data_manager_user_1_xs_compute_pool TO ROLE data_app_user_1_role;
 ---------------- End database data_manager_db. -----------------------------------------------
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-CREATE STAGE IF NOT EXISTS data_app_db.app_data_schema.archives_stage
-  DIRECTORY = ( ENABLE = TRUE );
-CREATE STAGE IF NOT EXISTS data_app_db.app_data_schema.inputs_stage
-  DIRECTORY = ( ENABLE = TRUE );
-CREATE STAGE IF NOT EXISTS data_app_db.app_data_schema.outputs_stage
-  DIRECTORY = ( ENABLE = TRUE );
-CREATE STAGE IF NOT EXISTS data_app_db.app_data_schema.oldarchives_stage
-  DIRECTORY = ( ENABLE = TRUE );
-
--- Tables
-CREATE TABLE IF NOT EXISTS data_app_db.app_data_schema.user_groups_table (
-  id INTEGER IDENTITY PRIMARY KEY,
-  username VARCHAR(255) UNIQUE NOT NULL,
-  user_group VARCHAR(255),
-  user_added_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  who_added VARCHAR(255),
-  user_email VARCHAR(255)
-);
-
-MERGE INTO data_app_db.app_data_schema.user_groups_table t
-USING (
-  SELECT * FROM (
-    VALUES
-      ('andrew','dmap','andrew','andrew@example.com'),
-      ('jessica','ABC Lab','andrew','jessica@example.com'),
-      ('Tessa','dmap','andrew','tessa@example.com'),
-      ('andrewweisman', 'dmap', 'andrewweisman', 'andrew.weisman@nih.gov')
-  ) AS v(username, user_group, who_added, user_email)
-) s
-ON t.username = s.username
-WHEN MATCHED THEN UPDATE SET
-  user_group = s.user_group,
-  who_added = s.who_added,
-  user_email = s.user_email
-WHEN NOT MATCHED THEN INSERT (username, user_group, who_added, user_email)
-VALUES (s.username, s.user_group, s.who_added, s.user_email);
-
-CREATE TABLE IF NOT EXISTS data_app_db.app_data_schema.app_sessions_table (
-  id INTEGER IDENTITY PRIMARY KEY,
-  app_session_id VARCHAR(255) UNIQUE NOT NULL,
-  username VARCHAR(255),
-  user_group VARCHAR(255),
-  startup_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  explicit_shutdown_time TIMESTAMP,
-  container_image_id VARCHAR(255)
-);
-
-CREATE TABLE IF NOT EXISTS data_app_db.app_data_schema.archives_table (
-  id INTEGER IDENTITY PRIMARY KEY,
-  creator VARCHAR(255),
-  user_group VARCHAR(255),
-  archive_description VARCHAR,
-  current_git_commit VARCHAR(255),
-  container_image_id VARCHAR(255),
-  archive_id VARCHAR(255) UNIQUE NOT NULL,
-  app_session_id VARCHAR(255),
-  creation_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS data_app_db.app_data_schema.jobs_table (
-  id INTEGER IDENTITY PRIMARY KEY,
-  job_id VARCHAR(255) UNIQUE NOT NULL,
-  job_name VARCHAR(255),
-  job_status VARCHAR(255),
-  submitter VARCHAR(255),
-  submitter_group VARCHAR(255),
-  app_session_id VARCHAR(255),
-  worker_image_id VARCHAR(255),
-  submission_time TIMESTAMP,
-  start_time TIMESTAMP,
-  completion_time TIMESTAMP,
-  failure_time TIMESTAMP
-);
