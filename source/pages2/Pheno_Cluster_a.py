@@ -15,6 +15,7 @@ import os
 import matplotlib.pyplot as plt
 import framework.analysis_framework as analysis_framework
 import framework.utils as framework_utils
+import framework.platform_abstraction as pa
 import pickle
 import tempfile
 import phenograph
@@ -1453,6 +1454,13 @@ def phenocluster__default_session_state():
         
     if 'phenocluster__plot_diff_intensity_n_genes' not in st.session_state:
         st.session_state['phenocluster__plot_diff_intensity_n_genes'] = 10
+        
+    # async options for phenograph and scanpy
+    if 'phenocluster__phenograph_async' not in st.session_state:
+        st.session_state['phenocluster__phenograph_async'] = False
+        
+    if 'phenocluster__scanpy_async' not in st.session_state:
+        st.session_state['phenocluster__scanpy_async'] = False
     
   
 # subset data set
@@ -1492,65 +1500,17 @@ def phenocluster__check_input_dat(input_dat, numeric_cols):
                      icon="🚨")          
 
 
-def submit_clustering_job(job_name, method, adata, **params):
-    """
-    Submit clustering job for async execution.
-    """
-    import framework.platform_abstraction as pa
-    
-    # Generate a unique ID for this adata object
-    adata_id = framework_utils.get_unique_id()
-    
-    # Save adata to object storage instead of local file
-    temp_dir = framework_utils.session_dir()
-    os.makedirs(temp_dir, exist_ok=True)
-    temp_adata_path = os.path.join(temp_dir, f"adata_{adata_id}.pkl")
-    
-    # Save locally first
-    with open(temp_adata_path, 'wb') as f:
-        pickle.dump(adata, f)
-    
-    # Upload to object storage
-    try:
-        # Use DATA_OBJECTS_BUCKET_NAME for temporary adata storage
-        bucket_name = os.getenv('DATA_OBJECTS_BUCKET_NAME', 'objects')
-        
-        with open(temp_adata_path, 'rb') as f:
-            adata_buffer = f.read()
-        
-        # Upload to object storage with the adata_id as the object name
-        pa.upload_object_data(bucket_name, adata_id, adata_buffer)
-        
-        # Clean up local temp file
-        os.remove(temp_adata_path)
-        
-        # Prepare inputs - pass the adata_id instead of file path
-        inputs = {
-            "adata_object_id": adata_id,
-            "results_subdir": os.path.join("results", "clustering"),
-            **params
-        }
-        
-        # Submit the job
-        analysis_framework.job_submission(
-            job_name=job_name,
-            inputs=inputs,
-            analysis_purpose=f"{method} clustering",
-            st_key_prefix="phenocluster__",
-        )
-        
-    except Exception as e:
-        st.error(f"Failed to save adata for async processing: {e}")
-        # Clean up temp file if it still exists
-        if os.path.exists(temp_adata_path):
-            os.remove(temp_adata_path)
-
-
 # main
 def main():
     """
     Main function for the page.
     """
+    import framework.platform_abstraction as pa
+    import framework.utils as framework_utils
+    import framework.analysis_framework as analysis_framework
+    import pickle
+    import os
+    
     #st.write(st.session_state['unifier__df'].head())
     phenocluster__col_0, phenocluster__col_0a = st.columns([10,1])
 
@@ -1562,49 +1522,55 @@ def main():
     # make layout with columns    
     # options
     
-    try:
-        with phenocluster__col_0:
-            st.multiselect('Select numeric columns for clustering:', options = st.session_state['input_dataset'].data.columns, 
-                        key='phenocluster__X_cols')
-            
-            numeric_cols = st.session_state['phenocluster__X_cols']
-            phenocluster__check_input_dat(input_dat=st.session_state['input_dataset'].data, numeric_cols=numeric_cols)
-            
-            st.multiselect('Select columns for metadata:', options = st.session_state['input_dataset'].data.columns, 
-                key='phenocluster__meta_cols')
-                    
-                    
-            meta_columns = st.session_state['phenocluster__meta_cols']
-            #Add the new items if they don't already exist in the list
-            items_to_add = ['Centroid X (µm)_(standardized)', 'Centroid Y (µm)_(standardized)']
-            for item in items_to_add:
-                if item not in st.session_state['phenocluster__meta_cols']:
-                    st.session_state['phenocluster__meta_cols'].append(item)
-                    
-            st.toggle("Z-score normalize columns", key='phenocluster__zscore_normalize')
-            st.toggle("Normalize total intensity", key='phenocluster__normalize_total_intensity')
-            st.toggle("Log normalize", key='phenocluster__log_normalize')
-            st.toggle("Select high variance features", key='phenocluster__select_high_var_features')
-            if st.session_state['phenocluster__select_high_var_features'] == True:
-                st.number_input(label = "Number of features", key='phenocluster__n_features', step = 1)
-                
-            
-            if st.button('Submit columns'):
-                st.session_state['phenocluster__clustering_adata'] = phenocluster__make_adata(st.session_state['input_dataset'].data, 
-                                                numeric_cols,
-                                                meta_columns,
-                                                z_normalize = st.session_state['phenocluster__zscore_normalize'],
-                                                normalize_total = st.session_state['phenocluster__normalize_total_intensity'],
-                                                log_normalize = st.session_state['phenocluster__log_normalize'],
-                                                select_high_var_features = st.session_state['phenocluster__select_high_var_features'],
-                                                n_features = st.session_state['phenocluster__n_features']
-                                                )
-    except:
-        st.warning("container issue")
+    # Column 0: Data input and preprocessing
+    if 'input_dataset' not in st.session_state:
+        st.warning("Please load a dataset first on the Data Import page.")
+        return
         
-    try:
+    with phenocluster__col_0:
+        st.multiselect('Select numeric columns for clustering:', 
+                      options = st.session_state['input_dataset'].data.columns, 
+                      key='phenocluster__X_cols')
+        
+        numeric_cols = st.session_state['phenocluster__X_cols']
+        phenocluster__check_input_dat(input_dat=st.session_state['input_dataset'].data, numeric_cols=numeric_cols)
+        
+        st.multiselect('Select columns for metadata:', 
+                      options = st.session_state['input_dataset'].data.columns, 
+                      key='phenocluster__meta_cols')
+                
+        meta_columns = st.session_state['phenocluster__meta_cols']
+        #Add the new items if they don't already exist in the list
+        items_to_add = ['Centroid X (µm)_(standardized)', 'Centroid Y (µm)_(standardized)']
+        for item in items_to_add:
+            if item not in st.session_state['phenocluster__meta_cols']:
+                st.session_state['phenocluster__meta_cols'].append(item)
+                
+        st.toggle("Z-score normalize columns", key='phenocluster__zscore_normalize')
+        st.toggle("Normalize total intensity", key='phenocluster__normalize_total_intensity')
+        st.toggle("Log normalize", key='phenocluster__log_normalize')
+        st.toggle("Select high variance features", key='phenocluster__select_high_var_features')
+        if st.session_state['phenocluster__select_high_var_features'] == True:
+            st.number_input(label = "Number of features", key='phenocluster__n_features', step = 1)
             
-        if 'phenocluster__clustering_adata' in st.session_state:
+        if st.button('Submit columns'):
+            try:
+                st.session_state['phenocluster__clustering_adata'] = phenocluster__make_adata(
+                    st.session_state['input_dataset'].data, 
+                    numeric_cols,
+                    meta_columns,
+                    z_normalize = st.session_state['phenocluster__zscore_normalize'],
+                    normalize_total = st.session_state['phenocluster__normalize_total_intensity'],
+                    log_normalize = st.session_state['phenocluster__log_normalize'],
+                    select_high_var_features = st.session_state['phenocluster__select_high_var_features'],
+                    n_features = st.session_state['phenocluster__n_features']
+                )
+                st.success("AnnData object created successfully!")
+            except Exception as e:
+                st.error(f"Error creating AnnData object: {e}")
+        
+    # Column 1: Clustering controls
+    if 'phenocluster__clustering_adata' in st.session_state:
         
             with phenocluster__col1:
                 
@@ -1710,8 +1676,7 @@ def main():
                     else:
                         st.session_state["phenocluster__utag_transformer"] = None
                 
-                # add options if clustering has been run
-                # add options if clustering has been run
+                # Add clustering options based on selected method
                 
                 # Check if clustering job is completed
                 key = "phenocluster__" + st.session_state['phenocluster__cluster_method'] + "_clustering_results"
@@ -1723,42 +1688,149 @@ def main():
                     # Clear the results from session state to avoid reloading
                     del st.session_state[key]
                 
-                # Add async job submission
+                # Add async and sync clustering buttons for phenograph and scanpy
                 if st.session_state['phenocluster__cluster_method'] in ["phenograph", "scanpy"]:
                     
-                    # Async toggle and submit button for phenograph and scanpy
-                    if st.session_state['phenocluster__cluster_method'] == "phenograph":
-                        submit_clustering_job(
-                            job_name="run_phenograph_clustering",
-                            method="phenograph",
-                            adata=st.session_state['phenocluster__clustering_adata'],
-                            n_neighbors=st.session_state['phenocluster__n_neighbors_state'],
-                            clustering_algo=st.session_state['phenocluster__phenograph_clustering_algo'],
-                            min_cluster_size=st.session_state['phenocluster__phenograph_min_cluster_size'],
-                            primary_metric=st.session_state['phenocluster__metric'],
-                            resolution_parameter=st.session_state['phenocluster__resolution'],
-                            nn_method=st.session_state['phenocluster__phenograph_nn_method'],
-                            random_seed=st.session_state['phenocluster__random_seed'],
-                            n_principal_components=st.session_state['phenocluster__n_principal_components'],
-                            n_jobs=st.session_state['phenocluster__n_jobs'],
-                            n_iterations=st.session_state['phenocluster__n_iterations'],
-                            fast=st.session_state["phenocluster__fast"]
-                        )
-                    elif st.session_state['phenocluster__cluster_method'] == "scanpy":
-                        submit_clustering_job(
-                            job_name="run_neighb_clustering", 
-                            method="scanpy",
-                            adata=st.session_state['phenocluster__clustering_adata'],
-                            n_neighbors=st.session_state['phenocluster__n_neighbors_state'],
-                            metric=st.session_state['phenocluster__metric'],
-                            resolution=st.session_state['phenocluster__resolution'],
-                            random_state=st.session_state['phenocluster__random_seed'],
-                            n_principal_components=st.session_state['phenocluster__n_principal_components'],
-                            n_jobs=st.session_state['phenocluster__n_jobs'],
-                            n_iterations=st.session_state['phenocluster__n_iterations'],
-                            fast=st.session_state["phenocluster__scanpy_fast"],
-                            transformer=st.session_state["phenocluster__scanpy_transformer"]
-                        )
+                    method = st.session_state['phenocluster__cluster_method']
+                    
+                    # Step 1: Prepare for Async Job (optional)
+                    if method == "phenograph":
+                        if st.button("� Prepare for Async Phenograph Job", help="Upload data to object storage for async processing"):
+                            try:
+                                import framework.platform_abstraction as pa
+                                import framework.utils as framework_utils
+                                import pickle
+                                import os
+                                
+                                # Generate a unique ID and upload adata
+                                adata_id = framework_utils.get_unique_id()
+                                bucket_name = os.getenv('DATA_OBJECTS_BUCKET_NAME', 'objects')
+                                adata_buffer = pickle.dumps(st.session_state['phenocluster__clustering_adata'])
+                                pa.upload_object_data(bucket_name, adata_id, adata_buffer)
+                                
+                                # Prepare inputs for phenograph
+                                inputs = {
+                                    "adata_object_id": adata_id,
+                                    "results_subdir": os.path.join("results", "clustering"),
+                                    "n_neighbors": st.session_state['phenocluster__n_neighbors_state'],
+                                    "clustering_algo": st.session_state['phenocluster__phenograph_clustering_algo'],
+                                    "min_cluster_size": st.session_state['phenocluster__phenograph_min_cluster_size'],
+                                    "primary_metric": st.session_state['phenocluster__metric'],
+                                    "resolution_parameter": st.session_state['phenocluster__resolution'],
+                                    "nn_method": st.session_state['phenocluster__phenograph_nn_method'],
+                                    "random_seed": st.session_state['phenocluster__random_seed'],
+                                    "n_principal_components": st.session_state['phenocluster__n_principal_components'],
+                                    "n_jobs": st.session_state['phenocluster__n_jobs'],
+                                    "n_iterations": st.session_state['phenocluster__n_iterations'],
+                                    "fast": st.session_state["phenocluster__fast"]
+                                }
+                                
+                                st.session_state["phenograph_job_inputs"] = inputs
+                                st.success("✅ Phenograph data prepared for async execution!")
+                            except Exception as e:
+                                st.error(f"❌ Failed to prepare data: {e}")
+                        
+                        # Step 2: Framework job submission (only show if data is prepared)
+                        if "phenograph_job_inputs" in st.session_state:
+                            st.info("💡 Data prepared! Use the async controls below or run sync instead.")
+                            import framework.analysis_framework as analysis_framework
+                            analysis_framework.job_submission(
+                                job_name="run_phenograph_clustering",
+                                inputs=st.session_state["phenograph_job_inputs"],
+                                analysis_purpose="phenograph clustering",
+                                st_key_prefix="phenocluster__",
+                            )
+                        
+                        # Step 3: Sync option (always available)
+                        st.markdown("---")
+                        st.subheader("Or run synchronously:")
+                        if st.button('🚀 Run Phenograph Clustering (Sync)', type="primary"):
+                            start_time = time.time()
+                            with st.spinner('Running Phenograph clustering...'):
+                                st.session_state['phenocluster__clustering_adata'] = RunPhenographClust(
+                                    adata=st.session_state['phenocluster__clustering_adata'], 
+                                    n_neighbors=st.session_state['phenocluster__n_neighbors_state'],
+                                    clustering_algo=st.session_state['phenocluster__phenograph_clustering_algo'],
+                                    min_cluster_size=st.session_state['phenocluster__phenograph_min_cluster_size'],
+                                    primary_metric=st.session_state['phenocluster__metric'],
+                                    resolution_parameter=st.session_state['phenocluster__resolution'],
+                                    nn_method=st.session_state['phenocluster__phenograph_nn_method'],
+                                    random_seed=st.session_state['phenocluster__random_seed'],
+                                    n_principal_components=st.session_state['phenocluster__n_principal_components'],
+                                    n_jobs=st.session_state['phenocluster__n_jobs'],
+                                    n_iterations=st.session_state['phenocluster__n_iterations'],
+                                    fast=st.session_state["phenocluster__fast"]
+                                )
+                            end_time = time.time()
+                            execution_time = end_time - start_time
+                            st.success(f'✅ Phenograph clustering completed in {execution_time:.2f} seconds!')
+                    
+                    elif method == "scanpy":
+                        if st.button("� Prepare for Async Scanpy Job", help="Upload data to object storage for async processing"):
+                            try:
+                                import framework.platform_abstraction as pa
+                                import framework.utils as framework_utils
+                                import pickle
+                                import os
+                                
+                                # Generate a unique ID and upload adata
+                                adata_id = framework_utils.get_unique_id()
+                                bucket_name = os.getenv('DATA_OBJECTS_BUCKET_NAME', 'objects')
+                                adata_buffer = pickle.dumps(st.session_state['phenocluster__clustering_adata'])
+                                pa.upload_object_data(bucket_name, adata_id, adata_buffer)
+                                
+                                # Prepare inputs for scanpy
+                                inputs = {
+                                    "adata_object_id": adata_id,
+                                    "results_subdir": os.path.join("results", "clustering"),
+                                    "n_neighbors": st.session_state['phenocluster__n_neighbors_state'],
+                                    "metric": st.session_state['phenocluster__metric'],
+                                    "resolution": st.session_state['phenocluster__resolution'],
+                                    "random_state": st.session_state['phenocluster__random_seed'],
+                                    "n_principal_components": st.session_state['phenocluster__n_principal_components'],
+                                    "n_jobs": st.session_state['phenocluster__n_jobs'],
+                                    "n_iterations": st.session_state['phenocluster__n_iterations'],
+                                    "fast": st.session_state["phenocluster__scanpy_fast"],
+                                    "transformer": st.session_state["phenocluster__scanpy_transformer"]
+                                }
+                                
+                                st.session_state["scanpy_job_inputs"] = inputs
+                                st.success("✅ Scanpy data prepared for async execution!")
+                            except Exception as e:
+                                st.error(f"❌ Failed to prepare data: {e}")
+                        
+                        # Step 2: Framework job submission (only show if data is prepared)
+                        if "scanpy_job_inputs" in st.session_state:
+                            st.info("💡 Data prepared! Use the async controls below or run sync instead.")
+                            import framework.analysis_framework as analysis_framework
+                            analysis_framework.job_submission(
+                                job_name="run_neighb_clustering",
+                                inputs=st.session_state["scanpy_job_inputs"],
+                                analysis_purpose="scanpy clustering",
+                                st_key_prefix="phenocluster__",
+                            )
+                        
+                        # Step 3: Sync option (always available)
+                        st.markdown("---")
+                        st.subheader("Or run synchronously:")
+                        if st.button('🚀 Run Scanpy Clustering (Sync)', type="primary"):
+                            start_time = time.time()
+                            with st.spinner('Running Scanpy clustering...'):
+                                st.session_state['phenocluster__clustering_adata'] = RunNeighbClust(
+                                    adata=st.session_state['phenocluster__clustering_adata'],
+                                    n_neighbors=st.session_state['phenocluster__n_neighbors_state'],
+                                    metric=st.session_state['phenocluster__metric'],
+                                    resolution=st.session_state['phenocluster__resolution'],
+                                    random_state=st.session_state['phenocluster__random_seed'],
+                                    n_principal_components=st.session_state['phenocluster__n_principal_components'],
+                                    n_jobs=st.session_state['phenocluster__n_jobs'],
+                                    n_iterations=st.session_state['phenocluster__n_iterations'],
+                                    fast=st.session_state["phenocluster__scanpy_fast"],
+                                    transformer=st.session_state["phenocluster__scanpy_transformer"]
+                                )
+                            end_time = time.time()
+                            execution_time = end_time - start_time
+                            st.success(f'✅ Scanpy clustering completed in {execution_time:.2f} seconds!')       
                     
                 else:
                     # For PARC and UTAG, keep the existing synchronous approach
@@ -1852,13 +1924,9 @@ def main():
                     
                     st.button('Add Clusters to Input Data' , on_click=phenocluster__add_clusters_to_input_df)
             
-                
-    except:
-        st.warning("container issue")
-                
-                
-            
-    
+    else:
+        st.info("Create an AnnData object by submitting columns above to start clustering.")
+
 
 # Run the main function
 if __name__ == '__main__':
