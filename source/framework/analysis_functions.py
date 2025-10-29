@@ -11,6 +11,8 @@ def run_analysis_job(function_name, inputs, job_dir):
             function_to_run = find_primes_up_to
         elif function_name == "init_spatial_umap":
             function_to_run = init_spatial_umap
+        elif function_name == "apply_umap":
+            function_to_run = apply_umap
         outputs = function_to_run(**inputs, results_topdir=outputs_dir)
         return outputs
     except Exception as e:
@@ -95,3 +97,68 @@ def init_spatial_umap(calc_unique_areas_toggle, area_filter_per, df, marker_mult
 
     # Save checkpoint for Neighborhood Profile structure
     # save_neipro_struct()
+
+
+def get_spatialUMAP(spatial_umap, umap_subset_per_fit, umap_subset_toggle, umap_subset_per):
+    '''
+    Extract precomputed UMAP from the file
+
+    Args:
+        spatial_umap (spatial_umap): spatial_umap object
+        bc (benchmark_collector): Benchmark Collector object
+        UMAPStyle (str): Style of UMAP to use
+    
+    Returns:
+        spatial_umap: spatial_umap object with the UMAP analysis performed
+    '''
+
+    min_image_size = spatial_umap.smallest_image_size
+    n_fit = int(min_image_size*umap_subset_per_fit/100)
+    n_tra = n_fit + int(min_image_size*umap_subset_per/100)
+
+    # set training and "test" cells for umap training and embedding, respectively
+    print('Setting Train/Test Split')
+    spatial_umap.set_train_test(n_fit=n_fit, n_tra = n_tra, groupby_label = 'TMA_core_id', seed=54321, umap_subset_toggle = umap_subset_toggle)
+
+    # fit umap on training cells
+    # bc.startTimer()
+    # print('Fitting Model')
+    spatial_umap.umap_fit = spatial_umap.cells.loc[spatial_umap.cells['umap_train'].values, ['UMAP_1_20230327_152849', 'UMAP_2_20230327_152849']].values.reshape((spatial_umap.cells['umap_train'].sum(), -1))
+    # bc.printElapsedTime(f'      Fitting {np.sum(spatial_umap.cells["umap_train"] == 1)} points to a model')
+
+    # Transform test cells based on fitted model
+    # bc.startTimer()
+    # print('Transforming Data')
+    spatial_umap.umap_test = spatial_umap.cells.loc[spatial_umap.cells['umap_test'].values, ['UMAP_1_20230327_152849', 'UMAP_2_20230327_152849']].values.reshape((spatial_umap.cells['umap_test'].sum(), -1))
+    # bc.printElapsedTime(f'      Transforming {np.sum(spatial_umap.cells["umap_test"] == 1)} points with the model')
+
+    spatial_umap.umap_completed = True
+    
+    # import pickle
+    # with open('../Edits/spatial_umap_original_precomp.pkl', 'wb') as f:
+    #     pickle.dump(spatial_umap, f)
+
+    return spatial_umap
+
+def apply_umap(spatial_umap, umap_subset_per_fit, umap_subset_toggle, 
+               umap_subset_per, load_generated_umap_toggle, results_topdir):
+    '''
+    Call back function for applying the UMAP functions
+    '''
+
+    #st.session_state.bc.startTimer()
+    # if toggle for loading pre-generated UMAP is selected extract UMAP from file, works only with a specific dataset
+    if load_generated_umap_toggle:
+        spatial_umap = get_spatialUMAP(spatial_umap,
+                                                        #st.session_state.bc,
+                                                        umap_subset_per_fit,
+                                                        umap_subset_toggle,
+                                                        umap_subset_per)
+    else:
+        spatial_umap = bpl.perform_spatialUMAP(spatial_umap,
+                                                                #st.session_state.bc,
+                                                                umap_subset_per_fit,
+                                                                umap_subset_toggle,
+                                                                umap_subset_per)
+
+    return {"spatial_umap": spatial_umap, "umap_completed": True}

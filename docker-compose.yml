@@ -11,6 +11,7 @@ services:
     depends_on:
       - database
       - object_storage
+      - docker_orchestrator
     environment:
       DB_URL_GROUP: postgresql://postgres:password@database:5432/group_alpha_group_db
       DB_URL_APP: postgresql://postgres:password@database:5432/app_a_app_db
@@ -24,6 +25,7 @@ services:
       JOB_INPUTS_BUCKET_NAME: inputs
       JOB_OUTPUTS_BUCKET_NAME: outputs
       DATA_OBJECTS_BUCKET_NAME: objects
+      DOCKER_ORCHESTRATOR_URL: http://docker_orchestrator:8080
       APP_USER: ${USER}  # Delete this (and modify get_current_username()) in the future when we implement running the container as non-root.
       APP_PLATFORM: local
       APP_NAME: mawa
@@ -67,9 +69,11 @@ services:
     build:
       context: .
       dockerfile: docker_orchestrator/Dockerfile
+    ports:
+      - "8080:8080"
     environment:
       # Worker image to launch (reuses frontend image for parity)
-      WORKER_IMAGE: frontend  ## ENSURE THIS MATCHES FRONTEND IMAGE NAME
+      WORKER_IMAGE: frontend:${IMAGE_TAG}  ## ENSURE THIS MATCHES FRONTEND IMAGE NAME
       WORKER_CPUS: "8"  # Note some machines may not have 8 CPUs available so we need to change this; ensure this is changed elsewhere in code!
       WORKER_MEM: "8g"
       # Pass-through envs required by the worker
