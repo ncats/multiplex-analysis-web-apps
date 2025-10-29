@@ -67,7 +67,6 @@ CREATE TABLE IF NOT EXISTS app_a_schema.jobs_table (
   compute_resource VARCHAR(255)
 );
 
-
 -- Create database roles.
 create database role if not exists curated_schema_rw_db_role;
 create database role if not exists app_a_schema_rw_db_role;
@@ -161,6 +160,10 @@ create database if not exists app_a_app_db;
 use database app_a_app_db;
 create schema if not exists group_alpha_schema;
 create schema if not exists general_schema;
+
+-- Create a general stage for holding the code for the services.
+create stage if not exists general_schema.general_stage
+  directory = ( enable = true );
 
 -- Create an image repository.
 CREATE IMAGE REPOSITORY IF NOT EXISTS general_schema.image_repository;
@@ -424,6 +427,10 @@ create database if not exists data_manager_db;
 use database data_manager_db;
 create schema if not exists group_alpha_schema;
 create schema if not exists general_schema;
+
+-- Create a general stage for holding the code for the service.
+create stage if not exists general_schema.general_stage
+  directory = ( enable = true );
 
 -- Create an image repository.
 CREATE IMAGE REPOSITORY IF NOT EXISTS general_schema.image_repository;
