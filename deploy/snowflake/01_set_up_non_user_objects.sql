@@ -303,9 +303,6 @@ CREATE COMPUTE POOL IF NOT EXISTS app_a_user_1_workers_HIGHMEM_X64_M_28vcpu_240g
 --   group_alpha_schema.app_a_user_1_frontend_CPU_X64_SL_14vcpu_58gib_7x_service
 --   group_alpha_schema.app_a_user_1_frontend_CPU_X64_L_28vcpu_116gib_14x_service
 --   group_alpha_schema.app_a_user_1_frontend_HIGHMEM_X64_M_28vcpu_240gib_19x_service
--- **** SEND IN THE LIST OF WORKER COMPUTE POOLS AS AN ENV OR SOMETHING LIKE THAT SO THE USER CAN CHOOSE THE WORKER COMPUTE POOL THEY WANT TO USE. I can perhaps hardcode this for the time being since we're in a rush:
---   "CPU_X64_XS_1vcpu_6gib_1x CPU_X64_S_3vcpu_13gib_2x CPU_X64_M_6vcpu_28gib_4x HIGHMEM_X64_S_6vcpu_58gib_5x CPU_X64_SL_14vcpu_58gib_7x CPU_X64_L_28vcpu_116gib_14x HIGHMEM_X64_M_28vcpu_240gib_19x"
--- also send in the compute resource and all pieces of what's in the service name in general
 
 -- Grant app_a_group_alpha_role privileges to see the database and schema.
 GRANT USAGE ON DATABASE app_a_app_db
@@ -324,6 +321,9 @@ GRANT USAGE ON DATABASE app_a_app_db
   TO DATABASE ROLE group_alpha_schema_service_db_role;
 GRANT USAGE ON SCHEMA group_alpha_schema
   TO DATABASE ROLE group_alpha_schema_service_db_role;
+
+-- This probably isn't needed since accountadmin is the one who handles the endpoints, but putting it here to keep it in mind.
+-- GRANT BIND SERVICE ENDPOINT ON ACCOUNT TO ROLE app_a_group_alpha_role;
 
 -- Change the owner of the apps to the service role app_a_group_alpha_role.
 GRANT OWNERSHIP ON SERVICE group_alpha_schema.app_a_user_1_frontend_CPU_X64_XS_1vcpu_6gib_1x_service TO ROLE app_a_group_alpha_role COPY CURRENT GRANTS;

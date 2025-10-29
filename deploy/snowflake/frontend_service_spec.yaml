@@ -1,0 +1,41 @@
+spec:
+  containers:                           # container list
+    - name: "frontend"
+      image: "/{{ APP_NAME }}_app_db/general_schema/image_repository/{{ IMAGE_NAME }}:{{ IMAGE_TAG }}"
+      env:                                # optional
+        SNOWFLAKE_USER: "{{ SNOWFLAKE_USER }}"             # must inject manually; Snowflake does not inject
+        SNOWFLAKE_WAREHOUSE: "{{ APP_NAME }}_{{ SNOWFLAKE_USER }}_{{ WAREHOUSE_SIZE }}_warehouse"   # must inject manually; Snowflake does not inject
+        TZ: "America/New_York"
+        ARCHIVES_BUCKET_NAME: "archives"
+        OLD_ARCHIVES_BUCKET_NAME: "oldarchives"
+        JOB_INPUTS_BUCKET_NAME: "inputs"
+        JOB_OUTPUTS_BUCKET_NAME: "outputs"
+        DATA_OBJECTS_BUCKET_NAME: "objects"
+        APP_PLATFORM: "snowflake"
+        APP_NAME: "{{ APP_NAME }}"
+        APP_TITLE: "{{ APP_TITLE }}"
+        MONITOR_JOBS_REFRESH_INTERVAL_SECONDS: "{{ MONITOR_JOBS_REFRESH_INTERVAL_SECONDS }}"
+        COMPUTE_RESOURCE: "{{ COMPUTE_RESOURCE }}"
+        ALL_COMPUTE_RESOURCES: "{{ ALL_COMPUTE_RESOURCES }}"
+      volumeMounts:                       # optional list
+        - name: "tmp"
+          mountPath: "/tmp/{{ APP_TITLE_ONE_WORD }}"
+      resources:                          # optional
+        requests:
+          memory: "{{ REQUESTS_MEMORY_GI }}Gi"
+          cpu: {{ REQUESTS_CPU }}
+        limits:
+          memory: "{{ LIMITS_MEMORY_GI }}Gi"
+          cpu: {{ LIMITS_CPU }}
+  endpoints:                             # optional endpoint list
+    - name: "web"
+      port: 8501                     # specify this or portRange
+      public: true
+      protocol: "HTTP"
+  volumes:                               # optional volume list
+    - name: "tmp"
+      source: "local"
+serviceRoles:                   # Optional list of service roles
+  - name: "web_endpoint_service_role"
+    endpoints:
+      - "web"
