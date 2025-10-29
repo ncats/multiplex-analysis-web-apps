@@ -390,6 +390,11 @@ GRANT USAGE, READ ON IMAGE REPOSITORY general_schema.image_repository
 create database if not exists app_launcher_db;
 use database app_launcher_db;
 create schema if not exists group_alpha_schema;
+create schema if not exists general_schema;
+
+-- Create a general stage for holding the code for the launcher.
+create stage if not exists general_schema.general_stage
+  directory = ( enable = true );
 
 -- Create a warehouse for the app.
 CREATE WAREHOUSE IF NOT EXISTS app_launcher_user_1_xs_warehouse
@@ -418,6 +423,22 @@ GRANT USAGE, OPERATE, MONITOR ON WAREHOUSE app_launcher_user_1_xs_warehouse TO R
 create database if not exists data_manager_db;
 use database data_manager_db;
 create schema if not exists group_alpha_schema;
+create schema if not exists general_schema;
+
+-- Create an image repository.
+CREATE IMAGE REPOSITORY IF NOT EXISTS general_schema.image_repository;
+
+-- Create table.
+CREATE TABLE IF NOT EXISTS general_schema.image_metadata_table (
+  id INTEGER IDENTITY PRIMARY KEY,
+  image_id VARCHAR(255) UNIQUE NOT NULL,
+  name VARCHAR(255),
+  tag VARCHAR(255),
+  git_commit VARCHAR(255),
+  environment_yaml_file VARCHAR(255),
+  image_added_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  who_added VARCHAR(255)
+);
 
 -- Create roles.
 create role if not exists data_manager_group_alpha_role; -- This is the account role that owns and operates the app.
