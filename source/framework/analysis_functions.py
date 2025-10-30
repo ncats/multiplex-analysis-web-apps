@@ -13,6 +13,8 @@ def run_analysis_job(function_name, inputs, job_dir):
             function_to_run = init_spatial_umap
         elif function_name == "apply_umap":
             function_to_run = apply_umap
+        elif function_name == "set_clusters":
+            function_to_run = set_clusters
         outputs = function_to_run(**inputs, results_topdir=outputs_dir)
         return outputs
     except Exception as e:
@@ -162,3 +164,15 @@ def apply_umap(spatial_umap, umap_subset_per_fit, umap_subset_toggle,
                                                                 umap_subset_per)
 
     return {"spatial_umap": spatial_umap, "umap_completed": True}
+
+
+def set_clusters(spatial_umap, slider_clus_val, clust_minmax, results_topdir):
+    spatial_umap = bpl.umap_clustering(spatial_umap = spatial_umap,
+                                                                n_clusters = slider_clus_val,
+                                                                clust_minmax = clust_minmax,
+                                                                cpu_pool_size = 3)
+    spatial_umap.mean_measures()
+    
+    return {"spatial_umap": spatial_umap, "cluster_completed": True, 
+            "appro_feat": True, "cluster_completed_diff": False}
+

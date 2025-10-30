@@ -651,8 +651,8 @@ def main():
                     st.session_state.spatial_umap = st.session_state[key]["spatial_umap"]
                     st.session_state.density_completed = st.session_state[key]["density_completed"]
 
-                umap_butt  = st.button('Perform UMAP Analysis')
-                clust_butt = st.button('Perform Clustering Analysis')
+                #umap_butt  = st.button('Perform UMAP Analysis')
+                #clust_butt = st.button('Perform Clustering Analysis')
 
             # Button results and difference settings
             with butt_cols[1]:
@@ -730,15 +730,11 @@ def main():
                             st.session_state.UMAPFig = st.session_state.udp_full.UMAPdraw_density()
 
 
-                if st.session_state.phenotyping_completed:
-                    if st.session_state.umap_completed:
+                # if st.session_state.phenotyping_completed:
+                #     if st.session_state.umap_completed:
+                        # if clust_butt:
+                        #     set_clusters()
 
-                        if clust_butt:
-                            set_clusters()
-                        if not st.session_state.cluster_completed:
-                            st.write(':x: Step 3: Perform Clustering')
-                        else:
-                            st.write(':white_check_mark: Clustering Analysis Completed')
 
             # If UMAP is completed, display the clustering settings
             if st.session_state.umap_completed:
@@ -772,6 +768,55 @@ def main():
                                     min_value=st.session_state.clust_minmax[0],
                                     max_value=st.session_state.clust_minmax[1],
                                     key = 'slider_clus_val')
+                            analysis_framework.job_submission(
+                                job_name = "set_clusters",
+                                inputs = dict(
+                                    spatial_umap = st.session_state["spatial_umap"],
+                                    slider_clus_val = st.session_state.slider_clus_val,
+                                    clust_minmax = st.session_state.clust_minmax,
+                                ),
+                                analysis_purpose = "clustering analysis",
+                                st_key_prefix = "",
+                                )
+                            clust_key = 'clustering_analysis_results'
+                            if clust_key not in st.session_state:
+                                st.warning("Clustering analysis results are not yet available.")
+                                return
+                            # Set shortcuts to the job results.
+                            st.session_state.spatial_umap = st.session_state[clust_key]["spatial_umap"]
+                            st.session_state.cluster_completed = st.session_state[clust_key]["cluster_completed"]
+                            st.session_state.appro_feat = st.session_state[clust_key]["appro_feat"]
+                            st.session_state.cluster_completed_diff = st.session_state[clust_key]["cluster_completed_diff"]
+                            if not st.session_state.cluster_completed:
+                                st.write(':x: Step 3: Perform Clustering')
+                            else:
+                                st.write(':white_check_mark: Clustering Analysis Completed')
+                            
+                            if st.session_state.cluster_completed:
+                                st.session_state.cluster_dict = st.session_state.spatial_umap.cluster_dict
+                                st.session_state.palette_dict = st.session_state.spatial_umap.palette_dict
+                                st.session_state.selected_nClus = st.session_state.slider_clus_val
+                                # states below need to be updated after cluster on differences
+                                # think about combining them 
+
+                                # Draw the 2D histogram UMAP colored by the clusters
+                                st.session_state.udp_full.cluster_dict = st.session_state.cluster_dict
+                                st.session_state.udp_full.palette_dict = st.session_state.palette_dict
+                                st.session_state.diff_clust_Fig = st.session_state.udp_full.umap_draw_clusters()
+                                # List of Clusters to display
+                                st.session_state.list_clusters = list(st.session_state.cluster_dict.values())
+                                # if st.session_state['toggle_clust_diff']:
+                                #     st.session_state.list_clusters += ['Average Left', 'Average Right']
+
+                                if 'No Cluster' in st.session_state.list_clusters:
+                                    st.session_state.list_clusters.remove('No Cluster')
+
+                                st.session_state['sel_npf_fig'] = st.session_state.list_clusters[0]
+                                # if st.session_state['toggle_compare_clusters']:
+                                #     st.session_state['sel_npf_fig2'] = st.session_state.list_clusters[1]
+                                # else:
+                                #     st.session_state['sel_npf_fig2'] = None
+
                             if st.session_state.spatial_umap.elbow_fig is not None:
                                 st.pyplot(st.session_state.spatial_umap.elbow_fig)
 
