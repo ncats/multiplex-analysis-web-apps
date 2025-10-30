@@ -12,7 +12,7 @@ def _validate_identifier(value: str, pattern: re.Pattern, label: str):
     return value
 
 
-def submit_job(job_id: str, username: str, session: Session):
+def submit_job(job_id: str, username: str, session: Session, selected_compute_resource: str):
     """
     Submit a Snowpark Container Services job (EXECUTE JOB SERVICE) and grant privileges.
     session: Snowpark Session

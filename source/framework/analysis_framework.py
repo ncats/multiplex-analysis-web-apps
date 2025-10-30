@@ -11,6 +11,14 @@ JOB_INPUTS_BUCKET_NAME = os.getenv('JOB_INPUTS_BUCKET_NAME')
 JOB_OUTPUTS_BUCKET_NAME = os.getenv('JOB_OUTPUTS_BUCKET_NAME')
 
 
+@st.cache_data()
+def get_available_async_resources():
+    raw = os.getenv("AVAILABLE_COMPUTE_RESOURCES", "")
+    if not raw.strip():
+        return []
+    return [r for r in raw.split() if r]
+
+
 def initialize_job(function_name):
     try:
         job_id = framework_utils.get_unique_id()
@@ -132,14 +140,14 @@ def run_local_analysis(job_id):
         return False
 
 
-def run_analysis_job_wrapper(function_name, inputs, blocking=True):
+def run_analysis_job_wrapper(function_name, inputs, blocking=True, selected_compute_resource: str = None):
     """
     Run an analysis job by calling the specified function with the given inputs.
     """
     try:
         job_id = initialize_job(function_name)
         save_job_input_data(job_id, inputs)
-        pa.submit_job(job_id, blocking=blocking)
+        pa.submit_job(job_id, blocking=blocking, selected_compute_resource=selected_compute_resource)
         return job_id
     except Exception as e:
         st.error(f"Error occurred while running wrapper for analysis job {function_name}: {e}")
@@ -150,13 +158,23 @@ def run_analysis_job_wrapper(function_name, inputs, blocking=True):
 def job_submission(job_name, inputs, analysis_purpose, st_key_prefix):
 
     analysis_purpose_with_underscores = analysis_purpose.replace(" ", "_")
-    
-    key = st_key_prefix + "async_analysis_" + analysis_purpose_with_underscores
-    if key not in st.session_state:
-        st.session_state[key] = True
-    do_async_analysis = st.toggle(f"Run {analysis_purpose} asynchronously", key=key)
 
-    if st.button(f"Run {analysis_purpose}", type=("primary" if do_async_analysis else "secondary")):
-        job_id = run_analysis_job_wrapper(job_name, inputs, blocking=not do_async_analysis)
-        st.session_state["JOB_PENDING"] = {"job_id": job_id, "key_for_results": st_key_prefix + analysis_purpose_with_underscores + "_results"}
-        # st.rerun()  # Remove to not mask any potential warnings/errors.
+    with st.columns(1, border=True)[0]:
+
+        st.subheader(analysis_purpose.capitalize())
+    
+        key = st_key_prefix + "async_analysis_" + analysis_purpose_with_underscores
+        if key not in st.session_state:
+            st.session_state[key] = True
+        do_async_analysis = st.toggle(f"Run {analysis_purpose} asynchronously", key=key)
+
+        available_async_resources = get_available_async_resources()
+        if do_async_analysis and available_async_resources:
+            selected_compute_resource = st.selectbox("Select compute resource:", available_async_resources, key=st_key_prefix + "selected_compute_resource_for_" + analysis_purpose_with_underscores)
+        else:
+            selected_compute_resource = None
+
+        if st.button(f"Run {analysis_purpose}", type=("primary" if do_async_analysis else "secondary")):
+            job_id = run_analysis_job_wrapper(job_name, inputs, blocking=not do_async_analysis, selected_compute_resource=selected_compute_resource)
+            st.session_state["JOB_PENDING"] = {"job_id": job_id, "key_for_results": st_key_prefix + analysis_purpose_with_underscores + "_results"}
+            # st.rerun()  # Remove to not mask any potential warnings/errors.

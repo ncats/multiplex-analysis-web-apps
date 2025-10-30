@@ -148,7 +148,8 @@ def set_up_postgresql():
                         user_group VARCHAR(255),
                         startup_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                         explicit_shutdown_time TIMESTAMP,
-                        container_image_id VARCHAR(255)
+                        container_image_id VARCHAR(255),
+                        compute_resource VARCHAR(255)
                     )
                 """)
 
@@ -163,6 +164,7 @@ def set_up_postgresql():
                         container_image_id VARCHAR(255),
                         archive_id VARCHAR(255) UNIQUE NOT NULL,
                         app_session_id VARCHAR(255),
+                        archive_compatibility_id INTEGER,
                         creation_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     )
                 """)
@@ -181,7 +183,8 @@ def set_up_postgresql():
                         submission_time TIMESTAMP,
                         start_time TIMESTAMP,
                         completion_time TIMESTAMP,
-                        failure_time TIMESTAMP
+                        failure_time TIMESTAMP,
+                        compute_resource VARCHAR(255)
                     )
                 """)
             conn_group.commit()
@@ -438,13 +441,13 @@ def get_app_sessions_table_data():
             conn = get_database_connection(DB_URL_GROUP)
             with conn.cursor() as cur:
                 cur.execute(f"""
-                    SELECT app_session_id, username, user_group, startup_time, explicit_shutdown_time, container_image_id
+                    SELECT app_session_id, username, user_group, startup_time, explicit_shutdown_time, container_image_id, compute_resource
                     FROM {APP_NAME}_schema.app_sessions_table
                     ORDER BY startup_time DESC
                 """)
                 rows = cur.fetchall()
             return_database_connection(conn, DB_URL_GROUP)
-            df = pl.DataFrame(rows, schema=["app_session_id", "username", "user_group", "startup_time", "explicit_shutdown_time", "container_image_id"], strict=False, orient="row")
+            df = pl.DataFrame(rows, schema=["app_session_id", "username", "user_group", "startup_time", "explicit_shutdown_time", "container_image_id", "compute_resource"], strict=False, orient="row")
             return df
         except Exception as e:
             st.error(f"Failed to retrieve app sessions table data: {e}")
@@ -455,11 +458,11 @@ def get_app_sessions_table_data():
         try:
             session = snowflake_connections.get_snowpark_session()
             rows = session.sql(f"""
-                SELECT app_session_id, username, user_group, startup_time, explicit_shutdown_time, container_image_id
+                SELECT app_session_id, username, user_group, startup_time, explicit_shutdown_time, container_image_id, compute_resource
                 FROM {get_user_group(get_current_username())}_group_db.{APP_NAME}_schema.app_sessions_table
                 ORDER BY startup_time DESC
             """).collect()
-            df = pl.DataFrame(rows, schema=["app_session_id", "username", "user_group", "startup_time", "explicit_shutdown_time", "container_image_id"], strict=False, orient="row")
+            df = pl.DataFrame(rows, schema=["app_session_id", "username", "user_group", "startup_time", "explicit_shutdown_time", "container_image_id", "compute_resource"], strict=False, orient="row")
             return df
         except Exception as e:
             st.error(f"Failed to retrieve app sessions table data: {e}")
@@ -473,13 +476,13 @@ def get_archives_table_data():
             conn = get_database_connection(DB_URL_GROUP)
             with conn.cursor() as cur:
                 cur.execute(f"""
-                    SELECT creator, user_group, archive_description, current_git_commit, container_image_id, archive_id, app_session_id, creation_time
+                    SELECT creator, user_group, archive_description, current_git_commit, container_image_id, archive_id, app_session_id, creation_time, archive_compatibility_id
                     FROM {APP_NAME}_schema.archives_table
                     ORDER BY creation_time DESC
                 """)
                 rows = cur.fetchall()
             return_database_connection(conn, DB_URL_GROUP)
-            df = pl.DataFrame(rows, schema=["creator", "user_group", "archive_description", "current_git_commit", "container_image_id", "archive_id", "app_session_id", "creation_time"], strict=False, orient="row")
+            df = pl.DataFrame(rows, schema=["creator", "user_group", "archive_description", "current_git_commit", "container_image_id", "archive_id", "app_session_id", "creation_time", "archive_compatibility_id"], strict=False, orient="row")
             return df
         except Exception as e:
             st.error(f"Failed to retrieve archives_table table data: {e}")
@@ -490,11 +493,11 @@ def get_archives_table_data():
         try:
             session = snowflake_connections.get_snowpark_session()
             rows = session.sql(f"""
-                SELECT creator, user_group, archive_description, current_git_commit, container_image_id, archive_id, app_session_id, creation_time
+                SELECT creator, user_group, archive_description, current_git_commit, container_image_id, archive_id, app_session_id, creation_time, archive_compatibility_id
                 FROM {get_user_group(get_current_username())}_group_db.{APP_NAME}_schema.archives_table
                 ORDER BY creation_time DESC
             """).collect()
-            df = pl.DataFrame(rows, schema=["creator", "user_group", "archive_description", "current_git_commit", "container_image_id", "archive_id", "app_session_id", "creation_time"], strict=False, orient="row")
+            df = pl.DataFrame(rows, schema=["creator", "user_group", "archive_description", "current_git_commit", "container_image_id", "archive_id", "app_session_id", "creation_time", "archive_compatibility_id"], strict=False, orient="row")
             return df
         except Exception as e:
             st.error(f"Failed to retrieve archives_table table data: {e}")
@@ -507,7 +510,7 @@ def get_jobs_table_data():
         try:
             conn = get_database_connection(DB_URL_GROUP)
             with conn.cursor() as cur:
-                columns = "job_id, job_name, job_status, submitter, submitter_group, app_session_id, worker_image_id, submission_time, start_time, completion_time, failure_time"
+                columns = "job_id, job_name, job_status, submitter, submitter_group, app_session_id, worker_image_id, submission_time, start_time, completion_time, failure_time, compute_resource"
                 cur.execute(f"""
                     SELECT {columns}
                     FROM {APP_NAME}_schema.jobs_table
@@ -515,7 +518,7 @@ def get_jobs_table_data():
                 """)
                 rows = cur.fetchall()
             return_database_connection(conn, DB_URL_GROUP)
-            df = pl.DataFrame(rows, schema=["job_id", "job_name", "job_status", "submitter", "submitter_group", "app_session_id", "worker_image_id", "submission_time", "start_time", "completion_time", "failure_time"], strict=False, orient="row")
+            df = pl.DataFrame(rows, schema=["job_id", "job_name", "job_status", "submitter", "submitter_group", "app_session_id", "worker_image_id", "submission_time", "start_time", "completion_time", "failure_time", "compute_resource"], strict=False, orient="row")
             return df
         except Exception as e:
             st.error(f"Failed to retrieve jobs_table table data: {e}")
@@ -525,13 +528,13 @@ def get_jobs_table_data():
     elif framework_utils.platform() == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
-            columns = "job_id, job_name, job_status, submitter, submitter_group, app_session_id, worker_image_id, submission_time, start_time, completion_time, failure_time"
+            columns = "job_id, job_name, job_status, submitter, submitter_group, app_session_id, worker_image_id, submission_time, start_time, completion_time, failure_time, compute_resource"
             rows = session.sql(f"""
                 SELECT {columns}
                 FROM {get_user_group(get_current_username())}_group_db.{APP_NAME}_schema.jobs_table
                 ORDER BY submission_time DESC NULLS LAST
             """).collect()
-            df = pl.DataFrame(rows, schema=["job_id", "job_name", "job_status", "submitter", "submitter_group", "app_session_id", "worker_image_id", "submission_time", "start_time", "completion_time", "failure_time"], strict=False, orient="row")
+            df = pl.DataFrame(rows, schema=["job_id", "job_name", "job_status", "submitter", "submitter_group", "app_session_id", "worker_image_id", "submission_time", "start_time", "completion_time", "failure_time", "compute_resource"], strict=False, orient="row")
             return df
         except Exception as e:
             st.error(f"Failed to retrieve jobs_table table data: {e}")
@@ -630,6 +633,23 @@ def update_job_status(job_id, new_status, time_column):
             return True
         except Exception as e:
             st.error(f"Failed to update status of job {job_id} to {new_status} and update {time_column}: {e}")
+            return False
+
+
+def log_compute_resource_for_job(job_id: str, compute_resource: str):
+    if framework_utils.platform() == "local":
+        pass
+    elif framework_utils.platform() == "snowflake":
+        try:
+            session = snowflake_connections.get_snowpark_session()
+            session.sql(f"""
+                UPDATE {get_user_group(get_current_username())}_group_db.{APP_NAME}_schema.jobs_table
+                SET compute_resource = ?
+                WHERE job_id = ?
+            """, (compute_resource, job_id)).collect()
+            return True
+        except Exception as e:
+            st.error(f"Failed to set compute resource for job {job_id} to {compute_resource}: {e}")
             return False
 
 
@@ -1267,7 +1287,7 @@ def get_frontend_image_id():
             return None
 
 
-def submit_job(job_id, blocking=True):
+def submit_job(job_id, blocking=True, selected_compute_resource: str = None):
     if framework_utils.platform() == "local":
         try:
             update_job_status(job_id, "Submitted", "submission_time")
@@ -1290,10 +1310,12 @@ def submit_job(job_id, blocking=True):
         try:
             update_job_status(job_id, "Submitted", "submission_time")
             if blocking:
+                log_compute_resource_for_job(job_id, f"Sync: {os.getenv('COMPUTE_RESOURCE', '<COMPUTE RESOURCE NOT SET IN ENV>')}")
                 analysis_framework.run_local_analysis(job_id)  # This is the worker code.
             else:
                 session = snowflake_connections.get_snowpark_session()
-                worker_image_id = snowflake_orchestrator.submit_job(job_id=job_id, username=get_current_username(), session=session)
+                log_compute_resource_for_job(job_id, f"Async: {selected_compute_resource}")
+                worker_image_id = snowflake_orchestrator.submit_job(job_id=job_id, username=get_current_username(), session=session, selected_compute_resource=selected_compute_resource)
                 if worker_image_id:
                     set_worker_image_id(job_id, worker_image_id)
             return True
