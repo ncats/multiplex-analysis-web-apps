@@ -27,7 +27,7 @@ DB_URL_GROUP = os.getenv('DB_URL_GROUP')
 DB_URL_APP = os.getenv('DB_URL_APP')  # Aren't actually using this yet, but it would be used to get the archive compatibility IDs so we only display archives that are compatible with the currently running image.
 DB_URL_COMMON = os.getenv('DB_URL_COMMON')
 DB_URL_DATA_MANAGER = os.getenv('DB_URL_DATA_MANAGER')
-APP_NAME = os.getenv('APP_NAME')
+APP_SHORTNAME = os.getenv('APP_SHORTNAME')
 
 
 @st.cache_resource()
@@ -136,12 +136,12 @@ def set_up_postgresql():
             with conn_group.cursor() as cur:
                 # Create schema if it doesn't exist
                 cur.execute(f"""
-                    CREATE SCHEMA IF NOT EXISTS {APP_NAME}_schema
+                    CREATE SCHEMA IF NOT EXISTS {APP_SHORTNAME}_schema
                 """)
                 
                 # Create app_sessions_table table.
                 cur.execute(f"""
-                    CREATE TABLE IF NOT EXISTS {APP_NAME}_schema.app_sessions_table (
+                    CREATE TABLE IF NOT EXISTS {APP_SHORTNAME}_schema.app_sessions_table (
                         id SERIAL PRIMARY KEY,
                         app_session_id VARCHAR(255) UNIQUE NOT NULL,
                         username VARCHAR(255),
@@ -155,7 +155,7 @@ def set_up_postgresql():
 
                 # Create archives_table table.
                 cur.execute(f"""
-                    CREATE TABLE IF NOT EXISTS {APP_NAME}_schema.archives_table (
+                    CREATE TABLE IF NOT EXISTS {APP_SHORTNAME}_schema.archives_table (
                         id SERIAL PRIMARY KEY,
                         creator VARCHAR(255),
                         user_group VARCHAR(255),
@@ -171,7 +171,7 @@ def set_up_postgresql():
 
                 # Create jobs_table table.
                 cur.execute(f"""
-                    CREATE TABLE IF NOT EXISTS {APP_NAME}_schema.jobs_table (
+                    CREATE TABLE IF NOT EXISTS {APP_SHORTNAME}_schema.jobs_table (
                         id SERIAL PRIMARY KEY,
                         job_id VARCHAR(255) UNIQUE NOT NULL,
                         job_name VARCHAR(255),
@@ -285,7 +285,7 @@ def write_archive_database_data(row_tuple):
             conn = get_database_connection(DB_URL_GROUP)
             with conn.cursor() as cur:
                 cur.execute(f"""
-                    INSERT INTO {APP_NAME}_schema.archives_table (creator, user_group, archive_description, current_git_commit, container_image_id, archive_id, app_session_id)
+                    INSERT INTO {APP_SHORTNAME}_schema.archives_table (creator, user_group, archive_description, current_git_commit, container_image_id, archive_id, app_session_id)
                     VALUES (%s, %s, %s, %s, %s, %s, %s)
                 """, row_tuple)
             conn.commit()
@@ -299,7 +299,7 @@ def write_archive_database_data(row_tuple):
         try:
             session = snowflake_connections.get_snowpark_session()
             session.sql(f"""
-                INSERT INTO {get_user_group(get_current_username())}_group_db.{APP_NAME}_schema.archives_table (creator, user_group, archive_description, current_git_commit, container_image_id, archive_id, app_session_id)
+                INSERT INTO {get_user_group(get_current_username())}_group_db.{APP_SHORTNAME}_schema.archives_table (creator, user_group, archive_description, current_git_commit, container_image_id, archive_id, app_session_id)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
             """, row_tuple).collect()
             return True
@@ -314,7 +314,7 @@ def log_app_session(row_tuple):
             conn = get_database_connection(DB_URL_GROUP)
             with conn.cursor() as cur:
                 cur.execute(f"""
-                    INSERT INTO {APP_NAME}_schema.app_sessions_table (app_session_id, username, user_group, container_image_id)
+                    INSERT INTO {APP_SHORTNAME}_schema.app_sessions_table (app_session_id, username, user_group, container_image_id)
                     VALUES (%s, %s, %s, %s)
                 """, row_tuple)
             conn.commit()
@@ -328,7 +328,7 @@ def log_app_session(row_tuple):
         try:
             session = snowflake_connections.get_snowpark_session()
             session.sql(f"""
-                INSERT INTO {get_user_group(get_current_username())}_group_db.{APP_NAME}_schema.app_sessions_table (app_session_id, username, user_group, container_image_id)
+                INSERT INTO {get_user_group(get_current_username())}_group_db.{APP_SHORTNAME}_schema.app_sessions_table (app_session_id, username, user_group, container_image_id)
                 VALUES (?, ?, ?, ?)
             """, row_tuple).collect()
             return True
@@ -343,7 +343,7 @@ def set_app_session_shutdown_time(app_session_id):
             conn = get_database_connection(DB_URL_GROUP)
             with conn.cursor() as cur:
                 cur.execute(f"""
-                    UPDATE {APP_NAME}_schema.app_sessions_table
+                    UPDATE {APP_SHORTNAME}_schema.app_sessions_table
                     SET explicit_shutdown_time = %s
                     WHERE app_session_id = %s
                 """, (framework_utils.get_timestamp(), app_session_id))
@@ -358,7 +358,7 @@ def set_app_session_shutdown_time(app_session_id):
         try:
             session = snowflake_connections.get_snowpark_session()
             session.sql(f"""
-                UPDATE {get_user_group(get_current_username())}_group_db.{APP_NAME}_schema.app_sessions_table
+                UPDATE {get_user_group(get_current_username())}_group_db.{APP_SHORTNAME}_schema.app_sessions_table
                 SET explicit_shutdown_time = CURRENT_TIMESTAMP()
                 WHERE app_session_id = ?
             """, (app_session_id,)).collect()
@@ -442,7 +442,7 @@ def get_app_sessions_table_data():
             with conn.cursor() as cur:
                 cur.execute(f"""
                     SELECT app_session_id, username, user_group, startup_time, explicit_shutdown_time, container_image_id, compute_resource
-                    FROM {APP_NAME}_schema.app_sessions_table
+                    FROM {APP_SHORTNAME}_schema.app_sessions_table
                     ORDER BY startup_time DESC
                 """)
                 rows = cur.fetchall()
@@ -459,7 +459,7 @@ def get_app_sessions_table_data():
             session = snowflake_connections.get_snowpark_session()
             rows = session.sql(f"""
                 SELECT app_session_id, username, user_group, startup_time, explicit_shutdown_time, container_image_id, compute_resource
-                FROM {get_user_group(get_current_username())}_group_db.{APP_NAME}_schema.app_sessions_table
+                FROM {get_user_group(get_current_username())}_group_db.{APP_SHORTNAME}_schema.app_sessions_table
                 ORDER BY startup_time DESC
             """).collect()
             df = pl.DataFrame(rows, schema=["app_session_id", "username", "user_group", "startup_time", "explicit_shutdown_time", "container_image_id", "compute_resource"], strict=False, orient="row")
@@ -477,7 +477,7 @@ def get_archives_table_data():
             with conn.cursor() as cur:
                 cur.execute(f"""
                     SELECT creator, user_group, archive_description, current_git_commit, container_image_id, archive_id, app_session_id, creation_time, archive_compatibility_id
-                    FROM {APP_NAME}_schema.archives_table
+                    FROM {APP_SHORTNAME}_schema.archives_table
                     ORDER BY creation_time DESC
                 """)
                 rows = cur.fetchall()
@@ -494,7 +494,7 @@ def get_archives_table_data():
             session = snowflake_connections.get_snowpark_session()
             rows = session.sql(f"""
                 SELECT creator, user_group, archive_description, current_git_commit, container_image_id, archive_id, app_session_id, creation_time, archive_compatibility_id
-                FROM {get_user_group(get_current_username())}_group_db.{APP_NAME}_schema.archives_table
+                FROM {get_user_group(get_current_username())}_group_db.{APP_SHORTNAME}_schema.archives_table
                 ORDER BY creation_time DESC
             """).collect()
             df = pl.DataFrame(rows, schema=["creator", "user_group", "archive_description", "current_git_commit", "container_image_id", "archive_id", "app_session_id", "creation_time", "archive_compatibility_id"], strict=False, orient="row")
@@ -513,7 +513,7 @@ def get_jobs_table_data():
                 columns = "job_id, job_name, job_status, submitter, submitter_group, app_session_id, worker_image_id, submission_time, start_time, completion_time, failure_time, compute_resource"
                 cur.execute(f"""
                     SELECT {columns}
-                    FROM {APP_NAME}_schema.jobs_table
+                    FROM {APP_SHORTNAME}_schema.jobs_table
                     ORDER BY submission_time DESC NULLS LAST
                 """)
                 rows = cur.fetchall()
@@ -531,7 +531,7 @@ def get_jobs_table_data():
             columns = "job_id, job_name, job_status, submitter, submitter_group, app_session_id, worker_image_id, submission_time, start_time, completion_time, failure_time, compute_resource"
             rows = session.sql(f"""
                 SELECT {columns}
-                FROM {get_user_group(get_current_username())}_group_db.{APP_NAME}_schema.jobs_table
+                FROM {get_user_group(get_current_username())}_group_db.{APP_SHORTNAME}_schema.jobs_table
                 ORDER BY submission_time DESC NULLS LAST
             """).collect()
             df = pl.DataFrame(rows, schema=["job_id", "job_name", "job_status", "submitter", "submitter_group", "app_session_id", "worker_image_id", "submission_time", "start_time", "completion_time", "failure_time", "compute_resource"], strict=False, orient="row")
@@ -549,7 +549,7 @@ def get_available_archives():
             with conn.cursor() as cur:
                 cur.execute(f"""
                     SELECT creator, creation_time, archive_description, archive_id, app_session_id
-                    FROM {APP_NAME}_schema.archives_table
+                    FROM {APP_SHORTNAME}_schema.archives_table
                     ORDER BY creation_time DESC
                 """)
                 rows = cur.fetchall()
@@ -566,7 +566,7 @@ def get_available_archives():
             session = snowflake_connections.get_snowpark_session()
             rows = session.sql(f"""
                 SELECT creator, creation_time, archive_description, archive_id, app_session_id
-                FROM {get_user_group(get_current_username())}_group_db.{APP_NAME}_schema.archives_table
+                FROM {get_user_group(get_current_username())}_group_db.{APP_SHORTNAME}_schema.archives_table
                 ORDER BY creation_time DESC
             """).collect()
             df = pl.DataFrame(rows, schema=["Creator", "Creation time", "Archive description", "Archive ID", "App session ID"], strict=False, orient="row")
@@ -582,7 +582,7 @@ def log_job(row_tuple):
             conn = get_database_connection(DB_URL_GROUP)
             with conn.cursor() as cur:
                 cur.execute(f"""
-                    INSERT INTO {APP_NAME}_schema.jobs_table (job_id, job_name, submitter, submitter_group, app_session_id)
+                    INSERT INTO {APP_SHORTNAME}_schema.jobs_table (job_id, job_name, submitter, submitter_group, app_session_id)
                     VALUES (%s, %s, %s, %s, %s)
                 """, row_tuple)
             conn.commit()
@@ -596,7 +596,7 @@ def log_job(row_tuple):
         try:
             session = snowflake_connections.get_snowpark_session()
             session.sql(f"""
-                INSERT INTO {get_user_group(get_current_username())}_group_db.{APP_NAME}_schema.jobs_table (job_id, job_name, submitter, submitter_group, app_session_id)
+                INSERT INTO {get_user_group(get_current_username())}_group_db.{APP_SHORTNAME}_schema.jobs_table (job_id, job_name, submitter, submitter_group, app_session_id)
                 VALUES (?, ?, ?, ?, ?)
             """, row_tuple).collect()
             return True
@@ -611,7 +611,7 @@ def update_job_status(job_id, new_status, time_column):
             conn = get_database_connection(DB_URL_GROUP)
             with conn.cursor() as cur:
                 cur.execute(f"""
-                    UPDATE {APP_NAME}_schema.jobs_table
+                    UPDATE {APP_SHORTNAME}_schema.jobs_table
                     SET job_status = %s, {time_column} = %s
                     WHERE job_id = %s
                 """, (new_status, framework_utils.get_timestamp(), job_id))
@@ -626,7 +626,7 @@ def update_job_status(job_id, new_status, time_column):
         try:
             session = snowflake_connections.get_snowpark_session()
             session.sql(f"""
-                UPDATE {get_user_group(get_current_username())}_group_db.{APP_NAME}_schema.jobs_table
+                UPDATE {get_user_group(get_current_username())}_group_db.{APP_SHORTNAME}_schema.jobs_table
                 SET job_status = ?, {time_column} = CURRENT_TIMESTAMP()
                 WHERE job_id = ?
             """, (new_status, job_id)).collect()
@@ -643,7 +643,7 @@ def log_compute_resource_for_job(job_id: str, compute_resource: str):
         try:
             session = snowflake_connections.get_snowpark_session()
             session.sql(f"""
-                UPDATE {get_user_group(get_current_username())}_group_db.{APP_NAME}_schema.jobs_table
+                UPDATE {get_user_group(get_current_username())}_group_db.{APP_SHORTNAME}_schema.jobs_table
                 SET compute_resource = ?
                 WHERE job_id = ?
             """, (compute_resource, job_id)).collect()
@@ -660,7 +660,7 @@ def get_job_status(job_id):
             with conn.cursor() as cur:
                 cur.execute(f"""
                     SELECT job_status
-                    FROM {APP_NAME}_schema.jobs_table
+                    FROM {APP_SHORTNAME}_schema.jobs_table
                     WHERE job_id = %s
                 """, (job_id,))
                 job_status = cur.fetchone()
@@ -676,7 +676,7 @@ def get_job_status(job_id):
             session = snowflake_connections.get_snowpark_session()
             result = session.sql(f"""
                 SELECT job_status
-                FROM {get_user_group(get_current_username())}_group_db.{APP_NAME}_schema.jobs_table
+                FROM {get_user_group(get_current_username())}_group_db.{APP_SHORTNAME}_schema.jobs_table
                 WHERE job_id = ?
             """, (job_id,)).collect()
             return result[0]["JOB_STATUS"] if result else None
@@ -693,7 +693,7 @@ def get_job_function_name(job_id):
             with conn.cursor() as cur:
                 cur.execute(f"""
                     SELECT job_name
-                    FROM {APP_NAME}_schema.jobs_table
+                    FROM {APP_SHORTNAME}_schema.jobs_table
                     WHERE job_id = %s
                 """, (job_id,))
                 job_name = cur.fetchone()
@@ -709,7 +709,7 @@ def get_job_function_name(job_id):
             session = snowflake_connections.get_snowpark_session()
             result = session.sql(f"""
                 SELECT job_name
-                FROM {get_user_group(get_current_username())}_group_db.{APP_NAME}_schema.jobs_table
+                FROM {get_user_group(get_current_username())}_group_db.{APP_SHORTNAME}_schema.jobs_table
                 WHERE job_id = ?
             """, (job_id,)).collect()
             return result[0]["JOB_NAME"] if result else None
@@ -724,7 +724,7 @@ def set_worker_image_id(job_id, worker_image_id):
             conn = get_database_connection(DB_URL_GROUP)
             with conn.cursor() as cur:
                 cur.execute(f"""
-                    UPDATE {APP_NAME}_schema.jobs_table
+                    UPDATE {APP_SHORTNAME}_schema.jobs_table
                     SET worker_image_id = %s
                     WHERE job_id = %s
                 """, (worker_image_id, job_id))
@@ -739,7 +739,7 @@ def set_worker_image_id(job_id, worker_image_id):
         try:
             session = snowflake_connections.get_snowpark_session()
             session.sql(f"""
-                UPDATE {get_user_group(get_current_username())}_group_db.{APP_NAME}_schema.jobs_table
+                UPDATE {get_user_group(get_current_username())}_group_db.{APP_SHORTNAME}_schema.jobs_table
                 SET worker_image_id = ?
                 WHERE job_id = ?
             """, (worker_image_id, job_id)).collect()
@@ -755,7 +755,7 @@ def record_explicit_shutdown_time(app_session_id):
             conn = get_database_connection(DB_URL_GROUP)
             with conn.cursor() as cur:
                 cur.execute(f"""
-                    UPDATE {APP_NAME}_schema.app_sessions_table
+                    UPDATE {APP_SHORTNAME}_schema.app_sessions_table
                     SET explicit_shutdown_time = %s
                     WHERE app_session_id = %s
                 """, (framework_utils.get_timestamp(), app_session_id))
@@ -770,7 +770,7 @@ def record_explicit_shutdown_time(app_session_id):
         try:
             session = snowflake_connections.get_snowpark_session()
             session.sql(f"""
-                UPDATE {get_user_group(get_current_username())}_group_db.{APP_NAME}_schema.app_sessions_table
+                UPDATE {get_user_group(get_current_username())}_group_db.{APP_SHORTNAME}_schema.app_sessions_table
                 SET explicit_shutdown_time = CURRENT_TIMESTAMP()
                 WHERE app_session_id = ?
             """, (app_session_id,)).collect()
@@ -859,7 +859,7 @@ def upload_zip_object_data(bucket_name, zip_name, zip_buffer, db_schema: str = N
             session = snowflake_connections.get_snowpark_session()
             zip_buffer.seek(0)
             if db_schema is None:
-                db_schema = f"{get_user_group(get_current_username())}_group_db.{APP_NAME}_schema"
+                db_schema = f"{get_user_group(get_current_username())}_group_db.{APP_SHORTNAME}_schema"
             results = session.file.put_stream(
                 input_stream=zip_buffer,
                 stage_location=f"@{db_schema}.{bucket_name}_stage/{zip_name}.zip",
@@ -892,7 +892,7 @@ def download_zip_object_data(bucket_name, zip_name, db_schema: str = None):
         try:
             session = snowflake_connections.get_snowpark_session()
             if db_schema is None:
-                db_schema = f"{get_user_group(get_current_username())}_group_db.{APP_NAME}_schema"
+                db_schema = f"{get_user_group(get_current_username())}_group_db.{APP_SHORTNAME}_schema"
             stage_path = f"@{db_schema}.{bucket_name}_stage/{zip_name}.zip"
             bytes_io = session.file.get_stream(stage_location=stage_path)
             bytes_io.seek(0)
@@ -1315,7 +1315,7 @@ def submit_job(job_id, blocking=True, selected_compute_resource: str = None):
             else:
                 session = snowflake_connections.get_snowpark_session()
                 log_compute_resource_for_job(job_id, f"Async: {selected_compute_resource}")
-                worker_image_id = snowflake_orchestrator.submit_job(job_id=job_id, username=get_current_username(), session=session, selected_compute_resource=selected_compute_resource)
+                worker_image_id = snowflake_orchestrator.submit_job(job_id=job_id, username=get_current_username(), session=session, selected_compute_resource=selected_compute_resource, group_name=get_user_group(get_current_username()), app_shortname=os.getenv("APP_SHORTNAME", "app_a"), image_name=os.getenv("IMAGE_NAME", "frontend"), image_tag=os.getenv("IMAGE_TAG", "latest"), app_title=os.getenv("APP_TITLE", "App A"))
                 if worker_image_id:
                     set_worker_image_id(job_id, worker_image_id)
             return True

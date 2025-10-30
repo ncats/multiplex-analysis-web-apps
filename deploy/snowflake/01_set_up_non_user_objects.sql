@@ -183,7 +183,7 @@ CREATE TABLE IF NOT EXISTS general_schema.image_metadata_table (
 
 -- Create roles.
 create role if not exists app_a_group_alpha_role; -- This is the account role that owns and operates the app.
-create role if not exists data_app_user_1_role; -- This is the account role that will be granted the service role for the app.
+create role if not exists data_apps_user_1_role; -- This is the account role that will be granted the service role for the app.
 create database role if not exists general_schema_ro_db_role;
 CREATE DATABASE ROLE IF NOT EXISTS group_alpha_schema_service_db_role;
 
@@ -358,22 +358,22 @@ GRANT USAGE ON COMPUTE POOL app_a_user_1_workers_CPU_X64_SL_14vcpu_58gib_7x_comp
 GRANT USAGE ON COMPUTE POOL app_a_user_1_workers_CPU_X64_L_28vcpu_116gib_14x_compute_pool TO ROLE app_a_group_alpha_role;
 GRANT USAGE ON COMPUTE POOL app_a_user_1_workers_HIGHMEM_X64_M_28vcpu_240gib_19x_compute_pool TO ROLE app_a_group_alpha_role;
 
--- Grant monitor and operate on the compute resources to the user role data_app_user_1_role so that users can monitor and operate the app.
-GRANT MONITOR, OPERATE ON WAREHOUSE app_a_user_1_xs_warehouse TO ROLE data_app_user_1_role;
-GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_frontend_CPU_X64_XS_1vcpu_6gib_1x_compute_pool TO ROLE data_app_user_1_role;
-GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_frontend_CPU_X64_S_3vcpu_13gib_2x_compute_pool TO ROLE data_app_user_1_role;
-GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_frontend_CPU_X64_M_6vcpu_28gib_4x_compute_pool TO ROLE data_app_user_1_role;
-GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_frontend_HIGHMEM_X64_S_6vcpu_58gib_5x_compute_pool TO ROLE data_app_user_1_role;
-GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_frontend_CPU_X64_SL_14vcpu_58gib_7x_compute_pool TO ROLE data_app_user_1_role;
-GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_frontend_CPU_X64_L_28vcpu_116gib_14x_compute_pool TO ROLE data_app_user_1_role;
-GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_frontend_HIGHMEM_X64_M_28vcpu_240gib_19x_compute_pool TO ROLE data_app_user_1_role;
-GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_CPU_X64_XS_1vcpu_6gib_1x_compute_pool TO ROLE data_app_user_1_role;
-GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_CPU_X64_S_3vcpu_13gib_2x_compute_pool TO ROLE data_app_user_1_role;
-GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_CPU_X64_M_6vcpu_28gib_4x_compute_pool TO ROLE data_app_user_1_role;
-GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_HIGHMEM_X64_S_6vcpu_58gib_5x_compute_pool TO ROLE data_app_user_1_role;
-GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_CPU_X64_SL_14vcpu_58gib_7x_compute_pool TO ROLE data_app_user_1_role;
-GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_CPU_X64_L_28vcpu_116gib_14x_compute_pool TO ROLE data_app_user_1_role;
-GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_HIGHMEM_X64_M_28vcpu_240gib_19x_compute_pool TO ROLE data_app_user_1_role;
+-- Grant monitor and operate on the compute resources to the user role data_apps_user_1_role so that users can monitor and operate the app.
+GRANT MONITOR, OPERATE ON WAREHOUSE app_a_user_1_xs_warehouse TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_frontend_CPU_X64_XS_1vcpu_6gib_1x_compute_pool TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_frontend_CPU_X64_S_3vcpu_13gib_2x_compute_pool TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_frontend_CPU_X64_M_6vcpu_28gib_4x_compute_pool TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_frontend_HIGHMEM_X64_S_6vcpu_58gib_5x_compute_pool TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_frontend_CPU_X64_SL_14vcpu_58gib_7x_compute_pool TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_frontend_CPU_X64_L_28vcpu_116gib_14x_compute_pool TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_frontend_HIGHMEM_X64_M_28vcpu_240gib_19x_compute_pool TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_CPU_X64_XS_1vcpu_6gib_1x_compute_pool TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_CPU_X64_S_3vcpu_13gib_2x_compute_pool TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_CPU_X64_M_6vcpu_28gib_4x_compute_pool TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_HIGHMEM_X64_S_6vcpu_58gib_5x_compute_pool TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_CPU_X64_SL_14vcpu_58gib_7x_compute_pool TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_CPU_X64_L_28vcpu_116gib_14x_compute_pool TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_HIGHMEM_X64_M_28vcpu_240gib_19x_compute_pool TO ROLE data_apps_user_1_role;
 
 -- Grant read permissions on the table.
 GRANT SELECT
@@ -385,6 +385,9 @@ GRANT CREATE SERVICE ON SCHEMA group_alpha_schema
   TO DATABASE ROLE group_alpha_schema_service_db_role;
 GRANT USAGE, READ ON IMAGE REPOSITORY general_schema.image_repository
   TO DATABASE ROLE group_alpha_schema_service_db_role;
+
+-- Allow the app to read the worker spec from this stage so it can launch a worker service.
+GRANT READ ON STAGE general_schema.general_stage TO DATABASE ROLE general_schema_ro_db_role;
 ---------------- End database app_a_app_db. -----------------------------------------------
 
 
@@ -409,15 +412,15 @@ CREATE WAREHOUSE IF NOT EXISTS app_launcher_user_1_xs_warehouse
 
 -- Grant app_a_group_alpha_role privileges to see the database and schema.
 GRANT USAGE ON DATABASE app_launcher_db
-  TO ROLE data_app_user_1_role;
+  TO ROLE data_apps_user_1_role;
 GRANT USAGE ON SCHEMA group_alpha_schema
-  TO ROLE data_app_user_1_role;
+  TO ROLE data_apps_user_1_role;
 
--- Change the owner of the launcher app to the user role data_app_user_1_role.
-GRANT OWNERSHIP ON STREAMLIT group_alpha_schema.app_launcher_user_1_streamlit TO ROLE data_app_user_1_role COPY CURRENT GRANTS;
+-- Change the owner of the launcher app to the user role data_apps_user_1_role.
+GRANT OWNERSHIP ON STREAMLIT group_alpha_schema.app_launcher_user_1_streamlit TO ROLE data_apps_user_1_role COPY CURRENT GRANTS;
 
 -- Grant access to the warehouse.
-GRANT USAGE, OPERATE, MONITOR ON WAREHOUSE app_launcher_user_1_xs_warehouse TO ROLE data_app_user_1_role;
+GRANT USAGE, OPERATE, MONITOR ON WAREHOUSE app_launcher_user_1_xs_warehouse TO ROLE data_apps_user_1_role;
 ---------------- End database app_launcher_db. -----------------------------------------------
 
 
@@ -484,6 +487,6 @@ GRANT USAGE ON WAREHOUSE data_manager_user_1_xs_warehouse TO ROLE data_manager_g
 GRANT USAGE ON COMPUTE POOL data_manager_user_1_xs_compute_pool TO ROLE data_manager_group_alpha_role;
 
 -- Grant resource management to the user.
-GRANT MONITOR, OPERATE ON WAREHOUSE data_manager_user_1_xs_warehouse TO ROLE data_app_user_1_role;
-GRANT MONITOR, OPERATE ON COMPUTE POOL data_manager_user_1_xs_compute_pool TO ROLE data_app_user_1_role;
+GRANT MONITOR, OPERATE ON WAREHOUSE data_manager_user_1_xs_warehouse TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL data_manager_user_1_xs_compute_pool TO ROLE data_apps_user_1_role;
 ---------------- End database data_manager_db. -----------------------------------------------

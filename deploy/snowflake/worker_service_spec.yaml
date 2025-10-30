@@ -1,14 +1,14 @@
 spec:
   containers:                           # container list
     - name: "worker"
-      image: "/{{ APP_NAME }}_app_db/general_schema/image_repository/{{ IMAGE_NAME }}:{{ IMAGE_TAG }}"
+      image: "/{{ APP_SHORTNAME }}_app_db/general_schema/image_repository/{{ IMAGE_NAME }}:{{ IMAGE_TAG }}"
       command:                            # optional list of strings
         - "python"
         - "-c"
         - "import framework.analysis_framework as analysis_framework; analysis_framework.run_local_analysis('{{ JOB_ID_VALIDATED }}')"
       env:                                # optional
         SNOWFLAKE_USER: "{{ SNOWFLAKE_USER }}"             # must inject manually; Snowflake does not inject
-        SNOWFLAKE_WAREHOUSE: "{{ APP_NAME }}_{{ SNOWFLAKE_USER }}_{{ WAREHOUSE_SIZE }}_warehouse"   # must inject manually; Snowflake does not inject
+        SNOWFLAKE_WAREHOUSE: "{{ APP_SHORTNAME }}_{{ SNOWFLAKE_USER }}_{{ WAREHOUSE_SIZE }}_warehouse"   # must inject manually; Snowflake does not inject
         TZ: "America/New_York"
         ARCHIVES_BUCKET_NAME: "archives"
         OLD_ARCHIVES_BUCKET_NAME: "oldarchives"
@@ -16,13 +16,13 @@ spec:
         JOB_OUTPUTS_BUCKET_NAME: "outputs"
         DATA_OBJECTS_BUCKET_NAME: "objects"
         APP_PLATFORM: "snowflake"
-        APP_NAME: "{{ APP_NAME }}"
+        APP_SHORTNAME: "{{ APP_SHORTNAME }}"
         APP_TITLE: "{{ APP_TITLE }}"
         MONITOR_JOBS_REFRESH_INTERVAL_SECONDS: "{{ MONITOR_JOBS_REFRESH_INTERVAL_SECONDS }}"
         COMPUTE_RESOURCE: "{{ COMPUTE_RESOURCE }}"
       volumeMounts:                       # optional list
         - name: "tmp"
-          mountPath: "/tmp/{{ APP_TITLE_ONE_WORD }}"
+          mountPath: "/tmp/{{ APP_SHORTNAME }}"
       resources:                          # optional
         requests:
           memory: "{{ REQUESTS_MEMORY_GI }}Gi"

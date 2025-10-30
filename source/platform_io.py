@@ -423,8 +423,8 @@ class Platform:
         # List the output_archive-* folders
         else:
             user_group = pa.get_user_group(pa.get_current_username())
-            app_name = os.getenv('APP_NAME')
-            db_schema = f"{user_group}_group_db.{app_name}_schema"
+            app_shortname = os.getenv('APP_SHORTNAME')
+            db_schema = f"{user_group}_group_db.{app_shortname}_schema"
             available_archives = [x for x in pa.list_objects_in_bucket(os.getenv('OLD_ARCHIVES_BUCKET_NAME'), db_schema=db_schema) if (x.startswith('output_archive-') and ('.zip' in x))]
 
         available_archives_trimmed = []
@@ -524,8 +524,8 @@ class Platform:
                     start_time = time.time()
 
                     user_group = pa.get_user_group(pa.get_current_username())
-                    app_name = os.getenv('APP_NAME')
-                    db_schema = f"{user_group}_group_db.{app_name}_schema"
+                    app_shortname = os.getenv('APP_SHORTNAME')
+                    db_schema = f"{user_group}_group_db.{app_shortname}_schema"
                     results = pa.download_objects_parallel(bucket_name=os.getenv("OLD_ARCHIVES_BUCKET_NAME"), db_schema=db_schema, object_names=[selected_archive_with_proper_extension], dest_dir=local_output_dir())
                     local_download_path = results[selected_archive_with_proper_extension]['path']
 
@@ -544,8 +544,8 @@ class Platform:
 
                     # Obtain the corresponding chunked set of zip files
                     user_group = pa.get_user_group(pa.get_current_username())
-                    app_name = os.getenv('APP_NAME')
-                    db_schema = f"{user_group}_group_db.{app_name}_schema"
+                    app_shortname = os.getenv('APP_SHORTNAME')
+                    db_schema = f"{user_group}_group_db.{app_shortname}_schema"
                     matching_archives_files = sorted([x for x in pa.list_objects_in_bucket(os.getenv('OLD_ARCHIVES_BUCKET_NAME'), db_schema=db_schema) if x.startswith(selected_archive_with_proper_extension)])  # there must be at least one
 
                     # Download the files from the dataset in parallel

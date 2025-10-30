@@ -1,9 +1,25 @@
 import re
 import textwrap
 from snowflake.snowpark import Session
+import re
 
 USERNAME_RE = re.compile(r"^[A-Za-z0-9_]+$")
 ID_RE = re.compile(r"^[A-Za-z0-9_]+$")
+
+
+def _parse_compute(resource: str):
+    """
+    Extract vcpu and gib integers from strings like:
+    CPU_X64_XS_1vcpu_6gib_1x
+    CPU_X64_L_28vcpu_116gib_14x
+    HIGHMEM_X64_M_28vcpu_240gib_19x
+    """
+    m = re.search(r'_(\d+)vcpu_(\d+)gib_', resource)
+    if not m:
+        raise ValueError(f"Unrecognized compute resource format: {resource}")
+    vcpu = int(m.group(1))
+    gib = int(m.group(2))
+    return vcpu, gib
 
 
 def _validate_identifier(value: str, pattern: re.Pattern, label: str):
@@ -12,7 +28,7 @@ def _validate_identifier(value: str, pattern: re.Pattern, label: str):
     return value
 
 
-def submit_job(job_id: str, username: str, session: Session, selected_compute_resource: str):
+def submit_job(job_id: str, username: str, session: Session, selected_compute_resource: str, group_name: str, app_shortname: str, image_name: str, image_tag: str, app_title: str):
     """
     Submit a Snowpark Container Services job (EXECUTE JOB SERVICE) and grant privileges.
     session: Snowpark Session
@@ -49,7 +65,7 @@ def submit_job(job_id: str, username: str, session: Session, selected_compute_re
                   JOB_OUTPUTS_BUCKET_NAME: outputs
                   DATA_OBJECTS_BUCKET_NAME: objects
                   APP_PLATFORM: snowflake
-                  APP_NAME: mawa
+                  APP_SHORTNAME: mawa
                   APP_TITLE: "Multiplex Analysis Web Apps"
                   MONITOR_JOBS_REFRESH_INTERVAL_SECONDS: 5
                 volumeMounts:                       # optional list
