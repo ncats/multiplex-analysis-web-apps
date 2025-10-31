@@ -343,13 +343,13 @@ GRANT DATABASE ROLE app_a_app_db.group_alpha_schema_service_db_role TO ROLE app_
 
 -- Grant access to using the compute resources for the actual "service" role app_a_group_alpha_role.
 GRANT USAGE ON WAREHOUSE app_a_user_1_xs_warehouse TO ROLE app_a_group_alpha_role;
-GRANT USAGE ON COMPUTE POOL app_a_user_1_frontend_CPU_X64_XS_1vcpu_6gib_1x_compute_pool TO ROLE app_a_group_alpha_role;
-GRANT USAGE ON COMPUTE POOL app_a_user_1_frontend_CPU_X64_S_3vcpu_13gib_2x_compute_pool TO ROLE app_a_group_alpha_role;
-GRANT USAGE ON COMPUTE POOL app_a_user_1_frontend_CPU_X64_M_6vcpu_28gib_4x_compute_pool TO ROLE app_a_group_alpha_role;
-GRANT USAGE ON COMPUTE POOL app_a_user_1_frontend_HIGHMEM_X64_S_6vcpu_58gib_5x_compute_pool TO ROLE app_a_group_alpha_role;
-GRANT USAGE ON COMPUTE POOL app_a_user_1_frontend_CPU_X64_SL_14vcpu_58gib_7x_compute_pool TO ROLE app_a_group_alpha_role;
-GRANT USAGE ON COMPUTE POOL app_a_user_1_frontend_CPU_X64_L_28vcpu_116gib_14x_compute_pool TO ROLE app_a_group_alpha_role;
-GRANT USAGE ON COMPUTE POOL app_a_user_1_frontend_HIGHMEM_X64_M_28vcpu_240gib_19x_compute_pool TO ROLE app_a_group_alpha_role;
+GRANT USAGE, OPERATE ON COMPUTE POOL app_a_user_1_frontend_CPU_X64_XS_1vcpu_6gib_1x_compute_pool TO ROLE app_a_group_alpha_role;
+GRANT USAGE, OPERATE ON COMPUTE POOL app_a_user_1_frontend_CPU_X64_S_3vcpu_13gib_2x_compute_pool TO ROLE app_a_group_alpha_role;
+GRANT USAGE, OPERATE ON COMPUTE POOL app_a_user_1_frontend_CPU_X64_M_6vcpu_28gib_4x_compute_pool TO ROLE app_a_group_alpha_role;
+GRANT USAGE, OPERATE ON COMPUTE POOL app_a_user_1_frontend_HIGHMEM_X64_S_6vcpu_58gib_5x_compute_pool TO ROLE app_a_group_alpha_role;
+GRANT USAGE, OPERATE ON COMPUTE POOL app_a_user_1_frontend_CPU_X64_SL_14vcpu_58gib_7x_compute_pool TO ROLE app_a_group_alpha_role;
+GRANT USAGE, OPERATE ON COMPUTE POOL app_a_user_1_frontend_CPU_X64_L_28vcpu_116gib_14x_compute_pool TO ROLE app_a_group_alpha_role;
+GRANT USAGE, OPERATE ON COMPUTE POOL app_a_user_1_frontend_HIGHMEM_X64_M_28vcpu_240gib_19x_compute_pool TO ROLE app_a_group_alpha_role;
 GRANT USAGE ON COMPUTE POOL app_a_user_1_workers_CPU_X64_XS_1vcpu_6gib_1x_compute_pool TO ROLE app_a_group_alpha_role;
 GRANT USAGE ON COMPUTE POOL app_a_user_1_workers_CPU_X64_S_3vcpu_13gib_2x_compute_pool TO ROLE app_a_group_alpha_role;
 GRANT USAGE ON COMPUTE POOL app_a_user_1_workers_CPU_X64_M_6vcpu_28gib_4x_compute_pool TO ROLE app_a_group_alpha_role;

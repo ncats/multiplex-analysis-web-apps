@@ -35,17 +35,13 @@ vcpu, gib = _parse_compute(selected_compute_resource)
 username_validated = _validate_identifier(username, USERNAME_RE, "username")
 job_id_validated = _validate_identifier(job_id, ID_RE, "job_id")
 
-compute_pool_name = f"data_app_workers_compute_pool_{username_validated}"
-job_service_name = f"data_app_db.app_runtime_schema.job_service_{username_validated}_job_id_{job_id_validated[:10]}"
+compute_pool_name = f"{app_shortname}_{username_validated}_workers_{selected_compute_resource}_compute_pool"
+job_service_name = f"{app_shortname}_app_db.{group_name}_schema.{app_shortname}_{username_validated}_worker_{selected_compute_resource}_job_service_{job_id_validated[:10]}"
 role_name = f"data_apps_{username_validated}_role"
 
-
-data_app_user_1_role
-
-
 EXECUTE JOB SERVICE
-  IN COMPUTE POOL {app_shortname}_{username_validated}_workers_{selected_compute_resource}_compute_pool
+  IN COMPUTE POOL {compute_pool_name}
   FROM @{app_shortname}_app_db.general_schema.general_stage SPECIFICATION_TEMPLATE_FILE='worker_service_spec.yaml'
   USING ( APP_SHORTNAME=>'{app_shortname}', IMAGE_NAME=>'{image_name}', IMAGE_TAG=>'{image_tag}', REQUESTS_MEMORY_GI=>{gib}, REQUESTS_CPU=>{vcpu}, LIMITS_MEMORY_GI=>{gib}, LIMITS_CPU=>{vcpu}, APP_TITLE=>'{app_title}', MONITOR_JOBS_REFRESH_INTERVAL_SECONDS=>5, SNOWFLAKE_USER=>'{username_validated}', COMPUTE_RESOURCE=>'{selected_compute_resource}', WAREHOUSE_SIZE=>'xs', JOB_ID_VALIDATED=>'{job_id_validated}' )
-  NAME = {app_shortname}_app_db.{group_name}_schema.{app_shortname}_{username_validated}_worker_{selected_compute_resource}_job_service_{job_id_validated[:10]}
+  NAME = {job_service_name}
   ASYNC = TRUE;

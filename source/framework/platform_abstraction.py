@@ -1281,7 +1281,7 @@ def get_frontend_image_id():
     elif framework_utils.platform() == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
-            return snowflake_orchestrator.frontend_id(username=get_current_username(), session=session)
+            return snowflake_orchestrator.frontend_id(username=get_current_username(), session=session, app_shortname=os.getenv("APP_SHORTNAME", "app_a"), group_name=get_user_group(get_current_username()), compute_resource=os.getenv("COMPUTE_RESOURCE", "<COMPUTE RESOURCE NOT SET IN ENV>"))
         except Exception as e:
             st.error(f"Could not retrieve frontend image id: {e}")
             return None
@@ -1337,7 +1337,7 @@ def shut_down_app():
     elif framework_utils.platform() == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
-            snowflake_orchestrator.shutdown(username=get_current_username(), session=session)
+            snowflake_orchestrator.shutdown(username=get_current_username(), session=session, app_shortname=os.getenv("APP_SHORTNAME", "app_a"), group_name=get_user_group(get_current_username()), compute_resource=os.getenv("COMPUTE_RESOURCE", "<COMPUTE RESOURCE NOT SET IN ENV>"))
             st.success("Application is shutting down...")
             return True
         except Exception as e:
