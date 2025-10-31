@@ -295,14 +295,90 @@ CREATE COMPUTE POOL IF NOT EXISTS app_a_user_1_workers_HIGHMEM_X64_M_28vcpu_240g
     INITIALLY_SUSPENDED = TRUE
     AUTO_SUSPEND_SECS = 600;
 
--- **** CREATE THE 7 APPS like:
---   group_alpha_schema.app_a_user_1_frontend_CPU_X64_XS_1vcpu_6gib_1x_service
---   group_alpha_schema.app_a_user_1_frontend_CPU_X64_S_3vcpu_13gib_2x_service
---   group_alpha_schema.app_a_user_1_frontend_CPU_X64_M_6vcpu_28gib_4x_service
---   group_alpha_schema.app_a_user_1_frontend_HIGHMEM_X64_S_6vcpu_58gib_5x_service
---   group_alpha_schema.app_a_user_1_frontend_CPU_X64_SL_14vcpu_58gib_7x_service
---   group_alpha_schema.app_a_user_1_frontend_CPU_X64_L_28vcpu_116gib_14x_service
---   group_alpha_schema.app_a_user_1_frontend_HIGHMEM_X64_M_28vcpu_240gib_19x_service
+-- Create the seven services, one with each set of compute resources.
+-- CPU_X64_XS_1vcpu_6gib_1x
+DROP SERVICE IF EXISTS group_alpha_schema.app_a_user_1_frontend_CPU_X64_XS_1vcpu_6gib_1x_service;
+CREATE SERVICE group_alpha_schema.app_a_user_1_frontend_CPU_X64_XS_1vcpu_6gib_1x_service
+  IN COMPUTE POOL app_a_user_1_frontend_CPU_X64_XS_1vcpu_6gib_1x_compute_pool
+  FROM @app_a_app_db.general_schema.general_stage SPECIFICATION_TEMPLATE_FILE='frontend_service_spec.yaml'
+  USING ( APP_SHORTNAME=>'app_a', IMAGE_NAME=>'frontend', IMAGE_TAG=>'latest', REQUESTS_MEMORY_GI=>6, REQUESTS_CPU=>1, LIMITS_MEMORY_GI=>6, LIMITS_CPU=>1, APP_TITLE=>'App A', MONITOR_JOBS_REFRESH_INTERVAL_SECONDS=>5, SNOWFLAKE_USER=>'user_1', COMPUTE_RESOURCE=>'CPU_X64_XS_1vcpu_6gib_1x', WAREHOUSE_SIZE=>'xs', ALL_COMPUTE_RESOURCES=>'CPU_X64_XS_1vcpu_6gib_1x CPU_X64_S_3vcpu_13gib_2x CPU_X64_M_6vcpu_28gib_4x HIGHMEM_X64_S_6vcpu_58gib_5x CPU_X64_SL_14vcpu_58gib_7x CPU_X64_L_28vcpu_116gib_14x HIGHMEM_X64_M_28vcpu_240gib_19x' )
+  AUTO_RESUME = FALSE
+  MIN_INSTANCES = 1
+  MAX_INSTANCES = 1;
+alter service group_alpha_schema.app_a_user_1_frontend_CPU_X64_XS_1vcpu_6gib_1x_service suspend;
+alter compute pool app_a_user_1_frontend_CPU_X64_XS_1vcpu_6gib_1x_compute_pool suspend;
+
+-- CPU_X64_S_3vcpu_13gib_2x
+DROP SERVICE IF EXISTS group_alpha_schema.app_a_user_1_frontend_CPU_X64_S_3vcpu_13gib_2x_service;
+CREATE SERVICE group_alpha_schema.app_a_user_1_frontend_CPU_X64_S_3vcpu_13gib_2x_service
+  IN COMPUTE POOL app_a_user_1_frontend_CPU_X64_S_3vcpu_13gib_2x_compute_pool
+  FROM @app_a_app_db.general_schema.general_stage SPECIFICATION_TEMPLATE_FILE='frontend_service_spec.yaml'
+  USING ( APP_SHORTNAME=>'app_a', IMAGE_NAME=>'frontend', IMAGE_TAG=>'latest', REQUESTS_MEMORY_GI=>13, REQUESTS_CPU=>3, LIMITS_MEMORY_GI=>13, LIMITS_CPU=>3, APP_TITLE=>'App A', MONITOR_JOBS_REFRESH_INTERVAL_SECONDS=>5, SNOWFLAKE_USER=>'user_1', COMPUTE_RESOURCE=>'CPU_X64_S_3vcpu_13gib_2x', WAREHOUSE_SIZE=>'xs', ALL_COMPUTE_RESOURCES=>'CPU_X64_XS_1vcpu_6gib_1x CPU_X64_S_3vcpu_13gib_2x CPU_X64_M_6vcpu_28gib_4x HIGHMEM_X64_S_6vcpu_58gib_5x CPU_X64_SL_14vcpu_58gib_7x CPU_X64_L_28vcpu_116gib_14x HIGHMEM_X64_M_28vcpu_240gib_19x' )
+  AUTO_RESUME = FALSE
+  MIN_INSTANCES = 1
+  MAX_INSTANCES = 1;
+alter service group_alpha_schema.app_a_user_1_frontend_CPU_X64_S_3vcpu_13gib_2x_service suspend;
+alter compute pool app_a_user_1_frontend_CPU_X64_S_3vcpu_13gib_2x_compute_pool suspend;
+
+-- CPU_X64_M_6vcpu_28gib_4x
+DROP SERVICE IF EXISTS group_alpha_schema.app_a_user_1_frontend_CPU_X64_M_6vcpu_28gib_4x_service;
+CREATE SERVICE group_alpha_schema.app_a_user_1_frontend_CPU_X64_M_6vcpu_28gib_4x_service
+  IN COMPUTE POOL app_a_user_1_frontend_CPU_X64_M_6vcpu_28gib_4x_compute_pool
+  FROM @app_a_app_db.general_schema.general_stage SPECIFICATION_TEMPLATE_FILE='frontend_service_spec.yaml'
+  USING ( APP_SHORTNAME=>'app_a', IMAGE_NAME=>'frontend', IMAGE_TAG=>'latest', REQUESTS_MEMORY_GI=>28, REQUESTS_CPU=>6, LIMITS_MEMORY_GI=>28, LIMITS_CPU=>6, APP_TITLE=>'App A', MONITOR_JOBS_REFRESH_INTERVAL_SECONDS=>5, SNOWFLAKE_USER=>'user_1', COMPUTE_RESOURCE=>'CPU_X64_M_6vcpu_28gib_4x', WAREHOUSE_SIZE=>'xs', ALL_COMPUTE_RESOURCES=>'CPU_X64_XS_1vcpu_6gib_1x CPU_X64_S_3vcpu_13gib_2x CPU_X64_M_6vcpu_28gib_4x HIGHMEM_X64_S_6vcpu_58gib_5x CPU_X64_SL_14vcpu_58gib_7x CPU_X64_L_28vcpu_116gib_14x HIGHMEM_X64_M_28vcpu_240gib_19x' )
+  AUTO_RESUME = FALSE
+  MIN_INSTANCES = 1
+  MAX_INSTANCES = 1;
+alter service group_alpha_schema.app_a_user_1_frontend_CPU_X64_M_6vcpu_28gib_4x_service suspend;
+alter compute pool app_a_user_1_frontend_CPU_X64_M_6vcpu_28gib_4x_compute_pool suspend;
+
+-- HIGHMEM_X64_S_6vcpu_58gib_5x
+DROP SERVICE IF EXISTS group_alpha_schema.app_a_user_1_frontend_HIGHMEM_X64_S_6vcpu_58gib_5x_service;
+CREATE SERVICE group_alpha_schema.app_a_user_1_frontend_HIGHMEM_X64_S_6vcpu_58gib_5x_service
+  IN COMPUTE POOL app_a_user_1_frontend_HIGHMEM_X64_S_6vcpu_58gib_5x_compute_pool
+  FROM @app_a_app_db.general_schema.general_stage SPECIFICATION_TEMPLATE_FILE='frontend_service_spec.yaml'
+  USING ( APP_SHORTNAME=>'app_a', IMAGE_NAME=>'frontend', IMAGE_TAG=>'latest', REQUESTS_MEMORY_GI=>58, REQUESTS_CPU=>6, LIMITS_MEMORY_GI=>58, LIMITS_CPU=>6, APP_TITLE=>'App A', MONITOR_JOBS_REFRESH_INTERVAL_SECONDS=>5, SNOWFLAKE_USER=>'user_1', COMPUTE_RESOURCE=>'HIGHMEM_X64_S_6vcpu_58gib_5x', WAREHOUSE_SIZE=>'xs', ALL_COMPUTE_RESOURCES=>'CPU_X64_XS_1vcpu_6gib_1x CPU_X64_S_3vcpu_13gib_2x CPU_X64_M_6vcpu_28gib_4x HIGHMEM_X64_S_6vcpu_58gib_5x CPU_X64_SL_14vcpu_58gib_7x CPU_X64_L_28vcpu_116gib_14x HIGHMEM_X64_M_28vcpu_240gib_19x' )
+  AUTO_RESUME = FALSE
+  MIN_INSTANCES = 1
+  MAX_INSTANCES = 1;
+alter service group_alpha_schema.app_a_user_1_frontend_HIGHMEM_X64_S_6vcpu_58gib_5x_service suspend;
+alter compute pool app_a_user_1_frontend_HIGHMEM_X64_S_6vcpu_58gib_5x_compute_pool suspend;
+
+-- CPU_X64_SL_14vcpu_58gib_7x
+DROP SERVICE IF EXISTS group_alpha_schema.app_a_user_1_frontend_CPU_X64_SL_14vcpu_58gib_7x_service;
+CREATE SERVICE group_alpha_schema.app_a_user_1_frontend_CPU_X64_SL_14vcpu_58gib_7x_service
+  IN COMPUTE POOL app_a_user_1_frontend_CPU_X64_SL_14vcpu_58gib_7x_compute_pool
+  FROM @app_a_app_db.general_schema.general_stage SPECIFICATION_TEMPLATE_FILE='frontend_service_spec.yaml'
+  USING ( APP_SHORTNAME=>'app_a', IMAGE_NAME=>'frontend', IMAGE_TAG=>'latest', REQUESTS_MEMORY_GI=>58, REQUESTS_CPU=>14, LIMITS_MEMORY_GI=>58, LIMITS_CPU=>14, APP_TITLE=>'App A', MONITOR_JOBS_REFRESH_INTERVAL_SECONDS=>5, SNOWFLAKE_USER=>'user_1', COMPUTE_RESOURCE=>'CPU_X64_SL_14vcpu_58gib_7x', WAREHOUSE_SIZE=>'xs', ALL_COMPUTE_RESOURCES=>'CPU_X64_XS_1vcpu_6gib_1x CPU_X64_S_3vcpu_13gib_2x CPU_X64_M_6vcpu_28gib_4x HIGHMEM_X64_S_6vcpu_58gib_5x CPU_X64_SL_14vcpu_58gib_7x CPU_X64_L_28vcpu_116gib_14x HIGHMEM_X64_M_28vcpu_240gib_19x' )
+  AUTO_RESUME = FALSE
+  MIN_INSTANCES = 1
+  MAX_INSTANCES = 1;
+alter service group_alpha_schema.app_a_user_1_frontend_CPU_X64_SL_14vcpu_58gib_7x_service suspend;
+alter compute pool app_a_user_1_frontend_CPU_X64_SL_14vcpu_58gib_7x_compute_pool suspend;
+
+-- CPU_X64_L_28vcpu_116gib_14x
+DROP SERVICE IF EXISTS group_alpha_schema.app_a_user_1_frontend_CPU_X64_L_28vcpu_116gib_14x_service;
+CREATE SERVICE group_alpha_schema.app_a_user_1_frontend_CPU_X64_L_28vcpu_116gib_14x_service
+  IN COMPUTE POOL app_a_user_1_frontend_CPU_X64_L_28vcpu_116gib_14x_compute_pool
+  FROM @app_a_app_db.general_schema.general_stage SPECIFICATION_TEMPLATE_FILE='frontend_service_spec.yaml'
+  USING ( APP_SHORTNAME=>'app_a', IMAGE_NAME=>'frontend', IMAGE_TAG=>'latest', REQUESTS_MEMORY_GI=>116, REQUESTS_CPU=>28, LIMITS_MEMORY_GI=>116, LIMITS_CPU=>28, APP_TITLE=>'App A', MONITOR_JOBS_REFRESH_INTERVAL_SECONDS=>5, SNOWFLAKE_USER=>'user_1', COMPUTE_RESOURCE=>'CPU_X64_L_28vcpu_116gib_14x', WAREHOUSE_SIZE=>'xs', ALL_COMPUTE_RESOURCES=>'CPU_X64_XS_1vcpu_6gib_1x CPU_X64_S_3vcpu_13gib_2x CPU_X64_M_6vcpu_28gib_4x HIGHMEM_X64_S_6vcpu_58gib_5x CPU_X64_SL_14vcpu_58gib_7x CPU_X64_L_28vcpu_116gib_14x HIGHMEM_X64_M_28vcpu_240gib_19x' )
+  AUTO_RESUME = FALSE
+  MIN_INSTANCES = 1
+  MAX_INSTANCES = 1;
+alter service group_alpha_schema.app_a_user_1_frontend_CPU_X64_L_28vcpu_116gib_14x_service suspend;
+alter compute pool app_a_user_1_frontend_CPU_X64_L_28vcpu_116gib_14x_compute_pool suspend;
+
+-- HIGHMEM_X64_M_28vcpu_240gib_19x
+DROP SERVICE IF EXISTS group_alpha_schema.app_a_user_1_frontend_HIGHMEM_X64_M_28vcpu_240gib_19x_service;
+CREATE SERVICE group_alpha_schema.app_a_user_1_frontend_HIGHMEM_X64_M_28vcpu_240gib_19x_service
+  IN COMPUTE POOL app_a_user_1_frontend_HIGHMEM_X64_M_28vcpu_240gib_19x_compute_pool
+  FROM @app_a_app_db.general_schema.general_stage SPECIFICATION_TEMPLATE_FILE='frontend_service_spec.yaml'
+  USING ( APP_SHORTNAME=>'app_a', IMAGE_NAME=>'frontend', IMAGE_TAG=>'latest', REQUESTS_MEMORY_GI=>240, REQUESTS_CPU=>28, LIMITS_MEMORY_GI=>240, LIMITS_CPU=>28, APP_TITLE=>'App A', MONITOR_JOBS_REFRESH_INTERVAL_SECONDS=>5, SNOWFLAKE_USER=>'user_1', COMPUTE_RESOURCE=>'HIGHMEM_X64_M_28vcpu_240gib_19x', WAREHOUSE_SIZE=>'xs', ALL_COMPUTE_RESOURCES=>'CPU_X64_XS_1vcpu_6gib_1x CPU_X64_S_3vcpu_13gib_2x CPU_X64_M_6vcpu_28gib_4x HIGHMEM_X64_S_6vcpu_58gib_5x CPU_X64_SL_14vcpu_58gib_7x CPU_X64_L_28vcpu_116gib_14x HIGHMEM_X64_M_28vcpu_240gib_19x' )
+  AUTO_RESUME = FALSE
+  MIN_INSTANCES = 1
+  MAX_INSTANCES = 1;
+alter service group_alpha_schema.app_a_user_1_frontend_HIGHMEM_X64_M_28vcpu_240gib_19x_service suspend;
+alter compute pool app_a_user_1_frontend_HIGHMEM_X64_M_28vcpu_240gib_19x_compute_pool suspend;
 
 -- Grant app_a_group_alpha_role privileges to see the database and schema.
 GRANT USAGE ON DATABASE app_a_app_db
