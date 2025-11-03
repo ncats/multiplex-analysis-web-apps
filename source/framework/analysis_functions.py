@@ -188,6 +188,18 @@ def clust_umap_dens_diff(udp_full, dens_diff_feat_sel, feature_value_fals,
                          ):
     # Import here to avoid circular import
     from neighborhood_profiles import UMAPDensityProcessing
+
+    print(udp_full, flush=True)
+    print(dens_diff_feat_sel, flush=True)
+    print(feature_value_fals, flush=True)
+    print(feature_value_true, flush=True)
+    print(clust_diff_vals_code, flush=True)
+    print(npf, flush=True)
+    print(dens_diff_cutoff, flush=True)
+    print(num_clus_0, flush=True)
+    print(num_clus_1, flush=True)
+    print(clust_minmax, flush=True)
+    print(spatial_umap, flush=True)
     
     # Split the UMAP by the selected values of the feature
     split_dict_full = udp_full.split_df_by_feature(dens_diff_feat_sel,

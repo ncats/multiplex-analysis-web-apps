@@ -16,6 +16,124 @@ from neighborhood_profiles import NeighborhoodProfiles, UMAPDensityProcessing
 import framework.utils as framework_utils
 import framework.analysis_framework as analysis_framework
 
+
+def clust_umap_dens_diff_page(udp_full, dens_diff_feat_sel, feature_value_fals, 
+                         feature_value_true, clust_diff_vals_code, npf,
+                         dens_diff_cutoff, 
+                         num_clus_0, num_clus_1, clust_minmax, spatial_umap
+                         ):
+    # Import here to avoid circular import
+    from neighborhood_profiles import UMAPDensityProcessing
+
+    print(udp_full, flush=True)
+    print(dens_diff_feat_sel, flush=True)
+    print(feature_value_fals, flush=True)
+    print(feature_value_true, flush=True)
+    print(clust_diff_vals_code, flush=True)
+    print(npf, flush=True)
+    print(dens_diff_cutoff, flush=True)
+    print(num_clus_0, flush=True)
+    print(num_clus_1, flush=True)
+    print(clust_minmax, flush=True)
+    print(spatial_umap, flush=True)
+    
+    # Split the UMAP by the selected values of the feature
+    split_dict_full = udp_full.split_df_by_feature(dens_diff_feat_sel,
+                                                    feature_value_fals,
+                                                    feature_value_true,
+                                                    clust_diff_vals_code)
+
+    # Perform Density Calculations for each Condition
+    udp_fals = UMAPDensityProcessing(npf, split_dict_full['df_umap_fals'], xx=udp_full.xx, yy=udp_full.yy)
+    udp_true = UMAPDensityProcessing(npf, split_dict_full['df_umap_true'], xx=udp_full.xx, yy=udp_full.yy)
+
+    ## Copy over
+    udp_diff = copy(udp_fals)
+    ## Perform difference calculation
+    udp_diff.dens_mat = np.log10(udp_fals.dens_mat) - np.log10(udp_true.dens_mat)
+    ## Rerun the min/max calcs
+    udp_diff.umap_summary_stats()
+    ## Set Feature Labels
+    udp_fals.set_feature_label(dens_diff_feat_sel, split_dict_full['fals_msg'])
+    udp_true.set_feature_label(dens_diff_feat_sel, split_dict_full['true_msg'])
+    udp_diff.set_feature_label(dens_diff_feat_sel, 'Difference')
+
+    # Draw UMAPS
+    UMAPFig_fals = udp_fals.UMAPdraw_density()
+    UMAPFig_true = udp_true.UMAPdraw_density()
+    UMAPFig_diff = udp_diff.UMAPdraw_density(diff=True)
+
+        # Assign Masking and plot
+    # Assign Masking and plot
+    udp_mask = copy(udp_diff)
+    udp_mask.filter_density_matrix(dens_diff_cutoff, udp_full.empty_bin_ind)
+    udp_mask.set_feature_label(dens_diff_feat_sel, f'Difference- Masked, \ncutoff = {dens_diff_cutoff}')
+    UMAPFig_mask = udp_mask.UMAPdraw_density(diff=True)
+
+    # Perform Clustering
+    udp_clus = copy(udp_mask)
+    udp_clus.perform_clustering(dens_mat_cmp=udp_mask.dens_mat,
+                                num_clus_0=num_clus_0,
+                                num_clus_1=num_clus_1,
+                                clust_minmax=clust_minmax,
+                                cpu_pool_size=3)
+    udp_clus.set_feature_label(dens_diff_feat_sel, f'Clusters, False-{num_clus_0}, True-{num_clus_1}')
+    UMAPFig_clus = udp_clus.UMAPdraw_density(diff=True, legendtype='legend')
+    cluster_dict = udp_clus.cluster_dict
+    palette_dict = udp_clus.palette_dict
+    elbow_fig_0 = udp_clus.elbow_fig_0
+    elbow_fig_1 = udp_clus.elbow_fig_1
+
+    # Add cluster label column to cells dataframe
+    spatial_umap.df_umap.loc[:, 'clust_label'] = 'No Cluster'
+    spatial_umap.df_umap.loc[:, 'cluster'] = 'No Cluster'
+    spatial_umap.df_umap.loc[:, 'Cluster'] = 'No Cluster'
+
+    for key, val in cluster_dict.items():
+        if key != 0:
+            bin_clust = np.argwhere(udp_clus.dens_mat == key)
+            bin_clust = bin_clust[:, [1, 0]] # Swapping columns to by y, x
+            bin_clust = [tuple(x) for x in bin_clust]
+
+            significant_groups = udp_full.bin_indices_df_group[udp_full.bin_indices_df_group.set_index(['indx', 'indy']).index.isin(bin_clust)]
+
+            umap_ind = significant_groups.index.values
+            spatial_umap.df_umap.loc[umap_ind, 'clust_label'] = val
+            spatial_umap.df_umap.loc[umap_ind, 'cluster'] = val
+            spatial_umap.df_umap.loc[umap_ind, 'Cluster'] = val
+
+    # Benchmark how long it took to untangle indicies
+    #bc.printElapsedTime('Untangling bin indicies with UMAP indicies', split = True)
+
+    # After assigning cluster labels, perform mean calculations
+    spatial_umap.mean_measures()
+    #bc.printElapsedTime('Performing Mean Measures', split = True)
+
+    # Average Left condition and Average Right Condition
+    dens_df_fals = spatial_umap.dens_df_mean.loc[spatial_umap.dens_df_mean['clust_label'].str.contains('Left'), :]
+    dens_df_true = spatial_umap.dens_df_mean.loc[spatial_umap.dens_df_mean['clust_label'].str.contains('Right'), :]
+
+    dens_df_fals['clust_label'] = 'Average Left'
+    dens_df_mean_fals = dens_df_fals.groupby(['clust_label', 'phenotype', 'dist_bin'], as_index=False).mean()
+
+    dens_df_true['clust_label'] = 'Average Right'
+    dens_df_mean_true = dens_df_true.groupby(['clust_label', 'phenotype', 'dist_bin'], as_index=False).mean()
+
+    spatial_umap.dens_df_mean = pd.concat([spatial_umap.dens_df_mean, dens_df_mean_fals, dens_df_mean_true], axis=0)
+
+    return {"spatial_umap": spatial_umap, "cluster_completed_diff": True,
+            "UMAPFig_fals": UMAPFig_fals,
+            "UMAPFig_true": UMAPFig_true,
+            "UMAPFig_diff": UMAPFig_diff,
+            "UMAPFig_mask": UMAPFig_mask,
+            "cluster_dict": cluster_dict,
+            "palette_dict": palette_dict,
+            "elbow_fig_0": elbow_fig_0,
+            "elbow_fig_1": elbow_fig_1,
+            "cluster_completed": True
+            }
+
+
 # def get_spatialUMAP(spatial_umap, bc, umap_subset_per_fit, umap_subset_toggle, umap_subset_per):
 #     '''
 #     Extract precomputed UMAP from the file
@@ -252,27 +370,22 @@ import framework.analysis_framework as analysis_framework
 
 def check_feature_approval_callback():
     '''
-    Simple callback to test the current value of 
-    st.session_state.dens_diff_feat_sel
+    Non-interfering callback to update UI state only.
+    Does not modify appro_feat to avoid interfering with job submission logic.
     '''
 
     if not st.session_state['toggle_clust_diff']:
-        st.session_state.appro_feat = True
-        st.session_state.disable_clustering = False
+        # UI state only - don't need to track anything when toggle is off
+        pass
     else:
         # Only proceed if udp_full has been created
         if 'udp_full' not in st.session_state:
-            st.session_state.appro_feat = False
-            st.session_state.disable_clustering = True
             return
 
-        # Check feature values
+        # Check feature values for UI state only
         st.session_state.clust_diff_vals_code = st.session_state.udp_full.check_feature_values(st.session_state.dens_diff_feat_sel)
 
-        if st.session_state.clust_diff_vals_code == 0:
-            st.session_state.appro_feat = False
-        else:
-            st.session_state.appro_feat = True
+        # Note: Not modifying appro_feat here to avoid job submission interference
 
         feature_vals = natsorted(st.session_state.udp_full.df[st.session_state.dens_diff_feat_sel].unique())
         if st.session_state.clust_diff_vals_code == 2:
@@ -319,11 +432,9 @@ def check_number_points():
     print(num_points_left, num_points_right, st.session_state.clust_diff_vals_code)
     if num_points_left <= 10 or num_points_right <= 10:
         print('Not enough points for clustering')
-        st.session_state.disable_clustering = True
         # st.error('Selected Feature Values does not have enough points for clustering')
     else:
         print('Enough points for clustering')
-        st.session_state.disable_clustering = False
 
     st.write(str(num_points_left), str(num_points_right), st.session_state.clust_diff_vals_code)
 
@@ -568,9 +679,6 @@ def main():
         if st.session_state['toggle_clust_diff']:
             st.session_state.list_clusters += ['Average Left', 'Average Right']
 
-    if 'disable_clustering' not in st.session_state:
-        st.session_state.disable_clustering = False
-
     nei_pro_tabs = st.tabs(['Analyze from Phenotyping', 'Load Previous Analysis'])
     with nei_pro_tabs[0]:
 
@@ -751,6 +859,28 @@ def main():
 
             # If UMAP is completed, display the clustering settings
             if st.session_state.umap_completed:
+                # Initialize clustering parameters to avoid widget warnings
+                if 'num_clus_0' not in st.session_state:
+                    st.session_state.num_clus_0 = 3
+                if 'num_clus_1' not in st.session_state:
+                    st.session_state.num_clus_1 = 3
+                if 'dens_diff_cutoff' not in st.session_state:
+                    st.session_state.dens_diff_cutoff = 0.01
+                
+                # Initialize clustering difference variables to prevent errors
+                if 'clus_diff_vals_fals' not in st.session_state:
+                    st.session_state.clus_diff_vals_fals = ['None']
+                if 'clus_diff_vals_true' not in st.session_state:
+                    st.session_state.clus_diff_vals_true = ['None']
+                if 'feature_value_fals' not in st.session_state:
+                    st.session_state.feature_value_fals = 'None'
+                if 'feature_value_true' not in st.session_state:
+                    st.session_state.feature_value_true = 'None'
+                if 'clust_diff_vals_code' not in st.session_state:
+                    st.session_state.clust_diff_vals_code = 0
+                if 'appro_feat' not in st.session_state:
+                    st.session_state.appro_feat = False
+                    
                 with st.expander('Clustering Settings', expanded = True):
                     st.toggle('Perform Clustering on UMAP Density Difference',
                               value = False, key = 'toggle_clust_diff',
@@ -772,7 +902,7 @@ def main():
                                          options = st.session_state.clus_diff_vals_fals,
                                          on_change=check_number_points)
                             st.number_input('Number of Clusters for Left Condition', min_value = 1, max_value = 10,
-                                            value = 3, step = 1, key = 'num_clus_0')
+                                            step = 1, key = 'num_clus_0')
                             if st.session_state.elbow_fig_0 is not None:
                                 st.pyplot(st.session_state.elbow_fig_0)
                         # Perform clustering normally
@@ -815,48 +945,101 @@ def main():
 
                     with clust_exp_col[1]:
                         if st.session_state['toggle_clust_diff'] is True:
-                            st.number_input('Cutoff Percentage', min_value = 0.01, max_value = 0.99, value = 0.01, step = 0.01, key = 'dens_diff_cutoff')
+                            st.number_input('Cutoff Percentage', min_value = 0.01, max_value = 0.99, step = 0.01, key = 'dens_diff_cutoff')
                             st.selectbox('Value for Right Condition', key = 'feature_value_true',
                                          options = st.session_state.clus_diff_vals_true,
                                          on_change=check_number_points)
                             st.number_input('Number of Clusters for Right Condition', min_value = 1, max_value = 10,
-                                            value = 3, step = 1, key = 'num_clus_1')
-                            # async diff clsutering
-                            if 'udp_full' in st.session_state:
-                                analysis_framework.job_submission(
-                                    job_name = "clust_umap_dens_diff",
-                                    inputs = dict(
-                                        udp_full = st.session_state.udp_full,
-                                        dens_diff_feat_sel = st.session_state.dens_diff_feat_sel,
-                                        feature_value_fals = st.session_state.feature_value_fals,
-                                        feature_value_true = st.session_state.feature_value_true,
-                                        clust_diff_vals_code = st.session_state.clust_diff_vals_code,
-                                        npf = st.session_state.npf,
-                                        dens_diff_cutoff = st.session_state.dens_diff_cutoff,
-                                        num_clus_0 = st.session_state.num_clus_0,
-                                        num_clus_1 = st.session_state.num_clus_1,
-                                        clust_minmax = st.session_state.clust_minmax,
-                                        spatial_umap = st.session_state.spatial_umap,
-                                    ),
-                                    analysis_purpose = "density difference clustering analysis",
-                                    st_key_prefix = "",
-                                )
-                                diff_clust_key = 'density_difference_clustering_analysis_results'
-                                if diff_clust_key not in st.session_state:
-                                    st.warning("Density difference clustering analysis results are not yet available.")
-                                    return
-                                # Set shortcuts to the job results.
-                                st.session_state.spatial_umap = st.session_state[diff_clust_key]["spatial_umap"]
-                                st.session_state.cluster_completed_diff = st.session_state[diff_clust_key]["cluster_completed_diff"]
-                                st.session_state.UMAPFig_fals = st.session_state[diff_clust_key]["UMAPFig_fals"]
-                                st.session_state.UMAPFig_true = st.session_state[diff_clust_key]["UMAPFig_true"]
-                                st.session_state.UMAPFig_diff = st.session_state[diff_clust_key]["UMAPFig_diff"]
-                                st.session_state.UMAPFig_mask = st.session_state[diff_clust_key]["UMAPFig_mask"]
-                                st.session_state.cluster_dict = st.session_state[diff_clust_key]["cluster_dict"]
-                                st.session_state.palette_dict = st.session_state[diff_clust_key]["palette_dict"]
-                                st.session_state.elbow_fig_0 = st.session_state[diff_clust_key]["elbow_fig_0"]
-                                st.session_state.elbow_fig_1 = st.session_state[diff_clust_key]["elbow_fig_1"]
-                                st.session_state.cluster_completed = st.session_state[diff_clust_key]["cluster_completed"]
+                                            step = 1, key = 'num_clus_1')
+                            # async diff clustering - self-validating condition
+                            if ('udp_full' in st.session_state and 
+                                'clust_diff_vals_code' in st.session_state and 
+                                'feature_value_fals' in st.session_state and 
+                                'feature_value_true' in st.session_state and
+                                st.session_state.clust_diff_vals_code > 0 and
+                                st.session_state.feature_value_fals != 'None' and
+                                st.session_state.feature_value_true != 'None'):
+                                # Additional validation at job submission time
+
+                                print(f'st.session_state.udp_full: {st.session_state.udp_full}', flush=True)
+                                print(f'st.session_state.dens_diff_feat_sel: {st.session_state.dens_diff_feat_sel}', flush=True)
+                                print(f'st.session_state.feature_value_fals: {st.session_state.feature_value_fals}', flush=True)
+                                print(f'st.session_state.feature_value_true: {st.session_state.feature_value_true}', flush=True)
+                                print(f'st.session_state.clust_diff_vals_code: {st.session_state.clust_diff_vals_code:}', flush=True)
+                                print(f'st.session_state.npf: {st.session_state.npf}', flush=True)
+                                print(f'st.session_state.dens_diff_cutoff: {st.session_state.dens_diff_cutoff}', flush=True)
+                                print(f'st.session_state.num_clus_0: {st.session_state.num_clus_0}', flush=True)
+                                print(f'st.session_state.num_clus_1: {st.session_state.num_clus_1}', flush=True)
+                                print(f'st.session_state.clust_minmax: {st.session_state.clust_minmax}', flush=True)
+                                print(f'st.session_state.spatial_umap: {st.session_state.spatial_umap}', flush=True)
+
+                                feature_is_valid = st.session_state.udp_full.check_feature_values(st.session_state.dens_diff_feat_sel) > 0
+                                if feature_is_valid:
+                                    clust_butt = st.button('Perform Diff Clustering Analysis')
+                                    diff_clust_key = 'density_difference_clustering_analysis_results'
+                                    if clust_butt:
+                                        st.session_state[diff_clust_key] = clust_umap_dens_diff_page(
+                                            udp_full = st.session_state.udp_full,
+                                            dens_diff_feat_sel = st.session_state.dens_diff_feat_sel,
+                                            feature_value_fals = st.session_state.feature_value_fals,
+                                            feature_value_true = st.session_state.feature_value_true,
+                                            clust_diff_vals_code = st.session_state.clust_diff_vals_code,
+                                            npf = st.session_state.npf,
+                                            dens_diff_cutoff = st.session_state.dens_diff_cutoff,
+                                            num_clus_0 = st.session_state.num_clus_0,
+                                            num_clus_1 = st.session_state.num_clus_1,
+                                            clust_minmax = st.session_state.clust_minmax,
+                                            spatial_umap = st.session_state.spatial_umap,
+                                        )
+                                        print(f'Diff clustering analysis results stored in st.session_state[{diff_clust_key}]', flush=True)
+                                        st.session_state.spatial_umap = st.session_state[diff_clust_key]["spatial_umap"]
+                                        st.session_state.cluster_completed_diff = st.session_state[diff_clust_key]["cluster_completed_diff"]
+                                        st.session_state.UMAPFig_fals = st.session_state[diff_clust_key]["UMAPFig_fals"]
+                                        st.session_state.UMAPFig_true = st.session_state[diff_clust_key]["UMAPFig_true"]
+                                        st.session_state.UMAPFig_diff = st.session_state[diff_clust_key]["UMAPFig_diff"]
+                                        st.session_state.UMAPFig_mask = st.session_state[diff_clust_key]["UMAPFig_mask"]
+                                        st.session_state.cluster_dict = st.session_state[diff_clust_key]["cluster_dict"]
+                                        st.session_state.palette_dict = st.session_state[diff_clust_key]["palette_dict"]
+                                        st.session_state.elbow_fig_0 = st.session_state[diff_clust_key]["elbow_fig_0"]
+                                        st.session_state.elbow_fig_1 = st.session_state[diff_clust_key]["elbow_fig_1"]
+                                        st.session_state.cluster_completed = st.session_state[diff_clust_key]["cluster_completed"]
+                                        st.session_state.cluster_completed = st.session_state[diff_clust_key]["cluster_completed"]
+
+                                #     analysis_framework.job_submission(
+                                #         job_name = "clust_umap_dens_diff",
+                                #         inputs = dict(
+                                #             udp_full = st.session_state.udp_full,
+                                #             dens_diff_feat_sel = st.session_state.dens_diff_feat_sel,
+                                #             feature_value_fals = st.session_state.feature_value_fals,
+                                #             feature_value_true = st.session_state.feature_value_true,
+                                #             clust_diff_vals_code = st.session_state.clust_diff_vals_code,
+                                #             npf = st.session_state.npf,
+                                #             dens_diff_cutoff = st.session_state.dens_diff_cutoff,
+                                #             num_clus_0 = st.session_state.num_clus_0,
+                                #             num_clus_1 = st.session_state.num_clus_1,
+                                #             clust_minmax = st.session_state.clust_minmax,
+                                #             spatial_umap = st.session_state.spatial_umap,
+                                #         ),
+                                #         analysis_purpose = "density difference clustering analysis",
+                                #         st_key_prefix = "",
+                                #     )
+                                #     diff_clust_key = 'density_difference_clustering_analysis_results'
+                                #     if diff_clust_key not in st.session_state:
+                                #         st.warning("Density difference clustering analysis results are not yet available.")
+                                #         return
+                                #     # Set shortcuts to the job results.
+                                #     st.session_state.spatial_umap = st.session_state[diff_clust_key]["spatial_umap"]
+                                #     st.session_state.cluster_completed_diff = st.session_state[diff_clust_key]["cluster_completed_diff"]
+                                #     st.session_state.UMAPFig_fals = st.session_state[diff_clust_key]["UMAPFig_fals"]
+                                #     st.session_state.UMAPFig_true = st.session_state[diff_clust_key]["UMAPFig_true"]
+                                #     st.session_state.UMAPFig_diff = st.session_state[diff_clust_key]["UMAPFig_diff"]
+                                #     st.session_state.UMAPFig_mask = st.session_state[diff_clust_key]["UMAPFig_mask"]
+                                #     st.session_state.cluster_dict = st.session_state[diff_clust_key]["cluster_dict"]
+                                #     st.session_state.palette_dict = st.session_state[diff_clust_key]["palette_dict"]
+                                #     st.session_state.elbow_fig_0 = st.session_state[diff_clust_key]["elbow_fig_0"]
+                                #     st.session_state.elbow_fig_1 = st.session_state[diff_clust_key]["elbow_fig_1"]
+                                #     st.session_state.cluster_completed = st.session_state[diff_clust_key]["cluster_completed"]
+                                #     st.session_state.cluster_completed = st.session_state[diff_clust_key]["cluster_completed"]
                                
                             if st.session_state.elbow_fig_1 is not None:
                                 st.pyplot(st.session_state.elbow_fig_1)
@@ -893,7 +1076,11 @@ def main():
                     st.pyplot(fig=st.session_state.UMAPFig)
 
                 if st.session_state.cluster_completed_diff and st.session_state['toggle_clust_diff']:
-                    if st.session_state['appro_feat']:
+                    # Check if feature is valid for display
+                    feature_is_valid = ('udp_full' in st.session_state and 
+                                      'clust_diff_vals_code' in st.session_state and
+                                      st.session_state.clust_diff_vals_code > 0)
+                    if feature_is_valid:
 
                         diff_cols = st.columns(3)
                         with diff_cols[0]:
@@ -908,7 +1095,11 @@ def main():
                             st.pyplot(fig=st.session_state.UMAPFig_mask)
                         with mor_cols[1]:
                             st.pyplot(fig=st.session_state.diff_clust_Fig)
-                if st.session_state['appro_feat'] is False:
+                # Check if feature is invalid and display error message
+                feature_is_invalid = ('udp_full' in st.session_state and 
+                                     'clust_diff_vals_code' in st.session_state and
+                                     st.session_state.clust_diff_vals_code == 0)
+                if feature_is_invalid:
                     st.write('Feature must be boolean or numeric to perform density difference analysis')
 
     # Tab for Loading Previous UMAP Results
@@ -1022,7 +1213,11 @@ def main():
                     st.session_state['sel_npf_fig2'] = None
                     download_file_suffix = f"{st.session_state['sel_npf_fig']}"
 
-            if st.session_state.appro_feat:
+            # Check if feature is valid for display
+            feature_is_valid = ('udp_full' in st.session_state and 
+                              'clust_diff_vals_code' in st.session_state and
+                              st.session_state.clust_diff_vals_code > 0)
+            if feature_is_valid:
 
                 # Draw the Neighborhood Profile
                 npf_fig, ax = bpl.draw_scatter_fig(figsize=(14, 16))
@@ -1063,7 +1258,11 @@ def main():
                     #         st.toast(f'Added {st.session_state.neigh_prof_line_suffix} to export list')
 
     # Drawing the subplots of Neighborhood Profiles per cluster combinations
-    if st.session_state['appro_feat'] and st.session_state.cluster_completed_diff:
+    # Check if feature is valid for display
+    feature_is_valid = ('udp_full' in st.session_state and 
+                       'clust_diff_vals_code' in st.session_state and
+                       st.session_state.clust_diff_vals_code > 0)
+    if feature_is_valid and st.session_state.cluster_completed_diff:
 
         # Save all the nei_pro_dfs in a list
         if 'nei_pro_dfs' not in st.session_state:
