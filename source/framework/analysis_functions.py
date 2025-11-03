@@ -183,9 +183,7 @@ def set_clusters(spatial_umap, slider_clus_val, clust_minmax, results_topdir):
 def clust_umap_dens_diff(udp_full, dens_diff_feat_sel, feature_value_fals, 
                          feature_value_true, clust_diff_vals_code, npf,
                          dens_diff_cutoff, 
-                         num_clus_0, num_clus_1, clust_minmax, spatial_umap,
-                         results_topdir
-                         ):
+                         num_clus_0, num_clus_1, clust_minmax, spatial_umap, results_topdir):
     # Import here to avoid circular import
     from neighborhood_profiles import UMAPDensityProcessing
 

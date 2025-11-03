@@ -844,7 +844,8 @@ def main():
                             #st.session_state.umap_completed = True
 
                             # Create Neighborhood Profiles Object
-                            st.session_state.npf = NeighborhoodProfiles(bc = st.session_state.bc)
+                            #st.session_state.npf = NeighborhoodProfiles(bc = st.session_state.bc)
+                            st.session_state.npf = NeighborhoodProfiles()
 
                             # Create Full UMAP example
                             st.session_state.udp_full = UMAPDensityProcessing(st.session_state.npf, st.session_state.spatial_umap.df_umap)
@@ -1004,45 +1005,56 @@ def main():
                                         st.session_state.elbow_fig_1 = st.session_state[diff_clust_key]["elbow_fig_1"]
                                         st.session_state.cluster_completed = st.session_state[diff_clust_key]["cluster_completed"]
                                         st.session_state.cluster_completed = st.session_state[diff_clust_key]["cluster_completed"]
+                                    
 
-                                #     analysis_framework.job_submission(
-                                #         job_name = "clust_umap_dens_diff",
-                                #         inputs = dict(
-                                #             udp_full = st.session_state.udp_full,
-                                #             dens_diff_feat_sel = st.session_state.dens_diff_feat_sel,
-                                #             feature_value_fals = st.session_state.feature_value_fals,
-                                #             feature_value_true = st.session_state.feature_value_true,
-                                #             clust_diff_vals_code = st.session_state.clust_diff_vals_code,
-                                #             npf = st.session_state.npf,
-                                #             dens_diff_cutoff = st.session_state.dens_diff_cutoff,
-                                #             num_clus_0 = st.session_state.num_clus_0,
-                                #             num_clus_1 = st.session_state.num_clus_1,
-                                #             clust_minmax = st.session_state.clust_minmax,
-                                #             spatial_umap = st.session_state.spatial_umap,
-                                #         ),
-                                #         analysis_purpose = "density difference clustering analysis",
-                                #         st_key_prefix = "",
-                                #     )
-                                #     diff_clust_key = 'density_difference_clustering_analysis_results'
-                                #     if diff_clust_key not in st.session_state:
-                                #         st.warning("Density difference clustering analysis results are not yet available.")
-                                #         return
-                                #     # Set shortcuts to the job results.
-                                #     st.session_state.spatial_umap = st.session_state[diff_clust_key]["spatial_umap"]
-                                #     st.session_state.cluster_completed_diff = st.session_state[diff_clust_key]["cluster_completed_diff"]
-                                #     st.session_state.UMAPFig_fals = st.session_state[diff_clust_key]["UMAPFig_fals"]
-                                #     st.session_state.UMAPFig_true = st.session_state[diff_clust_key]["UMAPFig_true"]
-                                #     st.session_state.UMAPFig_diff = st.session_state[diff_clust_key]["UMAPFig_diff"]
-                                #     st.session_state.UMAPFig_mask = st.session_state[diff_clust_key]["UMAPFig_mask"]
-                                #     st.session_state.cluster_dict = st.session_state[diff_clust_key]["cluster_dict"]
-                                #     st.session_state.palette_dict = st.session_state[diff_clust_key]["palette_dict"]
-                                #     st.session_state.elbow_fig_0 = st.session_state[diff_clust_key]["elbow_fig_0"]
-                                #     st.session_state.elbow_fig_1 = st.session_state[diff_clust_key]["elbow_fig_1"]
-                                #     st.session_state.cluster_completed = st.session_state[diff_clust_key]["cluster_completed"]
-                                #     st.session_state.cluster_completed = st.session_state[diff_clust_key]["cluster_completed"]
-                               
-                            if st.session_state.elbow_fig_1 is not None:
-                                st.pyplot(st.session_state.elbow_fig_1)
+                                    udp_full = st.session_state.udp_full
+                                    dens_diff_feat_sel = st.session_state.dens_diff_feat_sel
+                                    feature_value_fals = st.session_state.feature_value_fals
+                                    feature_value_true = st.session_state.feature_value_true
+                                    clust_diff_vals_code = st.session_state.clust_diff_vals_code
+                                    npf = st.session_state.npf
+                                    dens_diff_cutoff = st.session_state.dens_diff_cutoff
+                                    num_clus_0 = st.session_state.num_clus_0
+                                    num_clus_1 = st.session_state.num_clus_1
+                                    clust_minmax = st.session_state.clust_minmax
+                                    spatial_umap = st.session_state.spatial_umap
+                                    analysis_framework.job_submission(
+                                        job_name = "clust_umap_dens_diff",
+                                        inputs = dict(
+                                            udp_full = udp_full,
+                                            dens_diff_feat_sel = dens_diff_feat_sel,
+                                            feature_value_fals = feature_value_fals,
+                                            feature_value_true = feature_value_true,
+                                            clust_diff_vals_code = clust_diff_vals_code,
+                                            npf = npf,
+                                            dens_diff_cutoff = dens_diff_cutoff,
+                                            num_clus_0 = num_clus_0,
+                                            num_clus_1 = num_clus_1,
+                                            clust_minmax = clust_minmax,
+                                            spatial_umap = spatial_umap,
+                                        ),
+                                        analysis_purpose = "density difference clustering analysis",
+                                        st_key_prefix = "",)
+                                    diff_clust_key = 'density_difference_clustering_analysis_results'
+                                    if diff_clust_key not in st.session_state:
+                                        st.warning("Density difference clustering analysis results are not yet available.")
+                                        return
+                                    # Set shortcuts to the job results.
+                                    st.session_state.spatial_umap = st.session_state[diff_clust_key]["spatial_umap"]
+                                    st.session_state.cluster_completed_diff = st.session_state[diff_clust_key]["cluster_completed_diff"]
+                                    st.session_state.UMAPFig_fals = st.session_state[diff_clust_key]["UMAPFig_fals"]
+                                    st.session_state.UMAPFig_true = st.session_state[diff_clust_key]["UMAPFig_true"]
+                                    st.session_state.UMAPFig_diff = st.session_state[diff_clust_key]["UMAPFig_diff"]
+                                    st.session_state.UMAPFig_mask = st.session_state[diff_clust_key]["UMAPFig_mask"]
+                                    st.session_state.cluster_dict = st.session_state[diff_clust_key]["cluster_dict"]
+                                    st.session_state.palette_dict = st.session_state[diff_clust_key]["palette_dict"]
+                                    st.session_state.elbow_fig_0 = st.session_state[diff_clust_key]["elbow_fig_0"]
+                                    st.session_state.elbow_fig_1 = st.session_state[diff_clust_key]["elbow_fig_1"]
+                                    st.session_state.cluster_completed = st.session_state[diff_clust_key]["cluster_completed"]
+                                    st.session_state.cluster_completed = st.session_state[diff_clust_key]["cluster_completed"]
+                        
+                                    if st.session_state.elbow_fig_1 is not None:
+                                        st.pyplot(st.session_state.elbow_fig_1)
                     if st.session_state.cluster_completed:
                         st.markdown('''The within-cluster sum of squares (WCSS) is a measure of the
                                         variability of the observations within each cluster. In general,
