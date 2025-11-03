@@ -1,6 +1,14 @@
 # Full Stack MAWA
 
-## Build instructions
+## General how-to
+
+### 1. Modify the codebase
+
+Full-stack framework-specific files are located in `source/framework`. App-specific files (including an example `generate_results.py` file) are located in `source`.
+
+Framework files should be modified only as truly necessary. App files can be modified freely.
+
+### 2. Build the images
 
 Build the `frontend` and `orchestrator` images using:
 
@@ -8,26 +16,30 @@ Build the `frontend` and `orchestrator` images using:
 * `cd multiplex-analysis-web-apps`
 * `git checkout full-stack`.
 * Ensure the clone contains the file `foundry_transforms_lib_python-0.881.0.tar.gz` in a `temp_vendor` subdirectory (not present in the repository by default).
-* E.g., `IMAGE_TAG=2025-10-20-03 docker compose build`.
+* E.g., `IMAGE_TAG=2025-10-24-v03-gmb-earliest docker compose build`.
   * Unless you're already running on AMD64, include `--platform=linux/amd64` if you want to be able to use the same image on Snowflake (which we do). For testing locally on a Mac, this should work but should be a bit slower. Alternatively, you can leave off this extra argument for testing on a Mac, but know that the image will need to be rebuilt with the argument so that it works on Snowpark Container Services.
 
 The other two images (`postgres` and `minio`) should be pulled when the multi-container app is launched, below.
 
-## Run instructions
+### 3. Run the app locally
 
-* E.g., `IMAGE_TAG=2025-10-20-03 docker compose up`.
+* E.g., `IMAGE_TAG=2025-10-24-v03-gmb-earliest docker compose up`.
 * In a web browser go to http://localhost:8501.
 
-## Simultaneous build/run
+### 4. Simultaneous build/run
 
-* E.g., `IMAGE_TAG=2025-10-20-03 docker compose up --build`.
+* E.g., `IMAGE_TAG=2025-10-24-v03-gmb-earliest docker compose up --build`.
 
-## Tag and push images to Docker Hub after building
+### 5. Shut down the container
+
+After shutting down the app using the in-app sidebar button or `ctrl-c` in the terminal, run, e.g., `IMAGE_TAG=2025-10-24-v03-gmb-earliest docker compose down`.
+
+### 6. Tag and push the images to Docker Hub
 
 E.g.:
 
 ```bash
-IMAGE_TAG=2025-10-22-05
+IMAGE_TAG=2025-10-24-v03-gmb-earliest
 docker tag postgres:15 andrewweisman/mawa-postgres:$IMAGE_TAG && docker push andrewweisman/mawa-postgres:$IMAGE_TAG
 docker tag minio/minio:RELEASE.2025-09-07T16-13-09Z-cpuv1 andrewweisman/mawa-minio:$IMAGE_TAG && docker push andrewweisman/mawa-minio:$IMAGE_TAG
 docker tag orchestrator:$IMAGE_TAG andrewweisman/mawa-orchestrator:$IMAGE_TAG && docker push andrewweisman/mawa-orchestrator:$IMAGE_TAG
@@ -36,7 +48,48 @@ docker tag frontend:$IMAGE_TAG andrewweisman/mawa-frontend:$IMAGE_TAG && docker 
 
 The images in this example are located at https://hub.docker.com/repositories/andrewweisman.
 
-## Testing external loading of archives created on NIDAP
+### 7. Update the image metadata table
+
+With the database up, add to `app_a_app_db.general_schema.image_metadata_table` a record corresponding to the `andrewweisman/mawa-frontend:$IMAGE_TAG` image just pushed to Docker Hub.
+
+Maybe in the future, add steps/fields for the other three images? For now, the above is likely sufficient.
+
+### 8. Update the user groups table
+
+With the database up, add to `common_db.admin_schema.user_groups_table` a record corresponding to the user who will use the app.
+
+### 9. Deploy to Snowflake
+
+In general, in this section below, make the following sample substitutions, including in `deploy/snowflake/deploy.sql`:
+
+  * `group_alpha` --> `cil`
+  * `app_a` --> `mawa`
+  * `App A` --> `Multiplex Analysis Web Apps`
+  * `user_1` --> `andrewweisman`
+
+Push the frontend image to Snowflake. Note that `deploy/snowflake/deploy.sql` must be stepped through the step of creating the Snowflake image repositories (which is marked in the script). Also, if the Snowflake deployment changes, we need to use its name in place of `nihnci-eval`:
+
+```bash
+IMAGE_TAG=2025-10-24-v03-gmb-earliest
+docker tag andrewweisman/mawa-frontend:$IMAGE_TAG nihnci-eval.registry.snowflakecomputing.com/app_a_app_db/general_schema/image_repository/mawa-frontend:$IMAGE_TAG
+snow spcs image-registry login --role accountadmin
+docker push nihnci-eval.registry.snowflakecomputing.com/app_a_app_db/general_schema/image_repository/mawa-frontend:$IMAGE_TAG
+```
+
+Update the tables `app_a_app_db.general_schema.image_metadata_table` and `app_a_app_db.general_schema.image_metadata_table` as we do locally (above).
+
+Push required files to the relevant stages from the GitHub clone:
+
+```bash
+snow sql --connection eval3 --role accountadmin  # Works for Andrew since he has the "eval3" Snowflake connection already set up. If you're not Andrew, install the Snowflake CLI (https://docs.snowflake.com/en/developer-guide/snowflake-cli/installation/installation#label-snowcli-install-linux-package-managers) and set up your connection to our Snowflake deployment.
+> PUT file://deploy/snowflake/frontend_service_spec.yaml @app_a_app_db.general_schema.general_stage;
+> PUT file://deploy/snowflake/worker_service_spec.yaml @app_a_app_db.general_schema.general_stage;
+> PUT file://deploy/snowflake/launcher.py @app_launcher_db.general_schema.general_stage;
+```
+
+## Additional notes
+
+### Testing external loading of archives created on NIDAP
 
 * Place archive `.zip` files (e.g., from the `output` dataset on NIDAP) from NIDAP into the `oldarchives` bucket.
 * Use the "Data Import and Export" page to load these archives (don't forget to subsequently use the sidebar to actually load the sessions into the session state instead of only extracting the `.zip` files).
@@ -47,7 +100,7 @@ The images in this example are located at https://hub.docker.com/repositories/an
   * For general testing, we are fine using a Mac; everything should work probably even without any emulation.
   * For prod, we need to ensure we test on amd64 architecture.
 
-## To use a different environment
+### To use a different environment
 
 Figure out the new environment, and then create a new corresponding `.yml` file, e.g., `source/environment-ana.yml`. Confirm it builds successfully locally, ensure necessary packages import, etc. Make sure that environment is solid.
 
@@ -87,11 +140,11 @@ EXPOSE 8501
 CMD ["streamlit", "run", "app.py", "--server.address", "0.0.0.0", "--server.port", "8501"]
 ```
 
-Build a new image using e.g. `IMAGE_TAG=2025-10-24-01-ana docker compose build`.
+Build a new image using e.g. `IMAGE_TAG=2025-10-24-v03-gmb-earliest docker compose build`.
 
-Ensure the previously run app is fully shut down using e.g. `IMAGE_TAG=2025-10-22-05 docker compose down`.
+Ensure the previously run app is fully shut down using e.g. `IMAGE_TAG=2025-10-24-v03-gmb-earliest docker compose down`.
 
-Run using e.g. `IMAGE_TAG=2025-10-24-01-ana docker compose up`.
+Run using e.g. `IMAGE_TAG=2025-10-24-v03-gmb-earliest docker compose up`.
 
 Did similar dependency resolution for Ana's last archive. Now have three different environments with the following tags on Andrew's laptop:
 
@@ -102,7 +155,7 @@ Did similar dependency resolution for Ana's last archive. Now have three differe
 * environment-gmb-20240917_to_20241003-compatible.yml --> `gmb-latest`
 * environment-dceg-compatible.yml --> `dceg`
 
-## Notes
+### Notes
 
 * Reference for buckets/stages:
   * archives --> for new archives generated by the new framework
@@ -116,14 +169,14 @@ Did similar dependency resolution for Ana's last archive. Now have three differe
 * At some point we want to implement multi-arch builds using `docker buildx`.
 * Asynchronous execution is not yet implemented. For guidance, see `generate_results.py`.
 
-## Links
+### Links
 
 * [Codebase](https://github.com/ncats/multiplex-analysis-web-apps/tree/full-stack)
 * This is [all MAWA user data](<https://axleinfo-my.sharepoint.com/:f:/r/personal/andrew_weisman_axleinfo_com/Documents/NIH/NIDAP migration/user_data_backup?e=5%3af5b9a4743b3a4ad48260a466f31d1555&sharingv2=true&fromShare=true&at=9>) (input and output datasets) as of 10/1/25. This includes the foundry_transforms_lib_python-0.881.0.tar.gz file.
 * [User data locations on NIDAP](<https://axleinfo-my.sharepoint.com/:x:/r/personal/andrew_weisman_axleinfo_com/Documents/NIH/NIDAP migration/users.xlsx?d=wcf7286526ae547a9b5abc51d33ba7ff9&e=4%3afbf01da7919942748e988c4218f8d591&sharingv2=true&fromShare=true&at=9>)
 * [Diagrams](https://lucid.app/lucidchart/da710fee-56ce-4fa3-9d07-d9a4a97e6f60/edit)
 
-## Diagrams (as of 10/23/24)
+### Diagrams (as of 10/23/25)
 
 Containers in the app:
 

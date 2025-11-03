@@ -137,6 +137,7 @@ CREATE TABLE IF NOT EXISTS admin_schema.user_groups_table (
   user_email VARCHAR(255)
 );
 
+-- SEE GITHUB README FOR WHAT DATA TO ADD TO THIS TABLE.
 
 -- Create database roles.
 create database role if not exists admin_schema_ro_db_role;
@@ -165,8 +166,12 @@ create schema if not exists general_schema;
 create stage if not exists general_schema.general_stage
   directory = ( enable = true );
 
+-- SEE GITHUB README FOR WHAT FILES TO UPLOAD TO THIS STAGE (the two service specification YAML files).
+
 -- Create an image repository.
 CREATE IMAGE REPOSITORY IF NOT EXISTS general_schema.image_repository;
+
+-- SEE GITHUB README FOR HOW TO UPLOAD AN IMAGE TO THIS REPOSITORY.
 
 -- Create table.
 CREATE TABLE IF NOT EXISTS general_schema.image_metadata_table (
@@ -180,6 +185,8 @@ CREATE TABLE IF NOT EXISTS general_schema.image_metadata_table (
   image_added_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   who_added VARCHAR(255)
 );
+
+-- SEE GITHUB README FOR WHAT DATA TO ADD TO THIS TABLE.
 
 -- Create roles.
 create role if not exists app_a_group_alpha_role; -- This is the account role that owns and operates the app.
@@ -484,6 +491,7 @@ CREATE WAREHOUSE IF NOT EXISTS app_launcher_user_1_xs_warehouse
   AUTO_RESUME = TRUE
   INITIALLY_SUSPENDED = TRUE;
 
+-- SEE GITHUB README FOR WHAT FILE TO UPLOAD TO THE STAGE ABOVE (the streamlit app `launcher.py`).
 -- **** CREATE THE LAUNCHER STREAMLIT APP, group_alpha_schema.app_launcher_user_1_streamlit.
 
 -- Grant app_a_group_alpha_role privileges to see the database and schema.
