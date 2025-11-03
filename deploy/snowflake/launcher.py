@@ -73,11 +73,12 @@ def get_frontend_image_id(session, db_str="data_app_db", username="andrewweisman
 
 def main():
 
-    st.title("App Launcher")
+    st.title("App Launcher v2")
     st.set_page_config()
 
     # db_dict = {"Prototype data app": "data_app_db", "HALO Metadata Analyzer": "hma_db"}
-    db_dict = {"HALO Metadata Analyzer": "hma_db"}
+    # db_dict = {"HALO Metadata Analyzer": "hma_db"}
+    db_dict = {"Multiplex Analysis Web Apps": "mawa"}
     username = "scott_lawrence"  # Change this to your username
 
     app_names = list(db_dict.keys())

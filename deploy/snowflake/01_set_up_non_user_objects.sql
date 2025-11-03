@@ -405,6 +405,10 @@ GRANT USAGE ON DATABASE app_a_app_db
 GRANT USAGE ON SCHEMA group_alpha_schema
   TO DATABASE ROLE group_alpha_schema_service_db_role;
 
+-- Give the app user role the ability to even launch the app by granting access to the database and schema.
+GRANT USAGE ON DATABASE app_a_app_db TO ROLE data_apps_user_1_role;
+GRANT USAGE ON SCHEMA group_alpha_schema TO ROLE data_apps_user_1_role;
+
 -- This probably isn't needed since accountadmin is the one who handles the endpoints, but putting it here to keep it in mind.
 -- GRANT BIND SERVICE ENDPOINT ON ACCOUNT TO ROLE app_a_group_alpha_role;
 
@@ -457,6 +461,15 @@ GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_HIGHMEM_X64_S_6vcpu_
 GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_CPU_X64_SL_14vcpu_58gib_7x_compute_pool TO ROLE data_apps_user_1_role;
 GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_CPU_X64_L_28vcpu_116gib_14x_compute_pool TO ROLE data_apps_user_1_role;
 GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_HIGHMEM_X64_M_28vcpu_240gib_19x_compute_pool TO ROLE data_apps_user_1_role;
+
+-- Allow the app user to see and operate the frontend services.
+GRANT MONITOR, OPERATE ON SERVICE group_alpha_schema.app_a_user_1_frontend_CPU_X64_XS_1vcpu_6gib_1x_service TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON SERVICE group_alpha_schema.app_a_user_1_frontend_CPU_X64_S_3vcpu_13gib_2x_service TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON SERVICE group_alpha_schema.app_a_user_1_frontend_CPU_X64_M_6vcpu_28gib_4x_service TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON SERVICE group_alpha_schema.app_a_user_1_frontend_HIGHMEM_X64_S_6vcpu_58gib_5x_service TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON SERVICE group_alpha_schema.app_a_user_1_frontend_CPU_X64_SL_14vcpu_58gib_7x_service TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON SERVICE group_alpha_schema.app_a_user_1_frontend_CPU_X64_L_28vcpu_116gib_14x_service TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON SERVICE group_alpha_schema.app_a_user_1_frontend_HIGHMEM_X64_M_28vcpu_240gib_19x_service TO ROLE data_apps_user_1_role;
 
 -- Grant read permissions on the table.
 GRANT SELECT
@@ -559,6 +572,10 @@ GRANT USAGE ON DATABASE data_manager_db
 GRANT USAGE ON SCHEMA group_alpha_schema
   TO ROLE data_manager_group_alpha_role;
 
+-- Give the app user role the ability to even launch the app by granting access to the database and schema.
+GRANT USAGE ON DATABASE data_manager_db TO ROLE data_apps_user_1_role;
+GRANT USAGE ON SCHEMA group_alpha_schema TO ROLE data_apps_user_1_role;
+
 -- Change the owner of the app to the service role data_manager_group_alpha_role.
 GRANT OWNERSHIP ON SERVICE group_alpha_schema.data_manager_user_1_service TO ROLE data_manager_group_alpha_role COPY CURRENT GRANTS;
 
@@ -573,4 +590,7 @@ GRANT USAGE ON COMPUTE POOL data_manager_user_1_xs_compute_pool TO ROLE data_man
 -- Grant resource management to the user.
 GRANT MONITOR, OPERATE ON WAREHOUSE data_manager_user_1_xs_warehouse TO ROLE data_apps_user_1_role;
 GRANT MONITOR, OPERATE ON COMPUTE POOL data_manager_user_1_xs_compute_pool TO ROLE data_apps_user_1_role;
+
+-- Allow the app user to see and operate the service.
+GRANT MONITOR, OPERATE ON SERVICE group_alpha_schema.data_manager_user_1_service TO ROLE data_apps_user_1_role;
 ---------------- End database data_manager_db. -----------------------------------------------
