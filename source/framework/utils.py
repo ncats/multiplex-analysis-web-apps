@@ -22,18 +22,34 @@ def _app_title_simple():
 # Not caching since the user could connect to the same Streamlit server by e.g. hitting refresh or opening a new tab at the same URL and would expect a new session directory.
 # This function, session_dir(), and jobs_dir() below are the two places in the codebase that hardcode the local container directory to where any files are written in the app. Also, on Snowflake etc. we mount local storage at /tmp/multiplex_analysis_web_apps, so this is the isolated location where we can modify and understand these settings clearly, i.e., the only places where the app interacts with the local filesystem.
 def session_dir():
+    try:
+        if ST_KEY_PREFIX_STARTUP + "app_session_id" not in st.session_state:
+            # Worker environment fallback - use /tmp directory 
+            worker_fallback_dir = f"/tmp/{_app_title_simple()}/worker_session_data"
+            os.makedirs(worker_fallback_dir, exist_ok=True)
+            # Also ensure output subdirectory exists for benchmark_collector
+            output_dir = os.path.join(worker_fallback_dir, 'output')
+            os.makedirs(output_dir, exist_ok=True)
+            return worker_fallback_dir
+        
+        app_session_id = st.session_state[ST_KEY_PREFIX_STARTUP + "app_session_id"]
 
-    if ST_KEY_PREFIX_STARTUP + "app_session_id" not in st.session_state:
-        st.error("Session ID not found in session state; cannot return the session directory.")
-        return None
-    
-    app_session_id = st.session_state[ST_KEY_PREFIX_STARTUP + "app_session_id"]
+        session_dir = f"/tmp/{_app_title_simple()}/app_session_data/{app_session_id}"
 
-    session_dir = f"/tmp/{_app_title_simple()}/app_session_data/{app_session_id}"
+        os.makedirs(session_dir, exist_ok=True)
+        # Also ensure output subdirectory exists for benchmark_collector
+        output_dir = os.path.join(session_dir, 'output')
+        os.makedirs(output_dir, exist_ok=True)
 
-    os.makedirs(session_dir, exist_ok=True)
-
-    return session_dir
+        return session_dir
+    except:
+        # Ultimate fallback for worker environments where streamlit is not available
+        worker_fallback_dir = f"/tmp/{_app_title_simple()}/worker_session_data"
+        os.makedirs(worker_fallback_dir, exist_ok=True)
+        # Also ensure output subdirectory exists for benchmark_collector
+        output_dir = os.path.join(worker_fallback_dir, 'output')
+        os.makedirs(output_dir, exist_ok=True)
+        return worker_fallback_dir
 
 
 @st.cache_data()
@@ -103,21 +119,37 @@ def serialize_dictionary_to_binary_files(dictionary, dict_name, directory, ignor
 
 def deserialize_binary_files_to_dictionary(dict_name, directory, dictionary=None):
     try:
+        print(f"DEBUG: deserialize_binary_files_to_dictionary called with dict_name={dict_name}, directory={directory}", flush=True)
+        
         if dictionary is None:
             dictionary = {}
 
         pkl_file = os.path.join(directory, f'{dict_name}.pkl')
-        if os.path.exists(pkl_file):
-            with open(pkl_file, 'rb') as f:
-                dictionary.update(pickle.loads(f.read()))
-
         dill_file = os.path.join(directory, f'{dict_name}.dill')
-        if os.path.exists(dill_file):
-            with open(dill_file, 'rb') as f:
-                dictionary.update(dill.loads(f.read()))
+        
+        print(f"DEBUG: Looking for pkl_file: {pkl_file}, exists: {os.path.exists(pkl_file)}", flush=True)
+        print(f"DEBUG: Looking for dill_file: {dill_file}, exists: {os.path.exists(dill_file)}", flush=True)
+        
+        if os.path.exists(pkl_file):
+            print(f"DEBUG: Loading pickle file: {pkl_file}", flush=True)
+            with open(pkl_file, 'rb') as f:
+                pkl_data = pickle.loads(f.read())
+                print(f"DEBUG: Loaded pickle data, type: {type(pkl_data)}, keys: {list(pkl_data.keys()) if isinstance(pkl_data, dict) else 'not a dict'}", flush=True)
+                dictionary.update(pkl_data)
 
+        if os.path.exists(dill_file):
+            print(f"DEBUG: Loading dill file: {dill_file}", flush=True)
+            with open(dill_file, 'rb') as f:
+                dill_data = dill.loads(f.read())
+                print(f"DEBUG: Loaded dill data, type: {type(dill_data)}, keys: {list(dill_data.keys()) if isinstance(dill_data, dict) else 'not a dict'}", flush=True)
+                dictionary.update(dill_data)
+
+        print(f"DEBUG: Final dictionary type: {type(dictionary)}, keys: {list(dictionary.keys()) if isinstance(dictionary, dict) else 'not a dict'}", flush=True)
         return dictionary
     except Exception as e:
+        print(f"ERROR: Failed to deserialize binary files {dict_name}.pkl/.dill to dictionary in directory {directory}: {e}", flush=True)
+        import traceback
+        print(f"ERROR: Traceback: {traceback.format_exc()}", flush=True)
         st.error(f"Failed to deserialize binary files {dict_name}.pkl/.dill to dictionary in directory {directory}: {e}")
         return None
 

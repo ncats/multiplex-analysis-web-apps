@@ -18,7 +18,7 @@ import umap  # slow
 from scipy import ndimage as ndi
 
 import basic_phenotyper_lib as bpl  # Useful functions for cell phenotyping
-import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
+# import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP - moved to lazy import to avoid circular dependency
 from benchmark_collector import benchmark_collector # Benchmark Collector Class
 from SpatialUMAP import SpatialUMAP
 import PlottingTools as umPT
@@ -434,6 +434,8 @@ class NeighborhoodProfiles:
         '''
         if self.umap_completed:
             self.df_umap_filt = self.df_umap.loc[self.df_umap['Slide ID'] == session_state['selSlide ID'], :]
+            # Lazy import to avoid circular dependency
+            import nidap_dashboard_lib as ndl
             session_state = ndl.setFigureObjs_UMAP(session_state)
 
         return session_state

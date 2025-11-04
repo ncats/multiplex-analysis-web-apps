@@ -8,6 +8,21 @@ import pandas as pd
 
 def run_analysis_job(function_name, inputs, job_dir):
     try:
+        print(f"DEBUG: run_analysis_job called with function_name={function_name}", flush=True)
+        print(f"DEBUG: inputs type: {type(inputs)}, is_none: {inputs is None}", flush=True)
+        
+        if inputs is None:
+            print("ERROR: inputs parameter is None!", flush=True)
+            return None
+            
+        if isinstance(inputs, dict):
+            print(f"DEBUG: Input keys in run_analysis_job: {list(inputs.keys())}", flush=True)
+            for key, value in inputs.items():
+                print(f"DEBUG: Input '{key}': type={type(value)}, is_none={value is None}", flush=True)
+        else:
+            print(f"ERROR: inputs is not a dict: {type(inputs)}", flush=True)
+            return None
+        
         outputs_dir = os.path.join(job_dir, "outputs")  # This demonstrates that for a potentially asynchronous job that generates files, you should place the results in /tmp/multiplex_analysis_web_apps/job_data/<JOB_ID>/outputs specifically so the results are stored together with the worker output results in memory.
         if function_name == "find_primes_up_to":
             function_to_run = find_primes_up_to
@@ -19,6 +34,11 @@ def run_analysis_job(function_name, inputs, job_dir):
             function_to_run = set_clusters
         elif function_name == "clust_umap_dens_diff":
             function_to_run = clust_umap_dens_diff
+        else:
+            print(f"ERROR: Unknown function_name: {function_name}", flush=True)
+            return None
+            
+        print(f"DEBUG: About to call function {function_name} with inputs", flush=True)
         outputs = function_to_run(**inputs, results_topdir=outputs_dir)
         return outputs
     except Exception as e:
@@ -181,23 +201,47 @@ def set_clusters(spatial_umap, slider_clus_val, clust_minmax, results_topdir):
             "appro_feat": True, "cluster_completed_diff": False}
 
 def clust_umap_dens_diff(udp_full, dens_diff_feat_sel, feature_value_fals, 
-                         feature_value_true, clust_diff_vals_code, npf,
+                         feature_value_true, clust_diff_vals_code, npf_attributes,
                          dens_diff_cutoff, 
                          num_clus_0, num_clus_1, clust_minmax, spatial_umap, results_topdir):
     # Import here to avoid circular import
-    from neighborhood_profiles import UMAPDensityProcessing
+    from neighborhood_profiles import UMAPDensityProcessing, NeighborhoodProfiles
 
-    print(udp_full, flush=True)
-    print(dens_diff_feat_sel, flush=True)
-    print(feature_value_fals, flush=True)
-    print(feature_value_true, flush=True)
-    print(clust_diff_vals_code, flush=True)
-    print(npf, flush=True)
-    print(dens_diff_cutoff, flush=True)
-    print(num_clus_0, flush=True)
-    print(num_clus_1, flush=True)
-    print(clust_minmax, flush=True)
-    print(spatial_umap, flush=True)
+    print(f"DEBUG: clust_umap_dens_diff called with parameters:", flush=True)
+    print(f"DEBUG: udp_full type: {type(udp_full)}, is_none: {udp_full is None}", flush=True)
+    print(f"DEBUG: dens_diff_feat_sel: {dens_diff_feat_sel}", flush=True)
+    print(f"DEBUG: feature_value_fals: {feature_value_fals}", flush=True)
+    print(f"DEBUG: feature_value_true: {feature_value_true}", flush=True)
+    print(f"DEBUG: clust_diff_vals_code: {clust_diff_vals_code}", flush=True)
+    print(f"DEBUG: npf_attributes type: {type(npf_attributes)}, is_none: {npf_attributes is None}", flush=True)
+    print(f"DEBUG: dens_diff_cutoff: {dens_diff_cutoff}", flush=True)
+    print(f"DEBUG: num_clus_0: {num_clus_0}", flush=True)
+    print(f"DEBUG: num_clus_1: {num_clus_1}", flush=True)
+    print(f"DEBUG: clust_minmax: {clust_minmax}", flush=True)
+    print(f"DEBUG: spatial_umap type: {type(spatial_umap)}, is_none: {spatial_umap is None}", flush=True)
+    print(f"DEBUG: results_topdir: {results_topdir}", flush=True)
+    
+    # Reconstruct npf object from attributes (without benchmark_collector to avoid serialization issues)
+    # Create a minimal npf-like object just for the attributes we need
+    class MinimalNPF:
+        def __init__(self):
+            self.n_bins = 100
+            self.n_pad = 0
+            self.vlim = 0.97
+            self.slc_bg = '#0E1117'
+            self.slc_text = '#FAFAFA'
+            self.slc_bg2 = '#262730'
+    
+    npf = MinimalNPF()
+    if npf_attributes:
+        npf.n_bins = npf_attributes.get('n_bins', 100)
+        npf.n_pad = npf_attributes.get('n_pad', 0) 
+        npf.vlim = npf_attributes.get('vlim', 0.97)
+        npf.slc_bg = npf_attributes.get('slc_bg', '#0E1117')
+        npf.slc_text = npf_attributes.get('slc_text', '#FAFAFA')
+        npf.slc_bg2 = npf_attributes.get('slc_bg2', '#262730')
+    
+    print(f"DEBUG: Reconstructed npf object successfully", flush=True)
     
     # Split the UMAP by the selected values of the feature
     split_dict_full = udp_full.split_df_by_feature(dens_diff_feat_sel,

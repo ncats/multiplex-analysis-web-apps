@@ -844,8 +844,8 @@ def main():
                             #st.session_state.umap_completed = True
 
                             # Create Neighborhood Profiles Object
-                            #st.session_state.npf = NeighborhoodProfiles(bc = st.session_state.bc)
-                            st.session_state.npf = NeighborhoodProfiles()
+                            st.session_state.npf = NeighborhoodProfiles(bc = st.session_state.bc)
+                            #st.session_state.npf = NeighborhoodProfiles()
 
                             # Create Full UMAP example
                             st.session_state.udp_full = UMAPDensityProcessing(st.session_state.npf, st.session_state.spatial_umap.df_umap)
@@ -1018,6 +1018,53 @@ def main():
                                     num_clus_1 = st.session_state.num_clus_1
                                     clust_minmax = st.session_state.clust_minmax
                                     spatial_umap = st.session_state.spatial_umap
+                                    
+                                    # Print all values before job submission
+                                    print(f"DEBUG: Before job submission - udp_full type: {type(udp_full)}, is_none: {udp_full is None}", flush=True)
+                                    print(f"DEBUG: Before job submission - dens_diff_feat_sel: {dens_diff_feat_sel}", flush=True)
+                                    print(f"DEBUG: Before job submission - feature_value_fals: {feature_value_fals}", flush=True)
+                                    print(f"DEBUG: Before job submission - feature_value_true: {feature_value_true}", flush=True)
+                                    print(f"DEBUG: Before job submission - clust_diff_vals_code: {clust_diff_vals_code}", flush=True)
+                                    print(f"DEBUG: Before job submission - npf type: {type(npf)}, is_none: {npf is None}", flush=True)
+                                    print(f"DEBUG: Before job submission - dens_diff_cutoff: {dens_diff_cutoff}", flush=True)
+                                    print(f"DEBUG: Before job submission - num_clus_0: {num_clus_0}", flush=True)
+                                    print(f"DEBUG: Before job submission - num_clus_1: {num_clus_1}", flush=True)
+                                    print(f"DEBUG: Before job submission - clust_minmax: {clust_minmax}", flush=True)
+                                    print(f"DEBUG: Before job submission - spatial_umap type: {type(spatial_umap)}, is_none: {spatial_umap is None}", flush=True)
+                                    
+                                    # Test serialization of complex objects
+                                    try:
+                                        import pickle
+                                        pickle.dumps(udp_full)
+                                        print(f"DEBUG: udp_full can be pickled", flush=True)
+                                    except Exception as e:
+                                        print(f"ERROR: udp_full cannot be pickled: {e}", flush=True)
+                                        
+                                    try:
+                                        import pickle
+                                        pickle.dumps(npf)
+                                        print(f"DEBUG: npf can be pickled", flush=True)
+                                    except Exception as e:
+                                        print(f"ERROR: npf cannot be pickled: {e}", flush=True)
+                                        
+                                    try:
+                                        import pickle
+                                        pickle.dumps(spatial_umap)
+                                        print(f"DEBUG: spatial_umap can be pickled", flush=True)
+                                    except Exception as e:
+                                        print(f"ERROR: spatial_umap cannot be pickled: {e}", flush=True)
+                                    
+                                    # Extract only the necessary attributes from npf to avoid serialization issues
+                                    npf_attributes = {
+                                        'n_bins': npf.n_bins,
+                                        'n_pad': npf.n_pad,
+                                        'vlim': npf.vlim,
+                                        'slc_bg': npf.slc_bg,
+                                        'slc_text': npf.slc_text,
+                                        'slc_bg2': npf.slc_bg2,
+                                    }
+                                    print(f"DEBUG: Extracted npf_attributes: {npf_attributes}", flush=True)
+                                    
                                     analysis_framework.job_submission(
                                         job_name = "clust_umap_dens_diff",
                                         inputs = dict(
@@ -1026,7 +1073,7 @@ def main():
                                             feature_value_fals = feature_value_fals,
                                             feature_value_true = feature_value_true,
                                             clust_diff_vals_code = clust_diff_vals_code,
-                                            npf = npf,
+                                            npf_attributes = npf_attributes,
                                             dens_diff_cutoff = dens_diff_cutoff,
                                             num_clus_0 = num_clus_0,
                                             num_clus_1 = num_clus_1,
