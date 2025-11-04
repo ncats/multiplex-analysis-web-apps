@@ -5,7 +5,7 @@ channel_priority: strict
 dependencies:
   - compilers=1.11.0
   - python=3.9.20
-  - streamlit=1.50.0
+  - streamlit=1.51.0
   - psycopg2=2.9.10
   - pyyaml=6.0.2
   - dill=0.4.0
