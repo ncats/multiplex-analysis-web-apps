@@ -3,6 +3,7 @@ Script for creating custom features for your dataset
 '''
 
 import streamlit as st
+import utils
 
 def create_new_column():
     '''
@@ -98,7 +99,8 @@ def main():
 
     if selected_columns:
         st.subheader(f"Number of cells: {st.session_state['input_dataset'].data.shape[0]}")
-        st.dataframe(st.session_state['input_dataset'].data[selected_columns])
+        st.dataframe(utils.sample_df_without_replacement_by_number(df=st.session_state['input_dataset'].data[selected_columns], n=100).sort_index())
+        st.button('Resample dataframe above')  # Note the command above resamples on every call so a dummy button here is fine.
     else:
         st.info("No columns selected.")
 
