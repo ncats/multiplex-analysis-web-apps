@@ -524,7 +524,7 @@ CREATE OR REPLACE STREAMLIT group_alpha_schema.app_launcher_user_1_streamlit
   QUERY_WAREHOUSE = app_launcher_user_1_xs_warehouse
   TITLE = 'App Launcher v2'
 
--- Grant app_a_group_alpha_role privileges to see the database and schema.
+-- Grant data_apps_user_1_role privileges to see the database and schema.
 GRANT USAGE ON DATABASE app_launcher_db
   TO ROLE data_apps_user_1_role;
 GRANT USAGE ON SCHEMA group_alpha_schema
@@ -613,5 +613,5 @@ GRANT MONITOR, OPERATE ON SERVICE group_alpha_schema.data_manager_user_1_xs_serv
 ---------------- End database data_manager_db. -----------------------------------------------
 
 
--- Assign the apps user role to the user.
+-- Assign the apps user role to the user. This is the one place (the argument of USER) that the real Snowflake username must be used. Other instances of "user_1" can be anything, as long as they have an entry in the user_groups table so we know which group they should be accessing. E.g., user_1_alpha should correspond to the group_alpha group and user_1_beta should correspond to the group_beta group in the user_groups table. Then this script will create e.g. (1) data_apps_user_1_alpha_role and assign it to user_1 and (2) data_apps_user_1_beta_role and assign it to user_1. Then, user_1 in Snowsight can select either role to access the app/data for either group.
 GRANT ROLE data_apps_user_1_role TO USER user_1;

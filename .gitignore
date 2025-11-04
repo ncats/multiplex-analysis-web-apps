@@ -190,3 +190,5 @@ saved_streamlit_session_states/
 
 # Andrei
 .DS_Store
+
+*-user_setup.sql

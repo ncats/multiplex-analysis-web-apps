@@ -176,6 +176,7 @@ Did similar dependency resolution for Ana's last archive. Now have three differe
 * To use full stack MAWA, place input .csv etc. files into the `objects` bucket. These files are then accessible in the app via the Data Import and Export page as usual (previously on NIDAP).
 * At some point we want to implement multi-arch builds using `docker buildx`.
 * Asynchronous execution is not yet implemented. For guidance, see `generate_results.py`.
+* Per the comment in the last line of `deploy.sql`: That line is the one place (the argument of USER) that the real Snowflake username must be used. Other instances of "user_1" can be anything, as long as they have an entry in the user_groups table so we know which group they should be accessing. E.g., user_1_alpha should correspond to the group_alpha group and user_1_beta should correspond to the group_beta group in the user_groups table. Then this script will create e.g. (1) data_apps_user_1_alpha_role and assign it to user_1 and (2) data_apps_user_1_beta_role and assign it to user_1. Then, user_1 in Snowsight can select either role to access the app/data for either group.
 
 ### How to add a new deployment in general, e.g., Snowflake
 
