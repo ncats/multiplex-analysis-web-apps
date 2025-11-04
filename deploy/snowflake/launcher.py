@@ -1,7 +1,49 @@
-# Import python packages
+# Import relevant libraries.
 import streamlit as st
 from snowflake.snowpark.context import get_active_session
 import pandas as pd
+import re
+
+
+@st.cache_data()
+def get_owner_role():
+    session = get_active_session()
+    return session.sql("select current_role();").collect()[0]["CURRENT_ROLE()"]  # Note current_user() doesn't work in Streamlit apps.
+
+
+# Get services in the schema {chosen_app_shortname}_app_db.{user_group}_schema that have "_frontend_" in their name, returning a potentially empty list.
+@st.cache_data()
+def get_frontend_service_names(chosen_app_shortname, user_group, username):
+    session = get_active_session()
+    raw_services_df = session.sql(
+        f"show services in schema {chosen_app_shortname}_app_db.{user_group}_schema;"
+    ).to_pandas()
+    frontend_services_df = raw_services_df[
+        raw_services_df["name"].str.contains(f"_{username}_frontend_", case=False, na=False)
+    ]
+    return frontend_services_df["name"].tolist()  # potentially empty list
+
+
+# This should be the same as in platform_abstraction.py in the Snowflake branch.
+@st.cache_data()
+def get_user_group(username):
+    session = get_active_session()
+    try:
+        result = session.sql(f"""
+            SELECT user_group
+            FROM common_db.admin_schema.user_groups_table
+            WHERE username = ?
+        """, (username,)).collect()
+        return result[0]["USER_GROUP"] if result else None
+    except Exception as e:
+        st.error(f"Failed to retrieve user group: {e}")
+        return None
+
+
+@st.cache_data()
+def extract_user_segment(role: str) -> str | None:
+    m = re.match(r"^data_apps_(.+?)_role$", role)
+    return m.group(1) if m else None
 
 
 def _get_delta(status):
@@ -73,47 +115,69 @@ def get_frontend_image_id(session, db_str="data_app_db", username="andrewweisman
 
 def main():
 
+    # Display the page title.
     st.title("App Launcher v2")
-    st.set_page_config()
 
-    # db_dict = {"Prototype data app": "data_app_db", "HALO Metadata Analyzer": "hma_db"}
-    # db_dict = {"HALO Metadata Analyzer": "hma_db"}
-    db_dict = {"Multiplex Analysis Web Apps": "mawa"}
-    username = "scott_lawrence"  # Change this to your username
+    # Get a list of apps subject to the new organization scheme.
+    app_shortname_dict = {"Multiplex Analysis Web Apps": "mawa"}
 
-    app_names = list(db_dict.keys())
-    db_list = list(db_dict.values())
+    # Get the corresponding keys and values.
+    app_titles = list(app_shortname_dict.keys())
+    app_shortnames = list(app_shortname_dict.values())
 
-    # Get the current credentials
-    session = get_active_session()
+    # Get app owner's role.
+    current_role = get_owner_role()
 
-    current_user = session.sql("select current_user();").collect()[0]["CURRENT_USER()"]
-    current_role = session.sql("select current_role();").collect()[0]["CURRENT_ROLE()"]
+    # Extract the username from the role.
+    username = extract_user_segment(current_role)
+    if username is None:
+        st.error(f"Could not extract username from current role: {current_role}. Ensure you are using a role like data_apps_<username>_role.")
+        return
+    
+    # Get the user group from the user_groups table in common_db.
+    user_group = get_user_group(username)
 
+    # Display some information.
     st.header("Information")
-    st.text(f"Current user: {current_user}\nCurrent role: {current_role}\nStreamlit version: {st.__version__}")
+    st.text(f"Current user: {username}\nUser group: {user_group}\nCurrent role: {current_role}\nStreamlit version: {st.__version__}")
 
+    # Start controling the app.
     st.header("App control")
-    chosen_key = st.selectbox("Select app to control:", app_names, key="chosen_key")
-    db_str = db_dict[chosen_key]
-    action_to_perform = st.selectbox("Select action to perform:", ["Start app", "Show URL", "Stop frontend", "Stop frontend (service only)", "Stop workers", "Retrieve frontend image ID"], key="action_to_perform")
+
+    # Let the user choose the app to control.
+    chosen_key = st.selectbox("Select app to control:", app_titles)
+    chosen_app_shortname = app_shortname_dict[chosen_key]
+
+    # Get the names of the frontend services available for the current user in their selected app.
+    frontend_service_names = get_frontend_service_names(chosen_app_shortname, user_group, username)
+    if not frontend_service_names:
+        st.warning(f"No frontend services found in schema {chosen_app_shortname}_app_db.{user_group}_schema.")
+        return
+    
+    # Allow the user to select which frontend service (i.e., version of the app) they'd like to control.
+    chosen_frontend_service_name = st.selectbox("Select frontend service to control:", frontend_service_names)
+
+    # Ask the user what they want to do.
+    action_to_perform = st.selectbox("Select action to perform:", ["Start app", "Show URL", "Stop frontend", "Stop frontend (service only)", "Stop workers", "Retrieve frontend image ID"])
+
+    #### PICK UP HERE WITH MODIFYING THE BELOW AND CONSIDERING WHETHER USERS WILL DETECT FRONTENDS FROM OTHER MEMBERS OF THEIR GROUP (probably taken care of now)!!!! ####
     if st.button("Take action"):
         if action_to_perform == "Start app":
-            start_app(session, db_str=db_str, username=username)
+            start_app(session, db_str=chosen_app_shortname, username=username)
         elif action_to_perform == "Show URL":
-            show_endpoints(session, db_str=db_str, username=username)
+            show_endpoints(session, db_str=chosen_app_shortname, username=username)
         elif action_to_perform == "Stop frontend":
-            stop_frontend(session, db_str=db_str, username=username)
+            stop_frontend(session, db_str=chosen_app_shortname, username=username)
         elif action_to_perform == "Stop frontend (service only)":
-            stop_frontend(session, stop_pool_too=False, db_str=db_str, username=username)
+            stop_frontend(session, stop_pool_too=False, db_str=chosen_app_shortname, username=username)
         elif action_to_perform == "Stop workers":
             stop_workers(session, username=username)
         elif action_to_perform == "Retrieve frontend image ID":
-            get_frontend_image_id(session, db_str=db_str, username=username)
+            get_frontend_image_id(session, db_str=chosen_app_shortname, username=username)
 
     st.header("General control")
     if st.button("Detect services and compute pools"):
-        show_objects(session, db_list=db_list, username=username)
+        show_objects(session, db_list=app_shortnames, username=username)
 
 
 if __name__ == "__main__":

@@ -428,6 +428,9 @@ grant database role common_db.admin_schema_ro_db_role to role app_a_group_alpha_
 grant database role app_a_app_db.general_schema_ro_db_role to role app_a_group_alpha_role;
 GRANT DATABASE ROLE app_a_app_db.group_alpha_schema_service_db_role TO ROLE app_a_group_alpha_role;
 
+-- Give the app user role the required database role (used in launcher.py).
+grant database role common_db.admin_schema_ro_db_role to role data_apps_user_1_role;
+
 -- Grant access to using the compute resources for the actual "service" role app_a_group_alpha_role.
 GRANT USAGE ON WAREHOUSE app_a_user_1_xs_warehouse TO ROLE app_a_group_alpha_role;
 GRANT USAGE, OPERATE ON COMPUTE POOL app_a_user_1_frontend_CPU_X64_XS_1vcpu_6gib_1x_compute_pool TO ROLE app_a_group_alpha_role;
