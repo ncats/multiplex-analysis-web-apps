@@ -471,6 +471,15 @@ GRANT MONITOR, OPERATE ON SERVICE group_alpha_schema.app_a_user_1_frontend_CPU_X
 GRANT MONITOR, OPERATE ON SERVICE group_alpha_schema.app_a_user_1_frontend_CPU_X64_L_28vcpu_116gib_14x_service TO ROLE data_apps_user_1_role;
 GRANT MONITOR, OPERATE ON SERVICE group_alpha_schema.app_a_user_1_frontend_HIGHMEM_X64_M_28vcpu_240gib_19x_service TO ROLE data_apps_user_1_role;
 
+-- Allow the user to run the app from the web even though they have no access to the role that runs the app.
+GRANT SERVICE ROLE group_alpha_schema.app_a_user_1_frontend_CPU_X64_XS_1vcpu_6gib_1x_service!web_endpoint_service_role TO ROLE data_apps_user_1_role;
+GRANT SERVICE ROLE group_alpha_schema.app_a_user_1_frontend_CPU_X64_S_3vcpu_13gib_2x_service!web_endpoint_service_role TO ROLE data_apps_user_1_role;
+GRANT SERVICE ROLE group_alpha_schema.app_a_user_1_frontend_CPU_X64_M_6vcpu_28gib_4x_service!web_endpoint_service_role TO ROLE data_apps_user_1_role;
+GRANT SERVICE ROLE group_alpha_schema.app_a_user_1_frontend_HIGHMEM_X64_S_6vcpu_58gib_5x_service!web_endpoint_service_role TO ROLE data_apps_user_1_role;
+GRANT SERVICE ROLE group_alpha_schema.app_a_user_1_frontend_CPU_X64_SL_14vcpu_58gib_7x_service!web_endpoint_service_role TO ROLE data_apps_user_1_role;
+GRANT SERVICE ROLE group_alpha_schema.app_a_user_1_frontend_CPU_X64_L_28vcpu_116gib_14x_service!web_endpoint_service_role TO ROLE data_apps_user_1_role;
+GRANT SERVICE ROLE group_alpha_schema.app_a_user_1_frontend_HIGHMEM_X64_M_28vcpu_240gib_19x_service!web_endpoint_service_role TO ROLE data_apps_user_1_role;
+
 -- Grant read permissions on the table.
 GRANT SELECT
   ON TABLE general_schema.image_metadata_table
@@ -498,14 +507,19 @@ create schema if not exists general_schema;
 create stage if not exists general_schema.general_stage
   directory = ( enable = true );
 
+-- SEE GITHUB README FOR WHAT FILE TO UPLOAD TO THIS STAGE (the streamlit app `launcher.py`).
+
 -- Create a warehouse for the app.
 CREATE WAREHOUSE IF NOT EXISTS app_launcher_user_1_xs_warehouse
   WAREHOUSE_SIZE = 'XSMALL'
   AUTO_RESUME = TRUE
   INITIALLY_SUSPENDED = TRUE;
 
--- SEE GITHUB README FOR WHAT FILE TO UPLOAD TO THE STAGE ABOVE (the streamlit app `launcher.py`).
--- **** CREATE THE LAUNCHER STREAMLIT APP, group_alpha_schema.app_launcher_user_1_streamlit.
+CREATE OR REPLACE STREAMLIT group_alpha_schema.app_launcher_user_1_streamlit
+  FROM @app_launcher_db.general_schema.general_stage
+  MAIN_FILE = 'launcher.py'
+  QUERY_WAREHOUSE = app_launcher_user_1_xs_warehouse
+  TITLE = 'App Launcher v2'
 
 -- Grant app_a_group_alpha_role privileges to see the database and schema.
 GRANT USAGE ON DATABASE app_launcher_db
@@ -594,3 +608,7 @@ GRANT MONITOR, OPERATE ON COMPUTE POOL data_manager_user_1_xs_compute_pool TO RO
 -- Allow the app user to see and operate the service.
 GRANT MONITOR, OPERATE ON SERVICE group_alpha_schema.data_manager_user_1_service TO ROLE data_apps_user_1_role;
 ---------------- End database data_manager_db. -----------------------------------------------
+
+
+-- Assign the apps user role to the user.
+GRANT ROLE data_apps_user_1_role TO USER user_1;
