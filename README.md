@@ -1,5 +1,9 @@
 # Full Stack MAWA
 
+## To-do
+
+* Add instructions for setting up the data manager once we've created it.
+
 ## General how-to
 
 ### 1. Modify the codebase
@@ -67,7 +71,9 @@ In general, in this section below, make the following sample substitutions, incl
   * `App A` --> `Multiplex Analysis Web Apps`
   * `user_1` --> `andrewweisman`
 
-Push the frontend image to Snowflake. Note that `deploy/snowflake/deploy.sql` must be stepped through the step of creating the Snowflake image repositories (which is marked in the script). Also, if the Snowflake deployment changes, we need to use its name in place of `nihnci-eval`:
+In addition, ensure you have stepped through enough of `deploy/snowflake/deploy.sql` for the relevant parts of these instructions. E.g., ensure you have gotten to the step of creating an image repository before you upload an image to the image repository below. Notes to execute the following are directly noted in the `deploy/snowflake/deploy.sql` script, so if you start stepping through that script, you can just reference the details below when you get there. I.e., you should be jumping back and forth between `deploy/snowflake/deploy.sql` and the instructions in this section.
+
+Push the frontend image to Snowflake. Note that if the Snowflake deployment changes, we need to use its name in place of `nihnci-eval`:
 
 ```bash
 IMAGE_TAG=2025-10-24-v03-gmb-earliest
@@ -86,6 +92,8 @@ snow sql --connection eval3 --role accountadmin  # Works for Andrew since he has
 > PUT file://deploy/snowflake/worker_service_spec.yaml @app_a_app_db.general_schema.general_stage;
 > PUT file://deploy/snowflake/launcher.py @app_launcher_db.general_schema.general_stage;
 ```
+
+Step through `deploy/snowflake/deploy.sql`.
 
 ## Additional notes
 
@@ -169,6 +177,16 @@ Did similar dependency resolution for Ana's last archive. Now have three differe
 * At some point we want to implement multi-arch builds using `docker buildx`.
 * Asynchronous execution is not yet implemented. For guidance, see `generate_results.py`.
 
+### How to add a new deployment in general, e.g., Snowflake
+
+1. Add setup `deploy.sql` script `deploy/snowflake`.
+1. Add orchestration functionality (`source/framework/snowflake_orchestrator.py`) to mimic that in `docker_orchestrator/main.py`.
+    * If the orchestrator is not a separate container (like `snowflake_orchestrator.py`), it should be treated as such to preserve modularity. E.g., no usage of global variables such as via `streamlit` or `os.getenv()`.
+1. Add "snowflake" branches in `platform_abstraction.py`.
+1. Step through lines in the setup `deploy.sql` script in `deploy/snowflake`.
+
+Note that the only existing code that is modified is `platform_abstraction.py`.
+
 ### Links
 
 * [Codebase](https://github.com/ncats/multiplex-analysis-web-apps/tree/full-stack)
@@ -180,8 +198,8 @@ Did similar dependency resolution for Ana's last archive. Now have three differe
 
 Containers in the app:
 
-![alt text](app_containers.png)
+![alt text](./images/app_containers.png)
 
 Here is the ideal organization scheme for the app:
 
-![alt text](ideal_organization_scheme.png)
+![alt text](./images/ideal_organization_scheme.png)
