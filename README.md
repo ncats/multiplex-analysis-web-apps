@@ -50,7 +50,7 @@ docker tag orchestrator:$IMAGE_TAG andrewweisman/mawa-orchestrator:$IMAGE_TAG &&
 docker tag frontend:$IMAGE_TAG andrewweisman/mawa-frontend:$IMAGE_TAG && docker push andrewweisman/mawa-frontend:$IMAGE_TAG
 ```
 
-The images in this example are located at https://hub.docker.com/repositories/andrewweisman.
+The images in this example are located at https://hub.docker.com/u/andrewweisman.
 
 ### 7. Update the image metadata table
 
@@ -69,7 +69,9 @@ In general, in this section below, make the following sample substitutions, incl
   * `group_alpha` --> `cil`
   * `app_a` --> `mawa`
   * `App A` --> `Multiplex Analysis Web Apps`
-  * `user_1` --> `andrewweisman`
+  * `user_1` --> `aweisman`
+
+`user_1` can become anything; it does not need to match the Snowflake username. All that matters is that the username match what is in the `user_groups` table and the real Snowflake username is used at the botton of `deploy.sql`. **To keep this ID short (since there is an object character limit), we should use the format `<first-initial><last-name>`, e.g., `aweisman`.** This means that the combination of the app shortname and username (including a connecting underscore) should be at most 23 characters long since the object name can be no more than 63 characters: `XXXXX_YYYYYYYYYYYYYYYYY_frontend_28vcpu_240gib_19x_compute_pool`.
 
 In addition, ensure you have stepped through enough of `deploy/snowflake/deploy.sql` for the relevant parts of these instructions. E.g., ensure you have gotten to the step of creating an image repository before you upload an image to the image repository below. Notes to execute the following are directly noted in the `deploy/snowflake/deploy.sql` script, so if you start stepping through that script, you can just reference the details below when you get there. I.e., you should be jumping back and forth between `deploy/snowflake/deploy.sql` and the instructions in this section.
 
@@ -82,7 +84,7 @@ snow spcs image-registry login --role accountadmin
 docker push nihnci-eval.registry.snowflakecomputing.com/app_a_app_db/general_schema/image_repository/mawa-frontend:$IMAGE_TAG
 ```
 
-Update the tables `app_a_app_db.general_schema.image_metadata_table` and `app_a_app_db.general_schema.image_metadata_table` as we do locally (above).
+Update the tables `app_a_app_db.general_schema.image_metadata_table` and `common_db.admin_schema.user_groups_table` as we do locally (above). Note that for the latter table, you should use the same as you use for `user_1`, which again can be anything.
 
 Push required files to the relevant stages from the GitHub clone:
 

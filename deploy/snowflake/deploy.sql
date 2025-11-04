@@ -200,50 +200,53 @@ CREATE WAREHOUSE IF NOT EXISTS app_a_user_1_xs_warehouse
   AUTO_RESUME = TRUE
   INITIALLY_SUSPENDED = TRUE;
 
+-- Do this because creating a warehouse such as above switches to that warehouse at least in the Snowflake VS Code extension.
+use warehouse setup_xs_warehouse;
+
 -- Potential frontend compute pools.
-CREATE COMPUTE POOL IF NOT EXISTS app_a_user_1_frontend_CPU_X64_XS_1vcpu_6gib_1x_compute_pool
+CREATE COMPUTE POOL IF NOT EXISTS app_a_user_1_frontend_1vcpu_6gib_1x_compute_pool
     MIN_NODES = 1
     MAX_NODES = 1
     INSTANCE_FAMILY = CPU_X64_XS
     AUTO_RESUME = TRUE
     INITIALLY_SUSPENDED = TRUE
     AUTO_SUSPEND_SECS = 600;
-CREATE COMPUTE POOL IF NOT EXISTS app_a_user_1_frontend_CPU_X64_S_3vcpu_13gib_2x_compute_pool
+CREATE COMPUTE POOL IF NOT EXISTS app_a_user_1_frontend_3vcpu_13gib_2x_compute_pool
     MIN_NODES = 1
     MAX_NODES = 1
     INSTANCE_FAMILY = CPU_X64_S
     AUTO_RESUME = TRUE
     INITIALLY_SUSPENDED = TRUE
     AUTO_SUSPEND_SECS = 600;
-CREATE COMPUTE POOL IF NOT EXISTS app_a_user_1_frontend_CPU_X64_M_6vcpu_28gib_4x_compute_pool
+CREATE COMPUTE POOL IF NOT EXISTS app_a_user_1_frontend_6vcpu_28gib_4x_compute_pool
     MIN_NODES = 1
     MAX_NODES = 1
     INSTANCE_FAMILY = CPU_X64_M
     AUTO_RESUME = TRUE
     INITIALLY_SUSPENDED = TRUE
     AUTO_SUSPEND_SECS = 600;
-CREATE COMPUTE POOL IF NOT EXISTS app_a_user_1_frontend_HIGHMEM_X64_S_6vcpu_58gib_5x_compute_pool
+CREATE COMPUTE POOL IF NOT EXISTS app_a_user_1_frontend_6vcpu_58gib_5x_compute_pool
     MIN_NODES = 1
     MAX_NODES = 1
     INSTANCE_FAMILY = HIGHMEM_X64_S
     AUTO_RESUME = TRUE
     INITIALLY_SUSPENDED = TRUE
     AUTO_SUSPEND_SECS = 600;
-CREATE COMPUTE POOL IF NOT EXISTS app_a_user_1_frontend_CPU_X64_SL_14vcpu_58gib_7x_compute_pool
+CREATE COMPUTE POOL IF NOT EXISTS app_a_user_1_frontend_14vcpu_58gib_7x_compute_pool
     MIN_NODES = 1
     MAX_NODES = 1
     INSTANCE_FAMILY = CPU_X64_SL
     AUTO_RESUME = TRUE
     INITIALLY_SUSPENDED = TRUE
     AUTO_SUSPEND_SECS = 600;
-CREATE COMPUTE POOL IF NOT EXISTS app_a_user_1_frontend_CPU_X64_L_28vcpu_116gib_14x_compute_pool
+CREATE COMPUTE POOL IF NOT EXISTS app_a_user_1_frontend_28vcpu_116gib_14x_compute_pool
     MIN_NODES = 1
     MAX_NODES = 1
     INSTANCE_FAMILY = CPU_X64_L
     AUTO_RESUME = TRUE
     INITIALLY_SUSPENDED = TRUE
     AUTO_SUSPEND_SECS = 600;
-CREATE COMPUTE POOL IF NOT EXISTS app_a_user_1_frontend_HIGHMEM_X64_M_28vcpu_240gib_19x_compute_pool
+CREATE COMPUTE POOL IF NOT EXISTS app_a_user_1_frontend_28vcpu_240gib_19x_compute_pool
     MIN_NODES = 1
     MAX_NODES = 1
     INSTANCE_FAMILY = HIGHMEM_X64_M
@@ -252,49 +255,49 @@ CREATE COMPUTE POOL IF NOT EXISTS app_a_user_1_frontend_HIGHMEM_X64_M_28vcpu_240
     AUTO_SUSPEND_SECS = 600;
 
 -- Potential worker compute pools.
-CREATE COMPUTE POOL IF NOT EXISTS app_a_user_1_workers_CPU_X64_XS_1vcpu_6gib_1x_compute_pool
+CREATE COMPUTE POOL IF NOT EXISTS app_a_user_1_workers_1vcpu_6gib_1x_compute_pool
     MIN_NODES = 1
     MAX_NODES = 5
     INSTANCE_FAMILY = CPU_X64_XS
     AUTO_RESUME = TRUE
     INITIALLY_SUSPENDED = TRUE
     AUTO_SUSPEND_SECS = 600;
-CREATE COMPUTE POOL IF NOT EXISTS app_a_user_1_workers_CPU_X64_S_3vcpu_13gib_2x_compute_pool
+CREATE COMPUTE POOL IF NOT EXISTS app_a_user_1_workers_3vcpu_13gib_2x_compute_pool
     MIN_NODES = 1
     MAX_NODES = 5
     INSTANCE_FAMILY = CPU_X64_S
     AUTO_RESUME = TRUE
     INITIALLY_SUSPENDED = TRUE
     AUTO_SUSPEND_SECS = 600;
-CREATE COMPUTE POOL IF NOT EXISTS app_a_user_1_workers_CPU_X64_M_6vcpu_28gib_4x_compute_pool
+CREATE COMPUTE POOL IF NOT EXISTS app_a_user_1_workers_6vcpu_28gib_4x_compute_pool
     MIN_NODES = 1
     MAX_NODES = 5
     INSTANCE_FAMILY = CPU_X64_M
     AUTO_RESUME = TRUE
     INITIALLY_SUSPENDED = TRUE
     AUTO_SUSPEND_SECS = 600;
-CREATE COMPUTE POOL IF NOT EXISTS app_a_user_1_workers_HIGHMEM_X64_S_6vcpu_58gib_5x_compute_pool
+CREATE COMPUTE POOL IF NOT EXISTS app_a_user_1_workers_6vcpu_58gib_5x_compute_pool
     MIN_NODES = 1
     MAX_NODES = 5
     INSTANCE_FAMILY = HIGHMEM_X64_S
     AUTO_RESUME = TRUE
     INITIALLY_SUSPENDED = TRUE
     AUTO_SUSPEND_SECS = 600;
-CREATE COMPUTE POOL IF NOT EXISTS app_a_user_1_workers_CPU_X64_SL_14vcpu_58gib_7x_compute_pool
+CREATE COMPUTE POOL IF NOT EXISTS app_a_user_1_workers_14vcpu_58gib_7x_compute_pool
     MIN_NODES = 1
     MAX_NODES = 5
     INSTANCE_FAMILY = CPU_X64_SL
     AUTO_RESUME = TRUE
     INITIALLY_SUSPENDED = TRUE
     AUTO_SUSPEND_SECS = 600;
-CREATE COMPUTE POOL IF NOT EXISTS app_a_user_1_workers_CPU_X64_L_28vcpu_116gib_14x_compute_pool
+CREATE COMPUTE POOL IF NOT EXISTS app_a_user_1_workers_28vcpu_116gib_14x_compute_pool
     MIN_NODES = 1
     MAX_NODES = 5
     INSTANCE_FAMILY = CPU_X64_L
     AUTO_RESUME = TRUE
     INITIALLY_SUSPENDED = TRUE
     AUTO_SUSPEND_SECS = 600;
-CREATE COMPUTE POOL IF NOT EXISTS app_a_user_1_workers_HIGHMEM_X64_M_28vcpu_240gib_19x_compute_pool
+CREATE COMPUTE POOL IF NOT EXISTS app_a_user_1_workers_28vcpu_240gib_19x_compute_pool
     MIN_NODES = 1
     MAX_NODES = 5
     INSTANCE_FAMILY = HIGHMEM_X64_M
@@ -304,88 +307,88 @@ CREATE COMPUTE POOL IF NOT EXISTS app_a_user_1_workers_HIGHMEM_X64_M_28vcpu_240g
 
 -- Create the seven services, one with each set of compute resources.
 -- CPU_X64_XS_1vcpu_6gib_1x
-DROP SERVICE IF EXISTS group_alpha_schema.app_a_user_1_frontend_CPU_X64_XS_1vcpu_6gib_1x_service;
-CREATE SERVICE group_alpha_schema.app_a_user_1_frontend_CPU_X64_XS_1vcpu_6gib_1x_service
-  IN COMPUTE POOL app_a_user_1_frontend_CPU_X64_XS_1vcpu_6gib_1x_compute_pool
+DROP SERVICE IF EXISTS group_alpha_schema.app_a_user_1_frontend_1vcpu_6gib_1x_service;
+CREATE SERVICE group_alpha_schema.app_a_user_1_frontend_1vcpu_6gib_1x_service
+  IN COMPUTE POOL app_a_user_1_frontend_1vcpu_6gib_1x_compute_pool
   FROM @app_a_app_db.general_schema.general_stage SPECIFICATION_TEMPLATE_FILE='frontend_service_spec.yaml'
   USING ( APP_SHORTNAME=>'app_a', IMAGE_NAME=>'frontend', IMAGE_TAG=>'latest', REQUESTS_MEMORY_GI=>6, REQUESTS_CPU=>1, LIMITS_MEMORY_GI=>6, LIMITS_CPU=>1, APP_TITLE=>'App A', MONITOR_JOBS_REFRESH_INTERVAL_SECONDS=>5, SNOWFLAKE_USER=>'user_1', COMPUTE_RESOURCE=>'CPU_X64_XS_1vcpu_6gib_1x', WAREHOUSE_SIZE=>'xs', ALL_COMPUTE_RESOURCES=>'CPU_X64_XS_1vcpu_6gib_1x CPU_X64_S_3vcpu_13gib_2x CPU_X64_M_6vcpu_28gib_4x HIGHMEM_X64_S_6vcpu_58gib_5x CPU_X64_SL_14vcpu_58gib_7x CPU_X64_L_28vcpu_116gib_14x HIGHMEM_X64_M_28vcpu_240gib_19x' )
   AUTO_RESUME = FALSE
   MIN_INSTANCES = 1
   MAX_INSTANCES = 1;
-alter service group_alpha_schema.app_a_user_1_frontend_CPU_X64_XS_1vcpu_6gib_1x_service suspend;
-alter compute pool app_a_user_1_frontend_CPU_X64_XS_1vcpu_6gib_1x_compute_pool suspend;
+alter service group_alpha_schema.app_a_user_1_frontend_1vcpu_6gib_1x_service suspend;
+alter compute pool app_a_user_1_frontend_1vcpu_6gib_1x_compute_pool suspend;
 
 -- CPU_X64_S_3vcpu_13gib_2x
-DROP SERVICE IF EXISTS group_alpha_schema.app_a_user_1_frontend_CPU_X64_S_3vcpu_13gib_2x_service;
-CREATE SERVICE group_alpha_schema.app_a_user_1_frontend_CPU_X64_S_3vcpu_13gib_2x_service
-  IN COMPUTE POOL app_a_user_1_frontend_CPU_X64_S_3vcpu_13gib_2x_compute_pool
+DROP SERVICE IF EXISTS group_alpha_schema.app_a_user_1_frontend_3vcpu_13gib_2x_service;
+CREATE SERVICE group_alpha_schema.app_a_user_1_frontend_3vcpu_13gib_2x_service
+  IN COMPUTE POOL app_a_user_1_frontend_3vcpu_13gib_2x_compute_pool
   FROM @app_a_app_db.general_schema.general_stage SPECIFICATION_TEMPLATE_FILE='frontend_service_spec.yaml'
   USING ( APP_SHORTNAME=>'app_a', IMAGE_NAME=>'frontend', IMAGE_TAG=>'latest', REQUESTS_MEMORY_GI=>13, REQUESTS_CPU=>3, LIMITS_MEMORY_GI=>13, LIMITS_CPU=>3, APP_TITLE=>'App A', MONITOR_JOBS_REFRESH_INTERVAL_SECONDS=>5, SNOWFLAKE_USER=>'user_1', COMPUTE_RESOURCE=>'CPU_X64_S_3vcpu_13gib_2x', WAREHOUSE_SIZE=>'xs', ALL_COMPUTE_RESOURCES=>'CPU_X64_XS_1vcpu_6gib_1x CPU_X64_S_3vcpu_13gib_2x CPU_X64_M_6vcpu_28gib_4x HIGHMEM_X64_S_6vcpu_58gib_5x CPU_X64_SL_14vcpu_58gib_7x CPU_X64_L_28vcpu_116gib_14x HIGHMEM_X64_M_28vcpu_240gib_19x' )
   AUTO_RESUME = FALSE
   MIN_INSTANCES = 1
   MAX_INSTANCES = 1;
-alter service group_alpha_schema.app_a_user_1_frontend_CPU_X64_S_3vcpu_13gib_2x_service suspend;
-alter compute pool app_a_user_1_frontend_CPU_X64_S_3vcpu_13gib_2x_compute_pool suspend;
+alter service group_alpha_schema.app_a_user_1_frontend_3vcpu_13gib_2x_service suspend;
+alter compute pool app_a_user_1_frontend_3vcpu_13gib_2x_compute_pool suspend;
 
 -- CPU_X64_M_6vcpu_28gib_4x
-DROP SERVICE IF EXISTS group_alpha_schema.app_a_user_1_frontend_CPU_X64_M_6vcpu_28gib_4x_service;
-CREATE SERVICE group_alpha_schema.app_a_user_1_frontend_CPU_X64_M_6vcpu_28gib_4x_service
-  IN COMPUTE POOL app_a_user_1_frontend_CPU_X64_M_6vcpu_28gib_4x_compute_pool
+DROP SERVICE IF EXISTS group_alpha_schema.app_a_user_1_frontend_6vcpu_28gib_4x_service;
+CREATE SERVICE group_alpha_schema.app_a_user_1_frontend_6vcpu_28gib_4x_service
+  IN COMPUTE POOL app_a_user_1_frontend_6vcpu_28gib_4x_compute_pool
   FROM @app_a_app_db.general_schema.general_stage SPECIFICATION_TEMPLATE_FILE='frontend_service_spec.yaml'
   USING ( APP_SHORTNAME=>'app_a', IMAGE_NAME=>'frontend', IMAGE_TAG=>'latest', REQUESTS_MEMORY_GI=>28, REQUESTS_CPU=>6, LIMITS_MEMORY_GI=>28, LIMITS_CPU=>6, APP_TITLE=>'App A', MONITOR_JOBS_REFRESH_INTERVAL_SECONDS=>5, SNOWFLAKE_USER=>'user_1', COMPUTE_RESOURCE=>'CPU_X64_M_6vcpu_28gib_4x', WAREHOUSE_SIZE=>'xs', ALL_COMPUTE_RESOURCES=>'CPU_X64_XS_1vcpu_6gib_1x CPU_X64_S_3vcpu_13gib_2x CPU_X64_M_6vcpu_28gib_4x HIGHMEM_X64_S_6vcpu_58gib_5x CPU_X64_SL_14vcpu_58gib_7x CPU_X64_L_28vcpu_116gib_14x HIGHMEM_X64_M_28vcpu_240gib_19x' )
   AUTO_RESUME = FALSE
   MIN_INSTANCES = 1
   MAX_INSTANCES = 1;
-alter service group_alpha_schema.app_a_user_1_frontend_CPU_X64_M_6vcpu_28gib_4x_service suspend;
-alter compute pool app_a_user_1_frontend_CPU_X64_M_6vcpu_28gib_4x_compute_pool suspend;
+alter service group_alpha_schema.app_a_user_1_frontend_6vcpu_28gib_4x_service suspend;
+alter compute pool app_a_user_1_frontend_6vcpu_28gib_4x_compute_pool suspend;
 
 -- HIGHMEM_X64_S_6vcpu_58gib_5x
-DROP SERVICE IF EXISTS group_alpha_schema.app_a_user_1_frontend_HIGHMEM_X64_S_6vcpu_58gib_5x_service;
-CREATE SERVICE group_alpha_schema.app_a_user_1_frontend_HIGHMEM_X64_S_6vcpu_58gib_5x_service
-  IN COMPUTE POOL app_a_user_1_frontend_HIGHMEM_X64_S_6vcpu_58gib_5x_compute_pool
+DROP SERVICE IF EXISTS group_alpha_schema.app_a_user_1_frontend_6vcpu_58gib_5x_service;
+CREATE SERVICE group_alpha_schema.app_a_user_1_frontend_6vcpu_58gib_5x_service
+  IN COMPUTE POOL app_a_user_1_frontend_6vcpu_58gib_5x_compute_pool
   FROM @app_a_app_db.general_schema.general_stage SPECIFICATION_TEMPLATE_FILE='frontend_service_spec.yaml'
   USING ( APP_SHORTNAME=>'app_a', IMAGE_NAME=>'frontend', IMAGE_TAG=>'latest', REQUESTS_MEMORY_GI=>58, REQUESTS_CPU=>6, LIMITS_MEMORY_GI=>58, LIMITS_CPU=>6, APP_TITLE=>'App A', MONITOR_JOBS_REFRESH_INTERVAL_SECONDS=>5, SNOWFLAKE_USER=>'user_1', COMPUTE_RESOURCE=>'HIGHMEM_X64_S_6vcpu_58gib_5x', WAREHOUSE_SIZE=>'xs', ALL_COMPUTE_RESOURCES=>'CPU_X64_XS_1vcpu_6gib_1x CPU_X64_S_3vcpu_13gib_2x CPU_X64_M_6vcpu_28gib_4x HIGHMEM_X64_S_6vcpu_58gib_5x CPU_X64_SL_14vcpu_58gib_7x CPU_X64_L_28vcpu_116gib_14x HIGHMEM_X64_M_28vcpu_240gib_19x' )
   AUTO_RESUME = FALSE
   MIN_INSTANCES = 1
   MAX_INSTANCES = 1;
-alter service group_alpha_schema.app_a_user_1_frontend_HIGHMEM_X64_S_6vcpu_58gib_5x_service suspend;
-alter compute pool app_a_user_1_frontend_HIGHMEM_X64_S_6vcpu_58gib_5x_compute_pool suspend;
+alter service group_alpha_schema.app_a_user_1_frontend_6vcpu_58gib_5x_service suspend;
+alter compute pool app_a_user_1_frontend_6vcpu_58gib_5x_compute_pool suspend;
 
 -- CPU_X64_SL_14vcpu_58gib_7x
-DROP SERVICE IF EXISTS group_alpha_schema.app_a_user_1_frontend_CPU_X64_SL_14vcpu_58gib_7x_service;
-CREATE SERVICE group_alpha_schema.app_a_user_1_frontend_CPU_X64_SL_14vcpu_58gib_7x_service
-  IN COMPUTE POOL app_a_user_1_frontend_CPU_X64_SL_14vcpu_58gib_7x_compute_pool
+DROP SERVICE IF EXISTS group_alpha_schema.app_a_user_1_frontend_14vcpu_58gib_7x_service;
+CREATE SERVICE group_alpha_schema.app_a_user_1_frontend_14vcpu_58gib_7x_service
+  IN COMPUTE POOL app_a_user_1_frontend_14vcpu_58gib_7x_compute_pool
   FROM @app_a_app_db.general_schema.general_stage SPECIFICATION_TEMPLATE_FILE='frontend_service_spec.yaml'
   USING ( APP_SHORTNAME=>'app_a', IMAGE_NAME=>'frontend', IMAGE_TAG=>'latest', REQUESTS_MEMORY_GI=>58, REQUESTS_CPU=>14, LIMITS_MEMORY_GI=>58, LIMITS_CPU=>14, APP_TITLE=>'App A', MONITOR_JOBS_REFRESH_INTERVAL_SECONDS=>5, SNOWFLAKE_USER=>'user_1', COMPUTE_RESOURCE=>'CPU_X64_SL_14vcpu_58gib_7x', WAREHOUSE_SIZE=>'xs', ALL_COMPUTE_RESOURCES=>'CPU_X64_XS_1vcpu_6gib_1x CPU_X64_S_3vcpu_13gib_2x CPU_X64_M_6vcpu_28gib_4x HIGHMEM_X64_S_6vcpu_58gib_5x CPU_X64_SL_14vcpu_58gib_7x CPU_X64_L_28vcpu_116gib_14x HIGHMEM_X64_M_28vcpu_240gib_19x' )
   AUTO_RESUME = FALSE
   MIN_INSTANCES = 1
   MAX_INSTANCES = 1;
-alter service group_alpha_schema.app_a_user_1_frontend_CPU_X64_SL_14vcpu_58gib_7x_service suspend;
-alter compute pool app_a_user_1_frontend_CPU_X64_SL_14vcpu_58gib_7x_compute_pool suspend;
+alter service group_alpha_schema.app_a_user_1_frontend_14vcpu_58gib_7x_service suspend;
+alter compute pool app_a_user_1_frontend_14vcpu_58gib_7x_compute_pool suspend;
 
 -- CPU_X64_L_28vcpu_116gib_14x
-DROP SERVICE IF EXISTS group_alpha_schema.app_a_user_1_frontend_CPU_X64_L_28vcpu_116gib_14x_service;
-CREATE SERVICE group_alpha_schema.app_a_user_1_frontend_CPU_X64_L_28vcpu_116gib_14x_service
-  IN COMPUTE POOL app_a_user_1_frontend_CPU_X64_L_28vcpu_116gib_14x_compute_pool
+DROP SERVICE IF EXISTS group_alpha_schema.app_a_user_1_frontend_28vcpu_116gib_14x_service;
+CREATE SERVICE group_alpha_schema.app_a_user_1_frontend_28vcpu_116gib_14x_service
+  IN COMPUTE POOL app_a_user_1_frontend_28vcpu_116gib_14x_compute_pool
   FROM @app_a_app_db.general_schema.general_stage SPECIFICATION_TEMPLATE_FILE='frontend_service_spec.yaml'
   USING ( APP_SHORTNAME=>'app_a', IMAGE_NAME=>'frontend', IMAGE_TAG=>'latest', REQUESTS_MEMORY_GI=>116, REQUESTS_CPU=>28, LIMITS_MEMORY_GI=>116, LIMITS_CPU=>28, APP_TITLE=>'App A', MONITOR_JOBS_REFRESH_INTERVAL_SECONDS=>5, SNOWFLAKE_USER=>'user_1', COMPUTE_RESOURCE=>'CPU_X64_L_28vcpu_116gib_14x', WAREHOUSE_SIZE=>'xs', ALL_COMPUTE_RESOURCES=>'CPU_X64_XS_1vcpu_6gib_1x CPU_X64_S_3vcpu_13gib_2x CPU_X64_M_6vcpu_28gib_4x HIGHMEM_X64_S_6vcpu_58gib_5x CPU_X64_SL_14vcpu_58gib_7x CPU_X64_L_28vcpu_116gib_14x HIGHMEM_X64_M_28vcpu_240gib_19x' )
   AUTO_RESUME = FALSE
   MIN_INSTANCES = 1
   MAX_INSTANCES = 1;
-alter service group_alpha_schema.app_a_user_1_frontend_CPU_X64_L_28vcpu_116gib_14x_service suspend;
-alter compute pool app_a_user_1_frontend_CPU_X64_L_28vcpu_116gib_14x_compute_pool suspend;
+alter service group_alpha_schema.app_a_user_1_frontend_28vcpu_116gib_14x_service suspend;
+alter compute pool app_a_user_1_frontend_28vcpu_116gib_14x_compute_pool suspend;
 
 -- HIGHMEM_X64_M_28vcpu_240gib_19x
-DROP SERVICE IF EXISTS group_alpha_schema.app_a_user_1_frontend_HIGHMEM_X64_M_28vcpu_240gib_19x_service;
-CREATE SERVICE group_alpha_schema.app_a_user_1_frontend_HIGHMEM_X64_M_28vcpu_240gib_19x_service
-  IN COMPUTE POOL app_a_user_1_frontend_HIGHMEM_X64_M_28vcpu_240gib_19x_compute_pool
+DROP SERVICE IF EXISTS group_alpha_schema.app_a_user_1_frontend_28vcpu_240gib_19x_service;
+CREATE SERVICE group_alpha_schema.app_a_user_1_frontend_28vcpu_240gib_19x_service
+  IN COMPUTE POOL app_a_user_1_frontend_28vcpu_240gib_19x_compute_pool
   FROM @app_a_app_db.general_schema.general_stage SPECIFICATION_TEMPLATE_FILE='frontend_service_spec.yaml'
   USING ( APP_SHORTNAME=>'app_a', IMAGE_NAME=>'frontend', IMAGE_TAG=>'latest', REQUESTS_MEMORY_GI=>240, REQUESTS_CPU=>28, LIMITS_MEMORY_GI=>240, LIMITS_CPU=>28, APP_TITLE=>'App A', MONITOR_JOBS_REFRESH_INTERVAL_SECONDS=>5, SNOWFLAKE_USER=>'user_1', COMPUTE_RESOURCE=>'HIGHMEM_X64_M_28vcpu_240gib_19x', WAREHOUSE_SIZE=>'xs', ALL_COMPUTE_RESOURCES=>'CPU_X64_XS_1vcpu_6gib_1x CPU_X64_S_3vcpu_13gib_2x CPU_X64_M_6vcpu_28gib_4x HIGHMEM_X64_S_6vcpu_58gib_5x CPU_X64_SL_14vcpu_58gib_7x CPU_X64_L_28vcpu_116gib_14x HIGHMEM_X64_M_28vcpu_240gib_19x' )
   AUTO_RESUME = FALSE
   MIN_INSTANCES = 1
   MAX_INSTANCES = 1;
-alter service group_alpha_schema.app_a_user_1_frontend_HIGHMEM_X64_M_28vcpu_240gib_19x_service suspend;
-alter compute pool app_a_user_1_frontend_HIGHMEM_X64_M_28vcpu_240gib_19x_compute_pool suspend;
+alter service group_alpha_schema.app_a_user_1_frontend_28vcpu_240gib_19x_service suspend;
+alter compute pool app_a_user_1_frontend_28vcpu_240gib_19x_compute_pool suspend;
 
 -- Grant app_a_group_alpha_role privileges to see the database and schema.
 GRANT USAGE ON DATABASE app_a_app_db
@@ -413,13 +416,13 @@ GRANT USAGE ON SCHEMA group_alpha_schema TO ROLE data_apps_user_1_role;
 -- GRANT BIND SERVICE ENDPOINT ON ACCOUNT TO ROLE app_a_group_alpha_role;
 
 -- Change the owner of the apps to the service role app_a_group_alpha_role.
-GRANT OWNERSHIP ON SERVICE group_alpha_schema.app_a_user_1_frontend_CPU_X64_XS_1vcpu_6gib_1x_service TO ROLE app_a_group_alpha_role COPY CURRENT GRANTS;
-GRANT OWNERSHIP ON SERVICE group_alpha_schema.app_a_user_1_frontend_CPU_X64_S_3vcpu_13gib_2x_service TO ROLE app_a_group_alpha_role COPY CURRENT GRANTS;
-GRANT OWNERSHIP ON SERVICE group_alpha_schema.app_a_user_1_frontend_CPU_X64_M_6vcpu_28gib_4x_service TO ROLE app_a_group_alpha_role COPY CURRENT GRANTS;
-GRANT OWNERSHIP ON SERVICE group_alpha_schema.app_a_user_1_frontend_HIGHMEM_X64_S_6vcpu_58gib_5x_service TO ROLE app_a_group_alpha_role COPY CURRENT GRANTS;
-GRANT OWNERSHIP ON SERVICE group_alpha_schema.app_a_user_1_frontend_CPU_X64_SL_14vcpu_58gib_7x_service TO ROLE app_a_group_alpha_role COPY CURRENT GRANTS;
-GRANT OWNERSHIP ON SERVICE group_alpha_schema.app_a_user_1_frontend_CPU_X64_L_28vcpu_116gib_14x_service TO ROLE app_a_group_alpha_role COPY CURRENT GRANTS;
-GRANT OWNERSHIP ON SERVICE group_alpha_schema.app_a_user_1_frontend_HIGHMEM_X64_M_28vcpu_240gib_19x_service TO ROLE app_a_group_alpha_role COPY CURRENT GRANTS;
+GRANT OWNERSHIP ON SERVICE group_alpha_schema.app_a_user_1_frontend_1vcpu_6gib_1x_service TO ROLE app_a_group_alpha_role COPY CURRENT GRANTS;
+GRANT OWNERSHIP ON SERVICE group_alpha_schema.app_a_user_1_frontend_3vcpu_13gib_2x_service TO ROLE app_a_group_alpha_role COPY CURRENT GRANTS;
+GRANT OWNERSHIP ON SERVICE group_alpha_schema.app_a_user_1_frontend_6vcpu_28gib_4x_service TO ROLE app_a_group_alpha_role COPY CURRENT GRANTS;
+GRANT OWNERSHIP ON SERVICE group_alpha_schema.app_a_user_1_frontend_6vcpu_58gib_5x_service TO ROLE app_a_group_alpha_role COPY CURRENT GRANTS;
+GRANT OWNERSHIP ON SERVICE group_alpha_schema.app_a_user_1_frontend_14vcpu_58gib_7x_service TO ROLE app_a_group_alpha_role COPY CURRENT GRANTS;
+GRANT OWNERSHIP ON SERVICE group_alpha_schema.app_a_user_1_frontend_28vcpu_116gib_14x_service TO ROLE app_a_group_alpha_role COPY CURRENT GRANTS;
+GRANT OWNERSHIP ON SERVICE group_alpha_schema.app_a_user_1_frontend_28vcpu_240gib_19x_service TO ROLE app_a_group_alpha_role COPY CURRENT GRANTS;
 
 -- Give this account role the appropriate database roles.
 grant database role group_alpha_group_db.app_a_schema_rw_db_role to role app_a_group_alpha_role;
@@ -433,55 +436,55 @@ grant database role common_db.admin_schema_ro_db_role to role data_apps_user_1_r
 
 -- Grant access to using the compute resources for the actual "service" role app_a_group_alpha_role.
 GRANT USAGE ON WAREHOUSE app_a_user_1_xs_warehouse TO ROLE app_a_group_alpha_role;
-GRANT USAGE, OPERATE ON COMPUTE POOL app_a_user_1_frontend_CPU_X64_XS_1vcpu_6gib_1x_compute_pool TO ROLE app_a_group_alpha_role;
-GRANT USAGE, OPERATE ON COMPUTE POOL app_a_user_1_frontend_CPU_X64_S_3vcpu_13gib_2x_compute_pool TO ROLE app_a_group_alpha_role;
-GRANT USAGE, OPERATE ON COMPUTE POOL app_a_user_1_frontend_CPU_X64_M_6vcpu_28gib_4x_compute_pool TO ROLE app_a_group_alpha_role;
-GRANT USAGE, OPERATE ON COMPUTE POOL app_a_user_1_frontend_HIGHMEM_X64_S_6vcpu_58gib_5x_compute_pool TO ROLE app_a_group_alpha_role;
-GRANT USAGE, OPERATE ON COMPUTE POOL app_a_user_1_frontend_CPU_X64_SL_14vcpu_58gib_7x_compute_pool TO ROLE app_a_group_alpha_role;
-GRANT USAGE, OPERATE ON COMPUTE POOL app_a_user_1_frontend_CPU_X64_L_28vcpu_116gib_14x_compute_pool TO ROLE app_a_group_alpha_role;
-GRANT USAGE, OPERATE ON COMPUTE POOL app_a_user_1_frontend_HIGHMEM_X64_M_28vcpu_240gib_19x_compute_pool TO ROLE app_a_group_alpha_role;
-GRANT USAGE ON COMPUTE POOL app_a_user_1_workers_CPU_X64_XS_1vcpu_6gib_1x_compute_pool TO ROLE app_a_group_alpha_role;
-GRANT USAGE ON COMPUTE POOL app_a_user_1_workers_CPU_X64_S_3vcpu_13gib_2x_compute_pool TO ROLE app_a_group_alpha_role;
-GRANT USAGE ON COMPUTE POOL app_a_user_1_workers_CPU_X64_M_6vcpu_28gib_4x_compute_pool TO ROLE app_a_group_alpha_role;
-GRANT USAGE ON COMPUTE POOL app_a_user_1_workers_HIGHMEM_X64_S_6vcpu_58gib_5x_compute_pool TO ROLE app_a_group_alpha_role;
-GRANT USAGE ON COMPUTE POOL app_a_user_1_workers_CPU_X64_SL_14vcpu_58gib_7x_compute_pool TO ROLE app_a_group_alpha_role;
-GRANT USAGE ON COMPUTE POOL app_a_user_1_workers_CPU_X64_L_28vcpu_116gib_14x_compute_pool TO ROLE app_a_group_alpha_role;
-GRANT USAGE ON COMPUTE POOL app_a_user_1_workers_HIGHMEM_X64_M_28vcpu_240gib_19x_compute_pool TO ROLE app_a_group_alpha_role;
+GRANT USAGE, OPERATE ON COMPUTE POOL app_a_user_1_frontend_1vcpu_6gib_1x_compute_pool TO ROLE app_a_group_alpha_role;
+GRANT USAGE, OPERATE ON COMPUTE POOL app_a_user_1_frontend_3vcpu_13gib_2x_compute_pool TO ROLE app_a_group_alpha_role;
+GRANT USAGE, OPERATE ON COMPUTE POOL app_a_user_1_frontend_6vcpu_28gib_4x_compute_pool TO ROLE app_a_group_alpha_role;
+GRANT USAGE, OPERATE ON COMPUTE POOL app_a_user_1_frontend_6vcpu_58gib_5x_compute_pool TO ROLE app_a_group_alpha_role;
+GRANT USAGE, OPERATE ON COMPUTE POOL app_a_user_1_frontend_14vcpu_58gib_7x_compute_pool TO ROLE app_a_group_alpha_role;
+GRANT USAGE, OPERATE ON COMPUTE POOL app_a_user_1_frontend_28vcpu_116gib_14x_compute_pool TO ROLE app_a_group_alpha_role;
+GRANT USAGE, OPERATE ON COMPUTE POOL app_a_user_1_frontend_28vcpu_240gib_19x_compute_pool TO ROLE app_a_group_alpha_role;
+GRANT USAGE ON COMPUTE POOL app_a_user_1_workers_1vcpu_6gib_1x_compute_pool TO ROLE app_a_group_alpha_role;
+GRANT USAGE ON COMPUTE POOL app_a_user_1_workers_3vcpu_13gib_2x_compute_pool TO ROLE app_a_group_alpha_role;
+GRANT USAGE ON COMPUTE POOL app_a_user_1_workers_6vcpu_28gib_4x_compute_pool TO ROLE app_a_group_alpha_role;
+GRANT USAGE ON COMPUTE POOL app_a_user_1_workers_6vcpu_58gib_5x_compute_pool TO ROLE app_a_group_alpha_role;
+GRANT USAGE ON COMPUTE POOL app_a_user_1_workers_14vcpu_58gib_7x_compute_pool TO ROLE app_a_group_alpha_role;
+GRANT USAGE ON COMPUTE POOL app_a_user_1_workers_28vcpu_116gib_14x_compute_pool TO ROLE app_a_group_alpha_role;
+GRANT USAGE ON COMPUTE POOL app_a_user_1_workers_28vcpu_240gib_19x_compute_pool TO ROLE app_a_group_alpha_role;
 
 -- Grant monitor and operate on the compute resources to the user role data_apps_user_1_role so that users can monitor and operate the app.
 GRANT MONITOR, OPERATE ON WAREHOUSE app_a_user_1_xs_warehouse TO ROLE data_apps_user_1_role;
-GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_frontend_CPU_X64_XS_1vcpu_6gib_1x_compute_pool TO ROLE data_apps_user_1_role;
-GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_frontend_CPU_X64_S_3vcpu_13gib_2x_compute_pool TO ROLE data_apps_user_1_role;
-GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_frontend_CPU_X64_M_6vcpu_28gib_4x_compute_pool TO ROLE data_apps_user_1_role;
-GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_frontend_HIGHMEM_X64_S_6vcpu_58gib_5x_compute_pool TO ROLE data_apps_user_1_role;
-GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_frontend_CPU_X64_SL_14vcpu_58gib_7x_compute_pool TO ROLE data_apps_user_1_role;
-GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_frontend_CPU_X64_L_28vcpu_116gib_14x_compute_pool TO ROLE data_apps_user_1_role;
-GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_frontend_HIGHMEM_X64_M_28vcpu_240gib_19x_compute_pool TO ROLE data_apps_user_1_role;
-GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_CPU_X64_XS_1vcpu_6gib_1x_compute_pool TO ROLE data_apps_user_1_role;
-GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_CPU_X64_S_3vcpu_13gib_2x_compute_pool TO ROLE data_apps_user_1_role;
-GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_CPU_X64_M_6vcpu_28gib_4x_compute_pool TO ROLE data_apps_user_1_role;
-GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_HIGHMEM_X64_S_6vcpu_58gib_5x_compute_pool TO ROLE data_apps_user_1_role;
-GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_CPU_X64_SL_14vcpu_58gib_7x_compute_pool TO ROLE data_apps_user_1_role;
-GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_CPU_X64_L_28vcpu_116gib_14x_compute_pool TO ROLE data_apps_user_1_role;
-GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_HIGHMEM_X64_M_28vcpu_240gib_19x_compute_pool TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_frontend_1vcpu_6gib_1x_compute_pool TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_frontend_3vcpu_13gib_2x_compute_pool TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_frontend_6vcpu_28gib_4x_compute_pool TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_frontend_6vcpu_58gib_5x_compute_pool TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_frontend_14vcpu_58gib_7x_compute_pool TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_frontend_28vcpu_116gib_14x_compute_pool TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_frontend_28vcpu_240gib_19x_compute_pool TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_1vcpu_6gib_1x_compute_pool TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_3vcpu_13gib_2x_compute_pool TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_6vcpu_28gib_4x_compute_pool TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_6vcpu_58gib_5x_compute_pool TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_14vcpu_58gib_7x_compute_pool TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_28vcpu_116gib_14x_compute_pool TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_28vcpu_240gib_19x_compute_pool TO ROLE data_apps_user_1_role;
 
 -- Allow the app user to see and operate the frontend services.
-GRANT MONITOR, OPERATE ON SERVICE group_alpha_schema.app_a_user_1_frontend_CPU_X64_XS_1vcpu_6gib_1x_service TO ROLE data_apps_user_1_role;
-GRANT MONITOR, OPERATE ON SERVICE group_alpha_schema.app_a_user_1_frontend_CPU_X64_S_3vcpu_13gib_2x_service TO ROLE data_apps_user_1_role;
-GRANT MONITOR, OPERATE ON SERVICE group_alpha_schema.app_a_user_1_frontend_CPU_X64_M_6vcpu_28gib_4x_service TO ROLE data_apps_user_1_role;
-GRANT MONITOR, OPERATE ON SERVICE group_alpha_schema.app_a_user_1_frontend_HIGHMEM_X64_S_6vcpu_58gib_5x_service TO ROLE data_apps_user_1_role;
-GRANT MONITOR, OPERATE ON SERVICE group_alpha_schema.app_a_user_1_frontend_CPU_X64_SL_14vcpu_58gib_7x_service TO ROLE data_apps_user_1_role;
-GRANT MONITOR, OPERATE ON SERVICE group_alpha_schema.app_a_user_1_frontend_CPU_X64_L_28vcpu_116gib_14x_service TO ROLE data_apps_user_1_role;
-GRANT MONITOR, OPERATE ON SERVICE group_alpha_schema.app_a_user_1_frontend_HIGHMEM_X64_M_28vcpu_240gib_19x_service TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON SERVICE group_alpha_schema.app_a_user_1_frontend_1vcpu_6gib_1x_service TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON SERVICE group_alpha_schema.app_a_user_1_frontend_3vcpu_13gib_2x_service TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON SERVICE group_alpha_schema.app_a_user_1_frontend_6vcpu_28gib_4x_service TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON SERVICE group_alpha_schema.app_a_user_1_frontend_6vcpu_58gib_5x_service TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON SERVICE group_alpha_schema.app_a_user_1_frontend_14vcpu_58gib_7x_service TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON SERVICE group_alpha_schema.app_a_user_1_frontend_28vcpu_116gib_14x_service TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON SERVICE group_alpha_schema.app_a_user_1_frontend_28vcpu_240gib_19x_service TO ROLE data_apps_user_1_role;
 
 -- Allow the user to run the app from the web even though they have no access to the role that runs the app.
-GRANT SERVICE ROLE group_alpha_schema.app_a_user_1_frontend_CPU_X64_XS_1vcpu_6gib_1x_service!web_endpoint_service_role TO ROLE data_apps_user_1_role;
-GRANT SERVICE ROLE group_alpha_schema.app_a_user_1_frontend_CPU_X64_S_3vcpu_13gib_2x_service!web_endpoint_service_role TO ROLE data_apps_user_1_role;
-GRANT SERVICE ROLE group_alpha_schema.app_a_user_1_frontend_CPU_X64_M_6vcpu_28gib_4x_service!web_endpoint_service_role TO ROLE data_apps_user_1_role;
-GRANT SERVICE ROLE group_alpha_schema.app_a_user_1_frontend_HIGHMEM_X64_S_6vcpu_58gib_5x_service!web_endpoint_service_role TO ROLE data_apps_user_1_role;
-GRANT SERVICE ROLE group_alpha_schema.app_a_user_1_frontend_CPU_X64_SL_14vcpu_58gib_7x_service!web_endpoint_service_role TO ROLE data_apps_user_1_role;
-GRANT SERVICE ROLE group_alpha_schema.app_a_user_1_frontend_CPU_X64_L_28vcpu_116gib_14x_service!web_endpoint_service_role TO ROLE data_apps_user_1_role;
-GRANT SERVICE ROLE group_alpha_schema.app_a_user_1_frontend_HIGHMEM_X64_M_28vcpu_240gib_19x_service!web_endpoint_service_role TO ROLE data_apps_user_1_role;
+GRANT SERVICE ROLE group_alpha_schema.app_a_user_1_frontend_1vcpu_6gib_1x_service!web_endpoint_service_role TO ROLE data_apps_user_1_role;
+GRANT SERVICE ROLE group_alpha_schema.app_a_user_1_frontend_3vcpu_13gib_2x_service!web_endpoint_service_role TO ROLE data_apps_user_1_role;
+GRANT SERVICE ROLE group_alpha_schema.app_a_user_1_frontend_6vcpu_28gib_4x_service!web_endpoint_service_role TO ROLE data_apps_user_1_role;
+GRANT SERVICE ROLE group_alpha_schema.app_a_user_1_frontend_6vcpu_58gib_5x_service!web_endpoint_service_role TO ROLE data_apps_user_1_role;
+GRANT SERVICE ROLE group_alpha_schema.app_a_user_1_frontend_14vcpu_58gib_7x_service!web_endpoint_service_role TO ROLE data_apps_user_1_role;
+GRANT SERVICE ROLE group_alpha_schema.app_a_user_1_frontend_28vcpu_116gib_14x_service!web_endpoint_service_role TO ROLE data_apps_user_1_role;
+GRANT SERVICE ROLE group_alpha_schema.app_a_user_1_frontend_28vcpu_240gib_19x_service!web_endpoint_service_role TO ROLE data_apps_user_1_role;
 
 -- Grant read permissions on the table.
 GRANT SELECT
@@ -517,6 +520,9 @@ CREATE WAREHOUSE IF NOT EXISTS app_launcher_user_1_xs_warehouse
   WAREHOUSE_SIZE = 'XSMALL'
   AUTO_RESUME = TRUE
   INITIALLY_SUSPENDED = TRUE;
+
+-- Do this because creating a warehouse such as above switches to that warehouse at least in the Snowflake VS Code extension.
+use warehouse setup_xs_warehouse;
 
 CREATE OR REPLACE STREAMLIT group_alpha_schema.app_launcher_user_1_streamlit
   FROM @app_launcher_db.general_schema.general_stage
@@ -572,6 +578,9 @@ CREATE WAREHOUSE IF NOT EXISTS data_manager_user_1_xs_warehouse
   WAREHOUSE_SIZE = 'XSMALL'
   AUTO_RESUME = TRUE
   INITIALLY_SUSPENDED = TRUE;
+
+-- Do this because creating a warehouse such as above switches to that warehouse at least in the Snowflake VS Code extension.
+use warehouse setup_xs_warehouse;
 
 CREATE COMPUTE POOL IF NOT EXISTS data_manager_user_1_xs_compute_pool
     MIN_NODES = 1
