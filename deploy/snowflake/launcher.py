@@ -145,9 +145,8 @@ def main():
     # Get a list of apps subject to the new organization scheme.
     app_shortname_dict = {"Data Manager": "data_manager", "Multiplex Analysis Web Apps": "mawa"}
 
-    # Get the corresponding keys and values.
+    # Get the corresponding keys.
     app_titles = list(app_shortname_dict.keys())
-    app_shortnames = list(app_shortname_dict.values())
 
     # Get app owner's role.
     current_role = get_owner_role()
@@ -177,13 +176,6 @@ def main():
     if not startable_service_names:
         st.warning(f"No startable services found.")
         return
-    
-
-
-    for app_shortname in app_shortnames:
-        service_name_list = get_service_names(app_shortname, user_group, username, suffix="worker", invert=True)
-        service_name_list = service_name_list + get_service_names(app_shortname, user_group, username, suffix="worker", invert=False)
-
     
     # Allow the user to select which startable service (i.e., version of the app) they'd like to control.
     chosen_startable_service_name = st.selectbox("Select startable service to control:", startable_service_names)
