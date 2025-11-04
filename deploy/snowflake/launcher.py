@@ -11,17 +11,35 @@ def get_owner_role():
     return session.sql("select current_role();").collect()[0]["CURRENT_ROLE()"]  # Note current_user() doesn't work in Streamlit apps.
 
 
+@st.cache_data()
+def get_db_name(chosen_app_shortname):
+    if chosen_app_shortname == "data_manager":
+        return "data_manager_db"
+    else:
+        return f"{chosen_app_shortname}_app_db"
+
+
 # Get services in the schema {chosen_app_shortname}_app_db.{user_group}_schema that have "_frontend_" in their name, returning a potentially empty list.
 @st.cache_data()
-def get_frontend_service_names(chosen_app_shortname, user_group, username):
+def get_service_names(chosen_app_shortname, user_group, username, suffix=None, invert=False):
+    if suffix is None:
+        suffix = ""
+    elif suffix == "frontend":
+        suffix = "_frontend"
+    elif suffix == "worker":
+        suffix = "_worker"
+    else:
+        raise ValueError(f"Invalid suffix: {suffix}")
     session = get_active_session()
     raw_services_df = session.sql(
-        f"show services in schema {chosen_app_shortname}_app_db.{user_group}_schema;"
+        f"show services in schema {get_db_name(chosen_app_shortname)}.{user_group}_schema;"
     ).to_pandas()
-    frontend_services_df = raw_services_df[
-        raw_services_df["name"].str.contains(f"_{username}_frontend_", case=False, na=False)
-    ]
-    return frontend_services_df["name"].tolist()  # potentially empty list
+    mask = raw_services_df["name"].str.contains(f"_{username}{suffix}_", case=False, na=False)
+    if invert:
+        matches_df = raw_services_df[~mask]
+    else:
+        matches_df = raw_services_df[mask]
+    return matches_df["name"].tolist()  # potentially empty list
 
 
 # This should be the same as in platform_abstraction.py in the Snowflake branch.
@@ -56,28 +74,51 @@ def _get_delta(status):
     return delta
 
 
-def start_app(session, db_str="data_app_db", username="andrewweisman"):
-    session.sql(f"ALTER SERVICE {db_str}.app_runtime_schema.frontend_service_{username} RESUME;").collect()
-    # do the following only if compute pool status isn't idle!
-    compute_pool_status = session.sql(f"DESCRIBE COMPUTE POOL data_app_workers_compute_pool_{username};").collect()[0]["state"]
-    if compute_pool_status not in ("IDLE", "ACTIVE", "RESIZING"):
-        session.sql(f"ALTER COMPUTE POOL data_app_workers_compute_pool_{username} RESUME;").collect()
+def start_app(chosen_app_shortname, user_group, service_name):
+    session = get_active_session()
+    session.sql(f"ALTER SERVICE {get_db_name(chosen_app_shortname)}.{user_group}_schema.{service_name} RESUME;").collect()
     st.info("App should be starting now...")
 
 
-def show_endpoints(session, db_str="data_app_db", username="andrewweisman"):
-    ingress_url = session.sql(f"SHOW ENDPOINTS IN SERVICE {db_str}.app_runtime_schema.frontend_service_{username};").collect()[0]["ingress_url"]
+def show_endpoints(chosen_app_shortname, user_group, service_name):
+    session = get_active_session()
+    ingress_url = session.sql(f"SHOW ENDPOINTS IN SERVICE {get_db_name(chosen_app_shortname)}.{user_group}_schema.{service_name};").collect()[0]["ingress_url"]
     full_url = f"https://{ingress_url}"
     st.write(f"**NOTE: You must open this link in a new tab by right-clicking and choosing something like \"Open link in new tab\" or doing a Ctrl+Click:**")
     st.write(f"{full_url}")
 
 
-def show_objects(session, db_list=["data_app_db"], username="andrewweisman"):
+def stop_frontend(chosen_app_shortname, user_group, service_name, stop_pool_too=True):
+    session = get_active_session()
+    session.sql(f"ALTER SERVICE {get_db_name(chosen_app_shortname)}.{user_group}_schema.{service_name} SUSPEND;").collect()
+    if stop_pool_too:
+        compute_pool_name = service_name.removesuffix("_service") + "_compute_pool"
+        session.sql(f"ALTER COMPUTE POOL {compute_pool_name} SUSPEND;").collect()
+    st.info(f"Selected frontend {'(and compute pool)' if stop_pool_too else '(only)'} should be stopping now...")
+
+
+def stop_workers(service_name):
+    session = get_active_session()
+    if "_frontend_" in service_name:
+        compute_pool_name = service_name.replace("_frontend_", "_workers_").removesuffix("_service") + "_compute_pool"
+        # STUB: SELECT data_app_db.app_runtime_schema.job_service_andrewweisman_job_id_<JOB_ID>!SPCS_CANCEL_JOB(); --> not needed with "STOP ALL" below since that stops all running jobs
+        session.sql(f"ALTER COMPUTE POOL {compute_pool_name} STOP ALL;").collect()
+        st.info(f"Worker pool {compute_pool_name} and corresponding jobs should be stopping now...")
+    else:
+        st.warning(f"Service name {service_name} is not associated with a worker pool.")
+
+
+def write_app_image_id(chosen_app_shortname, user_group, service_name):
+    session = get_active_session()
+    image_id = session.sql(f"show service containers in service {get_db_name(chosen_app_shortname)}.{user_group}_schema.{service_name}").collect()[0]["image_digest"]
+    st.write(image_id)
+
+
+def show_objects():
+    session = get_active_session()
     df_list = []
-    for db_str in db_list:
-        df_list.append(session.sql(f"show services in {db_str}.app_runtime_schema;").to_pandas().rename(columns={"\"status\"": "\"state\""}))
-    df_list.append(session.sql(f"DESCRIBE COMPUTE POOL data_app_frontend_compute_pool_{username};").to_pandas())
-    df_list.append(session.sql(f"DESCRIBE COMPUTE POOL data_app_workers_compute_pool_{username};").to_pandas())
+    df_list.append(session.sql("show services;").to_pandas().rename(columns={"\"status\"": "\"state\""}))
+    df_list.append(session.sql("show compute pools").to_pandas())
     df_list.append(session.sql("show warehouses").to_pandas())
     df = pd.concat(df_list, ignore_index=True).sort_values("\"updated_on\"", ignore_index=True, ascending=False)
     # 🟢 for positive/active (delta "1"), 🔴 for negative (delta "-1"), none otherwise.
@@ -92,25 +133,8 @@ def show_objects(session, db_list=["data_app_db"], username="andrewweisman"):
             elif delta_val == "-1":
                 return f"🔴 {val_str}"
             return val_str
-
         df["\"state\""] = df["\"state\""].apply(_add_state_emoji)
     st.dataframe(df, hide_index=True, use_container_width=True)
-
-def stop_frontend(session, stop_pool_too=True, db_str="data_app_db", username="andrewweisman"):
-    session.sql(f"ALTER SERVICE {db_str}.app_runtime_schema.frontend_service_{username} SUSPEND;").collect()
-    if stop_pool_too:
-        session.sql(f"ALTER COMPUTE POOL data_app_frontend_compute_pool_{username} SUSPEND;").collect()
-    st.info("Frontend should be stopping now...")
-
-def stop_workers(session, username="andrewweisman"):
-    # STUB: SELECT data_app_db.app_runtime_schema.job_service_andrewweisman_job_id_<JOB_ID>!SPCS_CANCEL_JOB();
-    session.sql(f"ALTER COMPUTE POOL data_app_workers_compute_pool_{username} SUSPEND;").collect()
-    st.info("Workers should be stopping now...")
-
-
-def get_frontend_image_id(session, db_str="data_app_db", username="andrewweisman"):
-    image_id = session.sql(f"show service containers in service {db_str}.app_runtime_schema.frontend_service_{username}").collect()[0]["image_digest"]
-    st.write(image_id)
 
 
 def main():
@@ -119,7 +143,7 @@ def main():
     st.title("App Launcher v2")
 
     # Get a list of apps subject to the new organization scheme.
-    app_shortname_dict = {"Multiplex Analysis Web Apps": "mawa"}
+    app_shortname_dict = {"Data Manager": "data_manager", "Multiplex Analysis Web Apps": "mawa"}
 
     # Get the corresponding keys and values.
     app_titles = list(app_shortname_dict.keys())
@@ -148,36 +172,42 @@ def main():
     chosen_key = st.selectbox("Select app to control:", app_titles)
     chosen_app_shortname = app_shortname_dict[chosen_key]
 
-    # Get the names of the frontend services available for the current user in their selected app.
-    frontend_service_names = get_frontend_service_names(chosen_app_shortname, user_group, username)
-    if not frontend_service_names:
-        st.warning(f"No frontend services found in schema {chosen_app_shortname}_app_db.{user_group}_schema.")
+    # Get the names of the startable services available for the current user in their selected app.
+    startable_service_names = get_service_names(chosen_app_shortname, user_group, username, suffix="worker", invert=True)
+    if not startable_service_names:
+        st.warning(f"No startable services found.")
         return
     
-    # Allow the user to select which frontend service (i.e., version of the app) they'd like to control.
-    chosen_frontend_service_name = st.selectbox("Select frontend service to control:", frontend_service_names)
+
+
+    for app_shortname in app_shortnames:
+        service_name_list = get_service_names(app_shortname, user_group, username, suffix="worker", invert=True)
+        service_name_list = service_name_list + get_service_names(app_shortname, user_group, username, suffix="worker", invert=False)
+
+    
+    # Allow the user to select which startable service (i.e., version of the app) they'd like to control.
+    chosen_startable_service_name = st.selectbox("Select startable service to control:", startable_service_names)
 
     # Ask the user what they want to do.
-    action_to_perform = st.selectbox("Select action to perform:", ["Start app", "Show URL", "Stop frontend", "Stop frontend (service only)", "Stop workers", "Retrieve frontend image ID"])
+    action_to_perform = st.selectbox("Select action to perform:", ["Start app", "Show URL", "Stop frontend (and compute pool)", "Stop frontend (service only)", "Stop corresponding workers", "Retrieve app image ID"])
 
-    #### PICK UP HERE WITH MODIFYING THE BELOW AND CONSIDERING WHETHER USERS WILL DETECT FRONTENDS FROM OTHER MEMBERS OF THEIR GROUP (probably taken care of now)!!!! ####
     if st.button("Take action"):
         if action_to_perform == "Start app":
-            start_app(session, db_str=chosen_app_shortname, username=username)
+            start_app(chosen_app_shortname, user_group, chosen_startable_service_name)
         elif action_to_perform == "Show URL":
-            show_endpoints(session, db_str=chosen_app_shortname, username=username)
-        elif action_to_perform == "Stop frontend":
-            stop_frontend(session, db_str=chosen_app_shortname, username=username)
+            show_endpoints(chosen_app_shortname, user_group, chosen_startable_service_name)
+        elif action_to_perform == "Stop frontend (and compute pool)":
+            stop_frontend(chosen_app_shortname, user_group, chosen_startable_service_name)
         elif action_to_perform == "Stop frontend (service only)":
-            stop_frontend(session, stop_pool_too=False, db_str=chosen_app_shortname, username=username)
-        elif action_to_perform == "Stop workers":
-            stop_workers(session, username=username)
-        elif action_to_perform == "Retrieve frontend image ID":
-            get_frontend_image_id(session, db_str=chosen_app_shortname, username=username)
+            stop_frontend(chosen_app_shortname, user_group, chosen_startable_service_name, stop_pool_too=False)
+        elif action_to_perform == "Stop corresponding workers":
+            stop_workers(chosen_startable_service_name)
+        elif action_to_perform == "Retrieve app image ID":
+            write_app_image_id(chosen_app_shortname, user_group, chosen_startable_service_name)
 
     st.header("General control")
-    if st.button("Detect services and compute pools"):
-        show_objects(session, db_list=app_shortnames, username=username)
+    if st.button("Detect all services, compute pools, and warehouses"):
+        show_objects()
 
 
 if __name__ == "__main__":

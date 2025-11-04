@@ -581,7 +581,7 @@ CREATE COMPUTE POOL IF NOT EXISTS data_manager_user_1_xs_compute_pool
     INITIALLY_SUSPENDED = TRUE
     AUTO_SUSPEND_SECS = 600;
 
--- **** CREATE THE APP, group_alpha_schema.data_manager_user_1_service.
+-- **** CREATE THE APP, group_alpha_schema.data_manager_user_1_xs_service.
 
 -- Grant data_manager_group_alpha_role privileges to see the database and schema.
 GRANT USAGE ON DATABASE data_manager_db
@@ -594,7 +594,7 @@ GRANT USAGE ON DATABASE data_manager_db TO ROLE data_apps_user_1_role;
 GRANT USAGE ON SCHEMA group_alpha_schema TO ROLE data_apps_user_1_role;
 
 -- Change the owner of the app to the service role data_manager_group_alpha_role.
-GRANT OWNERSHIP ON SERVICE group_alpha_schema.data_manager_user_1_service TO ROLE data_manager_group_alpha_role COPY CURRENT GRANTS;
+GRANT OWNERSHIP ON SERVICE group_alpha_schema.data_manager_user_1_xs_service TO ROLE data_manager_group_alpha_role COPY CURRENT GRANTS;
 
 -- Give this account role the appropriate database roles.
 grant database role group_alpha_group_db.curated_schema_rw_db_role to role data_manager_group_alpha_role;
@@ -609,7 +609,7 @@ GRANT MONITOR, OPERATE ON WAREHOUSE data_manager_user_1_xs_warehouse TO ROLE dat
 GRANT MONITOR, OPERATE ON COMPUTE POOL data_manager_user_1_xs_compute_pool TO ROLE data_apps_user_1_role;
 
 -- Allow the app user to see and operate the service.
-GRANT MONITOR, OPERATE ON SERVICE group_alpha_schema.data_manager_user_1_service TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON SERVICE group_alpha_schema.data_manager_user_1_xs_service TO ROLE data_apps_user_1_role;
 ---------------- End database data_manager_db. -----------------------------------------------
 
 
