@@ -140,7 +140,6 @@ def clust_umap_dens_diff_page(udp_full, dens_diff_feat_sel, feature_value_fals,
 
 #     Args:
 #         spatial_umap (spatial_umap): spatial_umap object
-#         bc (benchmark_collector): Benchmark Collector object
 #         UMAPStyle (str): Style of UMAP to use
     
 #     Returns:
@@ -226,7 +225,7 @@ def clust_umap_dens_diff_page(udp_full, dens_diff_feat_sel, feature_value_fals,
 #     st.session_state.umap_completed = True
 
 #     # Create Neighborhood Profiles Object
-#     st.session_state.npf = NeighborhoodProfiles(bc = st.session_state.bc)
+#     st.session_state.npf = NeighborhoodProfiles()
 
 #     # Create Full UMAP example
 #     st.session_state.udp_full = UMAPDensityProcessing(st.session_state.npf, st.session_state.spatial_umap.df_umap)
@@ -521,7 +520,7 @@ def load_neipro_struct():
 
     if st.session_state.umap_completed:
         # Create Neighborhood Profiles Object
-        st.session_state.npf = NeighborhoodProfiles(bc = st.session_state.bc)
+        st.session_state.npf = NeighborhoodProfiles()
 
         # Create Full UMAP example
         st.session_state.udp_full = UMAPDensityProcessing(npf = st.session_state.npf, df = st.session_state.spatial_umap.df_umap)

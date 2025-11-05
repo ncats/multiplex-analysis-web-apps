@@ -23,34 +23,13 @@ def _app_title_simple():
 # This function, session_dir(), and jobs_dir() below are the two places in the codebase that hardcode the local container directory to where any files are written in the app. Also, on Snowflake etc. we mount local storage at /tmp/multiplex_analysis_web_apps, so this is the isolated location where we can modify and understand these settings clearly, i.e., the only places where the app interacts with the local filesystem.
 def session_dir():
 
-    try:
-        if ST_KEY_PREFIX_STARTUP + "app_session_id" not in st.session_state:
-            # Worker environment fallback - use /tmp directory 
-            worker_fallback_dir = f"/tmp/{_app_title_simple()}/worker_session_data"
-            os.makedirs(worker_fallback_dir, exist_ok=True)
-            # Also ensure output subdirectory exists for benchmark_collector
-            output_dir = os.path.join(worker_fallback_dir, 'output')
-            os.makedirs(output_dir, exist_ok=True)
-            return worker_fallback_dir
-
-        app_session_id = st.session_state[ST_KEY_PREFIX_STARTUP + "app_session_id"]
-
-        session_dir = f"/tmp/{_app_title_simple()}/app_session_data/{app_session_id}"
-
-        os.makedirs(session_dir, exist_ok=True)
-        # Also ensure output subdirectory exists for benchmark_collector
-        output_dir = os.path.join(session_dir, 'output')
-        os.makedirs(output_dir, exist_ok=True)
-
-        return session_dir
-    except:
-        # Ultimate fallback for worker environments where streamlit is not available
-        worker_fallback_dir = f"/tmp/{_app_title_simple()}/worker_session_data"
-        os.makedirs(worker_fallback_dir, exist_ok=True)
-        # Also ensure output subdirectory exists for benchmark_collector
-        output_dir = os.path.join(worker_fallback_dir, 'output')
-        os.makedirs(output_dir, exist_ok=True)
-        return worker_fallback_dir
+    if ST_KEY_PREFIX_STARTUP + "app_session_id" not in st.session_state:
+        st.error("Session ID not found in session state; cannot return the session directory.")
+        return None
+    app_session_id = st.session_state[ST_KEY_PREFIX_STARTUP + "app_session_id"]
+    session_dir = f"/tmp/{_app_title_simple()}/app_session_data/{app_session_id}"
+    os.makedirs(session_dir, exist_ok=True)
+    return session_dir
 
 
 @st.cache_data()
