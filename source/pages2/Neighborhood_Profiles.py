@@ -881,6 +881,26 @@ def main():
                     st.session_state.clust_diff_vals_code = 0
                 if 'appro_feat' not in st.session_state:
                     st.session_state.appro_feat = False
+                if 'cluster_completed_diff' not in st.session_state:
+                    st.session_state.cluster_completed_diff = False
+                if 'elbow_fig_0' not in st.session_state:
+                    st.session_state.elbow_fig_0 = None
+                if 'elbow_fig_1' not in st.session_state:
+                    st.session_state.elbow_fig_1 = None
+                if 'UMAPFig_fals' not in st.session_state:
+                    st.session_state.UMAPFig_fals = None
+                if 'UMAPFig_true' not in st.session_state:
+                    st.session_state.UMAPFig_true = None
+                if 'UMAPFig_diff' not in st.session_state:
+                    st.session_state.UMAPFig_diff = None
+                if 'UMAPFig_mask' not in st.session_state:
+                    st.session_state.UMAPFig_mask = None
+                if 'diff_clust_Fig' not in st.session_state:
+                    st.session_state.diff_clust_Fig = None
+                if 'cluster_dict' not in st.session_state:
+                    st.session_state.cluster_dict = None
+                if 'palette_dict' not in st.session_state:
+                    st.session_state.palette_dict = None
                     
                 with st.expander('Clustering Settings', expanded = True):
                     st.toggle('Perform Clustering on UMAP Density Difference',
@@ -1005,6 +1025,21 @@ def main():
                                         st.session_state.elbow_fig_1 = st.session_state[diff_clust_key]["elbow_fig_1"]
                                         st.session_state.cluster_completed = st.session_state[diff_clust_key]["cluster_completed"]
                                         st.session_state.cluster_completed = st.session_state[diff_clust_key]["cluster_completed"]
+                                        
+                                        # Update udp_full with cluster information and generate clustered UMAP visualization
+                                        if st.session_state.cluster_completed_diff:
+                                            st.session_state.udp_full.cluster_dict = st.session_state.cluster_dict
+                                            st.session_state.udp_full.palette_dict = st.session_state.palette_dict
+                                            st.session_state.diff_clust_Fig = st.session_state.udp_full.umap_draw_clusters()
+                                            # List of Clusters to display
+                                            st.session_state.list_clusters = list(st.session_state.cluster_dict.values())
+                                            if st.session_state['toggle_clust_diff']:
+                                                st.session_state.list_clusters += ['Average Left', 'Average Right']
+
+                                            if 'No Cluster' in st.session_state.list_clusters:
+                                                st.session_state.list_clusters.remove('No Cluster')
+
+                                            st.session_state['sel_npf_fig'] = st.session_state.list_clusters[0]
                                     
 
                                     udp_full = st.session_state.udp_full
@@ -1051,7 +1086,22 @@ def main():
                                     st.session_state.elbow_fig_0 = st.session_state[diff_clust_key]["elbow_fig_0"]
                                     st.session_state.elbow_fig_1 = st.session_state[diff_clust_key]["elbow_fig_1"]
                                     st.session_state.cluster_completed = st.session_state[diff_clust_key]["cluster_completed"]
-                                    st.session_state.cluster_completed = st.session_state[diff_clust_key]["cluster_completed"]
+                                    st.session_state.udp_full = st.session_state[diff_clust_key]["udp_full"]
+
+                                    # Update udp_full with cluster information and generate clustered UMAP visualization
+                                    if st.session_state.cluster_completed_diff:
+                                        st.session_state.udp_full.cluster_dict = st.session_state.cluster_dict
+                                        st.session_state.udp_full.palette_dict = st.session_state.palette_dict
+                                        st.session_state.diff_clust_Fig = st.session_state.udp_full.umap_draw_clusters()
+                                        # List of Clusters to display
+                                        st.session_state.list_clusters = list(st.session_state.cluster_dict.values())
+                                        if st.session_state['toggle_clust_diff']:
+                                            st.session_state.list_clusters += ['Average Left', 'Average Right']
+
+                                        if 'No Cluster' in st.session_state.list_clusters:
+                                            st.session_state.list_clusters.remove('No Cluster')
+
+                                        st.session_state['sel_npf_fig'] = st.session_state.list_clusters[0]
                         
                                     if st.session_state.elbow_fig_1 is not None:
                                         st.pyplot(st.session_state.elbow_fig_1)
@@ -1093,6 +1143,34 @@ def main():
                                       'clust_diff_vals_code' in st.session_state and
                                       st.session_state.clust_diff_vals_code > 0)
                     if feature_is_valid:
+                        # Ensure cluster visualization is up-to-date
+                        print(f"DEBUG: cluster_dict = {st.session_state.cluster_dict}", flush=True)
+                        print(f"DEBUG: palette_dict = {st.session_state.palette_dict}", flush=True)
+                        print(f"DEBUG: cluster_completed_diff = {st.session_state.cluster_completed_diff}", flush=True)
+                        print(f"DEBUG: toggle_clust_diff = {st.session_state['toggle_clust_diff']}", flush=True)
+                        
+                        if (st.session_state.cluster_dict is not None and 
+                            st.session_state.palette_dict is not None):
+                            print("DEBUG: Regenerating diff_clust_Fig...", flush=True)
+                            st.session_state.udp_full.cluster_dict = st.session_state.cluster_dict
+                            st.session_state.udp_full.palette_dict = st.session_state.palette_dict
+                            st.session_state.diff_clust_Fig = st.session_state.udp_full.umap_draw_clusters()
+                            print("DEBUG: diff_clust_Fig regenerated successfully!", flush=True)
+                            print(f"DEBUG: diff_clust_Fig type: {type(st.session_state.diff_clust_Fig)}", flush=True)
+                            print(f"DEBUG: udp_full.cluster_dict after assignment: {st.session_state.udp_full.cluster_dict}", flush=True)
+                            print(f"DEBUG: udp_full.palette_dict after assignment: {st.session_state.udp_full.palette_dict}", flush=True)
+                            
+                            # Check cluster assignments in the actual UMAP data
+                            if hasattr(st.session_state.udp_full, 'df') and 'cluster' in st.session_state.udp_full.df.columns:
+                                cluster_counts = st.session_state.udp_full.df['cluster'].value_counts()
+                                print(f"DEBUG: Cluster counts in udp_full.df: {cluster_counts.to_dict()}", flush=True)
+                            elif hasattr(st.session_state.spatial_umap, 'df_umap') and 'cluster' in st.session_state.spatial_umap.df_umap.columns:
+                                cluster_counts = st.session_state.spatial_umap.df_umap['cluster'].value_counts()
+                                print(f"DEBUG: Cluster counts in spatial_umap.df_umap: {cluster_counts.to_dict()}", flush=True)
+                            else:
+                                print("DEBUG: No cluster column found in data!", flush=True)
+                        else:
+                            print("DEBUG: cluster_dict or palette_dict is None, cannot regenerate diff_clust_Fig", flush=True)
 
                         diff_cols = st.columns(3)
                         with diff_cols[0]:

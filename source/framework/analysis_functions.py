@@ -292,5 +292,6 @@ def clust_umap_dens_diff(udp_full, dens_diff_feat_sel, feature_value_fals,
             "palette_dict": palette_dict,
             "elbow_fig_0": elbow_fig_0,
             "elbow_fig_1": elbow_fig_1,
-            "cluster_completed": True
+            "cluster_completed": True,
+            "udp_full": udp_full
             }
