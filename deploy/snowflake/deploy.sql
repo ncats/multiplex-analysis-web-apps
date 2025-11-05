@@ -305,6 +305,98 @@ CREATE COMPUTE POOL IF NOT EXISTS app_a_user_1_workers_28vcpu_240gib_19x_compute
     INITIALLY_SUSPENDED = TRUE
     AUTO_SUSPEND_SECS = 600;
 
+-- Grant app_a_group_alpha_role privileges to see the database and schema.
+GRANT USAGE ON DATABASE app_a_app_db
+  TO ROLE app_a_group_alpha_role;
+GRANT USAGE ON SCHEMA group_alpha_schema
+  TO ROLE app_a_group_alpha_role;
+GRANT USAGE ON SCHEMA general_schema TO ROLE app_a_group_alpha_role;
+
+-- Grant general_schema_ro_db_role privileges to see the database and schema.
+GRANT USAGE ON DATABASE app_a_app_db
+  TO DATABASE ROLE general_schema_ro_db_role;
+GRANT USAGE ON SCHEMA general_schema
+  TO DATABASE ROLE general_schema_ro_db_role;
+
+-- Grant group_alpha_schema_service_db_role privileges to see the database and schema.
+GRANT USAGE ON DATABASE app_a_app_db
+  TO DATABASE ROLE group_alpha_schema_service_db_role;
+GRANT USAGE ON SCHEMA group_alpha_schema
+  TO DATABASE ROLE group_alpha_schema_service_db_role;
+
+-- Give the app user role the ability to even launch the app by granting access to the database and schema.
+GRANT USAGE ON DATABASE app_a_app_db TO ROLE data_apps_user_1_role;
+GRANT USAGE ON SCHEMA group_alpha_schema TO ROLE data_apps_user_1_role;
+
+-- Give this account role the appropriate database roles.
+grant database role group_alpha_group_db.app_a_schema_rw_db_role to role app_a_group_alpha_role;
+grant database role group_alpha_group_db.curated_schema_rw_db_role to role app_a_group_alpha_role;
+grant database role common_db.admin_schema_ro_db_role to role app_a_group_alpha_role;
+grant database role app_a_app_db.general_schema_ro_db_role to role app_a_group_alpha_role;
+GRANT DATABASE ROLE app_a_app_db.group_alpha_schema_service_db_role TO ROLE app_a_group_alpha_role;
+
+-- Give the app user role the required database role (used in launcher.py).
+grant database role common_db.admin_schema_ro_db_role to role data_apps_user_1_role;
+
+-- Grant access to using the compute resources for the actual "service" role app_a_group_alpha_role.
+GRANT USAGE ON WAREHOUSE app_a_user_1_xs_warehouse TO ROLE app_a_group_alpha_role;
+GRANT USAGE, OPERATE ON COMPUTE POOL app_a_user_1_frontend_1vcpu_6gib_1x_compute_pool TO ROLE app_a_group_alpha_role;
+GRANT USAGE, OPERATE ON COMPUTE POOL app_a_user_1_frontend_3vcpu_13gib_2x_compute_pool TO ROLE app_a_group_alpha_role;
+GRANT USAGE, OPERATE ON COMPUTE POOL app_a_user_1_frontend_6vcpu_28gib_4x_compute_pool TO ROLE app_a_group_alpha_role;
+GRANT USAGE, OPERATE ON COMPUTE POOL app_a_user_1_frontend_6vcpu_58gib_5x_compute_pool TO ROLE app_a_group_alpha_role;
+GRANT USAGE, OPERATE ON COMPUTE POOL app_a_user_1_frontend_14vcpu_58gib_7x_compute_pool TO ROLE app_a_group_alpha_role;
+GRANT USAGE, OPERATE ON COMPUTE POOL app_a_user_1_frontend_28vcpu_116gib_14x_compute_pool TO ROLE app_a_group_alpha_role;
+GRANT USAGE, OPERATE ON COMPUTE POOL app_a_user_1_frontend_28vcpu_240gib_19x_compute_pool TO ROLE app_a_group_alpha_role;
+GRANT USAGE ON COMPUTE POOL app_a_user_1_workers_1vcpu_6gib_1x_compute_pool TO ROLE app_a_group_alpha_role;
+GRANT USAGE ON COMPUTE POOL app_a_user_1_workers_3vcpu_13gib_2x_compute_pool TO ROLE app_a_group_alpha_role;
+GRANT USAGE ON COMPUTE POOL app_a_user_1_workers_6vcpu_28gib_4x_compute_pool TO ROLE app_a_group_alpha_role;
+GRANT USAGE ON COMPUTE POOL app_a_user_1_workers_6vcpu_58gib_5x_compute_pool TO ROLE app_a_group_alpha_role;
+GRANT USAGE ON COMPUTE POOL app_a_user_1_workers_14vcpu_58gib_7x_compute_pool TO ROLE app_a_group_alpha_role;
+GRANT USAGE ON COMPUTE POOL app_a_user_1_workers_28vcpu_116gib_14x_compute_pool TO ROLE app_a_group_alpha_role;
+GRANT USAGE ON COMPUTE POOL app_a_user_1_workers_28vcpu_240gib_19x_compute_pool TO ROLE app_a_group_alpha_role;
+
+-- Grant monitor and operate on the compute resources to the user role data_apps_user_1_role so that users can monitor and operate the app.
+GRANT MONITOR, OPERATE ON WAREHOUSE app_a_user_1_xs_warehouse TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_frontend_1vcpu_6gib_1x_compute_pool TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_frontend_3vcpu_13gib_2x_compute_pool TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_frontend_6vcpu_28gib_4x_compute_pool TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_frontend_6vcpu_58gib_5x_compute_pool TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_frontend_14vcpu_58gib_7x_compute_pool TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_frontend_28vcpu_116gib_14x_compute_pool TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_frontend_28vcpu_240gib_19x_compute_pool TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_1vcpu_6gib_1x_compute_pool TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_3vcpu_13gib_2x_compute_pool TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_6vcpu_28gib_4x_compute_pool TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_6vcpu_58gib_5x_compute_pool TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_14vcpu_58gib_7x_compute_pool TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_28vcpu_116gib_14x_compute_pool TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_28vcpu_240gib_19x_compute_pool TO ROLE data_apps_user_1_role;
+
+-- Grant read permissions on the table.
+GRANT SELECT
+  ON TABLE general_schema.image_metadata_table
+  TO DATABASE ROLE general_schema_ro_db_role;
+
+-- Grant permissions to allow the database role to create serivces (such as for submitting a job service) and to use the images in the image repository for doing so.
+GRANT CREATE SERVICE ON SCHEMA group_alpha_schema
+  TO DATABASE ROLE group_alpha_schema_service_db_role;
+GRANT READ ON IMAGE REPOSITORY general_schema.image_repository
+  TO DATABASE ROLE group_alpha_schema_service_db_role;
+
+-- Allow the app to read the worker spec from this stage so it can launch a worker service.
+GRANT READ ON STAGE general_schema.general_stage TO DATABASE ROLE general_schema_ro_db_role;
+
+-- Allow the app role to bind the service endpoint to the account so that the app can be accessed from the web.
+GRANT BIND SERVICE ENDPOINT ON ACCOUNT TO ROLE app_a_group_alpha_role;
+
+-- Allow the app role to perform setup.
+GRANT USAGE ON WAREHOUSE setup_xs_warehouse TO ROLE app_a_group_alpha_role;
+USE WAREHOUSE setup_xs_warehouse;
+
+-- We want the app owner to be the app role so switch to that prior to creating the app.
+GRANT ROLE app_a_group_alpha_role TO ROLE accountadmin;
+USE ROLE app_a_group_alpha_role;
+
 -- Create the seven services, one with each set of compute resources.
 -- CPU_X64_XS_1vcpu_6gib_1x
 DROP SERVICE IF EXISTS group_alpha_schema.app_a_user_1_frontend_1vcpu_6gib_1x_service;
@@ -390,83 +482,8 @@ CREATE SERVICE group_alpha_schema.app_a_user_1_frontend_28vcpu_240gib_19x_servic
 alter service group_alpha_schema.app_a_user_1_frontend_28vcpu_240gib_19x_service suspend;
 alter compute pool app_a_user_1_frontend_28vcpu_240gib_19x_compute_pool suspend;
 
--- Grant app_a_group_alpha_role privileges to see the database and schema.
-GRANT USAGE ON DATABASE app_a_app_db
-  TO ROLE app_a_group_alpha_role;
-GRANT USAGE ON SCHEMA group_alpha_schema
-  TO ROLE app_a_group_alpha_role;
-
--- Grant general_schema_ro_db_role privileges to see the database and schema.
-GRANT USAGE ON DATABASE app_a_app_db
-  TO DATABASE ROLE general_schema_ro_db_role;
-GRANT USAGE ON SCHEMA general_schema
-  TO DATABASE ROLE general_schema_ro_db_role;
-
--- Grant group_alpha_schema_service_db_role privileges to see the database and schema.
-GRANT USAGE ON DATABASE app_a_app_db
-  TO DATABASE ROLE group_alpha_schema_service_db_role;
-GRANT USAGE ON SCHEMA group_alpha_schema
-  TO DATABASE ROLE group_alpha_schema_service_db_role;
-
--- Give the app user role the ability to even launch the app by granting access to the database and schema.
-GRANT USAGE ON DATABASE app_a_app_db TO ROLE data_apps_user_1_role;
-GRANT USAGE ON SCHEMA group_alpha_schema TO ROLE data_apps_user_1_role;
-
--- This probably isn't needed since accountadmin is the one who handles the endpoints, but putting it here to keep it in mind.
--- GRANT BIND SERVICE ENDPOINT ON ACCOUNT TO ROLE app_a_group_alpha_role;
-
--- Change the owner of the apps to the service role app_a_group_alpha_role.
-GRANT OWNERSHIP ON SERVICE group_alpha_schema.app_a_user_1_frontend_1vcpu_6gib_1x_service TO ROLE app_a_group_alpha_role COPY CURRENT GRANTS;
-GRANT OWNERSHIP ON SERVICE group_alpha_schema.app_a_user_1_frontend_3vcpu_13gib_2x_service TO ROLE app_a_group_alpha_role COPY CURRENT GRANTS;
-GRANT OWNERSHIP ON SERVICE group_alpha_schema.app_a_user_1_frontend_6vcpu_28gib_4x_service TO ROLE app_a_group_alpha_role COPY CURRENT GRANTS;
-GRANT OWNERSHIP ON SERVICE group_alpha_schema.app_a_user_1_frontend_6vcpu_58gib_5x_service TO ROLE app_a_group_alpha_role COPY CURRENT GRANTS;
-GRANT OWNERSHIP ON SERVICE group_alpha_schema.app_a_user_1_frontend_14vcpu_58gib_7x_service TO ROLE app_a_group_alpha_role COPY CURRENT GRANTS;
-GRANT OWNERSHIP ON SERVICE group_alpha_schema.app_a_user_1_frontend_28vcpu_116gib_14x_service TO ROLE app_a_group_alpha_role COPY CURRENT GRANTS;
-GRANT OWNERSHIP ON SERVICE group_alpha_schema.app_a_user_1_frontend_28vcpu_240gib_19x_service TO ROLE app_a_group_alpha_role COPY CURRENT GRANTS;
-
--- Give this account role the appropriate database roles.
-grant database role group_alpha_group_db.app_a_schema_rw_db_role to role app_a_group_alpha_role;
-grant database role group_alpha_group_db.curated_schema_rw_db_role to role app_a_group_alpha_role;
-grant database role common_db.admin_schema_ro_db_role to role app_a_group_alpha_role;
-grant database role app_a_app_db.general_schema_ro_db_role to role app_a_group_alpha_role;
-GRANT DATABASE ROLE app_a_app_db.group_alpha_schema_service_db_role TO ROLE app_a_group_alpha_role;
-
--- Give the app user role the required database role (used in launcher.py).
-grant database role common_db.admin_schema_ro_db_role to role data_apps_user_1_role;
-
--- Grant access to using the compute resources for the actual "service" role app_a_group_alpha_role.
-GRANT USAGE ON WAREHOUSE app_a_user_1_xs_warehouse TO ROLE app_a_group_alpha_role;
-GRANT USAGE, OPERATE ON COMPUTE POOL app_a_user_1_frontend_1vcpu_6gib_1x_compute_pool TO ROLE app_a_group_alpha_role;
-GRANT USAGE, OPERATE ON COMPUTE POOL app_a_user_1_frontend_3vcpu_13gib_2x_compute_pool TO ROLE app_a_group_alpha_role;
-GRANT USAGE, OPERATE ON COMPUTE POOL app_a_user_1_frontend_6vcpu_28gib_4x_compute_pool TO ROLE app_a_group_alpha_role;
-GRANT USAGE, OPERATE ON COMPUTE POOL app_a_user_1_frontend_6vcpu_58gib_5x_compute_pool TO ROLE app_a_group_alpha_role;
-GRANT USAGE, OPERATE ON COMPUTE POOL app_a_user_1_frontend_14vcpu_58gib_7x_compute_pool TO ROLE app_a_group_alpha_role;
-GRANT USAGE, OPERATE ON COMPUTE POOL app_a_user_1_frontend_28vcpu_116gib_14x_compute_pool TO ROLE app_a_group_alpha_role;
-GRANT USAGE, OPERATE ON COMPUTE POOL app_a_user_1_frontend_28vcpu_240gib_19x_compute_pool TO ROLE app_a_group_alpha_role;
-GRANT USAGE ON COMPUTE POOL app_a_user_1_workers_1vcpu_6gib_1x_compute_pool TO ROLE app_a_group_alpha_role;
-GRANT USAGE ON COMPUTE POOL app_a_user_1_workers_3vcpu_13gib_2x_compute_pool TO ROLE app_a_group_alpha_role;
-GRANT USAGE ON COMPUTE POOL app_a_user_1_workers_6vcpu_28gib_4x_compute_pool TO ROLE app_a_group_alpha_role;
-GRANT USAGE ON COMPUTE POOL app_a_user_1_workers_6vcpu_58gib_5x_compute_pool TO ROLE app_a_group_alpha_role;
-GRANT USAGE ON COMPUTE POOL app_a_user_1_workers_14vcpu_58gib_7x_compute_pool TO ROLE app_a_group_alpha_role;
-GRANT USAGE ON COMPUTE POOL app_a_user_1_workers_28vcpu_116gib_14x_compute_pool TO ROLE app_a_group_alpha_role;
-GRANT USAGE ON COMPUTE POOL app_a_user_1_workers_28vcpu_240gib_19x_compute_pool TO ROLE app_a_group_alpha_role;
-
--- Grant monitor and operate on the compute resources to the user role data_apps_user_1_role so that users can monitor and operate the app.
-GRANT MONITOR, OPERATE ON WAREHOUSE app_a_user_1_xs_warehouse TO ROLE data_apps_user_1_role;
-GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_frontend_1vcpu_6gib_1x_compute_pool TO ROLE data_apps_user_1_role;
-GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_frontend_3vcpu_13gib_2x_compute_pool TO ROLE data_apps_user_1_role;
-GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_frontend_6vcpu_28gib_4x_compute_pool TO ROLE data_apps_user_1_role;
-GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_frontend_6vcpu_58gib_5x_compute_pool TO ROLE data_apps_user_1_role;
-GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_frontend_14vcpu_58gib_7x_compute_pool TO ROLE data_apps_user_1_role;
-GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_frontend_28vcpu_116gib_14x_compute_pool TO ROLE data_apps_user_1_role;
-GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_frontend_28vcpu_240gib_19x_compute_pool TO ROLE data_apps_user_1_role;
-GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_1vcpu_6gib_1x_compute_pool TO ROLE data_apps_user_1_role;
-GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_3vcpu_13gib_2x_compute_pool TO ROLE data_apps_user_1_role;
-GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_6vcpu_28gib_4x_compute_pool TO ROLE data_apps_user_1_role;
-GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_6vcpu_58gib_5x_compute_pool TO ROLE data_apps_user_1_role;
-GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_14vcpu_58gib_7x_compute_pool TO ROLE data_apps_user_1_role;
-GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_28vcpu_116gib_14x_compute_pool TO ROLE data_apps_user_1_role;
-GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_28vcpu_240gib_19x_compute_pool TO ROLE data_apps_user_1_role;
+-- Switch back to accountadmin role.
+USE ROLE accountadmin;
 
 -- Allow the app user to see and operate the frontend services.
 GRANT MONITOR, OPERATE ON SERVICE group_alpha_schema.app_a_user_1_frontend_1vcpu_6gib_1x_service TO ROLE data_apps_user_1_role;
@@ -485,20 +502,6 @@ GRANT SERVICE ROLE group_alpha_schema.app_a_user_1_frontend_6vcpu_58gib_5x_servi
 GRANT SERVICE ROLE group_alpha_schema.app_a_user_1_frontend_14vcpu_58gib_7x_service!web_endpoint_service_role TO ROLE data_apps_user_1_role;
 GRANT SERVICE ROLE group_alpha_schema.app_a_user_1_frontend_28vcpu_116gib_14x_service!web_endpoint_service_role TO ROLE data_apps_user_1_role;
 GRANT SERVICE ROLE group_alpha_schema.app_a_user_1_frontend_28vcpu_240gib_19x_service!web_endpoint_service_role TO ROLE data_apps_user_1_role;
-
--- Grant read permissions on the table.
-GRANT SELECT
-  ON TABLE general_schema.image_metadata_table
-  TO DATABASE ROLE general_schema_ro_db_role;
-
--- Grant permissions to allow the database role to create serivces (such as for submitting a job service) and to use the images in the image repository for doing so.
-GRANT CREATE SERVICE ON SCHEMA group_alpha_schema
-  TO DATABASE ROLE group_alpha_schema_service_db_role;
-GRANT USAGE, READ ON IMAGE REPOSITORY general_schema.image_repository
-  TO DATABASE ROLE group_alpha_schema_service_db_role;
-
--- Allow the app to read the worker spec from this stage so it can launch a worker service.
-GRANT READ ON STAGE general_schema.general_stage TO DATABASE ROLE general_schema_ro_db_role;
 ---------------- End database app_a_app_db. -----------------------------------------------
 
 
