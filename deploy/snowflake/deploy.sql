@@ -511,7 +511,7 @@ GRANT SERVICE ROLE group_alpha_schema.app_a_user_1_frontend_28vcpu_240gib_19x_se
 -- Create the database and schemas.
 create database if not exists app_launcher_db;
 use database app_launcher_db;
-create schema if not exists cil_schema;
+create schema if not exists group_alpha_schema;
 create schema if not exists general_schema;
 
 -- Create a general stage for holding the code for the launcher.
@@ -521,7 +521,7 @@ create stage if not exists general_schema.general_stage
 -- SEE GITHUB README FOR WHAT FILE TO UPLOAD TO THIS STAGE (the streamlit app `launcher.py`).
 
 -- Create a warehouse for the app.
-CREATE WAREHOUSE IF NOT EXISTS app_launcher_robert_cheng_xs_warehouse
+CREATE WAREHOUSE IF NOT EXISTS app_launcher_user_1_xs_warehouse
   WAREHOUSE_SIZE = 'XSMALL'
   AUTO_RESUME = TRUE
   INITIALLY_SUSPENDED = TRUE;
@@ -529,45 +529,45 @@ CREATE WAREHOUSE IF NOT EXISTS app_launcher_robert_cheng_xs_warehouse
 -- Do this because creating a warehouse such as above switches to that warehouse at least in the Snowflake VS Code extension.
 use warehouse setup_xs_warehouse;
 
--- Grant data_apps_robert_cheng_role privileges to see the database and schemas.
+-- Grant data_apps_user_1_role privileges to see the database and schemas.
 GRANT USAGE ON DATABASE app_launcher_db
-  TO ROLE data_apps_robert_cheng_role;
-GRANT USAGE ON SCHEMA cil_schema
-  TO ROLE data_apps_robert_cheng_role;
+  TO ROLE data_apps_user_1_role;
+GRANT USAGE ON SCHEMA group_alpha_schema
+  TO ROLE data_apps_user_1_role;
 GRANT USAGE ON SCHEMA general_schema
-  TO ROLE data_apps_robert_cheng_role;
+  TO ROLE data_apps_user_1_role;
 
 -- Grant access to the warehouse.
-GRANT USAGE, OPERATE, MONITOR ON WAREHOUSE app_launcher_robert_cheng_xs_warehouse TO ROLE data_apps_robert_cheng_role;
+GRANT USAGE, OPERATE, MONITOR ON WAREHOUSE app_launcher_user_1_xs_warehouse TO ROLE data_apps_user_1_role;
 
--- Allow creation of Streamlit apps in the cil_schema schema.
-GRANT CREATE STREAMLIT ON SCHEMA cil_schema TO ROLE data_apps_robert_cheng_role;
+-- Allow creation of Streamlit apps in the group_alpha_schema schema.
+GRANT CREATE STREAMLIT ON SCHEMA group_alpha_schema TO ROLE data_apps_user_1_role;
 
 -- Allow reading from the stage where the launcher code is stored.
-GRANT READ ON STAGE general_schema.general_stage TO ROLE data_apps_robert_cheng_role;
+GRANT READ ON STAGE general_schema.general_stage TO ROLE data_apps_user_1_role;
 
 -- Allow the app user to use the setup warehouse to create the app.
-GRANT USAGE ON WAREHOUSE setup_xs_warehouse TO ROLE data_apps_robert_cheng_role;
+GRANT USAGE ON WAREHOUSE setup_xs_warehouse TO ROLE data_apps_user_1_role;
 
 -- We want the app owner to be the app user role so switch to that prior to creating the app.
-GRANT ROLE data_apps_robert_cheng_role TO ROLE accountadmin;
-USE ROLE data_apps_robert_cheng_role;
+GRANT ROLE data_apps_user_1_role TO ROLE accountadmin;
+USE ROLE data_apps_user_1_role;
 USE WAREHOUSE setup_xs_warehouse;
 
 -- Create the Streamlit app.
-CREATE OR REPLACE STREAMLIT cil_schema.app_launcher_robert_cheng_streamlit
+CREATE OR REPLACE STREAMLIT group_alpha_schema.app_launcher_user_1_streamlit
   FROM @app_launcher_db.general_schema.general_stage
   MAIN_FILE = 'launcher.py'
-  QUERY_WAREHOUSE = app_launcher_robert_cheng_xs_warehouse
+  QUERY_WAREHOUSE = app_launcher_user_1_xs_warehouse
   TITLE = 'App Launcher v2';
 
 -- Switch back to accountadmin role.
 USE ROLE accountadmin;
 
 -- Revoke temporarily granted roles.
-REVOKE CREATE STREAMLIT ON SCHEMA cil_schema FROM ROLE data_apps_robert_cheng_role;
-REVOKE READ ON STAGE general_schema.general_stage FROM ROLE data_apps_robert_cheng_role;
-REVOKE USAGE ON WAREHOUSE setup_xs_warehouse FROM ROLE data_apps_robert_cheng_role;
+REVOKE CREATE STREAMLIT ON SCHEMA group_alpha_schema FROM ROLE data_apps_user_1_role;
+REVOKE READ ON STAGE general_schema.general_stage FROM ROLE data_apps_user_1_role;
+REVOKE USAGE ON WAREHOUSE setup_xs_warehouse FROM ROLE data_apps_user_1_role;
 ---------------- End database app_launcher_db. -----------------------------------------------
 
 
@@ -577,7 +577,7 @@ REVOKE USAGE ON WAREHOUSE setup_xs_warehouse FROM ROLE data_apps_robert_cheng_ro
 -- Create the database and schemas.
 create database if not exists data_manager_db;
 use database data_manager_db;
-create schema if not exists cil_schema;
+create schema if not exists group_alpha_schema;
 create schema if not exists general_schema;
 
 -- Create a general stage for holding the spec for the service.
@@ -606,10 +606,10 @@ CREATE TABLE IF NOT EXISTS general_schema.image_metadata_table (
 -- SEE GITHUB README FOR WHAT DATA TO ADD TO THIS TABLE (not yet actually present in the README).
 
 -- Create roles.
-create role if not exists data_manager_cil_role; -- This is the account role that owns and operates the app.
+create role if not exists data_manager_group_alpha_role; -- This is the account role that owns and operates the app.
 
 -- Create a warehouse for the app.
-CREATE WAREHOUSE IF NOT EXISTS data_manager_robert_cheng_xs_warehouse
+CREATE WAREHOUSE IF NOT EXISTS data_manager_user_1_xs_warehouse
   WAREHOUSE_SIZE = 'XSMALL'
   AUTO_RESUME = TRUE
   INITIALLY_SUSPENDED = TRUE;
@@ -618,7 +618,7 @@ CREATE WAREHOUSE IF NOT EXISTS data_manager_robert_cheng_xs_warehouse
 use warehouse setup_xs_warehouse;
 
 -- Create compute pool for the app.
-CREATE COMPUTE POOL IF NOT EXISTS data_manager_robert_cheng_xs_compute_pool
+CREATE COMPUTE POOL IF NOT EXISTS data_manager_user_1_xs_compute_pool
     MIN_NODES = 1
     MAX_NODES = 1
     INSTANCE_FAMILY = CPU_X64_XS
@@ -626,54 +626,54 @@ CREATE COMPUTE POOL IF NOT EXISTS data_manager_robert_cheng_xs_compute_pool
     INITIALLY_SUSPENDED = TRUE
     AUTO_SUSPEND_SECS = 600;
 
--- Grant data_manager_cil_role privileges to see the database and schema.
+-- Grant data_manager_group_alpha_role privileges to see the database and schema.
 GRANT USAGE ON DATABASE data_manager_db
-  TO ROLE data_manager_cil_role;
-GRANT USAGE ON SCHEMA cil_schema
-  TO ROLE data_manager_cil_role;
+  TO ROLE data_manager_group_alpha_role;
+GRANT USAGE ON SCHEMA group_alpha_schema
+  TO ROLE data_manager_group_alpha_role;
 GRANT USAGE ON SCHEMA general_schema
-  TO ROLE data_manager_cil_role;
+  TO ROLE data_manager_group_alpha_role;
 
 -- Give the app user role the ability to even launch the app by granting access to the database and schema.
-GRANT USAGE ON DATABASE data_manager_db TO ROLE data_apps_robert_cheng_role;
-GRANT USAGE ON SCHEMA cil_schema TO ROLE data_apps_robert_cheng_role;
+GRANT USAGE ON DATABASE data_manager_db TO ROLE data_apps_user_1_role;
+GRANT USAGE ON SCHEMA group_alpha_schema TO ROLE data_apps_user_1_role;
 
 -- Give this account role the appropriate database roles.
-grant database role cil_group_db.curated_schema_rw_db_role to role data_manager_cil_role;
-grant database role common_db.admin_schema_ro_db_role to role data_manager_cil_role;
+grant database role group_alpha_group_db.curated_schema_rw_db_role to role data_manager_group_alpha_role;
+grant database role common_db.admin_schema_ro_db_role to role data_manager_group_alpha_role;
 
 -- Grant access to the compute resources.
-GRANT USAGE ON WAREHOUSE data_manager_robert_cheng_xs_warehouse TO ROLE data_manager_cil_role;
-GRANT USAGE ON COMPUTE POOL data_manager_robert_cheng_xs_compute_pool TO ROLE data_manager_cil_role;
+GRANT USAGE ON WAREHOUSE data_manager_user_1_xs_warehouse TO ROLE data_manager_group_alpha_role;
+GRANT USAGE ON COMPUTE POOL data_manager_user_1_xs_compute_pool TO ROLE data_manager_group_alpha_role;
 
 -- Grant resource management to the user.
-GRANT MONITOR, OPERATE ON WAREHOUSE data_manager_robert_cheng_xs_warehouse TO ROLE data_apps_robert_cheng_role;
-GRANT MONITOR, OPERATE ON COMPUTE POOL data_manager_robert_cheng_xs_compute_pool TO ROLE data_apps_robert_cheng_role;
+GRANT MONITOR, OPERATE ON WAREHOUSE data_manager_user_1_xs_warehouse TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL data_manager_user_1_xs_compute_pool TO ROLE data_apps_user_1_role;
 
 -- Allow the app role to create the service.
-GRANT CREATE SERVICE ON SCHEMA cil_schema TO ROLE data_manager_cil_role;
-GRANT READ ON IMAGE REPOSITORY general_schema.image_repository TO ROLE data_manager_cil_role;
-GRANT READ ON STAGE general_schema.general_stage TO ROLE data_manager_cil_role;
-GRANT BIND SERVICE ENDPOINT ON ACCOUNT TO ROLE data_manager_cil_role;
+GRANT CREATE SERVICE ON SCHEMA group_alpha_schema TO ROLE data_manager_group_alpha_role;
+GRANT READ ON IMAGE REPOSITORY general_schema.image_repository TO ROLE data_manager_group_alpha_role;
+GRANT READ ON STAGE general_schema.general_stage TO ROLE data_manager_group_alpha_role;
+GRANT BIND SERVICE ENDPOINT ON ACCOUNT TO ROLE data_manager_group_alpha_role;
 
 -- Allow the app role to perform setup.
-GRANT USAGE ON WAREHOUSE setup_xs_warehouse TO ROLE data_manager_cil_role;
+GRANT USAGE ON WAREHOUSE setup_xs_warehouse TO ROLE data_manager_group_alpha_role;
 
 -- We want the app owner to be the app role so switch to that prior to creating the app.
-GRANT ROLE data_manager_cil_role TO ROLE accountadmin;
-USE ROLE data_manager_cil_role;
+GRANT ROLE data_manager_group_alpha_role TO ROLE accountadmin;
+USE ROLE data_manager_group_alpha_role;
 USE WAREHOUSE setup_xs_warehouse;
 
--- **** CREATE THE APP cil_schema.data_manager_robert_cheng_xs_service (DROP, CREATE, ALTER, ALTER; see mawa app setup for details).
+-- **** CREATE THE APP group_alpha_schema.data_manager_user_1_xs_service (DROP, CREATE, ALTER, ALTER; see app_a app setup for details).
 
 -- Switch back to accountadmin role.
 USE ROLE accountadmin;
 
 -- Allow the app user to see and operate the service.
-GRANT MONITOR, OPERATE ON SERVICE cil_schema.data_manager_robert_cheng_xs_service TO ROLE data_apps_robert_cheng_role;
+GRANT MONITOR, OPERATE ON SERVICE group_alpha_schema.data_manager_user_1_xs_service TO ROLE data_apps_user_1_role;
 
 -- Allow the user to run the app from the web even though they have no access to the role that runs the app.
-GRANT SERVICE ROLE cil_schema.data_manager_robert_cheng_xs_service!web_endpoint_service_role TO ROLE data_apps_robert_cheng_role;
+GRANT SERVICE ROLE group_alpha_schema.data_manager_user_1_xs_service!web_endpoint_service_role TO ROLE data_apps_user_1_role;
 ---------------- End database data_manager_db. -----------------------------------------------
 
 
