@@ -373,9 +373,10 @@ GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_28vcpu_116gib_14x_co
 GRANT MONITOR, OPERATE ON COMPUTE POOL app_a_user_1_workers_28vcpu_240gib_19x_compute_pool TO ROLE data_apps_user_1_role;
 
 -- Grant read permissions on the table.
-GRANT SELECT
-  ON TABLE general_schema.image_metadata_table
-  TO DATABASE ROLE general_schema_ro_db_role;
+-- I'm not sure why I originally had this; commenting it out for the time being.
+-- GRANT SELECT
+--   ON TABLE general_schema.image_metadata_table
+--   TO DATABASE ROLE general_schema_ro_db_role;
 
 -- Grant permissions to allow the database role to create serivces (such as for submitting a job service) and to use the images in the image repository for doing so.
 GRANT CREATE SERVICE ON SCHEMA group_alpha_schema
@@ -399,6 +400,7 @@ USE WAREHOUSE setup_xs_warehouse;
 
 -- Create the seven services, one with each set of compute resources.
 -- CPU_X64_XS_1vcpu_6gib_1x
+-- Note in the USING blocks if there are underscores, hyphens, spaces, etc., you need something like ' "bleh" ' instead of 'bleh'.
 DROP SERVICE IF EXISTS group_alpha_schema.app_a_user_1_frontend_1vcpu_6gib_1x_service;
 CREATE SERVICE group_alpha_schema.app_a_user_1_frontend_1vcpu_6gib_1x_service
   IN COMPUTE POOL app_a_user_1_frontend_1vcpu_6gib_1x_compute_pool
@@ -570,18 +572,24 @@ REVOKE USAGE ON WAREHOUSE setup_xs_warehouse FROM ROLE data_apps_robert_cheng_ro
 
 
 ---------------- Database data_manager_db. ---------------------------------------------------
+-- As of 11/5/25 did not yet run this section as we haven't created this app yet!
+
 -- Create the database and schemas.
 create database if not exists data_manager_db;
 use database data_manager_db;
-create schema if not exists group_alpha_schema;
+create schema if not exists cil_schema;
 create schema if not exists general_schema;
 
--- Create a general stage for holding the code for the service.
+-- Create a general stage for holding the spec for the service.
 create stage if not exists general_schema.general_stage
   directory = ( enable = true );
 
+-- SEE GITHUB README FOR WHAT FILE TO UPLOAD TO THIS STAGE (not yet created nor actually present in the README).
+
 -- Create an image repository.
 CREATE IMAGE REPOSITORY IF NOT EXISTS general_schema.image_repository;
+
+-- SEE GITHUB README FOR WHAT IMAGE TO UPLOAD TO THIS REPOSITORY (not yet created nor actually present in the README).
 
 -- Create table.
 CREATE TABLE IF NOT EXISTS general_schema.image_metadata_table (
@@ -595,11 +603,13 @@ CREATE TABLE IF NOT EXISTS general_schema.image_metadata_table (
   who_added VARCHAR(255)
 );
 
+-- SEE GITHUB README FOR WHAT DATA TO ADD TO THIS TABLE (not yet actually present in the README).
+
 -- Create roles.
-create role if not exists data_manager_group_alpha_role; -- This is the account role that owns and operates the app.
+create role if not exists data_manager_cil_role; -- This is the account role that owns and operates the app.
 
 -- Create a warehouse for the app.
-CREATE WAREHOUSE IF NOT EXISTS data_manager_user_1_xs_warehouse
+CREATE WAREHOUSE IF NOT EXISTS data_manager_robert_cheng_xs_warehouse
   WAREHOUSE_SIZE = 'XSMALL'
   AUTO_RESUME = TRUE
   INITIALLY_SUSPENDED = TRUE;
@@ -607,7 +617,8 @@ CREATE WAREHOUSE IF NOT EXISTS data_manager_user_1_xs_warehouse
 -- Do this because creating a warehouse such as above switches to that warehouse at least in the Snowflake VS Code extension.
 use warehouse setup_xs_warehouse;
 
-CREATE COMPUTE POOL IF NOT EXISTS data_manager_user_1_xs_compute_pool
+-- Create compute pool for the app.
+CREATE COMPUTE POOL IF NOT EXISTS data_manager_robert_cheng_xs_compute_pool
     MIN_NODES = 1
     MAX_NODES = 1
     INSTANCE_FAMILY = CPU_X64_XS
@@ -615,35 +626,54 @@ CREATE COMPUTE POOL IF NOT EXISTS data_manager_user_1_xs_compute_pool
     INITIALLY_SUSPENDED = TRUE
     AUTO_SUSPEND_SECS = 600;
 
--- **** CREATE THE APP, group_alpha_schema.data_manager_user_1_xs_service.
-
--- Grant data_manager_group_alpha_role privileges to see the database and schema.
+-- Grant data_manager_cil_role privileges to see the database and schema.
 GRANT USAGE ON DATABASE data_manager_db
-  TO ROLE data_manager_group_alpha_role;
-GRANT USAGE ON SCHEMA group_alpha_schema
-  TO ROLE data_manager_group_alpha_role;
+  TO ROLE data_manager_cil_role;
+GRANT USAGE ON SCHEMA cil_schema
+  TO ROLE data_manager_cil_role;
+GRANT USAGE ON SCHEMA general_schema
+  TO ROLE data_manager_cil_role;
 
 -- Give the app user role the ability to even launch the app by granting access to the database and schema.
-GRANT USAGE ON DATABASE data_manager_db TO ROLE data_apps_user_1_role;
-GRANT USAGE ON SCHEMA group_alpha_schema TO ROLE data_apps_user_1_role;
-
--- Change the owner of the app to the service role data_manager_group_alpha_role.
-GRANT OWNERSHIP ON SERVICE group_alpha_schema.data_manager_user_1_xs_service TO ROLE data_manager_group_alpha_role COPY CURRENT GRANTS;
+GRANT USAGE ON DATABASE data_manager_db TO ROLE data_apps_robert_cheng_role;
+GRANT USAGE ON SCHEMA cil_schema TO ROLE data_apps_robert_cheng_role;
 
 -- Give this account role the appropriate database roles.
-grant database role group_alpha_group_db.curated_schema_rw_db_role to role data_manager_group_alpha_role;
-grant database role common_db.admin_schema_ro_db_role to role data_manager_group_alpha_role;
+grant database role cil_group_db.curated_schema_rw_db_role to role data_manager_cil_role;
+grant database role common_db.admin_schema_ro_db_role to role data_manager_cil_role;
 
 -- Grant access to the compute resources.
-GRANT USAGE ON WAREHOUSE data_manager_user_1_xs_warehouse TO ROLE data_manager_group_alpha_role;
-GRANT USAGE ON COMPUTE POOL data_manager_user_1_xs_compute_pool TO ROLE data_manager_group_alpha_role;
+GRANT USAGE ON WAREHOUSE data_manager_robert_cheng_xs_warehouse TO ROLE data_manager_cil_role;
+GRANT USAGE ON COMPUTE POOL data_manager_robert_cheng_xs_compute_pool TO ROLE data_manager_cil_role;
 
 -- Grant resource management to the user.
-GRANT MONITOR, OPERATE ON WAREHOUSE data_manager_user_1_xs_warehouse TO ROLE data_apps_user_1_role;
-GRANT MONITOR, OPERATE ON COMPUTE POOL data_manager_user_1_xs_compute_pool TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON WAREHOUSE data_manager_robert_cheng_xs_warehouse TO ROLE data_apps_robert_cheng_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL data_manager_robert_cheng_xs_compute_pool TO ROLE data_apps_robert_cheng_role;
+
+-- Allow the app role to create the service.
+GRANT CREATE SERVICE ON SCHEMA cil_schema TO ROLE data_manager_cil_role;
+GRANT READ ON IMAGE REPOSITORY general_schema.image_repository TO ROLE data_manager_cil_role;
+GRANT READ ON STAGE general_schema.general_stage TO ROLE data_manager_cil_role;
+GRANT BIND SERVICE ENDPOINT ON ACCOUNT TO ROLE data_manager_cil_role;
+
+-- Allow the app role to perform setup.
+GRANT USAGE ON WAREHOUSE setup_xs_warehouse TO ROLE data_manager_cil_role;
+
+-- We want the app owner to be the app role so switch to that prior to creating the app.
+GRANT ROLE data_manager_cil_role TO ROLE accountadmin;
+USE ROLE data_manager_cil_role;
+USE WAREHOUSE setup_xs_warehouse;
+
+-- **** CREATE THE APP cil_schema.data_manager_robert_cheng_xs_service (DROP, CREATE, ALTER, ALTER; see mawa app setup for details).
+
+-- Switch back to accountadmin role.
+USE ROLE accountadmin;
 
 -- Allow the app user to see and operate the service.
-GRANT MONITOR, OPERATE ON SERVICE group_alpha_schema.data_manager_user_1_xs_service TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON SERVICE cil_schema.data_manager_robert_cheng_xs_service TO ROLE data_apps_robert_cheng_role;
+
+-- Allow the user to run the app from the web even though they have no access to the role that runs the app.
+GRANT SERVICE ROLE cil_schema.data_manager_robert_cheng_xs_service!web_endpoint_service_role TO ROLE data_apps_robert_cheng_role;
 ---------------- End database data_manager_db. -----------------------------------------------
 
 
