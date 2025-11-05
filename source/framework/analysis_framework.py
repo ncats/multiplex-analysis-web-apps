@@ -13,7 +13,7 @@ JOB_OUTPUTS_BUCKET_NAME = os.getenv('JOB_OUTPUTS_BUCKET_NAME')
 
 @st.cache_data()
 def get_available_async_resources():
-    raw = os.getenv("AVAILABLE_COMPUTE_RESOURCES", "")
+    raw = os.getenv("ALL_COMPUTE_RESOURCES", "")
     if not raw.strip():
         return []
     return [r for r in raw.split() if r]

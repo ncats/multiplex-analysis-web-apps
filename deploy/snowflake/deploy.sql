@@ -311,7 +311,7 @@ DROP SERVICE IF EXISTS group_alpha_schema.app_a_user_1_frontend_1vcpu_6gib_1x_se
 CREATE SERVICE group_alpha_schema.app_a_user_1_frontend_1vcpu_6gib_1x_service
   IN COMPUTE POOL app_a_user_1_frontend_1vcpu_6gib_1x_compute_pool
   FROM @app_a_app_db.general_schema.general_stage SPECIFICATION_TEMPLATE_FILE='frontend_service_spec.yaml'
-  USING ( APP_SHORTNAME=>'app_a', IMAGE_NAME=>'frontend', IMAGE_TAG=>'latest', REQUESTS_MEMORY_GI=>6, REQUESTS_CPU=>1, LIMITS_MEMORY_GI=>6, LIMITS_CPU=>1, APP_TITLE=>'App A', MONITOR_JOBS_REFRESH_INTERVAL_SECONDS=>5, SNOWFLAKE_USER=>'user_1', COMPUTE_RESOURCE=>'CPU_X64_XS_1vcpu_6gib_1x', WAREHOUSE_SIZE=>'xs', ALL_COMPUTE_RESOURCES=>'CPU_X64_XS_1vcpu_6gib_1x CPU_X64_S_3vcpu_13gib_2x CPU_X64_M_6vcpu_28gib_4x HIGHMEM_X64_S_6vcpu_58gib_5x CPU_X64_SL_14vcpu_58gib_7x CPU_X64_L_28vcpu_116gib_14x HIGHMEM_X64_M_28vcpu_240gib_19x' )
+  USING ( APP_SHORTNAME=>'app_a', IMAGE_NAME=>'frontend', IMAGE_TAG=>'latest', REQUESTS_MEMORY_GI=>6, REQUESTS_CPU=>1, LIMITS_MEMORY_GI=>6, LIMITS_CPU=>1, APP_TITLE=>'App A', MONITOR_JOBS_REFRESH_INTERVAL_SECONDS=>5, SNOWFLAKE_USER=>'user_1', COMPUTE_RESOURCE=>'1vcpu_6gib_1x', WAREHOUSE_SIZE=>'xs', ALL_COMPUTE_RESOURCES=>'1vcpu_6gib_1x 3vcpu_13gib_2x 6vcpu_28gib_4x 6vcpu_58gib_5x 14vcpu_58gib_7x 28vcpu_116gib_14x 28vcpu_240gib_19x' )
   AUTO_RESUME = FALSE
   MIN_INSTANCES = 1
   MAX_INSTANCES = 1;
@@ -323,7 +323,7 @@ DROP SERVICE IF EXISTS group_alpha_schema.app_a_user_1_frontend_3vcpu_13gib_2x_s
 CREATE SERVICE group_alpha_schema.app_a_user_1_frontend_3vcpu_13gib_2x_service
   IN COMPUTE POOL app_a_user_1_frontend_3vcpu_13gib_2x_compute_pool
   FROM @app_a_app_db.general_schema.general_stage SPECIFICATION_TEMPLATE_FILE='frontend_service_spec.yaml'
-  USING ( APP_SHORTNAME=>'app_a', IMAGE_NAME=>'frontend', IMAGE_TAG=>'latest', REQUESTS_MEMORY_GI=>13, REQUESTS_CPU=>3, LIMITS_MEMORY_GI=>13, LIMITS_CPU=>3, APP_TITLE=>'App A', MONITOR_JOBS_REFRESH_INTERVAL_SECONDS=>5, SNOWFLAKE_USER=>'user_1', COMPUTE_RESOURCE=>'CPU_X64_S_3vcpu_13gib_2x', WAREHOUSE_SIZE=>'xs', ALL_COMPUTE_RESOURCES=>'CPU_X64_XS_1vcpu_6gib_1x CPU_X64_S_3vcpu_13gib_2x CPU_X64_M_6vcpu_28gib_4x HIGHMEM_X64_S_6vcpu_58gib_5x CPU_X64_SL_14vcpu_58gib_7x CPU_X64_L_28vcpu_116gib_14x HIGHMEM_X64_M_28vcpu_240gib_19x' )
+  USING ( APP_SHORTNAME=>'app_a', IMAGE_NAME=>'frontend', IMAGE_TAG=>'latest', REQUESTS_MEMORY_GI=>13, REQUESTS_CPU=>3, LIMITS_MEMORY_GI=>13, LIMITS_CPU=>3, APP_TITLE=>'App A', MONITOR_JOBS_REFRESH_INTERVAL_SECONDS=>5, SNOWFLAKE_USER=>'user_1', COMPUTE_RESOURCE=>'3vcpu_13gib_2x', WAREHOUSE_SIZE=>'xs', ALL_COMPUTE_RESOURCES=>'1vcpu_6gib_1x 3vcpu_13gib_2x 6vcpu_28gib_4x 6vcpu_58gib_5x 14vcpu_58gib_7x 28vcpu_116gib_14x 28vcpu_240gib_19x' )
   AUTO_RESUME = FALSE
   MIN_INSTANCES = 1
   MAX_INSTANCES = 1;
@@ -335,7 +335,7 @@ DROP SERVICE IF EXISTS group_alpha_schema.app_a_user_1_frontend_6vcpu_28gib_4x_s
 CREATE SERVICE group_alpha_schema.app_a_user_1_frontend_6vcpu_28gib_4x_service
   IN COMPUTE POOL app_a_user_1_frontend_6vcpu_28gib_4x_compute_pool
   FROM @app_a_app_db.general_schema.general_stage SPECIFICATION_TEMPLATE_FILE='frontend_service_spec.yaml'
-  USING ( APP_SHORTNAME=>'app_a', IMAGE_NAME=>'frontend', IMAGE_TAG=>'latest', REQUESTS_MEMORY_GI=>28, REQUESTS_CPU=>6, LIMITS_MEMORY_GI=>28, LIMITS_CPU=>6, APP_TITLE=>'App A', MONITOR_JOBS_REFRESH_INTERVAL_SECONDS=>5, SNOWFLAKE_USER=>'user_1', COMPUTE_RESOURCE=>'CPU_X64_M_6vcpu_28gib_4x', WAREHOUSE_SIZE=>'xs', ALL_COMPUTE_RESOURCES=>'CPU_X64_XS_1vcpu_6gib_1x CPU_X64_S_3vcpu_13gib_2x CPU_X64_M_6vcpu_28gib_4x HIGHMEM_X64_S_6vcpu_58gib_5x CPU_X64_SL_14vcpu_58gib_7x CPU_X64_L_28vcpu_116gib_14x HIGHMEM_X64_M_28vcpu_240gib_19x' )
+  USING ( APP_SHORTNAME=>'app_a', IMAGE_NAME=>'frontend', IMAGE_TAG=>'latest', REQUESTS_MEMORY_GI=>28, REQUESTS_CPU=>6, LIMITS_MEMORY_GI=>28, LIMITS_CPU=>6, APP_TITLE=>'App A', MONITOR_JOBS_REFRESH_INTERVAL_SECONDS=>5, SNOWFLAKE_USER=>'user_1', COMPUTE_RESOURCE=>'6vcpu_28gib_4x', WAREHOUSE_SIZE=>'xs', ALL_COMPUTE_RESOURCES=>'1vcpu_6gib_1x 3vcpu_13gib_2x 6vcpu_28gib_4x 6vcpu_58gib_5x 14vcpu_58gib_7x 28vcpu_116gib_14x 28vcpu_240gib_19x' )
   AUTO_RESUME = FALSE
   MIN_INSTANCES = 1
   MAX_INSTANCES = 1;
@@ -347,7 +347,7 @@ DROP SERVICE IF EXISTS group_alpha_schema.app_a_user_1_frontend_6vcpu_58gib_5x_s
 CREATE SERVICE group_alpha_schema.app_a_user_1_frontend_6vcpu_58gib_5x_service
   IN COMPUTE POOL app_a_user_1_frontend_6vcpu_58gib_5x_compute_pool
   FROM @app_a_app_db.general_schema.general_stage SPECIFICATION_TEMPLATE_FILE='frontend_service_spec.yaml'
-  USING ( APP_SHORTNAME=>'app_a', IMAGE_NAME=>'frontend', IMAGE_TAG=>'latest', REQUESTS_MEMORY_GI=>58, REQUESTS_CPU=>6, LIMITS_MEMORY_GI=>58, LIMITS_CPU=>6, APP_TITLE=>'App A', MONITOR_JOBS_REFRESH_INTERVAL_SECONDS=>5, SNOWFLAKE_USER=>'user_1', COMPUTE_RESOURCE=>'HIGHMEM_X64_S_6vcpu_58gib_5x', WAREHOUSE_SIZE=>'xs', ALL_COMPUTE_RESOURCES=>'CPU_X64_XS_1vcpu_6gib_1x CPU_X64_S_3vcpu_13gib_2x CPU_X64_M_6vcpu_28gib_4x HIGHMEM_X64_S_6vcpu_58gib_5x CPU_X64_SL_14vcpu_58gib_7x CPU_X64_L_28vcpu_116gib_14x HIGHMEM_X64_M_28vcpu_240gib_19x' )
+  USING ( APP_SHORTNAME=>'app_a', IMAGE_NAME=>'frontend', IMAGE_TAG=>'latest', REQUESTS_MEMORY_GI=>58, REQUESTS_CPU=>6, LIMITS_MEMORY_GI=>58, LIMITS_CPU=>6, APP_TITLE=>'App A', MONITOR_JOBS_REFRESH_INTERVAL_SECONDS=>5, SNOWFLAKE_USER=>'user_1', COMPUTE_RESOURCE=>'6vcpu_58gib_5x', WAREHOUSE_SIZE=>'xs', ALL_COMPUTE_RESOURCES=>'1vcpu_6gib_1x 3vcpu_13gib_2x 6vcpu_28gib_4x 6vcpu_58gib_5x 14vcpu_58gib_7x 28vcpu_116gib_14x 28vcpu_240gib_19x' )
   AUTO_RESUME = FALSE
   MIN_INSTANCES = 1
   MAX_INSTANCES = 1;
@@ -359,7 +359,7 @@ DROP SERVICE IF EXISTS group_alpha_schema.app_a_user_1_frontend_14vcpu_58gib_7x_
 CREATE SERVICE group_alpha_schema.app_a_user_1_frontend_14vcpu_58gib_7x_service
   IN COMPUTE POOL app_a_user_1_frontend_14vcpu_58gib_7x_compute_pool
   FROM @app_a_app_db.general_schema.general_stage SPECIFICATION_TEMPLATE_FILE='frontend_service_spec.yaml'
-  USING ( APP_SHORTNAME=>'app_a', IMAGE_NAME=>'frontend', IMAGE_TAG=>'latest', REQUESTS_MEMORY_GI=>58, REQUESTS_CPU=>14, LIMITS_MEMORY_GI=>58, LIMITS_CPU=>14, APP_TITLE=>'App A', MONITOR_JOBS_REFRESH_INTERVAL_SECONDS=>5, SNOWFLAKE_USER=>'user_1', COMPUTE_RESOURCE=>'CPU_X64_SL_14vcpu_58gib_7x', WAREHOUSE_SIZE=>'xs', ALL_COMPUTE_RESOURCES=>'CPU_X64_XS_1vcpu_6gib_1x CPU_X64_S_3vcpu_13gib_2x CPU_X64_M_6vcpu_28gib_4x HIGHMEM_X64_S_6vcpu_58gib_5x CPU_X64_SL_14vcpu_58gib_7x CPU_X64_L_28vcpu_116gib_14x HIGHMEM_X64_M_28vcpu_240gib_19x' )
+  USING ( APP_SHORTNAME=>'app_a', IMAGE_NAME=>'frontend', IMAGE_TAG=>'latest', REQUESTS_MEMORY_GI=>58, REQUESTS_CPU=>14, LIMITS_MEMORY_GI=>58, LIMITS_CPU=>14, APP_TITLE=>'App A', MONITOR_JOBS_REFRESH_INTERVAL_SECONDS=>5, SNOWFLAKE_USER=>'user_1', COMPUTE_RESOURCE=>'14vcpu_58gib_7x', WAREHOUSE_SIZE=>'xs', ALL_COMPUTE_RESOURCES=>'1vcpu_6gib_1x 3vcpu_13gib_2x 6vcpu_28gib_4x 6vcpu_58gib_5x 14vcpu_58gib_7x 28vcpu_116gib_14x 28vcpu_240gib_19x' )
   AUTO_RESUME = FALSE
   MIN_INSTANCES = 1
   MAX_INSTANCES = 1;
@@ -371,7 +371,7 @@ DROP SERVICE IF EXISTS group_alpha_schema.app_a_user_1_frontend_28vcpu_116gib_14
 CREATE SERVICE group_alpha_schema.app_a_user_1_frontend_28vcpu_116gib_14x_service
   IN COMPUTE POOL app_a_user_1_frontend_28vcpu_116gib_14x_compute_pool
   FROM @app_a_app_db.general_schema.general_stage SPECIFICATION_TEMPLATE_FILE='frontend_service_spec.yaml'
-  USING ( APP_SHORTNAME=>'app_a', IMAGE_NAME=>'frontend', IMAGE_TAG=>'latest', REQUESTS_MEMORY_GI=>116, REQUESTS_CPU=>28, LIMITS_MEMORY_GI=>116, LIMITS_CPU=>28, APP_TITLE=>'App A', MONITOR_JOBS_REFRESH_INTERVAL_SECONDS=>5, SNOWFLAKE_USER=>'user_1', COMPUTE_RESOURCE=>'CPU_X64_L_28vcpu_116gib_14x', WAREHOUSE_SIZE=>'xs', ALL_COMPUTE_RESOURCES=>'CPU_X64_XS_1vcpu_6gib_1x CPU_X64_S_3vcpu_13gib_2x CPU_X64_M_6vcpu_28gib_4x HIGHMEM_X64_S_6vcpu_58gib_5x CPU_X64_SL_14vcpu_58gib_7x CPU_X64_L_28vcpu_116gib_14x HIGHMEM_X64_M_28vcpu_240gib_19x' )
+  USING ( APP_SHORTNAME=>'app_a', IMAGE_NAME=>'frontend', IMAGE_TAG=>'latest', REQUESTS_MEMORY_GI=>116, REQUESTS_CPU=>28, LIMITS_MEMORY_GI=>116, LIMITS_CPU=>28, APP_TITLE=>'App A', MONITOR_JOBS_REFRESH_INTERVAL_SECONDS=>5, SNOWFLAKE_USER=>'user_1', COMPUTE_RESOURCE=>'28vcpu_116gib_14x', WAREHOUSE_SIZE=>'xs', ALL_COMPUTE_RESOURCES=>'1vcpu_6gib_1x 3vcpu_13gib_2x 6vcpu_28gib_4x 6vcpu_58gib_5x 14vcpu_58gib_7x 28vcpu_116gib_14x 28vcpu_240gib_19x' )
   AUTO_RESUME = FALSE
   MIN_INSTANCES = 1
   MAX_INSTANCES = 1;
@@ -383,7 +383,7 @@ DROP SERVICE IF EXISTS group_alpha_schema.app_a_user_1_frontend_28vcpu_240gib_19
 CREATE SERVICE group_alpha_schema.app_a_user_1_frontend_28vcpu_240gib_19x_service
   IN COMPUTE POOL app_a_user_1_frontend_28vcpu_240gib_19x_compute_pool
   FROM @app_a_app_db.general_schema.general_stage SPECIFICATION_TEMPLATE_FILE='frontend_service_spec.yaml'
-  USING ( APP_SHORTNAME=>'app_a', IMAGE_NAME=>'frontend', IMAGE_TAG=>'latest', REQUESTS_MEMORY_GI=>240, REQUESTS_CPU=>28, LIMITS_MEMORY_GI=>240, LIMITS_CPU=>28, APP_TITLE=>'App A', MONITOR_JOBS_REFRESH_INTERVAL_SECONDS=>5, SNOWFLAKE_USER=>'user_1', COMPUTE_RESOURCE=>'HIGHMEM_X64_M_28vcpu_240gib_19x', WAREHOUSE_SIZE=>'xs', ALL_COMPUTE_RESOURCES=>'CPU_X64_XS_1vcpu_6gib_1x CPU_X64_S_3vcpu_13gib_2x CPU_X64_M_6vcpu_28gib_4x HIGHMEM_X64_S_6vcpu_58gib_5x CPU_X64_SL_14vcpu_58gib_7x CPU_X64_L_28vcpu_116gib_14x HIGHMEM_X64_M_28vcpu_240gib_19x' )
+  USING ( APP_SHORTNAME=>'app_a', IMAGE_NAME=>'frontend', IMAGE_TAG=>'latest', REQUESTS_MEMORY_GI=>240, REQUESTS_CPU=>28, LIMITS_MEMORY_GI=>240, LIMITS_CPU=>28, APP_TITLE=>'App A', MONITOR_JOBS_REFRESH_INTERVAL_SECONDS=>5, SNOWFLAKE_USER=>'user_1', COMPUTE_RESOURCE=>'28vcpu_240gib_19x', WAREHOUSE_SIZE=>'xs', ALL_COMPUTE_RESOURCES=>'1vcpu_6gib_1x 3vcpu_13gib_2x 6vcpu_28gib_4x 6vcpu_58gib_5x 14vcpu_58gib_7x 28vcpu_116gib_14x 28vcpu_240gib_19x' )
   AUTO_RESUME = FALSE
   MIN_INSTANCES = 1
   MAX_INSTANCES = 1;
