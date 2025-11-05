@@ -94,7 +94,7 @@ Push required files to the relevant stages from the GitHub clone:
 snow sql --connection eval3 --role accountadmin  # Works for Andrew since he has the "eval3" Snowflake connection already set up. If you're not Andrew, install the Snowflake CLI (https://docs.snowflake.com/en/developer-guide/snowflake-cli/installation/installation#label-snowcli-install-linux-package-managers) and set up your connection to our Snowflake deployment.
 > PUT file://deploy/snowflake/frontend_service_spec.yaml @app_a_app_db.general_schema.general_stage;
 > PUT file://deploy/snowflake/worker_service_spec.yaml @app_a_app_db.general_schema.general_stage;
-> PUT file://deploy/snowflake/launcher.py @app_launcher_db.general_schema.general_stage;
+> PUT file://deploy/snowflake/launcher.py @app_launcher_db.general_schema.general_stage AUTO_COMPRESS=FALSE;
 ```
 
 Step through `deploy/snowflake/deploy.sql`.

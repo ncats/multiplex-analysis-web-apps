@@ -391,11 +391,11 @@ GRANT BIND SERVICE ENDPOINT ON ACCOUNT TO ROLE app_a_group_alpha_role;
 
 -- Allow the app role to perform setup.
 GRANT USAGE ON WAREHOUSE setup_xs_warehouse TO ROLE app_a_group_alpha_role;
-USE WAREHOUSE setup_xs_warehouse;
 
 -- We want the app owner to be the app role so switch to that prior to creating the app.
 GRANT ROLE app_a_group_alpha_role TO ROLE accountadmin;
 USE ROLE app_a_group_alpha_role;
+USE WAREHOUSE setup_xs_warehouse;
 
 -- Create the seven services, one with each set of compute resources.
 -- CPU_X64_XS_1vcpu_6gib_1x
@@ -509,7 +509,7 @@ GRANT SERVICE ROLE group_alpha_schema.app_a_user_1_frontend_28vcpu_240gib_19x_se
 -- Create the database and schemas.
 create database if not exists app_launcher_db;
 use database app_launcher_db;
-create schema if not exists group_alpha_schema;
+create schema if not exists cil_schema;
 create schema if not exists general_schema;
 
 -- Create a general stage for holding the code for the launcher.
@@ -519,7 +519,7 @@ create stage if not exists general_schema.general_stage
 -- SEE GITHUB README FOR WHAT FILE TO UPLOAD TO THIS STAGE (the streamlit app `launcher.py`).
 
 -- Create a warehouse for the app.
-CREATE WAREHOUSE IF NOT EXISTS app_launcher_user_1_xs_warehouse
+CREATE WAREHOUSE IF NOT EXISTS app_launcher_robert_cheng_xs_warehouse
   WAREHOUSE_SIZE = 'XSMALL'
   AUTO_RESUME = TRUE
   INITIALLY_SUSPENDED = TRUE;
@@ -527,23 +527,45 @@ CREATE WAREHOUSE IF NOT EXISTS app_launcher_user_1_xs_warehouse
 -- Do this because creating a warehouse such as above switches to that warehouse at least in the Snowflake VS Code extension.
 use warehouse setup_xs_warehouse;
 
-CREATE OR REPLACE STREAMLIT group_alpha_schema.app_launcher_user_1_streamlit
-  FROM @app_launcher_db.general_schema.general_stage
-  MAIN_FILE = 'launcher.py'
-  QUERY_WAREHOUSE = app_launcher_user_1_xs_warehouse
-  TITLE = 'App Launcher v2'
-
--- Grant data_apps_user_1_role privileges to see the database and schema.
+-- Grant data_apps_robert_cheng_role privileges to see the database and schemas.
 GRANT USAGE ON DATABASE app_launcher_db
-  TO ROLE data_apps_user_1_role;
-GRANT USAGE ON SCHEMA group_alpha_schema
-  TO ROLE data_apps_user_1_role;
-
--- Change the owner of the launcher app to the user role data_apps_user_1_role.
-GRANT OWNERSHIP ON STREAMLIT group_alpha_schema.app_launcher_user_1_streamlit TO ROLE data_apps_user_1_role COPY CURRENT GRANTS;
+  TO ROLE data_apps_robert_cheng_role;
+GRANT USAGE ON SCHEMA cil_schema
+  TO ROLE data_apps_robert_cheng_role;
+GRANT USAGE ON SCHEMA general_schema
+  TO ROLE data_apps_robert_cheng_role;
 
 -- Grant access to the warehouse.
-GRANT USAGE, OPERATE, MONITOR ON WAREHOUSE app_launcher_user_1_xs_warehouse TO ROLE data_apps_user_1_role;
+GRANT USAGE, OPERATE, MONITOR ON WAREHOUSE app_launcher_robert_cheng_xs_warehouse TO ROLE data_apps_robert_cheng_role;
+
+-- Allow creation of Streamlit apps in the cil_schema schema.
+GRANT CREATE STREAMLIT ON SCHEMA cil_schema TO ROLE data_apps_robert_cheng_role;
+
+-- Allow reading from the stage where the launcher code is stored.
+GRANT READ ON STAGE general_schema.general_stage TO ROLE data_apps_robert_cheng_role;
+
+-- Allow the app user to use the setup warehouse to create the app.
+GRANT USAGE ON WAREHOUSE setup_xs_warehouse TO ROLE data_apps_robert_cheng_role;
+
+-- We want the app owner to be the app user role so switch to that prior to creating the app.
+GRANT ROLE data_apps_robert_cheng_role TO ROLE accountadmin;
+USE ROLE data_apps_robert_cheng_role;
+USE WAREHOUSE setup_xs_warehouse;
+
+-- Create the Streamlit app.
+CREATE OR REPLACE STREAMLIT cil_schema.app_launcher_robert_cheng_streamlit
+  FROM @app_launcher_db.general_schema.general_stage
+  MAIN_FILE = 'launcher.py'
+  QUERY_WAREHOUSE = app_launcher_robert_cheng_xs_warehouse
+  TITLE = 'App Launcher v2';
+
+-- Switch back to accountadmin role.
+USE ROLE accountadmin;
+
+-- Revoke temporarily granted roles.
+REVOKE CREATE STREAMLIT ON SCHEMA cil_schema FROM ROLE data_apps_robert_cheng_role;
+REVOKE READ ON STAGE general_schema.general_stage FROM ROLE data_apps_robert_cheng_role;
+REVOKE USAGE ON WAREHOUSE setup_xs_warehouse FROM ROLE data_apps_robert_cheng_role;
 ---------------- End database app_launcher_db. -----------------------------------------------
 
 
