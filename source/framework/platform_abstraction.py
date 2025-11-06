@@ -920,7 +920,7 @@ def list_objects_in_bucket(bucket_name: str, db_schema: str = None):
                 db_schema = f"{user_group}_group_db.curated_schema"
             stage_location = f"@{db_schema}.{bucket_name}_stage"
             files = session.file.list(stage_location=stage_location)
-            object_list = [file['name'] for file in files]
+            object_list = [file.name.removeprefix(f"{bucket_name}_stage/") for file in files]
             return object_list
         except Exception as e:
             st.error(f"Failed to list objects in {bucket_name} stage in database.schema {db_schema}: {e}")

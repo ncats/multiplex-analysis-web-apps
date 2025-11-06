@@ -34,12 +34,12 @@ def get_service_names(chosen_app_shortname, user_group, username, suffix=None, i
     raw_services_df = session.sql(
         f"show services in schema {get_db_name(chosen_app_shortname)}.{user_group}_schema;"
     ).to_pandas()
-    mask = raw_services_df["name"].str.contains(f"_{username}{suffix}_", case=False, na=False)
+    mask = raw_services_df["\"name\""].str.lower().str.contains(f"_{username}{suffix}_", case=False, na=False)
     if invert:
         matches_df = raw_services_df[~mask]
     else:
         matches_df = raw_services_df[mask]
-    return matches_df["name"].tolist()  # potentially empty list
+    return matches_df["\"name\""].tolist()  # potentially empty list
 
 
 # This should be the same as in platform_abstraction.py in the Snowflake branch.
@@ -60,7 +60,7 @@ def get_user_group(username):
 
 @st.cache_data()
 def extract_user_segment(role: str) -> str | None:
-    m = re.match(r"^data_apps_(.+?)_role$", role)
+    m = re.match(r"^data_apps_(.+?)_role$", role.lower())
     return m.group(1) if m else None
 
 
@@ -92,15 +92,15 @@ def stop_frontend(chosen_app_shortname, user_group, service_name, stop_pool_too=
     session = get_active_session()
     session.sql(f"ALTER SERVICE {get_db_name(chosen_app_shortname)}.{user_group}_schema.{service_name} SUSPEND;").collect()
     if stop_pool_too:
-        compute_pool_name = service_name.removesuffix("_service") + "_compute_pool"
+        compute_pool_name = service_name.lower().removesuffix("_service") + "_compute_pool"
         session.sql(f"ALTER COMPUTE POOL {compute_pool_name} SUSPEND;").collect()
     st.info(f"Selected frontend {'(and compute pool)' if stop_pool_too else '(only)'} should be stopping now...")
 
 
 def stop_workers(service_name):
     session = get_active_session()
-    if "_frontend_" in service_name:
-        compute_pool_name = service_name.replace("_frontend_", "_workers_").removesuffix("_service") + "_compute_pool"
+    if "_frontend_" in service_name.lower():
+        compute_pool_name = service_name.lower().replace("_frontend_", "_workers_").removesuffix("_service") + "_compute_pool"
         # STUB: SELECT data_app_db.app_runtime_schema.job_service_andrewweisman_job_id_<JOB_ID>!SPCS_CANCEL_JOB(); --> not needed with "STOP ALL" below since that stops all running jobs
         session.sql(f"ALTER COMPUTE POOL {compute_pool_name} STOP ALL;").collect()
         st.info(f"Worker pool {compute_pool_name} and corresponding jobs should be stopping now...")
@@ -114,10 +114,11 @@ def write_app_image_id(chosen_app_shortname, user_group, service_name):
     st.write(image_id)
 
 
-def show_objects():
+def show_objects(app_shortnames, user_group):
     session = get_active_session()
     df_list = []
-    df_list.append(session.sql("show services;").to_pandas().rename(columns={"\"status\"": "\"state\""}))
+    for app_shortname in app_shortnames:
+        df_list.append(session.sql(f"show services in schema {get_db_name(app_shortname)}.{user_group}_schema;").to_pandas().rename(columns={"\"status\"": "\"state\""}))
     df_list.append(session.sql("show compute pools").to_pandas())
     df_list.append(session.sql("show warehouses").to_pandas())
     df = pd.concat(df_list, ignore_index=True).sort_values("\"updated_on\"", ignore_index=True, ascending=False)
@@ -134,7 +135,7 @@ def show_objects():
                 return f"🔴 {val_str}"
             return val_str
         df["\"state\""] = df["\"state\""].apply(_add_state_emoji)
-    st.dataframe(df, hide_index=True, use_container_width=True)
+    st.dataframe(df, use_container_width=True)
 
 
 def main():
@@ -143,10 +144,12 @@ def main():
     st.title("App Launcher v2")
 
     # Get a list of apps subject to the new organization scheme.
-    app_shortname_dict = {"Data Manager": "data_manager", "Multiplex Analysis Web Apps": "mawa"}
+    # app_shortname_dict = {"Data Manager": "data_manager", "Multiplex Analysis Web Apps": "mawa"}
+    app_shortname_dict = {"Multiplex Analysis Web Apps": "mawa"}
 
     # Get the corresponding keys.
     app_titles = list(app_shortname_dict.keys())
+    app_shortnames = list(app_shortname_dict.values())
 
     # Get app owner's role.
     current_role = get_owner_role()
@@ -177,8 +180,15 @@ def main():
         st.warning(f"No startable services found.")
         return
     
-    # Allow the user to select which startable service (i.e., version of the app) they'd like to control.
-    chosen_startable_service_name = st.selectbox("Select startable service to control:", startable_service_names)
+    # Allow the user to select which startable service (i.e., version of the app) they'd like to control. Make the default a minimal-compute-resource one, if available.
+    key = "chosen_startable_service_name"
+    if key not in st.session_state:
+        minimal_services = [x for x in startable_service_names if "_1x_" in x.lower()]
+        if minimal_services:
+            st.session_state[key] = minimal_services[0]
+        else:
+            st.session_state[key] = startable_service_names[0]
+    chosen_startable_service_name = st.selectbox("Select startable service to control:", startable_service_names, key=key)
 
     # Ask the user what they want to do.
     action_to_perform = st.selectbox("Select action to perform:", ["Start app", "Show URL", "Stop frontend (and compute pool)", "Stop frontend (service only)", "Stop corresponding workers", "Retrieve app image ID"])
@@ -199,7 +209,7 @@ def main():
 
     st.header("General control")
     if st.button("Detect all services, compute pools, and warehouses"):
-        show_objects()
+        show_objects(app_shortnames, user_group)
 
 
 if __name__ == "__main__":
