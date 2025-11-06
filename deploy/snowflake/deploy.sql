@@ -8,6 +8,15 @@ CREATE WAREHOUSE IF NOT EXISTS setup_xs_warehouse
   INITIALLY_SUSPENDED = TRUE;
 use warehouse setup_xs_warehouse;
 
+-- Create a warehouse for general usage.
+CREATE WAREHOUSE IF NOT EXISTS general_xs_warehouse
+  WAREHOUSE_SIZE = 'XSMALL'
+  AUTO_RESUME = TRUE
+  INITIALLY_SUSPENDED = TRUE;
+
+-- Do this because creating a warehouse such as above switches to that warehouse at least in the Snowflake VS Code extension.
+use warehouse setup_xs_warehouse;
+
 
 ---------------- Database group_alpha_group_db. ---------------------------------------------------
 -- Create the database and schemas.
@@ -67,9 +76,10 @@ CREATE TABLE IF NOT EXISTS app_a_schema.jobs_table (
   compute_resource VARCHAR(255)
 );
 
--- Create database roles.
+-- Create roles.
 create database role if not exists curated_schema_rw_db_role;
 create database role if not exists app_a_schema_rw_db_role;
+create role if not exists data_apps_user_1_role; -- This is the account role that will be granted the service role for the app.
 
 -- Grant curated_schema_rw_db_role privileges to see the database and schema.
 GRANT USAGE ON DATABASE group_alpha_group_db
@@ -117,6 +127,15 @@ GRANT SELECT, INSERT, UPDATE
 GRANT SELECT, INSERT, UPDATE
   ON TABLE app_a_schema.jobs_table
   TO DATABASE ROLE app_a_schema_rw_db_role;
+
+-- Other required grants for the data_apps_user_1_role to robustly use the app/Snowflake.
+GRANT USAGE ON WAREHOUSE general_xs_warehouse TO ROLE data_apps_user_1_role;
+GRANT USAGE ON DATABASE group_alpha_group_db TO ROLE data_apps_user_1_role;
+GRANT USAGE ON SCHEMA curated_schema TO ROLE data_apps_user_1_role;
+GRANT USAGE ON SCHEMA app_a_schema TO ROLE data_apps_user_1_role;
+GRANT DATABASE ROLE curated_schema_rw_db_role TO ROLE data_apps_user_1_role;
+GRANT READ ON STAGE app_a_schema.oldarchives_stage TO ROLE data_apps_user_1_role;
+GRANT WRITE ON STAGE app_a_schema.oldarchives_stage TO ROLE data_apps_user_1_role;
 ---------------- End database group_alpha_group_db. -----------------------------------------------
 
 
@@ -190,7 +209,6 @@ CREATE TABLE IF NOT EXISTS general_schema.image_metadata_table (
 
 -- Create roles.
 create role if not exists app_a_group_alpha_role; -- This is the account role that owns and operates the app.
-create role if not exists data_apps_user_1_role; -- This is the account role that will be granted the service role for the app.
 create database role if not exists general_schema_ro_db_role;
 CREATE DATABASE ROLE IF NOT EXISTS group_alpha_schema_service_db_role;
 
