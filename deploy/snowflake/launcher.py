@@ -102,7 +102,8 @@ def stop_workers(service_name):
     if "_frontend_" in service_name.lower():
         compute_pool_name = service_name.lower().replace("_frontend_", "_workers_").removesuffix("_service") + "_compute_pool"
         # STUB: SELECT data_app_db.app_runtime_schema.job_service_andrewweisman_job_id_<JOB_ID>!SPCS_CANCEL_JOB(); --> not needed with "STOP ALL" below since that stops all running jobs
-        session.sql(f"ALTER COMPUTE POOL {compute_pool_name} STOP ALL;").collect()
+        session.sql(f"ALTER COMPUTE POOL {compute_pool_name} STOP ALL;").collect()  # kill the services
+        session.sql(f"ALTER COMPUTE POOL {compute_pool_name} SUSPEND;").collect()  # kill the pool
         st.info(f"Worker pool {compute_pool_name} and corresponding jobs should be stopping now...")
     else:
         st.warning(f"Service name {service_name} is not associated with a worker pool.")

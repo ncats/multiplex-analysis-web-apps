@@ -67,7 +67,7 @@ def submit_job(job_id: str, username: str, session: Session, selected_compute_re
           EXECUTE JOB SERVICE
             IN COMPUTE POOL {compute_pool_name}
             FROM @{app_shortname}_app_db.general_schema.general_stage SPECIFICATION_TEMPLATE_FILE='worker_service_spec.yaml'
-            USING ( APP_SHORTNAME=>'{app_shortname}', APP_TITLE=>' "{app_title}" ', MONITOR_JOBS_REFRESH_INTERVAL_SECONDS=>5, SNOWFLAKE_USER=>' "{username_validated}" ', COMPUTE_RESOURCE=>' "{selected_compute_resource}" ', IMAGE=>' "/{app_shortname}_app_db/general_schema/image_repository/{image_name}:{image_tag}" ', PYTHON_COMMAND=>' "import framework.analysis_framework as analysis_framework; analysis_framework.run_local_analysis('{job_id_validated}')" ', SNOWFLAKE_WAREHOUSE=>' "{app_shortname}_{username_validated}_xs_warehouse" ', MOUNTPATH=>' "/tmp/{app_shortname}" ', MEMORY=>'{gib}Gi', CPU=>{vcpu} )
+            USING ( APP_SHORTNAME=>'{app_shortname}', APP_TITLE=>' "{app_title}" ', MONITOR_JOBS_REFRESH_INTERVAL_SECONDS=>5, SNOWFLAKE_USER=>' "{username_validated}" ', COMPUTE_RESOURCE=>' "{selected_compute_resource}" ', IMAGE=>' "/{app_shortname}_app_db/general_schema/image_repository/{image_name}:{image_tag}" ', PYTHON_COMMAND=>' "import framework.analysis_framework as analysis_framework; analysis_framework.run_local_analysis(\'{job_id_validated}\')" ', SNOWFLAKE_WAREHOUSE=>' "{app_shortname}_{username_validated}_xs_warehouse" ', MOUNTPATH=>' "/tmp/{app_shortname}" ', MEMORY=>'{gib}Gi', CPU=>{vcpu} )
             NAME = {job_service_name}
             ASYNC = TRUE;
         """).strip()

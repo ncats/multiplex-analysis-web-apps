@@ -3,7 +3,7 @@ spec:
     - name: worker
       image: {{IMAGE}}
       command:                            # optional list of strings
-        - "python"
+        - "/opt/conda/bin/python"
         - "-c"
         - {{PYTHON_COMMAND}}
       env:                                # optional
