@@ -20,7 +20,7 @@ There's kind of a brief summary in the comment on line 9 of `analysis_functions.
 
 ## Bottom line
 
-In general, any reasonable analysis function that writes files to disk should take a single top-level directory saying where to write the results. In the framework, this top-level dir will map to `results_topdir`.
+In general, any reasonable analysis function that writes files to disk should take a single top-level directory saying where to write the results. It should also create any necessary subdirectories itself. In the framework, this top-level dir will map to `results_topdir`.
 
 Since that's reasonable, it would be reasonable to modify the SIT or neighborhood profiles or any analysis function to take such a top-level argument, if it doesn't already. I thought the SIT already essentially did that, but I could be wrong, it's been a while.
 
