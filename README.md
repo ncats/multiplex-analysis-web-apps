@@ -199,6 +199,43 @@ Note that the only existing code that is modified is `platform_abstraction.py`.
 * [User data locations on NIDAP](<https://axleinfo-my.sharepoint.com/:x:/r/personal/andrew_weisman_axleinfo_com/Documents/NIH/NIDAP migration/users.xlsx?d=wcf7286526ae547a9b5abc51d33ba7ff9&e=4%3afbf01da7919942748e988c4218f8d591&sharingv2=true&fromShare=true&at=9>)
 * [Diagrams](https://lucid.app/lucidchart/da710fee-56ce-4fa3-9d07-d9a4a97e6f60/edit)
 
+### Common development workflow from local to Snowflake
+
+```bash
+IMAGE_TAG=2025-11-05-v06-leandro-full-stack docker compose build
+IMAGE_TAG=2025-11-05-v06-leandro-full-stack
+docker tag orchestrator:$IMAGE_TAG andrewweisman/mawa-orchestrator:$IMAGE_TAG && docker push andrewweisman/mawa-orchestrator:$IMAGE_TAG
+docker tag frontend:$IMAGE_TAG andrewweisman/mawa-frontend:$IMAGE_TAG && docker push andrewweisman/mawa-frontend:$IMAGE_TAG
+snow spcs image-registry login --role accountadmin
+docker tag andrewweisman/mawa-frontend:$IMAGE_TAG nihnci-eval.registry.snowflakecomputing.com/mawa_app_db/general_schema/image_repository/mawa-frontend:$IMAGE_TAG
+docker push nihnci-eval.registry.snowflakecomputing.com/mawa_app_db/general_schema/image_repository/mawa-frontend:$IMAGE_TAG
+echo $IMAGE_TAG
+git rev-parse HEAD
+```
+
+```sql
+insert into mawa_app_db.general_schema.image_metadata_table (image_id, name, tag, git_commit, environment_yaml_file, archive_compatibility_id, who_added) values 
+('sha256:aa36e5134e0ba69f7630b8227d84cdf10adb0c793e3a956cc582f5ea3935fc5c', 'mawa-frontend', '2025-11-05-v06-leandro-full-stack', 'df000f0f97cb1925179ac149bcef24567c652429', 'environment-leandro-compatible.yml', 1, 'andrewweisman');
+
+ALTER SERVICE cil_schema.mawa_robert_cheng_frontend_1vcpu_6gib_1x_service
+FROM @mawa_app_db.general_schema.general_stage SPECIFICATION_TEMPLATE_FILE='frontend_service_spec.yaml'
+USING (
+  APP_SHORTNAME => 'mawa',
+  APP_TITLE => '"Multiplex Analysis Web Apps"',
+  MONITOR_JOBS_REFRESH_INTERVAL_SECONDS => 5,
+  SNOWFLAKE_USER => '"robert_cheng"',
+  COMPUTE_RESOURCE => '"1vcpu_6gib_1x"',
+  ALL_COMPUTE_RESOURCES => '"1vcpu_6gib_1x 3vcpu_13gib_2x 6vcpu_28gib_4x 6vcpu_58gib_5x 14vcpu_58gib_7x 28vcpu_116gib_14x 28vcpu_240gib_19x"',
+  IMAGE => '"/mawa_app_db/general_schema/image_repository/mawa-frontend:2025-11-05-v06-leandro-full-stack"',  -- updated
+  SNOWFLAKE_WAREHOUSE => '"mawa_robert_cheng_xs_warehouse"',
+  MOUNTPATH => '"/tmp/mawa"',
+  MEMORY => '6Gi',
+  CPU => 1,
+  IMAGE_NAME => '"mawa-frontend"',
+  IMAGE_TAG => '"2025-11-05-v06-leandro-full-stack"'  -- updated
+);
+```
+
 ### Diagrams (as of 10/23/25)
 
 Containers in the app:
