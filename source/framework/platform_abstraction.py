@@ -1316,6 +1316,9 @@ def submit_job(job_id, blocking=True, selected_compute_resource: str = None):
                 session = snowflake_connections.get_snowpark_session()
                 log_compute_resource_for_job(job_id, f"Async: {selected_compute_resource}")
                 worker_image_id = snowflake_orchestrator.submit_job(job_id=job_id, username=get_current_username(), session=session, selected_compute_resource=selected_compute_resource, group_name=get_user_group(get_current_username()), app_shortname=os.getenv("APP_SHORTNAME", "app_a"), image_name=os.getenv("IMAGE_NAME", "frontend"), image_tag=os.getenv("IMAGE_TAG", "latest"), app_title=os.getenv("APP_TITLE", "App A"))
+
+                print("Worker image ID returned from Snowflake orchestrator:", worker_image_id, flush=True)
+
                 if worker_image_id:
                     set_worker_image_id(job_id, worker_image_id)
             return True

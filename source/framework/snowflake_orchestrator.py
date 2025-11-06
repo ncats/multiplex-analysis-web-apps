@@ -13,7 +13,7 @@ def _parse_compute(resource: str):
     CPU_X64_L_28vcpu_116gib_14x
     HIGHMEM_X64_M_28vcpu_240gib_19x
     """
-    m = re.search(r'_(\d+)vcpu_(\d+)gib_', resource)
+    m = re.search(r'^(\d+)vcpu_(\d+)gib_', resource)
     if not m:
         raise ValueError(f"Unrecognized compute resource format: {resource}")
     vcpu = int(m.group(1))
@@ -33,6 +33,18 @@ def submit_job(job_id: str, username: str, session: Session, selected_compute_re
     session: Snowpark Session
     """
     try:
+
+        print("Submitting job with the following parameters:", flush=True)
+        print(f"  job_id: {job_id}", flush=True)
+        print(f"  username: {username}", flush=True)
+        print(f"  session: {session}", flush=True)
+        print(f"  selected_compute_resource: {selected_compute_resource}", flush=True)
+        print(f"  group_name: {group_name}", flush=True)
+        print(f"  app_shortname: {app_shortname}", flush=True)
+        print(f"  image_name: {image_name}", flush=True)
+        print(f"  image_tag: {image_tag}", flush=True)
+        print(f"  app_title: {app_title}", flush=True)
+
         vcpu, gib = _parse_compute(selected_compute_resource)
 
         username_validated = _validate_identifier(username, USERNAME_RE, "username")
@@ -42,6 +54,15 @@ def submit_job(job_id: str, username: str, session: Session, selected_compute_re
         job_service_name = f"{app_shortname}_app_db.{group_name}_schema.{app_shortname}_{username_validated}_worker_{selected_compute_resource}_job_service_{job_id_validated[:10]}"
         role_name = f"data_apps_{username_validated}_role"
 
+        print(f"Computed values:", flush=True)
+        print(f"  vcpu: {vcpu}", flush=True)
+        print(f"  gib: {gib}", flush=True)
+        print(f"  username_validated: {username_validated}", flush=True)
+        print(f"  job_id_validated: {job_id_validated}", flush=True)
+        print(f"  compute_pool_name: {compute_pool_name}", flush=True)
+        print(f"  job_service_name: {job_service_name}", flush=True)
+        print(f"  role_name: {role_name}", flush=True)
+
         job_service_sql = textwrap.dedent(f"""
           EXECUTE JOB SERVICE
             IN COMPUTE POOL {compute_pool_name}
@@ -50,12 +71,24 @@ def submit_job(job_id: str, username: str, session: Session, selected_compute_re
             NAME = {job_service_name}
             ASYNC = TRUE;
         """).strip()
+
+        print(f"Executing job service SQL:\n{job_service_sql}", flush=True)
+
         session.sql(job_service_sql).collect()
+
+        print(f"Job service {job_service_name} submitted successfully.", flush=True)
+
         session.sql(f"GRANT MONITOR, OPERATE ON SERVICE {job_service_name} TO ROLE {role_name}").collect()
+
+        print(f"Granted privileges on job service {job_service_name} to role {role_name}.", flush=True)
+
         worker_image_id = session.sql(f"show service containers in service {job_service_name}").collect()[0]["image_digest"]
+
+        print(f"Retrieved worker image ID: {worker_image_id}", flush=True)
+
         return worker_image_id
     except Exception as e:
-        print(f"Error submitting job {job_id} for user {username}: {e}")
+        print(f"Error submitting job {job_id} for user {username}: {e}", flush=True)
         return None
 
 
