@@ -1093,7 +1093,7 @@ def download_objects_parallel(
 def upload_objects_parallel(
     bucket_name: str,
     file_paths: list[str],
-    base_dir: str,
+    base_dir: str | None = None,
     db_schema: str = None,
     max_workers: int = 8,
     retries: int = 3,
