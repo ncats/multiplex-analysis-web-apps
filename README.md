@@ -201,6 +201,8 @@ Note that the only existing code that is modified is `platform_abstraction.py`.
 
 ### Common development workflow from local to Snowflake
 
+Bash:
+
 ```bash
 IMAGE_TAG=2025-11-05-v06-leandro-full-stack docker compose build
 IMAGE_TAG=2025-11-05-v06-leandro-full-stack
@@ -212,6 +214,8 @@ docker push nihnci-eval.registry.snowflakecomputing.com/mawa_app_db/general_sche
 echo $IMAGE_TAG
 git rev-parse HEAD
 ```
+
+Snowflake SQL:
 
 ```sql
 insert into mawa_app_db.general_schema.image_metadata_table (image_id, name, tag, git_commit, environment_yaml_file, archive_compatibility_id, who_added) values 
