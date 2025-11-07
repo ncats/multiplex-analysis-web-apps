@@ -1,5 +1,5 @@
 # Use Micromamba as base image.
-FROM mambaorg/micromamba:git-9a50bbf
+FROM mambaorg/micromamba@sha256:800e7ade3ffe29c9a9ac2026163131495f8197c3852e572c5835beb4e8a33cd6
 
 # Set the working directory in the container.
 WORKDIR /app
@@ -11,7 +11,10 @@ COPY data_manager/environment.yml .
 RUN micromamba install -y -f environment.yml && micromamba clean --all --yes
 
 # Copy source files to the container.
-COPY data_manager/ .
+COPY --chown=mambauser:mambauser data_manager/ .
+
+# optional (explicit; base image already sets this)
+USER mambauser
 
 # Expose the port that Streamlit runs on.
 EXPOSE 8501

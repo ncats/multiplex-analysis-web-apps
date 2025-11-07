@@ -14,13 +14,15 @@ def get_location_settings():
         },
         "NIDAP-formatted MAWA archives": {
             "bucket_name": pa.OLD_ARCHIVES_BUCKET_NAME,
-            "db_schema": f"{pa.get_user_group(pa.get_current_username())}_group_db.{pa.APP_SHORTNAME}_schema",
+            "db_schema": f"{pa.get_user_group(pa.get_current_username())}_group_db.mawa_schema",
         },
     }
 
 
 # Define the main function.
 def main():
+
+    st.write(f"Running as user: **{pa.get_current_username()}** in group: **{pa.get_user_group(pa.get_current_username())}**")
 
     # Have the user select to where they want to upload data.
     upload_location_options = ["Relatively tidy data (e.g., MAWA input files)", "NIDAP-formatted MAWA archives"]
