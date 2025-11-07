@@ -21,7 +21,7 @@ def main():
         {
             'Menu':
                 [
-                    st.Page(data_uploader.main, title="Data Uploader", url_path='data_uploader'),
+                    st.Page(data_uploader.main, title="☁️ Data Uploader", url_path='data_uploader'),
                 ],
         }
     )

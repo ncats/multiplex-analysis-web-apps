@@ -1092,7 +1092,7 @@ def download_objects_parallel(
 
 def upload_objects_parallel(
     bucket_name: str,
-    file_paths: list[str],
+    file_paths: list,  # May contain str paths OR Streamlit UploadedFile objects
     base_dir: str | None = None,
     db_schema: str = None,
     max_workers: int = 8,
@@ -1102,57 +1102,85 @@ def upload_objects_parallel(
     verify_etag: bool = False
 ):
     """
-    Upload arbitrary local files to object storage in parallel.
+    Upload arbitrary local files (paths) or UploadedFile buffers to object storage in parallel. The latter was added by Andrew on 11/7/25 early morning.
 
-    file_paths: list of absolute or relative local file paths.
-    base_dir: if provided, object names are path-relative to this directory; else filename only.
+    file_paths: list of path strings and/or Streamlit UploadedFile objects.
+    base_dir: only applied to string paths.
     Returns dict {object_name: {'status': 'ok', 'size': bytes} or {'status': 'error', 'error': Exception}}.
     """
 
-    def compute_object_name(path: str):
-        if base_dir:
-            b = os.path.abspath(base_dir)
-            p = os.path.abspath(path)
-            rel = os.path.relpath(p, b)
-            if rel.startswith(".."):
-                raise ValueError(f"{path} outside base_dir {base_dir}")
-            return rel.replace("\\", "/")
-        return os.path.basename(path)
+    def is_uploaded_file(item):
+        return hasattr(item, "read") and hasattr(item, "name")
+
+    def compute_object_name(item):
+        if isinstance(item, str):
+            if base_dir:
+                b = os.path.abspath(base_dir)
+                p = os.path.abspath(item)
+                rel = os.path.relpath(p, b)
+                if rel.startswith(".."):
+                    raise ValueError(f"{item} outside base_dir {base_dir}")
+                return rel.replace("\\", "/")
+            return os.path.basename(item)
+        elif is_uploaded_file(item):
+            return item.name
+        else:
+            raise TypeError("Items must be str paths or Streamlit UploadedFile objects.")
 
     if framework_utils.platform() == "local":
         try:
             client = get_object_storage_client()
 
-            def upload_one(local_path: str):
-                object_name = compute_object_name(local_path)
+            def upload_one(item):
+                object_name = compute_object_name(item)
                 attempt = 0
                 while attempt < retries:
                     f = None
                     try:
-                        size = os.path.getsize(local_path)
-                        f = open(local_path, "rb")
-                        content_type = None
-                        if guess_content_type:
-                            content_type = mimetypes.guess_type(local_path)[0] or "application/octet-stream"
+                        # Acquire bytes and metadata
+                        if isinstance(item, str):
+                            size = os.path.getsize(item)
+                            f = open(item, "rb")
+                            data_stream = f
+                            content_type = None
+                            if guess_content_type:
+                                content_type = mimetypes.guess_type(item)[0] or "application/octet-stream"
+                            local_md5_source_path = item
+                            bytes_data = None
+                        else:
+                            # UploadedFile
+                            bytes_data = item.read()
+                            size = len(bytes_data)
+                            data_stream = io.BytesIO(bytes_data)
+                            content_type = item.type if guess_content_type and hasattr(item, "type") and item.type else (
+                                mimetypes.guess_type(item.name)[0] or "application/octet-stream"
+                            )
+                            local_md5_source_path = None  # We have in-memory data
+                            # Reset internal pointer for potential retries
+                            item.seek(0)
+
                         client.put_object(
                             bucket_name=bucket_name,
                             object_name=object_name,
-                            data=f,
+                            data=data_stream,
                             length=size,
                             content_type=content_type
                         )
+
                         if f:
                             f.close()
 
                         if verify_etag:
-                            # Only reliable for single-part uploads (heuristic: size <= 64MB default MinIO part size).
                             stat = client.stat_object(bucket_name, object_name)
                             etag = getattr(stat, "etag", None)
                             if etag and "-" not in etag:
                                 h = hashlib.md5()
-                                with open(local_path, "rb") as vf:
-                                    for block in iter(lambda: vf.read(1024 * 1024), b""):
-                                        h.update(block)
+                                if local_md5_source_path:
+                                    with open(local_md5_source_path, "rb") as vf:
+                                        for block in iter(lambda: vf.read(1024 * 1024), b""):
+                                            h.update(block)
+                                else:
+                                    h.update(bytes_data)
                                 if h.hexdigest() != etag.lower():
                                     raise ValueError(f"ETag mismatch for {object_name}: expected {etag}, got {h.hexdigest()}")
                         return object_name, {'status': 'ok', 'size': size}
@@ -1170,14 +1198,14 @@ def upload_objects_parallel(
 
             results: dict[str, dict] = {}
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                future_map = {executor.submit(upload_one, p): p for p in file_paths}
+                future_map = {executor.submit(upload_one, item): item for item in file_paths}
                 for fut in as_completed(future_map):
+                    item = future_map[fut]
                     try:
                         obj_name, res = fut.result()
                         results[obj_name] = res
                     except Exception as e:
-                        # Should rarely happen since we catch inside fetch, but just in case.
-                        fallback_name = compute_object_name(future_map[fut])
+                        fallback_name = compute_object_name(item)
                         results[fallback_name] = {'status': 'error', 'error': e}
 
             failures = [k for k, v in results.items() if v['status'] != 'ok']
@@ -1199,16 +1227,27 @@ def upload_objects_parallel(
                 db_schema = f"{user_group}_group_db.curated_schema"
             stage_prefix = f"@{db_schema}.{bucket_name}_stage"
 
-            def upload_one(local_path: str):
-                object_name = compute_object_name(local_path)
+            def upload_one(item):
+                object_name = compute_object_name(item)
                 attempt = 0
                 while attempt < retries:
                     f = None
                     try:
-                        size = os.path.getsize(local_path)
-                        f = open(local_path, "rb")
+                        if isinstance(item, str):
+                            size = os.path.getsize(item)
+                            f = open(item, "rb")
+                            data_stream = f
+                            bytes_data = None
+                            local_md5_source_path = item
+                        else:
+                            bytes_data = item.read()
+                            size = len(bytes_data)
+                            data_stream = io.BytesIO(bytes_data)
+                            item.seek(0)
+                            local_md5_source_path = None
+
                         session.file.put_stream(
-                            input_stream=f,
+                            input_stream=data_stream,
                             stage_location=f"{stage_prefix}/{object_name}",
                             auto_compress=False
                         )
@@ -1216,7 +1255,6 @@ def upload_objects_parallel(
                             f.close()
 
                         if verify_etag:
-                            # List the directory to get md5.
                             dir_part = os.path.dirname(object_name)
                             list_location = stage_prefix + ("/" + dir_part if dir_part else "")
                             files = session.file.list(stage_location=list_location)
@@ -1224,9 +1262,12 @@ def upload_objects_parallel(
                             remote_md5 = meta.get("md5") if meta else None
                             if remote_md5:
                                 h = hashlib.md5()
-                                with open(local_path, "rb") as vf:
-                                    for block in iter(lambda: vf.read(1024 * 1024), b""):
-                                        h.update(block)
+                                if local_md5_source_path:
+                                    with open(local_md5_source_path, "rb") as vf:
+                                        for block in iter(lambda: vf.read(1024 * 1024), b""):
+                                            h.update(block)
+                                else:
+                                    h.update(bytes_data)
                                 if h.hexdigest().lower() != remote_md5.lower():
                                     raise ValueError(f"MD5 mismatch for {object_name}: expected {remote_md5}, got {h.hexdigest()}")
                         return object_name, {'status': 'ok', 'size': size}
@@ -1244,13 +1285,14 @@ def upload_objects_parallel(
 
             results: dict[str, dict] = {}
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                future_map = {executor.submit(upload_one, p): p for p in file_paths}
+                future_map = {executor.submit(upload_one, item): item for item in file_paths}
                 for fut in as_completed(future_map):
+                    item = future_map[fut]
                     try:
                         obj_name, res = fut.result()
                         results[obj_name] = res
                     except Exception as e:
-                        fallback_name = compute_object_name(future_map[fut])
+                        fallback_name = compute_object_name(item)
                         results[fallback_name] = {'status': 'error', 'error': e}
 
             failures = [k for k, v in results.items() if v['status'] != 'ok']

@@ -1,3 +1,4 @@
+# Note that psycopg was installed after already flexibly pinning all other packages. Thus, it's possible those versions may have been different had psycopg been requested during the initial dependency resolution. Thus, the set of pinned versions may not be optimal.
 channels:
   - conda-forge
   - defaults
@@ -5,6 +6,7 @@ channel_priority: strict
 dependencies:
   - python=3.13.9
   - streamlit=1.51.0
+  - psycopg2
   - minio=7.2.18
   - polars=1.35.1
   - snowflake-snowpark-python=1.42.0

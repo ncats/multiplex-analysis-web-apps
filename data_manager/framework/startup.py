@@ -13,8 +13,8 @@ def initialize():
     # Set page configuration.
     st.set_page_config(
         page_title=APP_TITLE,
-        layout='wide'
         )
 
-    # Set up object storage.
+    # Set up object storage and database.
     pa.set_up_minio()
+    pa.set_up_postgresql()
