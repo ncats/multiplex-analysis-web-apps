@@ -4,7 +4,7 @@ import streamlit as st
 import os
 import framework.platform_abstraction as pa
 import framework.utils as framework_utils
-import framework.analysis_functions as analysis_functions
+# import framework.analysis_functions as analysis_functions
 
 ST_KEY_PREFIX_STARTUP = "startup.py__"
 JOB_INPUTS_BUCKET_NAME = os.getenv('JOB_INPUTS_BUCKET_NAME')

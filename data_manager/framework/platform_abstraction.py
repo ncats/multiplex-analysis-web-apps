@@ -1,12 +1,12 @@
 import streamlit as st
 import os
 import io
-import psycopg2.pool  # Probably change to version 3 (psycopg) soon!
+# import psycopg2.pool  # Probably change to version 3 (psycopg) soon!
 import minio
 import getpass
-import polars as pl
+# import polars as pl
 import requests
-import atexit
+# import atexit
 import framework.utils as framework_utils
 import framework.analysis_framework as analysis_framework
 import framework.snowflake_connections as snowflake_connections

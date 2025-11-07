@@ -1,6 +1,6 @@
 spec:
   containers:                           # container list
-    - name: frontend
+    - name: data_manager
       image: {{IMAGE}}
       env:                                # optional
         SNOWFLAKE_USER: {{SNOWFLAKE_USER}}             # must inject manually; Snowflake does not inject
@@ -14,7 +14,6 @@ spec:
         APP_PLATFORM: snowflake
         APP_SHORTNAME: {{APP_SHORTNAME}}
         APP_TITLE: {{APP_TITLE}}
-        MONITOR_JOBS_REFRESH_INTERVAL_SECONDS: {{MONITOR_JOBS_REFRESH_INTERVAL_SECONDS}}
         COMPUTE_RESOURCE: {{COMPUTE_RESOURCE}}
         ALL_COMPUTE_RESOURCES: {{ALL_COMPUTE_RESOURCES}}
         IMAGE_NAME: {{IMAGE_NAME}}

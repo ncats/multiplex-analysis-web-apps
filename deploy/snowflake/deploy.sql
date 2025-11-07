@@ -589,12 +589,12 @@ REVOKE USAGE ON WAREHOUSE setup_xs_warehouse FROM ROLE data_apps_user_1_role;
 ---------------- End database app_launcher_db. -----------------------------------------------
 
 
----------------- Database data_manager_db. ---------------------------------------------------
+---------------- Database dmgr_db. ---------------------------------------------------
 -- As of 11/5/25 did not yet run this section as we haven't created this app yet!
 
 -- Create the database and schemas.
-create database if not exists data_manager_db;
-use database data_manager_db;
+create database if not exists dmgr_db;
+use database dmgr_db;
 create schema if not exists group_alpha_schema;
 create schema if not exists general_schema;
 
@@ -624,10 +624,10 @@ CREATE TABLE IF NOT EXISTS general_schema.image_metadata_table (
 -- SEE GITHUB README FOR WHAT DATA TO ADD TO THIS TABLE (not yet actually present in the README).
 
 -- Create roles.
-create role if not exists data_manager_group_alpha_role; -- This is the account role that owns and operates the app.
+create role if not exists dmgr_group_alpha_role; -- This is the account role that owns and operates the app.
 
 -- Create a warehouse for the app.
-CREATE WAREHOUSE IF NOT EXISTS data_manager_user_1_xs_warehouse
+CREATE WAREHOUSE IF NOT EXISTS dmgr_user_1_xs_warehouse
   WAREHOUSE_SIZE = 'XSMALL'
   AUTO_RESUME = TRUE
   INITIALLY_SUSPENDED = TRUE;
@@ -636,7 +636,7 @@ CREATE WAREHOUSE IF NOT EXISTS data_manager_user_1_xs_warehouse
 use warehouse setup_xs_warehouse;
 
 -- Create compute pool for the app.
-CREATE COMPUTE POOL IF NOT EXISTS data_manager_user_1_xs_compute_pool
+CREATE COMPUTE POOL IF NOT EXISTS dmgr_user_1_xs_compute_pool
     MIN_NODES = 1
     MAX_NODES = 1
     INSTANCE_FAMILY = CPU_X64_XS
@@ -644,55 +644,67 @@ CREATE COMPUTE POOL IF NOT EXISTS data_manager_user_1_xs_compute_pool
     INITIALLY_SUSPENDED = TRUE
     AUTO_SUSPEND_SECS = 600;
 
--- Grant data_manager_group_alpha_role privileges to see the database and schema.
-GRANT USAGE ON DATABASE data_manager_db
-  TO ROLE data_manager_group_alpha_role;
+-- Grant dmgr_group_alpha_role privileges to see the database and schema.
+GRANT USAGE ON DATABASE dmgr_db
+  TO ROLE dmgr_group_alpha_role;
 GRANT USAGE ON SCHEMA group_alpha_schema
-  TO ROLE data_manager_group_alpha_role;
+  TO ROLE dmgr_group_alpha_role;
 GRANT USAGE ON SCHEMA general_schema
-  TO ROLE data_manager_group_alpha_role;
+  TO ROLE dmgr_group_alpha_role;
 
 -- Give the app user role the ability to even launch the app by granting access to the database and schema.
-GRANT USAGE ON DATABASE data_manager_db TO ROLE data_apps_user_1_role;
+GRANT USAGE ON DATABASE dmgr_db TO ROLE data_apps_user_1_role;
 GRANT USAGE ON SCHEMA group_alpha_schema TO ROLE data_apps_user_1_role;
 
 -- Give this account role the appropriate database roles.
-grant database role group_alpha_group_db.curated_schema_rw_db_role to role data_manager_group_alpha_role;
-grant database role common_db.admin_schema_ro_db_role to role data_manager_group_alpha_role;
+grant database role group_alpha_group_db.curated_schema_rw_db_role to role dmgr_group_alpha_role;
+grant database role common_db.admin_schema_ro_db_role to role dmgr_group_alpha_role;
 
 -- Grant access to the compute resources.
-GRANT USAGE ON WAREHOUSE data_manager_user_1_xs_warehouse TO ROLE data_manager_group_alpha_role;
-GRANT USAGE ON COMPUTE POOL data_manager_user_1_xs_compute_pool TO ROLE data_manager_group_alpha_role;
+GRANT USAGE ON WAREHOUSE dmgr_user_1_xs_warehouse TO ROLE dmgr_group_alpha_role;
+GRANT USAGE ON COMPUTE POOL dmgr_user_1_xs_compute_pool TO ROLE dmgr_group_alpha_role;
 
 -- Grant resource management to the user.
-GRANT MONITOR, OPERATE ON WAREHOUSE data_manager_user_1_xs_warehouse TO ROLE data_apps_user_1_role;
-GRANT MONITOR, OPERATE ON COMPUTE POOL data_manager_user_1_xs_compute_pool TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON WAREHOUSE dmgr_user_1_xs_warehouse TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON COMPUTE POOL dmgr_user_1_xs_compute_pool TO ROLE data_apps_user_1_role;
 
 -- Allow the app role to create the service.
-GRANT CREATE SERVICE ON SCHEMA group_alpha_schema TO ROLE data_manager_group_alpha_role;
-GRANT READ ON IMAGE REPOSITORY general_schema.image_repository TO ROLE data_manager_group_alpha_role;
-GRANT READ ON STAGE general_schema.general_stage TO ROLE data_manager_group_alpha_role;
-GRANT BIND SERVICE ENDPOINT ON ACCOUNT TO ROLE data_manager_group_alpha_role;
+GRANT CREATE SERVICE ON SCHEMA group_alpha_schema TO ROLE dmgr_group_alpha_role;
+GRANT READ ON IMAGE REPOSITORY general_schema.image_repository TO ROLE dmgr_group_alpha_role;
+GRANT READ ON STAGE general_schema.general_stage TO ROLE dmgr_group_alpha_role;
+GRANT BIND SERVICE ENDPOINT ON ACCOUNT TO ROLE dmgr_group_alpha_role;
 
 -- Allow the app role to perform setup.
-GRANT USAGE ON WAREHOUSE setup_xs_warehouse TO ROLE data_manager_group_alpha_role;
+GRANT USAGE ON WAREHOUSE setup_xs_warehouse TO ROLE dmgr_group_alpha_role;
 
 -- We want the app owner to be the app role so switch to that prior to creating the app.
-GRANT ROLE data_manager_group_alpha_role TO ROLE accountadmin;
-USE ROLE data_manager_group_alpha_role;
+GRANT ROLE dmgr_group_alpha_role TO ROLE accountadmin;
+USE ROLE dmgr_group_alpha_role;
 USE WAREHOUSE setup_xs_warehouse;
 
--- **** CREATE THE APP group_alpha_schema.data_manager_user_1_xs_service (DROP, CREATE, ALTER, ALTER; see app_a app setup for details).
+-- **** CREATE THE APP group_alpha_schema.dmgr_user_1_xs_service (DROP, CREATE, ALTER, ALTER; see app_a app setup for details).
 
 -- Switch back to accountadmin role.
 USE ROLE accountadmin;
 
 -- Allow the app user to see and operate the service.
-GRANT MONITOR, OPERATE ON SERVICE group_alpha_schema.data_manager_user_1_xs_service TO ROLE data_apps_user_1_role;
+GRANT MONITOR, OPERATE ON SERVICE group_alpha_schema.dmgr_user_1_xs_service TO ROLE data_apps_user_1_role;
 
 -- Allow the user to run the app from the web even though they have no access to the role that runs the app.
-GRANT SERVICE ROLE group_alpha_schema.data_manager_user_1_xs_service!web_endpoint_service_role TO ROLE data_apps_user_1_role;
----------------- End database data_manager_db. -----------------------------------------------
+GRANT SERVICE ROLE group_alpha_schema.dmgr_user_1_xs_service!web_endpoint_service_role TO ROLE data_apps_user_1_role;
+
+-- Allow app to read/write data to the required stages.
+GRANT USAGE ON DATABASE group_alpha_group_db  -- Allow using the database
+  TO ROLE dmgr_group_alpha_role;
+GRANT USAGE ON SCHEMA group_alpha_group_db.curated_schema  -- Allow using the schema
+  TO ROLE dmgr_group_alpha_role;
+GRANT USAGE ON SCHEMA group_alpha_group_db.app_a_schema  -- Allow using the schema
+  TO ROLE dmgr_group_alpha_role;
+GRANT READ ON STAGE group_alpha_group_db.app_a_schema.oldarchives_stage  -- Allow reading files from the stage (LIST/GET, COPY INTO <table> FROM @stage)
+  TO ROLE dmgr_group_alpha_role;
+GRANT WRITE ON STAGE group_alpha_group_db.app_a_schema.oldarchives_stage  -- Allow writing files to the stage (PUT/REMOVE, COPY INTO @stage)
+  TO ROLE dmgr_group_alpha_role;
+---------------- End database dmgr_db. -----------------------------------------------
 
 
 -- Assign the apps user role to the user. This is the one place (the argument of USER) that the real Snowflake username must be used. Other instances of "user_1" can be anything, as long as they have an entry in the user_groups table so we know which group they should be accessing. E.g., user_1_alpha should correspond to the group_alpha group and user_1_beta should correspond to the group_beta group in the user_groups table. Then this script will create e.g. (1) data_apps_user_1_alpha_role and assign it to user_1 and (2) data_apps_user_1_beta_role and assign it to user_1. Then, user_1 in Snowsight can select either role to access the app/data for either group.

@@ -92,14 +92,14 @@ def submit_job(job_id: str, username: str, session: Session, selected_compute_re
         return None
 
 
-# On Snowflake, since there are no database, object storage, or container orchestration resources to clean up like there are locally with Docker, this means we simply kill the frontend.
+# This is modified from the source/ version for the data manager.
 def shutdown(username: str, session: Session, app_shortname: str, group_name: str, compute_resource: str):
     try:
 
         username_validated = _validate_identifier(username, USERNAME_RE, "username")
 
-        service_name = f"{app_shortname}_app_db.{group_name}_schema.{app_shortname}_{username_validated}_frontend_{compute_resource}_service"
-        compute_pool_name = f"{app_shortname}_{username_validated}_frontend_{compute_resource}_compute_pool"
+        service_name = f"{app_shortname}_db.{group_name}_schema.{app_shortname}_{username_validated}_xs_service"
+        compute_pool_name = f"{app_shortname}_{username_validated}_xs_compute_pool"
 
         session.sql(f"ALTER SERVICE {service_name} SUSPEND").collect()
         session.sql(f"ALTER COMPUTE POOL {compute_pool_name} SUSPEND").collect()
