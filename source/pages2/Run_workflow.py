@@ -5,6 +5,8 @@ import numpy as np
 import time_cell_interaction_lib as tci  # import the TIME library stored in time_cell_interaction_lib.py
 import time
 import streamlit_utils
+import framework.utils as framework_utils
+import framework.analysis_framework as analysis_framework
 
 
 def main():
@@ -212,6 +214,61 @@ def main():
                 print('BENCHMARKING: {}'.format(benchmarking_message))
                 print('')
                 st.write(benchmarking_message)
+    
+    with col_output:
+         # Section title
+        st.subheader('Async Workflow execution')
+        # Read in the dataset object
+        if 'dataset_obj' in st.session_state:
+            dataset_obj = st.session_state['dataset_obj']
+            project_dir = os.path.realpath(os.path.join(os.getcwd(), '..'))
+            # Submit the job to run the workflow asynchronously
+            analysis_framework.job_submission(
+                job_name="run_sit_workflow",
+                inputs = dict(
+                    dataset_obj=dataset_obj, 
+                    project_dir=project_dir, 
+                    allow_compound_species=st.session_state['sit__used_settings']['analysis']['allow_compound_species'],
+                    thickness_new=st.session_state['sit__used_settings']['analysis']['thickness'],
+                    use_analytical_significance=st.session_state['sit__used_settings']['analysis']['use_analytical_significance'],
+                    n_neighs=st.session_state['sit__used_settings']['analysis']['n_neighs'],
+                    radius_instead_of_knn=st.session_state['sit__used_settings']['analysis']['radius_instead_of_knn'],
+                    workflow_bools=workflow_bools, 
+                    num_workers=num_workers, 
+                    block_names=block_names, 
+                    use_multiprocessing=use_multiprocessing,
+                    log_pval_range=st.session_state['sit__used_settings']['plotting']['log_pval_range'], 
+                    num_valid_centers_minimum=st.session_state['sit__used_settings']['plotting']['num_valid_centers_minimum'],
+                    weight_rois_by_num_valid_centers=st.session_state['sit__used_settings']['plotting']['weight_rois_by_num_valid_centers'], 
+                    input_datafile=st.session_state['input_metadata']['datafile_path'], 
+                    save_heatmap_data=st.session_state['sit__used_settings']['plotting']['save_heatmap_data'],
+                    annotations_csv_files=st.session_state['sit__used_settings']['annotation']['csv_files'], 
+                    phenotyping_method=st.session_state['sit__used_settings']['phenotyping']['method'],
+                    phenotype_identification_file=st.session_state['sit__used_settings']['dataset']['phenotype_identification_tsv_file'],
+                    annotation_coord_units_in_microns=st.session_state['sit__used_settings']['annotation']['annotation_coord_units_in_microns'], 
+                    annotation_microns_per_integer_unit=st.session_state['sit__used_settings']['annotation']['annotation_microns_per_integer_unit'],
+                    settings__analysis__thickness=st.session_state['sit__used_settings']['analysis']['thickness'], 
+                    min_log_pval_for_plotting=st.session_state['sit__used_settings']['plotting']['min_log_pval']
+                    ),
+                    analysis_purpose = "run sit workflow",
+                    st_key_prefix = "",
+            )
+            diff_clust_key = 'run_sit_workflow_results'
+            if diff_clust_key not in st.session_state:
+                st.warning("Density difference clustering analysis results are not yet available.")
+                return
+            # Set shortcuts to the job results.
+            slices = st.session_state[diff_clust_key]['slices']
+
+
+            
+        else:
+            st.error('Dataset not yet loaded; please click on the "Load dataset" button', icon="🚨")
+            st.stop()  # may only be available in the latest version of Streamlit!! (as of 5/11/23, version 1.22.0)
+        
+        
+
+
 
 # Call the main function
 if __name__ == '__main__':

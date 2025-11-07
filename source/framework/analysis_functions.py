@@ -19,6 +19,8 @@ def run_analysis_job(function_name, inputs, job_dir):
             function_to_run = set_clusters
         elif function_name == "clust_umap_dens_diff":
             function_to_run = clust_umap_dens_diff
+        elif function_name == "run_sit_workflow":
+            function_to_run = run_sit_workflow
         outputs = function_to_run(**inputs, results_topdir=outputs_dir)
         return outputs
     except Exception as e:
@@ -295,3 +297,155 @@ def clust_umap_dens_diff(udp_full, dens_diff_feat_sel, feature_value_fals,
             "cluster_completed": True,
             "udp_full": udp_full
             }
+
+def run_sit_workflow(dataset_obj, project_dir, allow_compound_species,
+                     thickness_new, use_analytical_significance, n_neighs,
+                     radius_instead_of_knn, workflow_bools, num_workers, 
+                     block_names, use_multiprocessing,log_pval_range, num_valid_centers_minimum,
+                     weight_rois_by_num_valid_centers, 
+                     input_datafile, save_heatmap_data,
+                     annotations_csv_files, phenotyping_method,
+                     phenotype_identification_file,
+                     annotation_coord_units_in_microns, annotation_microns_per_integer_unit,
+                     settings__analysis__thickness, 
+                     min_log_pval_for_plotting,
+                     results_topdir):
+
+    import time_cell_interaction_lib as tci
+    slices = tci.TIMECellInteraction(
+        dataset_obj,
+        project_dir=results_topdir,
+        allow_compound_species=allow_compound_species,
+        thickness_new=thickness_new,
+        use_analytical_significance=use_analytical_significance,
+        n_neighs=n_neighs,
+        radius_instead_of_knn=radius_instead_of_knn
+    )
+
+        # Plot every ROI using slices.df_roi_plotting_data in parallel
+    iblock = 1
+    if workflow_bools[iblock]:
+        print('**** {}... ****'.format(block_names[iblock]))
+        #st.write('**:sparkles: {}...**'.format(block_names[iblock]))
+        start_time = time.time()
+        slices.plot_rois(
+            nworkers=num_workers,
+            use_multiprocessing=use_multiprocessing
+            )
+        benchmarking_message = '...plot_rois() took {} seconds using {} CPU(s) {} hyperthreading'.format(int(np.round(time.time() - start_time)), (num_workers if use_multiprocessing else 1), ('WITH' if use_multiprocessing else 'WITHOUT'))
+        print('')
+        print('BENCHMARKING: {}'.format(benchmarking_message))
+        print('')
+        #st.write(benchmarking_message)
+
+    # Calculate the P values from the coordinates of the species in every ROI in every slide. Note that this creates slices.df_density_pvals (the flattened metrics dataframe). This is a parallel function
+    iblock = 2
+    if workflow_bools[iblock]:
+        print('**** {}... ****'.format(block_names[iblock]))
+        #st.write('**:sparkles: {}...**'.format(block_names[iblock]))
+        start_time = time.time()
+        slices.calculate_metrics(
+            nworkers=num_workers,
+            use_multiprocessing=use_multiprocessing
+            )
+        benchmarking_message = '...calculate_metrics() took {} seconds using {} CPU(s) {} hyperthreading'.format(int(np.round(time.time() - start_time)), (num_workers if use_multiprocessing else 1), ('WITH' if use_multiprocessing else 'WITHOUT'))
+        print('')
+        print('BENCHMARKING: {}'.format(benchmarking_message))
+        print('')
+        #st.write(benchmarking_message)
+
+    # Check the metrics, impose plotting requests, and convert arrays to numpy format; this creates slices.df_density_pvals_arrays and is not a parallel function
+    iblock = 3
+    if workflow_bools[iblock]:
+        print('**** {}... ****'.format(block_names[iblock]))
+        #st.write('**:sparkles: {}...**'.format(block_names[iblock]))
+        slices.check_and_prepare_metrics_for_plotting(
+            log_pval_range=log_pval_range,
+            num_valid_centers_minimum=num_valid_centers_minimum
+        )
+
+    # Plot every density heatmap using slices.df_density_pvals in parallel
+    iblock = 4
+    if workflow_bools[iblock]:
+        print('**** {}... ****'.format(block_names[iblock]))
+        #st.write('**:sparkles: {}...**'.format(block_names[iblock]))
+        start_time = time.time()
+        slices.plot_dens_pvals_per_roi(
+            nworkers=num_workers,
+            use_multiprocessing=use_multiprocessing
+            )
+        benchmarking_message = '...plot_dens_pvals_per_roi() took {} seconds using {} CPU(s) {} hyperthreading'.format(int(np.round(time.time() - start_time)), (num_workers if use_multiprocessing else 1), ('WITH' if use_multiprocessing else 'WITHOUT'))
+        print('')
+        print('BENCHMARKING: {}'.format(benchmarking_message))
+        print('')
+        #st.write(benchmarking_message)
+
+    # Plot ROI outlines individually for each ROI over the whole slides
+    iblock = 5
+    if workflow_bools[iblock]:
+        print('**** {}... ****'.format(block_names[iblock]))
+        #st.write('**:sparkles: {}...**'.format(block_names[iblock]))
+        start_time = time.time()
+        slices.plot_outline_for_single_roi_on_whole_slide(
+            nworkers=num_workers,
+            use_multiprocessing=use_multiprocessing
+        )
+        benchmarking_message = '...plot_outline_for_single_roi_on_whole_slide() took {} seconds using {} CPU(s) {} hyperthreading'.format(int(np.round(time.time() - start_time)), (num_workers if use_multiprocessing else 1), ('WITH' if use_multiprocessing else 'WITHOUT'))
+        print('')
+        print('BENCHMARKING: {}'.format(benchmarking_message))
+        print('')
+        #st.write(benchmarking_message)
+
+    # Average the P values for each slide over the corresponding ROIs containing valid data. Note this creates slices.df_log_dens_pvals_arr_per_slide
+    # Can run something like this afterward: slices.df_log_dens_pvals_arr_per_slide.drop('log_dens_pvals_arr', axis='columns').to_excel('/home/weismanal/transfer/slide_response_variables.xlsx')
+    # Can also impute missing data in slices.df_log_dens_pvals_arr_per_slide, negate the arrays, and normalize to a 0-1 range as input for stats/ML
+    iblock = 6
+    if workflow_bools[iblock]:
+        print('**** {}... ****'.format(block_names[iblock]))
+        #st.write('**:sparkles: {}...**'.format(block_names[iblock]))
+        slices.average_dens_pvals_over_rois_for_each_slide(
+            weight_rois_by_num_valid_centers=weight_rois_by_num_valid_centers,
+            input_datafile=input_datafile,  # this is just needed to get the input data filename to save to disk along with the df_log_dens_pvals_arr_per_slide for later read-in by the correlation analyzer
+            save_heatmap_data=save_heatmap_data,
+        )
+
+    # Plot the ROIs on each slide
+    iblock = 7
+    if workflow_bools[iblock]:
+        print('**** {}... ****'.format(block_names[iblock]))
+        #st.write('**:sparkles: {}...**'.format(block_names[iblock]))
+        slices.plot_whole_slide_patches()
+
+    # Average the density P value data over all ROIs for each annotation region type and plot the final and intermediate results
+    iblock = 8
+    if workflow_bools[iblock]:
+        print('**** {}... ****'.format(block_names[iblock]))
+        #st.write('**:sparkles: {}...**'.format(block_names[iblock]))
+        slices.average_over_rois_per_annotation_region(
+            annotations_csv_files=annotations_csv_files,
+            phenotyping_method=phenotyping_method,
+            phenotype_identification_file=phenotype_identification_file,
+            annotation_coord_units_in_microns=annotation_coord_units_in_microns,
+            annotation_microns_per_integer_unit=annotation_microns_per_integer_unit,
+            settings__analysis__thickness=settings__analysis__thickness,
+            min_log_pval_for_plotting=min_log_pval_for_plotting
+            )
+
+    # Plot the density P values for each ROI over spatial plots of the slides; this probably overwrites existing plots, but it doesn't take long to regenerate them
+    iblock = 9
+    if workflow_bools[iblock]:
+        print('**** {}... ****'.format(block_names[iblock]))
+        #st.write('**:sparkles: {}...**'.format(block_names[iblock]))
+        start_time = time.time()
+        slices.plot_density_pvals_over_slides(
+            nworkers=num_workers,
+            use_multiprocessing=use_multiprocessing
+        )
+        benchmarking_message = '...plot_density_pvals_over_slides() took {} seconds using {} CPU(s) {} hyperthreading'.format(int(np.round(time.time() - start_time)), (num_workers if use_multiprocessing else 1), ('WITH' if use_multiprocessing else 'WITHOUT'))
+        print('')
+        print('BENCHMARKING: {}'.format(benchmarking_message))
+        print('')
+        #st.write(benchmarking_message)
+
+
+    return {"slices": slices, "sit_workflow_completed": True}
