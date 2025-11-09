@@ -1,9 +1,5 @@
 # Full Stack MAWA
 
-## To-do
-
-* Add instructions for setting up the data manager once we've created it.
-
 ## General how-to
 
 ### 1. Modify the codebase
@@ -14,7 +10,7 @@ Framework files should be modified only as truly necessary. App files can be mod
 
 ### 2. Build the images
 
-Build the `frontend` and `orchestrator` images using:
+Build the `frontend`, `orchestrator`, and `data_manager` images using:
 
 * `git clone git@github.com:ncats/multiplex-analysis-web-apps.git`.
 * `cd multiplex-analysis-web-apps`
@@ -54,17 +50,7 @@ docker tag mawa-data-manager:$IMAGE_TAG andrewweisman/mawa-data-manager:$IMAGE_T
 
 The images in this example are located at https://hub.docker.com/u/andrewweisman.
 
-### 7. Update the image metadata table
-
-With the database up, add to `app_a_app_db.general_schema.image_metadata_table` a record corresponding to the `andrewweisman/mawa-frontend:$IMAGE_TAG` image just pushed to Docker Hub.
-
-Maybe in the future, add steps/fields for the other three images? For now, the above is likely sufficient.
-
-### 8. Update the user groups table
-
-With the database up, add to `common_db.admin_schema.user_groups_table` a record corresponding to the user who will use the app.
-
-### 9. Deploy to Snowflake
+### 7. Deploy to Snowflake
 
 In general, in this section below, make the following sample substitutions, including in `deploy/snowflake/deploy.sql`:
 
@@ -90,16 +76,20 @@ docker push nihnci-eval.registry.snowflakecomputing.com/app_a_app_db/general_sch
 docker push nihnci-eval.registry.snowflakecomputing.com/dmgr_db/general_schema/image_repository/mawa-data-manager:$IMAGE_TAG
 ```
 
-Update the tables `app_a_app_db.general_schema.image_metadata_table` and `common_db.admin_schema.user_groups_table` as we do locally (above). Note that for the latter table, you should use the same as you use for `user_1`, which again can be anything.
+Update the tables corresponding to the two images pushed above and potentially new users added in the user-specific versions of `deploy.sql` from https://github.com/CBIIT/snowflake-user-setup:
+
+* `app_a_app_db.general_schema.image_metadata_table`
+* `dmgr_db.general_schema.image_metadata_table`
+* `common_db.admin_schema.user_groups_table` (Use the same as you use for `user_1`, which again can be anything.)
 
 Push required files to the relevant stages from the GitHub clone:
 
 ```bash
 snow sql --connection eval3 --role accountadmin  # Works for Andrew since he has the "eval3" Snowflake connection already set up. If you're not Andrew, install the Snowflake CLI (https://docs.snowflake.com/en/developer-guide/snowflake-cli/installation/installation#label-snowcli-install-linux-package-managers) and set up your connection to our Snowflake deployment.
-> PUT file://deploy/snowflake/frontend_service_spec.yaml @app_a_app_db.general_schema.general_stage;
-> PUT file://deploy/snowflake/worker_service_spec.yaml @app_a_app_db.general_schema.general_stage;
-> PUT file://deploy/snowflake/launcher.py @app_launcher_db.general_schema.general_stage AUTO_COMPRESS=FALSE;
-> PUT file://data_manager/snowflake_service_spec.yaml @dmgr_db.general_schema.general_stage;
+> PUT file://deploy/snowflake/frontend_service_spec.yaml @app_a_app_db.general_schema.general_stage OVERWRITE=TRUE;
+> PUT file://deploy/snowflake/worker_service_spec.yaml @app_a_app_db.general_schema.general_stage OVERWRITE=TRUE;
+> PUT file://deploy/snowflake/launcher.py @app_launcher_db.general_schema.general_stage AUTO_COMPRESS=FALSE OVERWRITE=TRUE;
+> PUT file://data_manager/snowflake_service_spec.yaml @dmgr_db.general_schema.general_stage OVERWRITE=TRUE;
 ```
 
 Step through `deploy/snowflake/deploy.sql`.
@@ -213,9 +203,14 @@ IMAGE_TAG=2025-11-05-v06-leandro-full-stack docker compose build
 IMAGE_TAG=2025-11-05-v06-leandro-full-stack
 docker tag orchestrator:$IMAGE_TAG andrewweisman/mawa-orchestrator:$IMAGE_TAG && docker push andrewweisman/mawa-orchestrator:$IMAGE_TAG
 docker tag frontend:$IMAGE_TAG andrewweisman/mawa-frontend:$IMAGE_TAG && docker push andrewweisman/mawa-frontend:$IMAGE_TAG
-snow spcs image-registry login --role accountadmin
+docker tag mawa-data-manager:$IMAGE_TAG andrewweisman/mawa-data-manager:$IMAGE_TAG && docker push andrewweisman/mawa-data-manager:$IMAGE_TAG
+docker tag postgres:15 andrewweisman/mawa-postgres:$IMAGE_TAG && docker push andrewweisman/mawa-postgres:$IMAGE_TAG
+docker tag minio/minio:RELEASE.2025-09-07T16-13-09Z-cpuv1 andrewweisman/mawa-minio:$IMAGE_TAG && docker push andrewweisman/mawa-minio:$IMAGE_TAG
 docker tag andrewweisman/mawa-frontend:$IMAGE_TAG nihnci-eval.registry.snowflakecomputing.com/mawa_app_db/general_schema/image_repository/mawa-frontend:$IMAGE_TAG
+docker tag andrewweisman/mawa-data-manager:$IMAGE_TAG nihnci-eval.registry.snowflakecomputing.com/dmgr_db/general_schema/image_repository/mawa-data-manager:$IMAGE_TAG
+snow spcs image-registry login --role accountadmin
 docker push nihnci-eval.registry.snowflakecomputing.com/mawa_app_db/general_schema/image_repository/mawa-frontend:$IMAGE_TAG
+docker push nihnci-eval.registry.snowflakecomputing.com/dmgr_db/general_schema/image_repository/mawa-data-manager:$IMAGE_TAG
 echo $IMAGE_TAG
 git rev-parse HEAD
 ```
@@ -224,9 +219,13 @@ Snowflake SQL:
 
 ```sql
 insert into mawa_app_db.general_schema.image_metadata_table (image_id, name, tag, git_commit, environment_yaml_file, archive_compatibility_id, who_added) values 
-('sha256:aa36e5134e0ba69f7630b8227d84cdf10adb0c793e3a956cc582f5ea3935fc5c', 'mawa-frontend', '2025-11-05-v06-leandro-full-stack', 'df000f0f97cb1925179ac149bcef24567c652429', 'environment-leandro-compatible.yml', 1, 'andrewweisman');
+('sha256:50d9492c8c022ef8e1d03a4a1ba631f12d8d92a2756d6304bcd825cf0b4f576a', 'mawa-frontend', '2025-11-09-v01-leandro', '3da40cf2eaa6e80b0baf847b809aa2ab3f59f059', 'environment-leandro-compatible.yml', 1, 'andrewweisman');
 
-ALTER SERVICE cil_schema.mawa_robert_cheng_frontend_1vcpu_6gib_1x_service
+insert into dmgr_db.general_schema.image_metadata_table (image_id, name, tag, git_commit, environment_yaml_file, who_added) values 
+('sha256:0fb08033b700a7f9ddd1630cdc7f25b3487274362cab02f72628290d78420516', 'mawa-data-manager', '2025-11-09-v01-leandro', '3da40cf2eaa6e80b0baf847b809aa2ab3f59f059', 'environment-leandro-compatible.yml', 'andrewweisman');
+
+-- 1vcpu_6gib_1x
+ALTER SERVICE mawa_app_db.cil_schema.mawa_robert_cheng_frontend_1vcpu_6gib_1x_service
 FROM @mawa_app_db.general_schema.general_stage SPECIFICATION_TEMPLATE_FILE='frontend_service_spec.yaml'
 USING (
   APP_SHORTNAME => 'mawa',
@@ -235,17 +234,33 @@ USING (
   SNOWFLAKE_USER => '"robert_cheng"',
   COMPUTE_RESOURCE => '"1vcpu_6gib_1x"',
   ALL_COMPUTE_RESOURCES => '"1vcpu_6gib_1x 3vcpu_13gib_2x 6vcpu_28gib_4x 6vcpu_58gib_5x 14vcpu_58gib_7x 28vcpu_116gib_14x 28vcpu_240gib_19x"',
-  IMAGE => '"/mawa_app_db/general_schema/image_repository/mawa-frontend:2025-11-05-v06-leandro-full-stack"',  -- updated
+  IMAGE => '"/mawa_app_db/general_schema/image_repository/mawa-frontend:2025-11-09-v01-leandro"',  -- updated
   SNOWFLAKE_WAREHOUSE => '"mawa_robert_cheng_xs_warehouse"',
   MOUNTPATH => '"/tmp/mawa"',
   MEMORY => '6Gi',
   CPU => 1,
   IMAGE_NAME => '"mawa-frontend"',
-  IMAGE_TAG => '"2025-11-05-v06-leandro-full-stack"'  -- updated
+  IMAGE_TAG => '"2025-11-09-v01-leandro"'  -- updated
 );
+alter service mawa_app_db.cil_schema.mawa_robert_cheng_frontend_1vcpu_6gib_1x_service suspend;
+alter compute pool mawa_robert_cheng_frontend_1vcpu_6gib_1x_compute_pool suspend;
+
+-- Repeat for (such as in scratch-2025-11-09.sql):
+-- 3vcpu_13gib_2x
+-- 6vcpu_28gib_4x
+-- 6vcpu_58gib_5x
+-- 14vcpu_58gib_7x
+-- 28vcpu_116gib_14x
+-- 28vcpu_240gib_19x
+
+ALTER SERVICE dmgr_db.cil_schema.dmgr_robert_cheng_xs_service
+FROM @dmgr_db.general_schema.general_stage SPECIFICATION_TEMPLATE_FILE='snowflake_service_spec.yaml'
+USING ( APP_SHORTNAME=>'dmgr', APP_TITLE=>' "Data Manager" ', SNOWFLAKE_USER=>' "robert_cheng" ', COMPUTE_RESOURCE=>' "1vcpu_6gib_1x" ', ALL_COMPUTE_RESOURCES=>' "1vcpu_6gib_1x 3vcpu_13gib_2x 6vcpu_28gib_4x 6vcpu_58gib_5x 14vcpu_58gib_7x 28vcpu_116gib_14x 28vcpu_240gib_19x" ', IMAGE=>' "/dmgr_db/general_schema/image_repository/mawa-data-manager:2025-11-09-v01-leandro" ', SNOWFLAKE_WAREHOUSE=>' "dmgr_robert_cheng_xs_warehouse" ', MOUNTPATH=>' "/tmp/dmgr" ', MEMORY=>'6Gi', CPU=>1, IMAGE_NAME=>' "mawa-data-manager" ', IMAGE_TAG=>' "2025-11-09-v01-leandro" ' );
+alter service dmgr_db.cil_schema.dmgr_robert_cheng_xs_service suspend;
+alter compute pool dmgr_robert_cheng_xs_compute_pool suspend;
 ```
 
-### Diagrams (as of 10/23/25)
+### Diagrams (as of 11/9/25)
 
 Containers in the app:
 
@@ -253,4 +268,4 @@ Containers in the app:
 
 Here is the ideal organization scheme for the app:
 
-![alt text](./images/ideal_organization_scheme.png)
+![alt text](./images/organization_scheme.png)
