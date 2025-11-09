@@ -101,8 +101,8 @@ def shutdown():
         def stop_if_exists(name: str):
             try:
                 c = client.containers.get(name)
-                if name == "streamlit":
-                    c.kill(signal="SIGINT")  # Graceful shutdown for Streamlit
+                if name in ("streamlit", "data_manager"):
+                    c.kill(signal="SIGINT")  # Graceful shutdown for Streamlit-based services
                 else:
                     c.stop(timeout=5)
                 return True
@@ -118,6 +118,11 @@ def shutdown():
                 actions.append("sigint_sent:streamlit")
             else:
                 actions.append("frontend_not_found")
+            # Attempt graceful shutdown of data_manager (also Streamlit)
+            if stop_if_exists("data_manager"):
+                actions.append("sigint_sent:data_manager")
+            else:
+                actions.append("data_manager_not_found")
 
             def wait_and_shutdown_all():
                 with docker_client() as tclient:
@@ -149,9 +154,9 @@ def shutdown():
             }
 
         # No workers: stop everything now except self; then stop self asynchronously
-        for svc in ["streamlit", "postgres", "minio"]:
+        for svc in ["streamlit", "data_manager", "postgres", "minio"]:
             if stop_if_exists(svc):
-                if svc == "streamlit":
+                if svc in ("streamlit", "data_manager"):
                     actions.append(f"sigint_sent:{svc}")
                 else:
                     actions.append(f"stopped:{svc}")

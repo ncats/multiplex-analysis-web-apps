@@ -28,7 +28,8 @@ The other two images (`postgres` and `minio`) should be pulled when the multi-co
 ### 3. Run the app locally
 
 * E.g., `IMAGE_TAG=2025-10-24-v03-gmb-earliest docker compose up`.
-* In a web browser go to http://localhost:8501.
+* To launch MAWA, go to: http://localhost:8501.
+* To launch the data manager, go to: http://localhost:8502. (This currently allows uploads of MAWA input files or old NIDAP archives but will be built out further.)
 
 ### 4. Simultaneous build/run
 
@@ -48,6 +49,7 @@ docker tag postgres:15 andrewweisman/mawa-postgres:$IMAGE_TAG && docker push and
 docker tag minio/minio:RELEASE.2025-09-07T16-13-09Z-cpuv1 andrewweisman/mawa-minio:$IMAGE_TAG && docker push andrewweisman/mawa-minio:$IMAGE_TAG
 docker tag orchestrator:$IMAGE_TAG andrewweisman/mawa-orchestrator:$IMAGE_TAG && docker push andrewweisman/mawa-orchestrator:$IMAGE_TAG
 docker tag frontend:$IMAGE_TAG andrewweisman/mawa-frontend:$IMAGE_TAG && docker push andrewweisman/mawa-frontend:$IMAGE_TAG
+docker tag mawa-data-manager:$IMAGE_TAG andrewweisman/mawa-data-manager:$IMAGE_TAG && docker push andrewweisman/mawa-data-manager:$IMAGE_TAG
 ```
 
 The images in this example are located at https://hub.docker.com/u/andrewweisman.
@@ -77,13 +79,15 @@ In general, in this section below, make the following sample substitutions, incl
 
 In addition, ensure you have stepped through enough of `deploy/snowflake/deploy.sql` for the relevant parts of these instructions. E.g., ensure you have gotten to the step of creating an image repository before you upload an image to the image repository below. Notes to execute the following are directly noted in the `deploy/snowflake/deploy.sql` script, so if you start stepping through that script, you can just reference the details below when you get there. I.e., you should be jumping back and forth between `deploy/snowflake/deploy.sql` and the instructions in this section.
 
-Push the frontend image to Snowflake. Note that if the Snowflake deployment changes, we need to use its name in place of `nihnci-eval`:
+Push the MAWA frontend and the data manager to Snowflake. Note that if the Snowflake deployment changes, we need to use its name in place of `nihnci-eval`:
 
 ```bash
 IMAGE_TAG=2025-10-24-v03-gmb-earliest
 docker tag andrewweisman/mawa-frontend:$IMAGE_TAG nihnci-eval.registry.snowflakecomputing.com/app_a_app_db/general_schema/image_repository/mawa-frontend:$IMAGE_TAG
+docker tag andrewweisman/mawa-data-manager:$IMAGE_TAG nihnci-eval.registry.snowflakecomputing.com/dmgr_db/general_schema/image_repository/mawa-data-manager:$IMAGE_TAG
 snow spcs image-registry login --role accountadmin
 docker push nihnci-eval.registry.snowflakecomputing.com/app_a_app_db/general_schema/image_repository/mawa-frontend:$IMAGE_TAG
+docker push nihnci-eval.registry.snowflakecomputing.com/dmgr_db/general_schema/image_repository/mawa-data-manager:$IMAGE_TAG
 ```
 
 Update the tables `app_a_app_db.general_schema.image_metadata_table` and `common_db.admin_schema.user_groups_table` as we do locally (above). Note that for the latter table, you should use the same as you use for `user_1`, which again can be anything.
@@ -95,6 +99,7 @@ snow sql --connection eval3 --role accountadmin  # Works for Andrew since he has
 > PUT file://deploy/snowflake/frontend_service_spec.yaml @app_a_app_db.general_schema.general_stage;
 > PUT file://deploy/snowflake/worker_service_spec.yaml @app_a_app_db.general_schema.general_stage;
 > PUT file://deploy/snowflake/launcher.py @app_launcher_db.general_schema.general_stage AUTO_COMPRESS=FALSE;
+> PUT file://data_manager/snowflake_service_spec.yaml @dmgr_db.general_schema.general_stage;
 ```
 
 Step through `deploy/snowflake/deploy.sql`.

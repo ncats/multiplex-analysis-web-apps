@@ -13,8 +13,8 @@ def get_owner_role():
 
 @st.cache_data()
 def get_db_name(chosen_app_shortname):
-    if chosen_app_shortname == "data_manager":
-        return "data_manager_db"
+    if chosen_app_shortname == "dmgr":
+        return "dmgr_db"
     else:
         return f"{chosen_app_shortname}_app_db"
 
@@ -145,8 +145,8 @@ def main():
     st.title("App Launcher v2")
 
     # Get a list of apps subject to the new organization scheme.
-    # app_shortname_dict = {"Data Manager": "data_manager", "Multiplex Analysis Web Apps": "mawa"}
-    app_shortname_dict = {"Multiplex Analysis Web Apps": "mawa"}
+    app_shortname_dict = {"Data Manager": "dmgr", "Multiplex Analysis Web Apps": "mawa"}
+    # app_shortname_dict = {"Multiplex Analysis Web Apps": "mawa"}
 
     # Get the corresponding keys.
     app_titles = list(app_shortname_dict.keys())
@@ -192,18 +192,22 @@ def main():
     chosen_startable_service_name = st.selectbox("Select startable service to control:", startable_service_names, key=key)
 
     # Ask the user what they want to do.
-    action_to_perform = st.selectbox("Select action to perform:", ["Start app", "Show URL", "Stop frontend (and compute pool)", "Stop frontend (service only)", "Stop corresponding workers", "Retrieve app image ID"])
+    if chosen_app_shortname == "dmgr":
+        possible_actions = ["Start app", "Show URL", "Stop app (and compute pool)", "Stop app (service only)", "Retrieve app image ID"]
+    else:
+        possible_actions = ["Start app", "Show URL", "Stop frontend (and compute pool)", "Stop frontend (service only)", "Stop corresponding workers", "Retrieve app image ID"]
+    action_to_perform = st.selectbox("Select action to perform:", possible_actions)
 
     if st.button("Take action"):
         if action_to_perform == "Start app":
             start_app(chosen_app_shortname, user_group, chosen_startable_service_name)
         elif action_to_perform == "Show URL":
             show_endpoints(chosen_app_shortname, user_group, chosen_startable_service_name)
-        elif action_to_perform == "Stop frontend (and compute pool)":
+        elif action_to_perform in ("Stop app (and compute pool)", "Stop frontend (and compute pool)"):
             stop_frontend(chosen_app_shortname, user_group, chosen_startable_service_name)
-        elif action_to_perform == "Stop frontend (service only)":
+        elif action_to_perform in ( "Stop app (service only)", "Stop frontend (service only)"):
             stop_frontend(chosen_app_shortname, user_group, chosen_startable_service_name, stop_pool_too=False)
-        elif action_to_perform == "Stop corresponding workers":
+        elif action_to_perform == "Stop corresponding workers":  # not used for dmgr
             stop_workers(chosen_startable_service_name)
         elif action_to_perform == "Retrieve app image ID":
             write_app_image_id(chosen_app_shortname, user_group, chosen_startable_service_name)
