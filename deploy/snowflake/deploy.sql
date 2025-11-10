@@ -690,7 +690,7 @@ DROP SERVICE IF EXISTS group_alpha_schema.dmgr_user_1_xs_service;
 CREATE SERVICE group_alpha_schema.dmgr_user_1_xs_service
   IN COMPUTE POOL dmgr_user_1_xs_compute_pool
   FROM @dmgr_db.general_schema.general_stage SPECIFICATION_TEMPLATE_FILE='snowflake_service_spec.yaml'
-  USING ( APP_SHORTNAME=>'dmgr', APP_TITLE=>' "Data Manager" ', SNOWFLAKE_USER=>' "user_1" ', COMPUTE_RESOURCE=>' "1vcpu_6gib_1x" ', ALL_COMPUTE_RESOURCES=>' "1vcpu_6gib_1x 3vcpu_13gib_2x 6vcpu_28gib_4x 6vcpu_58gib_5x 14vcpu_58gib_7x 28vcpu_116gib_14x 28vcpu_240gib_19x" ', IMAGE=>' "/dmgr_db/general_schema/image_repository/mawa-data-manager:latest" ', SNOWFLAKE_WAREHOUSE=>' "dmgr_user_1_xs_warehouse" ', MOUNTPATH=>' "/tmp/dmgr" ', MEMORY=>'6Gi', CPU=>1, IMAGE_NAME=>' "mawa-data-manager" ', IMAGE_TAG=>' "latest" ' )
+  USING ( APP_SHORTNAME=>'dmgr', APP_TITLE=>' "Data Manager" ', SNOWFLAKE_USER=>' "user_1" ', COMPUTE_RESOURCE=>' "1vcpu_6gib_1x" ', ALL_COMPUTE_RESOURCES=>' "1vcpu_6gib_1x 3vcpu_13gib_2x 6vcpu_28gib_4x 6vcpu_58gib_5x 14vcpu_58gib_7x 28vcpu_116gib_14x 28vcpu_240gib_19x" ', IMAGE=>' "/dmgr_db/general_schema/image_repository/data-manager:latest" ', SNOWFLAKE_WAREHOUSE=>' "dmgr_user_1_xs_warehouse" ', MOUNTPATH=>' "/tmp/dmgr" ', MEMORY=>'6Gi', CPU=>1, IMAGE_NAME=>' "data-manager" ', IMAGE_TAG=>' "latest" ' )
   AUTO_RESUME = FALSE
   MIN_INSTANCES = 1
   MAX_INSTANCES = 1;

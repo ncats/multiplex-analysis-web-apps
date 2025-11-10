@@ -59,6 +59,7 @@ In general, in this section below, make the following sample substitutions, incl
   * `App A` --> `Multiplex Analysis Web Apps`
   * `user_1` --> `aweisman`
   * `frontend` --> `mawa-frontend`
+  * `data-manager` --> `mawa-data-manager`
   * `latest` --> `2025-11-04-v02-leandro`
 
 `user_1` can become anything; it does not need to match the Snowflake username. All that matters is that the username match what is in the `user_groups` table and the real Snowflake username is used at the botton of `deploy.sql`. **To keep this ID short (since there is an object character limit), we should use the format `<first-initial><last-name>`, e.g., `aweisman`.** This means that the combination of the app shortname and username (including a connecting underscore) should be at most 23 characters long since the object name can be no more than 63 characters: `XXXXX_YYYYYYYYYYYYYYYYY_frontend_28vcpu_240gib_19x_compute_pool`.
