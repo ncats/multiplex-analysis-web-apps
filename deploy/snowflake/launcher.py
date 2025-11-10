@@ -142,7 +142,7 @@ def show_objects(app_shortnames, user_group):
 def main():
 
     # Display the page title.
-    st.title("App Launcher v2")
+    st.title("App Launcher")
 
     # Get a list of apps subject to the new organization scheme.
     app_shortname_dict = {"Data Manager": "dmgr", "Multiplex Analysis Web Apps": "mawa"}
@@ -172,7 +172,7 @@ def main():
     st.header("App control")
 
     # Let the user choose the app to control.
-    chosen_key = st.selectbox("Select app to control:", app_titles)
+    chosen_key = st.selectbox("Select app to control:", app_titles, on_change=lambda: st.session_state.pop("chosen_startable_service_name", None))
     chosen_app_shortname = app_shortname_dict[chosen_key]
 
     # Get the names of the startable services available for the current user in their selected app.
