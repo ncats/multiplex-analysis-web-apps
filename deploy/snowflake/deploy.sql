@@ -577,7 +577,7 @@ CREATE OR REPLACE STREAMLIT group_alpha_schema.app_launcher_user_1_streamlit
   FROM @app_launcher_db.general_schema.general_stage
   MAIN_FILE = 'launcher.py'
   QUERY_WAREHOUSE = app_launcher_user_1_xs_warehouse
-  TITLE = 'App Launcher v2';
+  TITLE = 'App Launcher (group_alpha)';
 
 -- Switch back to accountadmin role.
 USE ROLE accountadmin;
@@ -590,7 +590,6 @@ REVOKE USAGE ON WAREHOUSE setup_xs_warehouse FROM ROLE data_apps_user_1_role;
 
 
 ---------------- Database dmgr_db. ---------------------------------------------------
--- As of 11/5/25 did not yet run this section as we haven't created this app yet!
 
 -- Create the database and schemas.
 create database if not exists dmgr_db;
