@@ -1230,6 +1230,46 @@ def upload_objects_parallel(
             return None
 
 
+def delete_objects(bucket_name: str, object_names: list[str], db_schema: str | None = None):
+    results = {}
+    if framework_utils.platform() == "local":
+        try:
+            client = get_object_storage_client()
+            for name in object_names:
+                try:
+                    client.remove_object(bucket_name, name)
+                    results[name] = "ok"
+                except Exception as e:
+                    results[name] = f"error: {e}"
+            if any(v.startswith("error") for v in results.values()):
+                st.warning(f"Some deletions failed in bucket {bucket_name}: {results}")
+                return False
+            return True
+        except Exception as e:
+            st.error(f"Failed bulk delete in bucket {bucket_name}: {e}")
+            return False
+    elif framework_utils.platform() == "snowflake":
+        if db_schema is None:
+            st.error("db_schema required for Snowflake delete.")
+            return False
+        try:
+            session = snowflake_connections.get_snowpark_session()
+            for name in object_names:
+                try:
+                    stage_location = f"@{db_schema}.{bucket_name}_stage/{name}"
+                    session.file.remove(stage_location=stage_location)
+                    results[name] = "ok"
+                except Exception as e:
+                    results[name] = f"error: {e}"
+            if any(v.startswith("error") for v in results.values()):
+                st.warning(f"Some deletions failed in stage {db_schema}.{bucket_name}_stage: {results}")
+                return False
+            return True
+        except Exception as e:
+            st.error(f"Failed bulk delete in stage {db_schema}: {e}")
+            return False
+
+
 #### 3. ORCHESTRATION FUNCTIONALITY ###############################################################
 
 

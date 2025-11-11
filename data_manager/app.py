@@ -2,10 +2,28 @@
 import streamlit as st
 import framework.startup as startup
 import framework.platform_abstraction as pa
-import data_uploader
-import data_downloader
+import upload
+import download
+import delete
+import home
+import os
 
 ST_KEY_PREFIX = "app.py__"
+
+
+# Bump the key so Streamlit creates a brand-new widget with no value.
+def clear_data_from_memory():
+    if "uploader_key" in st.session_state:
+        st.session_state["uploader_key"] += 1
+    if "zip_buffer" in st.session_state:
+        del st.session_state["zip_buffer"]
+        del st.session_state["num_files_in_buffer"]
+        del st.session_state["zip_filename"]
+
+
+@st.cache_data()
+def get_app_title():
+    return os.getenv("APP_TITLE")
 
 
 # Define the main function.
@@ -22,8 +40,10 @@ def main():
         {
             'Menu':
                 [
-                    st.Page(data_uploader.main, title="☁️ Data Uploader", url_path='data_uploader'),
-                    st.Page(data_downloader.main, title="📥 Data Downloader", url_path='data_downloader'),
+                    st.Page(home.main, title="🏠 Home", url_path='home'),
+                    st.Page(upload.main, title="☁️ Upload", url_path='upload'),
+                    st.Page(download.main, title="📥 Download", url_path='download'),
+                    st.Page(delete.main, title="🔥 Delete", url_path='delete'),
                 ],
         }
     )
@@ -44,11 +64,13 @@ def main():
         # Allow user to shut down entire app cleanly.
         with st.container(horizontal=True):
             st.button("🔄 Refresh page", help="If you want to refresh the page, press this button, *not* your browser's refresh button.")
+            st.button("🧹 Clear data from memory", on_click=clear_data_from_memory)
             if st.button("🛑 Shut down app"):
                 pa.shut_down_app()
 
+
     # Display the title of the page.
-    st.title(pg.title)
+    st.title(get_app_title() + " - " + pg.title)
 
     # Display the page.
     pg.run()

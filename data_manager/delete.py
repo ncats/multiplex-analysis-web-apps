@@ -4,6 +4,20 @@ import polars as pl
 import framework.platform_abstraction as pa
 
 
+# Define a function to delete files.
+def delete_files(upload_location, selected_filenames):
+    with st.spinner("Deleting files..."):
+        success = pa.delete_objects(
+            bucket_name=get_location_settings()[upload_location]["bucket_name"],
+            object_names=selected_filenames,
+            db_schema=get_location_settings()[upload_location]["db_schema"],
+        )
+    if success:
+        st.success(f"Successfully deleted {len(selected_filenames)} file(s).")
+    else:
+        st.error("An error occurred while deleting files.")
+
+
 # Store information about possible upload locations.
 @st.cache_data()
 def get_location_settings():
@@ -22,6 +36,9 @@ def get_location_settings():
 # Define the main function.
 def main():
 
+    # Write a warning that deletions are permanent.
+    st.warning("⚠️ **Warning:** Deletions are permanent and cannot be undone. Please proceed with caution and ensure you have backups of any important data before deleting files.")
+    
     # Write some information.
     st.write(f"Running as user: **{pa.get_current_username()}** in group: **{pa.get_user_group(pa.get_current_username())}**")
 
@@ -35,33 +52,22 @@ def main():
         db_schema=get_location_settings()[upload_location]["db_schema"],
         bucket_name=get_location_settings()[upload_location]["bucket_name"],
     )
+    key = "current_contents_table__do_not_persist"
     if objects_list:
         df = pl.DataFrame({"Filename": objects_list})
-        st.dataframe(df)
+        st.dataframe(df, on_select="rerun", key=key)
         st.write(f"{len(objects_list)} file(s) found in this location.")
     else:
         st.write("No files found in this location.")
 
-    # Create a file uploader.
-    st.write("**Note:** You can upload multiple files at once. Please don't upload more than ~6GB *total* of files at a time. And please be judicious about space.")
-    uploaded_files = st.file_uploader("Upload files to container:", accept_multiple_files=True)
+    # If some files are selected...
+    if key in st.session_state:
+        rows = st.session_state[key]["selection"]["rows"]
+        if rows:
+            selected_filenames = df[rows]["Filename"].to_list()
 
-    # Optionally push the uploaded files to the server.
-    if uploaded_files:
-        st.write("**Files won't actually be saved until you push them to the server.**")
-        compress_files_upon_upload = st.checkbox("Compress files upon upload", value=True)
-        overwrite_existing_files = st.checkbox("Overwrite existing files with the same name", value=False)
-        if st.button(f"Upload {len(uploaded_files)} file(s) to server"):
-            with st.spinner(f"Uploading files..."):
-                results = pa.upload_objects_parallel(
-                    file_paths=uploaded_files,
-                    db_schema=get_location_settings()[upload_location]["db_schema"],
-                    bucket_name=get_location_settings()[upload_location]["bucket_name"],
-                    gzip_if_possible=compress_files_upon_upload,
-                    overwrite=overwrite_existing_files,
-                    )
-                if results:
-                    st.rerun()
+            # Show a button to delete the selected files.
+            st.button(f"⚠️ Delete {len(selected_filenames)} file(s) from server", on_click=delete_files, kwargs={"upload_location": upload_location, "selected_filenames": selected_filenames}, help="This is permanent; please ensure you have backups.", type="primary")
 
 
 # Run the main function if this script is executed.
