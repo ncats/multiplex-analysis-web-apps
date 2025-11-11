@@ -933,160 +933,112 @@ def download_objects_parallel(
     bucket_name: str,
     object_names: list[str],
     dest_dir: str,
-    db_schema: str = None,
-    max_workers: int = 8,
+    db_schema: str | None = None,
+    max_workers: int | None = None,
     chunk_size: int = 1024 * 1024,
-    retries: int = 3,
-    backoff_base: float = 0.3,
-    verify_etag: bool = False
+    gunzip_if_gz: bool = True,
 ):
+    """Download objects in parallel for the active platform (local MinIO or Snowflake stage).
+
+    Mirrors upload_objects_parallel design (shared core + per-platform adapters) for symmetry & less duplication.
+
+    Features:
+        - Parallel streaming download (chunk_size per read).
+        - Optional transparent gunzip: if remote object ends in .gz and gunzip_if_gz=True, writes decompressed file locally (drops .gz) then removes original .gz.
+        - Memory efficiency: streamed read/write & streamed gunzip (chunk_size blocks, no full-file buffering).
+        - Simplified: no retries, backoff, checksum/etag verification, or local skip-existing (downloads overwrite).
+
+    Return: {final_local_name: {status:'ok'|'error', path:local_path|None, size:int|None, error:Exception|None}}
     """
-    Download arbitrary objects from MinIO in parallel.
-    object_names: list of object keys exactly as stored (may include extensions or paths).
-    dest_dir: local directory root to place downloaded files (object key subpaths preserved).
-    Returns dict {object_name: {'status': 'ok', 'path': local_path} or {'status': 'error', 'error': Exception}}.
-    """
-    if framework_utils.platform() == "local":
+    os.makedirs(dest_dir, exist_ok=True)
+    platform_value = framework_utils.platform()
+    effective_workers = max_workers or (os.cpu_count() or 1)
+
+    def _gunzip_if_needed(local_path: str) -> tuple[str, int]:
+        """If gunzip enabled and file endswith .gz, stream decompress (chunk_size blocks) to path without .gz; remove original .gz; return (final_path, size)."""
+        if not gunzip_if_gz or not local_path.lower().endswith('.gz'):
+            return local_path, os.path.getsize(local_path) if os.path.exists(local_path) else None
+        final_path = local_path[:-3]
+        try:
+            with gzip.open(local_path, 'rb') as src, open(final_path, 'wb') as dst:
+                for chunk in iter(lambda: src.read(chunk_size), b''):
+                    if not chunk:
+                        break
+                    dst.write(chunk)
+            try: os.remove(local_path)
+            except Exception: pass
+            return final_path, os.path.getsize(final_path)
+        except Exception:
+            # Decompression failed; keep original .gz
+            return local_path, os.path.getsize(local_path) if os.path.exists(local_path) else None
+
+    def _core_parallel_download(get_stream_func):
+        """Shared parallel engine: obtains stream via adapter, writes file, optional gunzip, returns result dict entries."""
+        def _download_one(obj_name: str):
+            stream = None
+            local_path = os.path.join(dest_dir, obj_name)
+            parent = os.path.dirname(local_path)
+            if parent:
+                os.makedirs(parent, exist_ok=True)
+            try:
+                stream = get_stream_func(obj_name)
+                with open(local_path, 'wb') as f:
+                    for chunk in iter(lambda: stream.read(chunk_size), b''):
+                        if not chunk:
+                            break
+                        f.write(chunk)
+                try:
+                    stream.close()
+                except Exception:
+                    pass
+                final_path, size = _gunzip_if_needed(local_path)
+                return final_path, {'status': 'ok', 'path': final_path, 'size': size}
+            except Exception as e:
+                if stream:
+                    try: stream.close()
+                    except Exception: pass
+                return obj_name, {'status': 'error', 'error': e, 'path': None, 'size': None}
+
+        results: dict[str, dict] = {}
+        with ThreadPoolExecutor(max_workers=effective_workers) as executor:
+            future_map = {executor.submit(_download_one, name): name for name in object_names}
+            for fut in as_completed(future_map):
+                original_name = future_map[fut]
+                try:
+                    final_name, res = fut.result()
+                    results[final_name] = res
+                except Exception as e:
+                    results[original_name] = {'status': 'error', 'error': e, 'path': None, 'size': None}
+        failures = [k for k, v in results.items() if v['status'] != 'ok']
+        if failures:
+            st.warning(f"{len(failures)} downloads failed.")
+        else:
+            st.success(f"Downloaded {len(results)} objects.")
+        return results
+
+    if platform_value == "local":
         try:
             client = get_object_storage_client()
-
-            os.makedirs(dest_dir, exist_ok=True)
-
-            def download_one(obj_name: str):
-                attempt = 0
-                while attempt < retries:
-                    response = None
-                    try:
-                        response = client.get_object(bucket_name, obj_name)
-                        local_path = os.path.join(dest_dir, obj_name)
-                        parent = os.path.dirname(local_path)
-                        if parent:
-                            os.makedirs(parent, exist_ok=True)
-                        with open(local_path, "wb") as f:
-                            while True:
-                                data = response.read(chunk_size)
-                                if not data:
-                                    break
-                                f.write(data)
-                        response.close()
-
-                        if verify_etag:
-                            # NOTE: For multipart uploads the ETag is not a simple MD5; skip strict verify in that case.
-                            stat = client.stat_object(bucket_name, obj_name)
-                            etag = getattr(stat, "etag", None)
-                            if etag and "-" not in etag:  # Heuristic: multipart ETags contain '-'
-                                h = hashlib.md5()
-                                with open(local_path, "rb") as f:
-                                    for block in iter(lambda: f.read(chunk_size), b""):
-                                        h.update(block)
-                                if h.hexdigest() != etag.lower():
-                                    raise ValueError(f"ETag mismatch for {obj_name}: expected {etag}, got {h.hexdigest()}")
-                        return obj_name, {'status': 'ok', 'path': local_path}
-                    except Exception as e:
-                        if response:
-                            try:
-                                response.close()
-                            except Exception:
-                                pass
-                        attempt += 1
-                        if attempt < retries:
-                            time.sleep(backoff_base * (2 ** (attempt - 1)))
-                        else:
-                            return obj_name, {'status': 'error', 'error': e}
-
-            results: dict[str, dict] = {}
-            with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                future_map = {executor.submit(download_one, name): name for name in object_names}
-                for fut in as_completed(future_map):
-                    name = future_map[fut]
-                    try:
-                        obj_name, res = fut.result()
-                        results[obj_name] = res
-                    except Exception as e:
-                        results[name] = {'status': 'error', 'error': e}
-
-            failures = [k for k, v in results.items() if v['status'] == 'error']
-            if failures:
-                st.warning(f"{len(failures)} downloads failed.")
-            else:
-                st.success(f"Downloaded {len(results)} objects.")
-            return results
+            if client is None:
+                st.error("MinIO client unavailable.")
+                return None
+            def _get_stream(name: str):
+                return client.get_object(bucket_name, name)
+            return _core_parallel_download(_get_stream)
         except Exception as e:
             st.error(f"Failed to download objects from MinIO bucket: {e}")
             return None
-    elif framework_utils.platform() == "snowflake":
+    elif platform_value == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
-            os.makedirs(dest_dir, exist_ok=True)
-
             if db_schema is None:
-                user_group = get_user_group(get_current_username())
-                db_schema = f"{user_group}_group_db.curated_schema"
+                st.error("db_schema must be provided for Snowflake downloads.")
+                return None
             stage_prefix = f"@{db_schema}.{bucket_name}_stage"
-
-            def download_one(obj_name: str):
-                attempt = 0
-                while attempt < retries:
-                    stream = None
-                    try:
-                        stage_location = f"{stage_prefix}/{obj_name}"
-                        stream = session.file.get_stream(stage_location=stage_location)
-                        local_path = os.path.join(dest_dir, obj_name)
-                        parent = os.path.dirname(local_path)
-                        if parent:
-                            os.makedirs(parent, exist_ok=True)
-                        with open(local_path, "wb") as f:
-                            while True:
-                                chunk = stream.read(chunk_size)
-                                if not chunk:
-                                    break
-                                f.write(chunk)
-                        stream.close()
-
-                        if verify_etag:
-                            # Use MD5 from stage listing when available.
-                            dir_part = os.path.dirname(obj_name)
-                            list_location = stage_prefix + ("/" + dir_part if dir_part else "")
-                            files = session.file.list(stage_location=list_location)
-                            meta = next((m for m in files if m.get("name") == os.path.basename(obj_name)), None)
-                            remote_md5 = meta.get("md5") if meta else None
-                            if remote_md5:
-                                h = hashlib.md5()
-                                with open(local_path, "rb") as f:
-                                    for block in iter(lambda: f.read(chunk_size), b""):
-                                        h.update(block)
-                                if h.hexdigest().lower() != remote_md5.lower():
-                                    raise ValueError(f"MD5 mismatch for {obj_name}: expected {remote_md5}, got {h.hexdigest()}")
-                        return obj_name, {'status': 'ok', 'path': local_path}
-                    except Exception as e:
-                        attempt += 1
-                        if stream:
-                            try:
-                                stream.close()
-                            except Exception:
-                                pass
-                        if attempt < retries:
-                            time.sleep(backoff_base * (2 ** (attempt - 1)))
-                        else:
-                            return obj_name, {'status': 'error', 'error': e}
-
-            results: dict[str, dict] = {}
-            with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                future_map = {executor.submit(download_one, name): name for name in object_names}
-                for fut in as_completed(future_map):
-                    name = future_map[fut]
-                    try:
-                        obj_name, res = fut.result()
-                        results[obj_name] = res
-                    except Exception as e:
-                        results[name] = {'status': 'error', 'error': e}
-
-            failures = [k for k, v in results.items() if v['status'] == 'error']
-            if failures:
-                st.warning(f"{len(failures)} downloads failed.")
-            else:
-                st.success(f"Downloaded {len(results)} objects.")
-            return results
+            def _get_stream(name: str):
+                stage_location = f"{stage_prefix}/{name}"
+                return session.file.get_stream(stage_location=stage_location)
+            return _core_parallel_download(_get_stream)
         except Exception as e:
             st.error(f"Failed to download objects from Snowflake stage: {e}")
             return None
@@ -1098,6 +1050,8 @@ def upload_objects_parallel(
     db_schema: str | None = None,
     gzip_if_possible: bool = False,
     overwrite: bool = False,
+    max_workers: int | None = None,
+    chunk_size: int = 1024 * 1024,
 ):
     """Upload path strings or Streamlit UploadedFile objects to object storage for the active platform.
 
@@ -1106,7 +1060,7 @@ def upload_objects_parallel(
             snowflake  -> Snowflake stage (file.put_stream).
 
         Features:
-            - Optional gzip (adds .gz) for inputs not already .zip/.gz.
+            - Optional gzip (adds .gz) for inputs not already .zip/.gz (streams in chunk_size blocks).
             - Optional overwrite prevention (skip if object already exists).
             - Memory efficiency: path compression streams in 1MB chunks; UploadedFile also streamed (no full duplicate buffer).
             - Snowflake overwrite uses native put_stream overwrite flag when overwrite=True (avoids pre-listing).
@@ -1144,10 +1098,10 @@ def upload_objects_parallel(
         item.seek(0)
         return size, data_stream, content_type, None
 
-    # Choose worker count based on CPU availability (simple heuristic).
-    effective_workers = os.cpu_count() or 1
+    # Determine worker count: explicit override or CPU heuristic.
+    effective_workers = max_workers or (os.cpu_count() or 1)
 
-    def _core_parallel(exists_func, upload_func):
+    def _core_parallel_upload(exists_func, upload_func):
         """Execute uploads with provided existence and upload callables; handles gzip and overwrite semantics."""
         def _upload_one(item):
             # Determine final object name first (gzip adds .gz); perform existence check on final name before any heavy work.
@@ -1179,7 +1133,9 @@ def upload_objects_parallel(
                     with tempfile.NamedTemporaryFile(delete=False) as tmp_out:
                         temp_path_to_remove = tmp_out.name
                         with gzip.GzipFile(fileobj=tmp_out, mode='wb') as gz_out:
-                            for chunk in iter(lambda: source_stream.read(1024 * 1024), b''):
+                            for chunk in iter(lambda: source_stream.read(chunk_size), b''):
+                                if not chunk:
+                                    break
                                 gz_out.write(chunk)
                     # Close source_stream if it's a file handle (path case).
                     if isinstance(item, str) and source_stream:
@@ -1240,7 +1196,7 @@ def upload_objects_parallel(
                     return False
             def _upload_local(name: str, size: int, stream, content_type: str):
                 client.put_object(bucket_name=bucket_name, object_name=name, data=stream, length=size, content_type=content_type)
-            return _core_parallel(_exists_local, _upload_local)
+            return _core_parallel_upload(_exists_local, _upload_local)
         except Exception as e:
             st.error(f"Failed to upload objects to MinIO: {e}")
             return None
@@ -1268,7 +1224,7 @@ def upload_objects_parallel(
                     auto_compress=False,
                     overwrite=overwrite
                 )
-            return _core_parallel(_exists_snowflake, _upload_snowflake)
+            return _core_parallel_upload(_exists_snowflake, _upload_snowflake)
         except Exception as e:
             st.error(f"Failed to upload objects to Snowflake stage: {e}")
             return None
