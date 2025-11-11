@@ -3,6 +3,7 @@ import streamlit as st
 import framework.startup as startup
 import framework.platform_abstraction as pa
 import data_uploader
+import data_downloader
 
 ST_KEY_PREFIX = "app.py__"
 
@@ -22,6 +23,7 @@ def main():
             'Menu':
                 [
                     st.Page(data_uploader.main, title="☁️ Data Uploader", url_path='data_uploader'),
+                    st.Page(data_downloader.main, title="📥 Data Downloader", url_path='data_downloader'),
                 ],
         }
     )

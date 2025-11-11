@@ -22,6 +22,7 @@ def get_location_settings():
 # Define the main function.
 def main():
 
+    # Write some information.
     st.write(f"Running as user: **{pa.get_current_username()}** in group: **{pa.get_user_group(pa.get_current_username())}**")
 
     # Have the user select to where they want to upload data.
@@ -48,15 +49,19 @@ def main():
     # Optionally push the uploaded files to the server.
     if uploaded_files:
         st.write("**Files won't actually be saved until you push them to the server.**")
-    if st.button(f"Push {len(uploaded_files)} file(s) to server", disabled=not uploaded_files, help="Note files with the same name will be overwritten."):
-        with st.spinner(f"Pushing files to server..."):
-            results = pa.upload_objects_parallel(
-                file_paths=uploaded_files,
-                db_schema=get_location_settings()[upload_location]["db_schema"],
-                bucket_name=get_location_settings()[upload_location]["bucket_name"],
-                )
-            if results:
-                st.rerun()
+        compress_files_upon_upload = st.checkbox("Compress files upon upload", value=True)
+        overwrite_existing_files = st.checkbox("Overwrite existing files with the same name", value=False)
+        if st.button(f"Upload {len(uploaded_files)} file(s) to server"):
+            with st.spinner(f"Uploading files..."):
+                results = pa.upload_objects_parallel(
+                    file_paths=uploaded_files,
+                    db_schema=get_location_settings()[upload_location]["db_schema"],
+                    bucket_name=get_location_settings()[upload_location]["bucket_name"],
+                    gzip_if_possible=compress_files_upon_upload,
+                    overwrite=overwrite_existing_files,
+                    )
+                if results:
+                    st.rerun()
 
 
 # Run the main function if this script is executed.
