@@ -15,6 +15,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
 import hashlib
 import mimetypes
+import gzip
+import tempfile
 
 
 ST_KEY_PREFIX_STARTUP = "startup.py__"
@@ -1092,215 +1094,181 @@ def download_objects_parallel(
 
 def upload_objects_parallel(
     bucket_name: str,
-    file_paths: list,  # May contain str paths OR Streamlit UploadedFile objects
-    base_dir: str | None = None,
-    db_schema: str = None,
-    max_workers: int = 8,
-    retries: int = 3,
-    backoff_base: float = 0.3,
-    guess_content_type: bool = True,
-    verify_etag: bool = False
+    file_paths: list,  # Iterable of filesystem path strings and/or Streamlit UploadedFile objects.
+    db_schema: str | None = None,
+    gzip_if_possible: bool = False,
+    overwrite: bool = False,
 ):
-    """
-    Upload arbitrary local files (paths) or UploadedFile buffers to object storage in parallel. The latter was added by Andrew on 11/7/25 early morning.
+    """Upload path strings or Streamlit UploadedFile objects to object storage for the active platform.
 
-    file_paths: list of path strings and/or Streamlit UploadedFile objects.
-    base_dir: only applied to string paths.
-    Returns dict {object_name: {'status': 'ok', 'size': bytes} or {'status': 'error', 'error': Exception}}.
-    """
+        Platform branches (explicit):
+            local      -> MinIO bucket (put_object).
+            snowflake  -> Snowflake stage (file.put_stream).
 
-    def is_uploaded_file(item):
+        Features:
+            - Optional gzip (adds .gz) for inputs not already .zip/.gz.
+            - Optional overwrite prevention (skip if object already exists).
+            - Memory efficiency: path compression streams in 1MB chunks; UploadedFile also streamed (no full duplicate buffer).
+            - Snowflake overwrite uses native put_stream overwrite flag when overwrite=True (avoids pre-listing).
+
+        Return: {object_name: {status: 'ok'|'skipped-existing'|'error', size: int|None, error: Exception|None}}.
+
+        Extensibility: Add a new platform by adding another top-level elif branch that defines two callables:
+                exists(name)->bool and upload(name,size,stream,content_type)->None then calls _core_parallel(...).
+        """
+
+    def _is_uploaded_file(item):
+        """Return True if item looks like a Streamlit UploadedFile (has .read() and .name)."""
         return hasattr(item, "read") and hasattr(item, "name")
 
-    def compute_object_name(item):
+    def _compute_object_name(item):
+        """Return basename for a path or original .name for an UploadedFile (collision possible if duplicate basenames)."""
         if isinstance(item, str):
-            if base_dir:
-                b = os.path.abspath(base_dir)
-                p = os.path.abspath(item)
-                rel = os.path.relpath(p, b)
-                if rel.startswith(".."):
-                    raise ValueError(f"{item} outside base_dir {base_dir}")
-                return rel.replace("\\", "/")
             return os.path.basename(item)
-        elif is_uploaded_file(item):
+        if _is_uploaded_file(item):
             return item.name
-        else:
-            raise TypeError("Items must be str paths or Streamlit UploadedFile objects.")
+        raise TypeError("Items must be str paths or Streamlit UploadedFile objects.")
 
-    if framework_utils.platform() == "local":
+    def _prepare_item(item):
+        """Return (size_bytes, stream, inferred_mime_type, file_handle_or_None) for a path or UploadedFile (always infers type)."""
+        if isinstance(item, str):
+            size = os.path.getsize(item)
+            f = open(item, "rb")
+            content_type = mimetypes.guess_type(item)[0] or "application/octet-stream"
+            return size, f, content_type, f
+        # UploadedFile case.
+        bytes_data = item.read()
+        size = len(bytes_data)
+        data_stream = io.BytesIO(bytes_data)
+        content_type = getattr(item, "type", None) or mimetypes.guess_type(item.name)[0] or "application/octet-stream"
+        item.seek(0)
+        return size, data_stream, content_type, None
+
+    # Choose worker count based on CPU availability (simple heuristic).
+    effective_workers = os.cpu_count() or 1
+
+    def _core_parallel(exists_func, upload_func):
+        """Execute uploads with provided existence and upload callables; handles gzip and overwrite semantics."""
+        def _upload_one(item):
+            # Determine final object name first (gzip adds .gz); perform existence check on final name before any heavy work.
+            original_name = _compute_object_name(item)
+            lower = original_name.lower()
+            will_gzip = gzip_if_possible and not (lower.endswith('.zip') or lower.endswith('.gz'))
+            final_name = original_name + '.gz' if will_gzip else original_name
+            f = None
+            temp_path_to_remove = None
+            size = None
+            data_stream = None
+            content_type = None
+            try:
+                # Early skip based on final name only (raw existence does not block creating gzip variant).
+                if not overwrite and exists_func(final_name):
+                    return final_name, {'status': 'skipped-existing', 'size': None}
+
+                if will_gzip:
+                    # Stream compression to temp file without loading entire file into memory.
+                    source_stream = None
+                    if isinstance(item, str):
+                        source_stream = open(item, 'rb')
+                    elif _is_uploaded_file(item):
+                        # Read in 1MB chunks directly from UploadedFile object.
+                        item.seek(0)
+                        source_stream = item
+                    else:
+                        raise TypeError("Items must be str paths or Streamlit UploadedFile objects.")
+                    with tempfile.NamedTemporaryFile(delete=False) as tmp_out:
+                        temp_path_to_remove = tmp_out.name
+                        with gzip.GzipFile(fileobj=tmp_out, mode='wb') as gz_out:
+                            for chunk in iter(lambda: source_stream.read(1024 * 1024), b''):
+                                gz_out.write(chunk)
+                    # Close source_stream if it's a file handle (path case).
+                    if isinstance(item, str) and source_stream:
+                        try: source_stream.close()
+                        except Exception: pass
+                    # Open compressed for upload.
+                    f = open(temp_path_to_remove, 'rb')
+                    data_stream = f
+                    size = os.path.getsize(temp_path_to_remove)
+                    content_type = 'application/gzip'
+                else:
+                    # Non-gzip path: prepare item normally (this may read UploadedFile fully into memory).
+                    size, data_stream, content_type, f = _prepare_item(item)
+
+                upload_func(final_name, size, data_stream, content_type)
+                return final_name, {'status': 'ok', 'size': size}
+            except Exception as e:
+                return final_name, {'status': 'error', 'error': e}
+            finally:
+                if f:
+                    try: f.close()
+                    except Exception: pass
+                if temp_path_to_remove:
+                    try: os.remove(temp_path_to_remove)
+                    except Exception: pass
+
+        # Parallel execution.
+        results: dict[str, dict] = {}
+        with ThreadPoolExecutor(max_workers=effective_workers) as executor:
+            future_map = {executor.submit(_upload_one, item): item for item in file_paths}
+            for fut in as_completed(future_map):
+                item = future_map[fut]
+                try:
+                    obj_name, res = fut.result()
+                    results[obj_name] = res
+                except Exception as e:
+                    fallback_name = _compute_object_name(item)
+                    results[fallback_name] = {'status': 'error', 'error': e}
+        failures = [k for k, v in results.items() if v['status'] != 'ok']
+        if failures:
+            st.warning(f"{len(failures)} uploads failed.")
+        else:
+            st.success(f"Uploaded {len(results)} objects.")
+        return results
+
+    platform_value = framework_utils.platform()
+    if platform_value == "local":
         try:
             client = get_object_storage_client()
-
-            def upload_one(item):
-                object_name = compute_object_name(item)
-                attempt = 0
-                while attempt < retries:
-                    f = None
-                    try:
-                        # Acquire bytes and metadata
-                        if isinstance(item, str):
-                            size = os.path.getsize(item)
-                            f = open(item, "rb")
-                            data_stream = f
-                            content_type = None
-                            if guess_content_type:
-                                content_type = mimetypes.guess_type(item)[0] or "application/octet-stream"
-                            local_md5_source_path = item
-                            bytes_data = None
-                        else:
-                            # UploadedFile
-                            bytes_data = item.read()
-                            size = len(bytes_data)
-                            data_stream = io.BytesIO(bytes_data)
-                            content_type = item.type if guess_content_type and hasattr(item, "type") and item.type else (
-                                mimetypes.guess_type(item.name)[0] or "application/octet-stream"
-                            )
-                            local_md5_source_path = None  # We have in-memory data
-                            # Reset internal pointer for potential retries
-                            item.seek(0)
-
-                        client.put_object(
-                            bucket_name=bucket_name,
-                            object_name=object_name,
-                            data=data_stream,
-                            length=size,
-                            content_type=content_type
-                        )
-
-                        if f:
-                            f.close()
-
-                        if verify_etag:
-                            stat = client.stat_object(bucket_name, object_name)
-                            etag = getattr(stat, "etag", None)
-                            if etag and "-" not in etag:
-                                h = hashlib.md5()
-                                if local_md5_source_path:
-                                    with open(local_md5_source_path, "rb") as vf:
-                                        for block in iter(lambda: vf.read(1024 * 1024), b""):
-                                            h.update(block)
-                                else:
-                                    h.update(bytes_data)
-                                if h.hexdigest() != etag.lower():
-                                    raise ValueError(f"ETag mismatch for {object_name}: expected {etag}, got {h.hexdigest()}")
-                        return object_name, {'status': 'ok', 'size': size}
-                    except Exception as e:
-                        attempt += 1
-                        if f:
-                            try:
-                                f.close()
-                            except Exception:
-                                pass
-                        if attempt < retries:
-                            time.sleep(backoff_base * (2 ** (attempt - 1)))
-                        else:
-                            return object_name, {'status': 'error', 'error': e}
-
-            results: dict[str, dict] = {}
-            with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                future_map = {executor.submit(upload_one, item): item for item in file_paths}
-                for fut in as_completed(future_map):
-                    item = future_map[fut]
-                    try:
-                        obj_name, res = fut.result()
-                        results[obj_name] = res
-                    except Exception as e:
-                        fallback_name = compute_object_name(item)
-                        results[fallback_name] = {'status': 'error', 'error': e}
-
-            failures = [k for k, v in results.items() if v['status'] != 'ok']
-            if failures:
-                st.warning(f"{len(failures)} uploads failed.")
-            else:
-                st.success(f"Uploaded {len(results)} objects.")
-            return results
+            if client is None:
+                st.error("MinIO client unavailable.")
+                return None
+            def _exists_local(name: str) -> bool:
+                try:
+                    client.stat_object(bucket_name, name)
+                    return True
+                except Exception:
+                    return False
+            def _upload_local(name: str, size: int, stream, content_type: str):
+                client.put_object(bucket_name=bucket_name, object_name=name, data=stream, length=size, content_type=content_type)
+            return _core_parallel(_exists_local, _upload_local)
         except Exception as e:
             st.error(f"Failed to upload objects to MinIO: {e}")
             return None
-
-    elif framework_utils.platform() == "snowflake":
+    elif platform_value == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
-
             if db_schema is None:
-                user_group = get_user_group(get_current_username())
-                db_schema = f"{user_group}_group_db.curated_schema"
+                st.error("db_schema must be provided for Snowflake uploads.")
+                return None
             stage_prefix = f"@{db_schema}.{bucket_name}_stage"
-
-            def upload_one(item):
-                object_name = compute_object_name(item)
-                attempt = 0
-                while attempt < retries:
-                    f = None
-                    try:
-                        if isinstance(item, str):
-                            size = os.path.getsize(item)
-                            f = open(item, "rb")
-                            data_stream = f
-                            bytes_data = None
-                            local_md5_source_path = item
-                        else:
-                            bytes_data = item.read()
-                            size = len(bytes_data)
-                            data_stream = io.BytesIO(bytes_data)
-                            item.seek(0)
-                            local_md5_source_path = None
-
-                        session.file.put_stream(
-                            input_stream=data_stream,
-                            stage_location=f"{stage_prefix}/{object_name}",
-                            auto_compress=False
-                        )
-                        if f:
-                            f.close()
-
-                        if verify_etag:
-                            dir_part = os.path.dirname(object_name)
-                            list_location = stage_prefix + ("/" + dir_part if dir_part else "")
-                            files = session.file.list(stage_location=list_location)
-                            meta = next((m for m in files if m.get("name") == os.path.basename(object_name)), None)
-                            remote_md5 = meta.get("md5") if meta else None
-                            if remote_md5:
-                                h = hashlib.md5()
-                                if local_md5_source_path:
-                                    with open(local_md5_source_path, "rb") as vf:
-                                        for block in iter(lambda: vf.read(1024 * 1024), b""):
-                                            h.update(block)
-                                else:
-                                    h.update(bytes_data)
-                                if h.hexdigest().lower() != remote_md5.lower():
-                                    raise ValueError(f"MD5 mismatch for {object_name}: expected {remote_md5}, got {h.hexdigest()}")
-                        return object_name, {'status': 'ok', 'size': size}
-                    except Exception as e:
-                        attempt += 1
-                        if f:
-                            try:
-                                f.close()
-                            except Exception:
-                                pass
-                        if attempt < retries:
-                            time.sleep(backoff_base * (2 ** (attempt - 1)))
-                        else:
-                            return object_name, {'status': 'error', 'error': e}
-
-            results: dict[str, dict] = {}
-            with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                future_map = {executor.submit(upload_one, item): item for item in file_paths}
-                for fut in as_completed(future_map):
-                    item = future_map[fut]
-                    try:
-                        obj_name, res = fut.result()
-                        results[obj_name] = res
-                    except Exception as e:
-                        fallback_name = compute_object_name(item)
-                        results[fallback_name] = {'status': 'error', 'error': e}
-
-            failures = [k for k, v in results.items() if v['status'] != 'ok']
-            if failures:
-                st.warning(f"{len(failures)} uploads failed.")
-            else:
-                st.success(f"Uploaded {len(results)} objects.")
-            return results
+            def _exists_snowflake(name: str) -> bool:
+                # Only perform existence check when overwrite is False; otherwise skip for performance.
+                if overwrite:
+                    return False
+                try:
+                    listing = session.file.list(stage_location=f"{stage_prefix}/{name}")
+                    return any(entry.get('name') == name for entry in listing)
+                except Exception:
+                    return False
+            def _upload_snowflake(name: str, size: int, stream, content_type: str):
+                # size/content_type are ignored by Snowflake put_stream; overwrite handled natively.
+                session.file.put_stream(
+                    input_stream=stream,
+                    stage_location=f"{stage_prefix}/{name}",
+                    auto_compress=False,
+                    overwrite=overwrite
+                )
+            return _core_parallel(_exists_snowflake, _upload_snowflake)
         except Exception as e:
             st.error(f"Failed to upload objects to Snowflake stage: {e}")
             return None
