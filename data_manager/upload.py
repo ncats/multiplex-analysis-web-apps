@@ -133,7 +133,7 @@ def main():
             key = "multiple_compress_checkbox"
             if key not in st.session_state:
                 st.session_state[key] = True
-            compress_files_upon_upload = st.checkbox("Compress files upon upload", key=key)
+            compress_files_upon_upload = st.checkbox("Compress files upon upload (recommended)", key=key)
             key = "multiple_overwrite_checkbox"
             if key not in st.session_state:
                 st.session_state[key] = False
@@ -154,7 +154,7 @@ def main():
             key = "zip_compress_checkbox"
             if key not in st.session_state:
                 st.session_state[key] = True
-            compress_files_upon_upload = st.checkbox("Compress files upon upload", key=key)
+            compress_files_upon_upload = st.checkbox("Compress files upon upload (recommended)", key=key)
             key = "zip_overwrite_checkbox"
             if key not in st.session_state:
                 st.session_state[key] = False
