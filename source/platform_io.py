@@ -318,7 +318,7 @@ class Platform:
             else:
 
                 # Download the selected files
-                results = pa.download_objects_parallel(bucket_name=os.getenv("DATA_OBJECTS_BUCKET_NAME"), object_names=selected_input_filenames, dest_dir=local_input_dir())
+                results = pa.download_objects_parallel(bucket_name=os.getenv("DATA_OBJECTS_BUCKET_NAME"), object_names=selected_input_filenames, dest_dir=local_input_dir(), db_schema=f"{pa.get_user_group(pa.get_current_username())}_group_db.curated_schema")
                 # {object_name: {'status': 'ok', 'path': local_path} or {'status': 'error', 'error': Exception}}
 
                 # For each downloaded file, move it to the local input directory
@@ -384,7 +384,7 @@ class Platform:
                 else:
 
                     # Transfer the zipped file to NIDAP
-                    pa.upload_objects_parallel(bucket_name=os.getenv("DATA_OBJECTS_BUCKET_NAME"), file_paths=[os.path.join(local_input_dir(), selected_mawa_unified_datafile + '.zip')])
+                    pa.upload_objects_parallel(bucket_name=os.getenv("DATA_OBJECTS_BUCKET_NAME"), file_paths=[os.path.join(local_input_dir(), selected_mawa_unified_datafile + '.zip')], db_schema=f"{pa.get_user_group(pa.get_current_username())}_group_db.curated_schema")
 
                 # Delete the zipped file from the local input directory
                 os.remove(os.path.join(local_input_dir(), selected_mawa_unified_datafile + '.zip'))
