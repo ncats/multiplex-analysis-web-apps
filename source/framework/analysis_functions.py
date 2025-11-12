@@ -5,6 +5,7 @@ import basic_phenotyper_lib as bpl  # Useful functions for phenotyping collectio
 from copy import copy
 import numpy as np
 import pandas as pd
+import scanpy as sc 
 
 def run_analysis_job(function_name, inputs, job_dir):
     try:
@@ -21,6 +22,14 @@ def run_analysis_job(function_name, inputs, job_dir):
             function_to_run = clust_umap_dens_diff
         elif function_name == "run_sit_workflow":
             function_to_run = run_sit_workflow
+        elif function_name == "run_scanpy_clust":
+            function_to_run = run_scanpy_clust
+        elif function_name == "run_phenograph_clust":
+            function_to_run = run_phenograph_clust
+        elif function_name == "run_parc_clust":
+            function_to_run = run_parc_clust
+        elif function_name == "run_utag_clust":
+            function_to_run = run_utag_clust
         outputs = function_to_run(**inputs, results_topdir=outputs_dir)
         return outputs
     except Exception as e:
@@ -449,3 +458,203 @@ def run_sit_workflow(dataset_obj, project_dir, allow_compound_species,
 
 
     return {"slices": slices, "sit_workflow_completed": True}
+
+# unsupervised clustering 
+# scanpy clustering
+def run_scanpy_clust(adata, n_neighbors, metric, resolution, random_state, n_principal_components, 
+                   n_jobs, n_iterations, fast, transformer, results_topdir):
+    
+    from pynndescent import PyNNDescentTransformer
+    from unsupervised_clustering_utils import AnnoyTransformer
+
+    adata = adata.copy()
+    if fast == True:
+        sc.pp.pca(adata, n_comps=n_principal_components)
+        if transformer == "Annoy":
+            sc.pp.neighbors(adata, transformer=AnnoyTransformer(n_neighbors=n_neighbors, metric=metric, n_jobs=n_jobs), 
+                       n_pcs=n_principal_components, random_state=random_state)
+        elif transformer == "PNNDescent":
+            transformer = PyNNDescentTransformer(n_neighbors=n_neighbors, metric=metric, n_jobs=n_jobs, random_state=random_state)
+            sc.pp.neighbors(adata, transformer=transformer, n_pcs=n_principal_components, random_state=random_state)
+        else:
+            sc.pp.neighbors(adata, n_neighbors=n_neighbors, metric=metric, n_pcs=n_principal_components, random_state=random_state)
+        
+    else:
+        if n_principal_components > 0:
+            sc.pp.pca(adata, n_comps=n_principal_components)
+            sc.pp.neighbors(adata, n_neighbors=n_neighbors, metric=metric, n_pcs=n_principal_components, random_state=random_state)
+        else:
+            sc.pp.neighbors(adata, n_neighbors=n_neighbors, metric=metric, n_pcs=0, random_state=random_state)
+            
+    sc.tl.leiden(adata,resolution=resolution, random_state=random_state, n_iterations=n_iterations, flavor="igraph")
+    adata.obs['Cluster'] = adata.obs['leiden']
+    #sc.tl.umap(adata)
+    
+    adata.obsm['spatial'] = np.array(adata.obs[["Centroid X (µm)_(standardized)", "Centroid Y (µm)_(standardized)"]])
+    return {"adata": adata}
+
+# phenograph clustering
+def run_phenograph_clust(adata, n_neighbors, clustering_algo, min_cluster_size, 
+                       primary_metric, resolution_parameter, nn_method, random_seed, n_principal_components,
+                       n_jobs, n_iterations, fast, results_topdir):
+    
+    from unsupervised_clustering_utils import knngraph_full_2
+    from parc import PARC
+    import phenograph
+
+    print(adata.shape, flush=True)
+    adata = adata.copy()
+
+    if fast == True:
+        print("fast phenograph selected")
+        sc.pp.pca(adata, n_comps=n_principal_components)
+        print("PCA done")
+        p1 = PARC(adata.obsm["X_pca"],  keep_all_local_dist=True, num_threads=n_jobs)  # without labels
+        print("Parc object created")
+        p1.knn_struct = p1.make_knn_struct()
+        print("Parc knn struct created")
+        graph_parc_2, mat_parc_2 = knngraph_full_2(p1)
+        print("Parc graph prepared")
+        communities, graph_phen, Q = phenograph.cluster(graph_parc_2, clustering_algo=None, k=n_neighbors, 
+                                                min_cluster_size=min_cluster_size, primary_metric=primary_metric, 
+                                                resolution_parameter=resolution_parameter, nn_method=nn_method,
+                                                seed=random_seed, n_iterations=n_iterations, n_jobs=n_jobs)
+        adata.obsp["pheno_jaccard_ig"] = graph_phen.tocsr()
+        print("start_leiden")
+        sc.tl.leiden(adata,resolution=resolution_parameter, random_state=random_seed,
+                    n_iterations=n_iterations, flavor="igraph", obsp="pheno_jaccard_ig")
+        adata.obs['Cluster'] = adata.obs['leiden'].astype(str)
+        print("Fast phenograph clustering done")
+    else:
+        if n_principal_components == 0:
+            communities, graph, Q = phenograph.cluster(adata.X, clustering_algo=clustering_algo, k=n_neighbors, 
+                                                    min_cluster_size=min_cluster_size, primary_metric=primary_metric, 
+                                                    resolution_parameter=resolution_parameter, nn_method=nn_method,
+                                                    seed=random_seed, n_iterations=n_iterations, n_jobs=n_jobs)
+        else:
+            sc.pp.pca(adata, n_comps=n_principal_components)
+            communities, graph, Q = phenograph.cluster(adata.obsm['X_pca'], clustering_algo=clustering_algo, k=n_neighbors, 
+                                                    min_cluster_size=min_cluster_size, primary_metric=primary_metric, 
+                                                    resolution_parameter=resolution_parameter, nn_method=nn_method,
+                                                    seed=random_seed, n_iterations=n_iterations, n_jobs=n_jobs)
+        adata.obs['Cluster'] = communities
+        adata.obs['Cluster'] = adata.obs['Cluster'].astype(str)
+        print("Regular phenograph clustering done")
+    #sc.tl.umap(adata)
+    adata.obsm['spatial'] = np.array(adata.obs[["Centroid X (µm)_(standardized)", "Centroid Y (µm)_(standardized)"]])
+    return {"adata": adata}
+
+# parc clustering
+def run_parc_clust(adata, n_neighbors, dist_std_local, jac_std_global, small_pop, 
+                   random_seed, resolution_parameter, hnsw_param_ef_construction, 
+                   n_principal_components, n_iterations, n_jobs, fast, results_topdir):
+    
+    from unsupervised_clustering_utils import PARC_2
+    import parc
+
+    adata = adata.copy()
+
+    if fast == True:
+        sc.pp.pca(adata, n_comps=n_principal_components)
+        parc_results = PARC_2(adata.obsm["X_pca"], dist_std_local=dist_std_local, jac_std_global=jac_std_global, 
+                            small_pop=small_pop, random_seed=random_seed, knn=n_neighbors,
+                            resolution_parameter=resolution_parameter, 
+                            hnsw_param_ef_construction=hnsw_param_ef_construction,
+                            partition_type="RBConfigurationVP",
+                            n_iter_leiden=n_iterations, num_threads=n_jobs)  # without labels
+        parc_results.run_PARC()
+        adata.obs['Cluster'] = parc_results.labels
+        adata.obs['Cluster'] = adata.obs['Cluster'].astype(str)
+    else: 
+        if n_principal_components == 0:
+            parc_results = parc.PARC(adata.X, dist_std_local=dist_std_local, jac_std_global=jac_std_global, 
+                                    small_pop=small_pop, random_seed=random_seed, knn=n_neighbors,
+                                    resolution_parameter=resolution_parameter, 
+                                    hnsw_param_ef_construction=hnsw_param_ef_construction,
+                                    partition_type="RBConfigurationVP",
+                                    n_iter_leiden=n_iterations, num_threads=n_jobs)
+        else:
+            sc.pp.pca(adata, n_comps=n_principal_components)
+            parc_results = parc.PARC(adata.obsm['X_pca'], dist_std_local=dist_std_local, jac_std_global=jac_std_global, 
+                                    small_pop=small_pop, random_seed=random_seed, knn=n_neighbors,
+                                    resolution_parameter=resolution_parameter, 
+                                    hnsw_param_ef_construction=hnsw_param_ef_construction,
+                                    partition_type="RBConfigurationVP",
+                                    n_iter_leiden=n_iterations, num_threads=n_jobs)
+        parc_results.run_PARC()
+        adata.obs['Cluster'] = parc_results.labels
+        adata.obs['Cluster'] = adata.obs['Cluster'].astype(str)
+    #sc.tl.umap(adata)
+    adata.obsm['spatial'] = np.array(adata.obs[["Centroid X (µm)_(standardized)", "Centroid Y (µm)_(standardized)"]])
+    return {"adata": adata}
+
+# utag clustering
+# need to make image selection based on the variable
+def run_utag_clust(adata, n_neighbors, resolution, clustering_method, max_dist, n_principal_components,
+                   random_state, n_jobs, n_iterations, fast, transformer, results_topdir):
+    #sc.pp.neighbors(adata, n_neighbors=n_neighbors, n_pcs=0)
+    #sc.tl.umap(adata)
+
+    from unsupervised_clustering_utils import AnnoyTransformer
+    from pynndescent import PyNNDescentTransformer
+    from unsupervised_clustering_utils import utag
+
+    adata = adata.copy()
+    
+    resolutions = [resolution]
+    print(resolutions)
+    adata.obsm['spatial'] = np.array(adata.obs[["Centroid X (µm)_(standardized)", "Centroid Y (µm)_(standardized)"]])
+    
+    if fast == True:
+        utag_results = utag(adata,
+        slide_key="Image ID_(standardized)",
+        max_dist=max_dist,
+        normalization_mode='l1_norm',
+        apply_clustering=False,
+        parallel = True,
+        processes = n_jobs)
+        
+        sc.pp.pca(utag_results, n_comps=n_principal_components)
+        print("start k graph")
+        if transformer == "Annoy":
+            sc.pp.neighbors(utag_results, transformer=AnnoyTransformer(n_neighbors=n_neighbors, n_jobs=n_jobs), 
+                        n_pcs=n_principal_components, random_state=random_state)
+        elif transformer == "PNNDescent":
+            transformer = PyNNDescentTransformer(n_neighbors=n_neighbors, n_jobs=n_jobs, random_state=random_state)
+            sc.pp.neighbors(utag_results, transformer=transformer, n_pcs=n_principal_components, random_state=random_state)
+        else:
+            sc.pp.neighbors(utag_results, n_neighbors=n_neighbors,n_pcs=n_principal_components, random_state=random_state)
+
+        resolution_parameter = resolution
+        sc.tl.leiden(utag_results,resolution=resolution_parameter, random_state=random_state,
+                n_iterations=n_iterations, flavor="igraph")
+        utag_results.obs['Cluster'] = utag_results.obs['leiden'].copy()
+        adata.uns["leiden"] = utag_results.uns["leiden"].copy() 
+        
+    else:
+        utag_results = utag(adata,
+        slide_key="Image ID_(standardized)",
+        max_dist=max_dist,
+        normalization_mode='l1_norm',
+        apply_clustering=True,
+        clustering_method = "leiden", 
+        resolutions = resolutions,
+        leiden_kwargs={"n_iterations": n_iterations, "random_state": random_state},
+        pca_kwargs = {"n_comps": n_principal_components},
+        parallel = True,
+        processes = n_jobs)
+        
+        curClusterCol = 'UTAG Label_leiden_'  + str(resolution)
+        utag_results.obs['Cluster'] = utag_results.obs[curClusterCol].copy()
+
+    cluster_list = list(utag_results.obs['Cluster'])
+    print(pd.unique(cluster_list))    
+    adata.obsp["distances"] = utag_results.obsp["distances"].copy()
+    adata.obsp["connectivities"] = utag_results.obsp["connectivities"].copy()
+    adata.obsm["X_pca"] = utag_results.obsm["X_pca"].copy()
+    adata.uns["neighbors"] = utag_results.uns["neighbors"].copy()
+    adata.varm["PCs"] = utag_results.varm["PCs"].copy()
+    adata.obs["Cluster"] = cluster_list
+    #utag_results.X = adata.X
+    
+    return {"adata": adata}
