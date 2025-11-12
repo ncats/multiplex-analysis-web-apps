@@ -61,7 +61,7 @@ def main():
         st.write("No files found in this location.")
 
     # If some files are selected...
-    if key in st.session_state:
+    if objects_list and (key in st.session_state):
         rows = st.session_state[key]["selection"]["rows"]
         if rows:
             selected_filenames = df[rows]["Filename"].to_list()
