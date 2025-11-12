@@ -11,7 +11,11 @@ import framework.platform_abstraction as pa
 def main():
 
     # Welcome message.
-    st.write(f"Welcome {pa.get_current_username()} of {pa.get_user_group(pa.get_current_username())}! 💪 Please navigate below:")
+    st.write(f"Welcome {pa.get_current_username()} of {pa.get_user_group(pa.get_current_username())}! 💪")
+
+    st.write("**Note:** If You are encountering issues that seem to be related to large files, memory, or compute power, please try pressing the \"Clear data from memory\" button at left. If you find you constantly need to press this button, please let us know.")
+
+    st.write("We are learning Snowflake's capabilities as you are. If you have trouble using any features, particularly with regard to large files / memory / computer power, please reach out to us and we will solve the problem. Thank you for your patience as we optimize this system!")
 
     st.space()
 

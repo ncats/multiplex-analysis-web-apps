@@ -1009,9 +1009,10 @@ def download_objects_parallel(
                     results[final_name] = res
                 except Exception as e:
                     results[original_name] = {'status': 'error', 'error': e, 'path': None, 'size': None}
-        failures = [k for k, v in results.items() if v['status'] != 'ok']
+        failures = [(k, v) for k, v in results.items() if v['status'] != 'ok']
         if failures:
-            st.warning(f"{len(failures)} downloads failed.")
+            st.warning(f"{len(failures)} downloads did not complete for the stated reasons (might be fine!)")
+            st.write(failures)
         else:
             st.success(f"Downloaded {len(results)} objects.")
         return results
@@ -1174,9 +1175,10 @@ def upload_objects_parallel(
                 except Exception as e:
                     fallback_name = _compute_object_name(item)
                     results[fallback_name] = {'status': 'error', 'error': e}
-        failures = [k for k, v in results.items() if v['status'] != 'ok']
+        failures = [(k, v) for k, v in results.items() if v['status'] != 'ok']
         if failures:
-            st.warning(f"{len(failures)} uploads failed.")
+            st.warning(f"{len(failures)} uploads did not complete for the stated reasons (might be fine!)")
+            st.write(failures)
         else:
             st.success(f"Uploaded {len(results)} objects.")
         return results

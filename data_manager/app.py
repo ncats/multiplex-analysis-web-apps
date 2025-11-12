@@ -13,8 +13,10 @@ ST_KEY_PREFIX = "app.py__"
 
 # Bump the key so Streamlit creates a brand-new widget with no value.
 def clear_data_from_memory():
-    if "uploader_key" in st.session_state:
-        st.session_state["uploader_key"] += 1
+    if "uploader_key_multiple" in st.session_state:
+        st.session_state["uploader_key_multiple"] += 1
+    if "uploader_key_zip" in st.session_state:
+        st.session_state["uploader_key_zip"] += 1
     if "zip_buffer" in st.session_state:
         del st.session_state["zip_buffer"]
         del st.session_state["num_files_in_buffer"]
