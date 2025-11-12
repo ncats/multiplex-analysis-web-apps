@@ -90,6 +90,7 @@ snow sql --connection eval3 --role accountadmin  # Works for Andrew since he has
 > PUT file://deploy/snowflake/frontend_service_spec.yaml @app_a_app_db.general_schema.general_stage OVERWRITE=TRUE;
 > PUT file://deploy/snowflake/worker_service_spec.yaml @app_a_app_db.general_schema.general_stage OVERWRITE=TRUE;
 > PUT file://deploy/snowflake/launcher.py @app_launcher_db.general_schema.general_stage AUTO_COMPRESS=FALSE OVERWRITE=TRUE;
+> PUT file://deploy/snowflake/environment.yml @app_launcher_db.general_schema.general_stage AUTO_COMPRESS=FALSE OVERWRITE=TRUE;
 > PUT file://data_manager/snowflake_service_spec.yaml @dmgr_db.general_schema.general_stage OVERWRITE=TRUE;
 ```
 

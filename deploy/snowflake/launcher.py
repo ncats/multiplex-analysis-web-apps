@@ -136,7 +136,7 @@ def show_objects(app_shortnames, user_group):
                 return f"🔴 {val_str}"
             return val_str
         df["\"state\""] = df["\"state\""].apply(_add_state_emoji)
-    st.dataframe(df, use_container_width=True)
+    st.dataframe(df, use_container_width=True, hide_index=True)
 
 
 def main():

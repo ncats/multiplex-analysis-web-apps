@@ -536,7 +536,7 @@ create schema if not exists general_schema;
 create stage if not exists general_schema.general_stage
   directory = ( enable = true );
 
--- SEE GITHUB README FOR WHAT FILE TO UPLOAD TO THIS STAGE (the streamlit app `launcher.py`).
+-- SEE GITHUB README FOR WHAT FILES TO UPLOAD TO THIS STAGE (the streamlit app `launcher.py` and the environment `environment.yml`).
 
 -- Create a warehouse for the app.
 CREATE WAREHOUSE IF NOT EXISTS app_launcher_user_1_xs_warehouse
