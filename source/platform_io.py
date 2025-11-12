@@ -432,7 +432,9 @@ class Platform:
             curr_parts_files = [x for x in available_archives if x.startswith(archive_basename + '.zip.')]
             num_parts_files = len(curr_parts_files)
             if num_parts_files > 0:  # it's in parts
-                num_expected_parts = int(curr_parts_files[0].split('_')[-1])
+                last_field = curr_parts_files[0].split('_')[-1]
+                last_field = last_field.removesuffix(".gz") if last_field.endswith(".gz") else last_field
+                num_expected_parts = int(last_field)
                 if num_parts_files == num_expected_parts:
                     print('{} is a complete set of zip parts; adding it to the list'.format(archive_basename))
                     available_archives_trimmed.append(archive_basename + '.zip.')

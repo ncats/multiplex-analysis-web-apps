@@ -992,7 +992,7 @@ def download_objects_parallel(
                 except Exception:
                     pass
                 final_path, size = _gunzip_if_needed(local_path)
-                return final_path, {'status': 'ok', 'path': final_path, 'size': size}
+                return obj_name, {'status': 'ok', 'path': final_path, 'size': size, 'final_name': os.path.basename(final_path)}
             except Exception as e:
                 if stream:
                     try: stream.close()
@@ -1005,8 +1005,8 @@ def download_objects_parallel(
             for fut in as_completed(future_map):
                 original_name = future_map[fut]
                 try:
-                    final_name, res = fut.result()
-                    results[final_name] = res
+                    obj_name, res = fut.result()
+                    results[obj_name] = res
                 except Exception as e:
                     results[original_name] = {'status': 'error', 'error': e, 'path': None, 'size': None}
         failures = [(k, v) for k, v in results.items() if v['status'] != 'ok']
