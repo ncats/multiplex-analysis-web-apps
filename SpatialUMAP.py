@@ -359,8 +359,7 @@ class SpatialUMAP:
                 img_tissue_mask_dn = sktran.rescale(img_tissue_mask, self.area_downsample).astype(bool)
 
                 # partial for picklable fn for pool for process with data from this region
-                args = dict(region_id=region_id,
-                            cell_positions=self.cell_positions[idx][:, [1, 0]] * self.area_downsample,
+                args = dict(cell_positions=self.cell_positions[idx][:, [1, 0]] * self.area_downsample,
                             dist_bin_px=self.arcs_radii,
                             img_mask=img_tissue_mask_dn,
                             arcs=self.arcs_masks)
