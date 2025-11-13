@@ -18,8 +18,7 @@ import umap  # slow
 from scipy import ndimage as ndi
 
 import basic_phenotyper_lib as bpl  # Useful functions for cell phenotyping
-import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
-from benchmark_collector import benchmark_collector # Benchmark Collector Class
+#import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
 from SpatialUMAP import SpatialUMAP
 import PlottingTools as umPT
 import utils
@@ -29,15 +28,11 @@ class NeighborhoodProfiles:
     Organization of the methods and attributes that are required to run
     the neighborhood profiles analysis
     '''
-    def __init__(self, bc = None):
+    def __init__(self):
 
 
         self.clust_minmax = [0, 40]
         self.reset_neigh_profile_settings()
-
-        if bc is None:
-            bc = benchmark_collector()
-        self.bc = bc
 
         # Spectrogram Plotting Settings
         self.n_bins = 100
@@ -183,7 +178,6 @@ class NeighborhoodProfiles:
 
         Args:
             spatial_umap (SpatialUMAP): SpatialUMAP object
-            bc (benchmark_collector): Benchmark Collector object
             cpu_pool_size (int): Number of CPUs to use for parallel processing
 
         Returns:
@@ -199,15 +193,13 @@ class NeighborhoodProfiles:
 
         # get the counts per cell and save to pickle file
         print('Starting Cell Counts process')
-        self.bc.startTimer()
         self.spatial_umap.get_counts_And(cpu_pool_size=cpu_pool_size)
-        self.bc.printElapsedTime(f'Calculating Counts for {len(self.spatial_umap.cells)} cells')
+        print(f'Completed calculating counts for {len(self.spatial_umap.cells)} cells')
 
         # get the areas of cells and save to pickle file
         print(f'\nStarting Cell Areas process with area threshold of {area_threshold}')
-        self.bc.startTimer()
         self.spatial_umap.get_areas(calc_areas, area_threshold, pool_size=cpu_pool_size)
-        self.bc.printElapsedTime(f'Calculating Areas for {len(self.spatial_umap.cells)} cells')
+        print(f'Completed calculating areas for {len(self.spatial_umap.cells)} cells')
 
         # calculate density based on counts of cells / area of each arc examine
         self.spatial_umap.calc_densities(area_threshold)
@@ -222,7 +214,6 @@ class NeighborhoodProfiles:
 
         Args:
             spatial_umap (spatial_umap): spatial_umap object
-            bc (benchmark_collector): Benchmark Collector object
             UMAPStyle (str): Style of UMAP to use
         
         Returns:
@@ -238,16 +229,14 @@ class NeighborhoodProfiles:
         self.spatial_umap.set_train_test(n_fit=n_fit, n_tra = n_tra, groupby_label = 'TMA_core_id', seed=54321, umap_subset_toggle = umap_subset_toggle)
 
         # fit umap on training cells
-        self.bc.startTimer()
         print('Fitting Model')
         self.spatial_umap.umap_fit = umap.UMAP().fit(self.spatial_umap.density[self.spatial_umap.cells['umap_train'].values].reshape((self.spatial_umap.cells['umap_train'].sum(), -1)))
-        self.bc.printElapsedTime(f'      Fitting {np.sum(self.spatial_umap.cells["umap_train"] == 1)} points to a model')
+        print(f'      Completed fitting {np.sum(self.spatial_umap.cells["umap_train"] == 1)} points to a model')
 
         # Transform test cells based on fitted model
-        self.bc.startTimer()
         print('Transforming Data')
         self.spatial_umap.umap_test = self.spatial_umap.umap_fit.transform(self.spatial_umap.density[self.spatial_umap.cells['umap_test'].values].reshape((self.spatial_umap.cells['umap_test'].sum(), -1)))
-        self.bc.printElapsedTime(f'      Transforming {np.sum(self.spatial_umap.cells["umap_test"] == 1)} points with the model')
+        print(f'      Completed transforming {np.sum(self.spatial_umap.cells["umap_test"] == 1)} points with the model')
 
         self.spatial_umap.umap_completed = True
 
@@ -434,6 +423,7 @@ class NeighborhoodProfiles:
         '''
         if self.umap_completed:
             self.df_umap_filt = self.df_umap.loc[self.df_umap['Slide ID'] == session_state['selSlide ID'], :]
+            import nidap_dashboard_lib as ndl
             session_state = ndl.setFigureObjs_UMAP(session_state)
 
         return session_state
