@@ -318,7 +318,7 @@ class Platform:
             else:
 
                 # Download the selected files
-                results = pa.download_objects_parallel(bucket_name=os.getenv("DATA_OBJECTS_BUCKET_NAME"), object_names=selected_input_filenames, dest_dir=local_input_dir())
+                results = pa.download_objects_parallel(bucket_name=os.getenv("DATA_OBJECTS_BUCKET_NAME"), object_names=selected_input_filenames, dest_dir=local_input_dir(), db_schema=f"{pa.get_user_group(pa.get_current_username())}_group_db.curated_schema")
                 # {object_name: {'status': 'ok', 'path': local_path} or {'status': 'error', 'error': Exception}}
 
                 # For each downloaded file, move it to the local input directory
@@ -384,7 +384,7 @@ class Platform:
                 else:
 
                     # Transfer the zipped file to NIDAP
-                    pa.upload_objects_parallel(bucket_name=os.getenv("DATA_OBJECTS_BUCKET_NAME"), file_paths=[os.path.join(local_input_dir(), selected_mawa_unified_datafile + '.zip')])
+                    pa.upload_objects_parallel(bucket_name=os.getenv("DATA_OBJECTS_BUCKET_NAME"), file_paths=[os.path.join(local_input_dir(), selected_mawa_unified_datafile + '.zip')], db_schema=f"{pa.get_user_group(pa.get_current_username())}_group_db.curated_schema")
 
                 # Delete the zipped file from the local input directory
                 os.remove(os.path.join(local_input_dir(), selected_mawa_unified_datafile + '.zip'))
@@ -423,8 +423,8 @@ class Platform:
         # List the output_archive-* folders
         else:
             user_group = pa.get_user_group(pa.get_current_username())
-            app_name = os.getenv('APP_NAME')
-            db_schema = f"{user_group}_group_db.{app_name}_schema"
+            app_shortname = os.getenv('APP_SHORTNAME')
+            db_schema = f"{user_group}_group_db.{app_shortname}_schema"
             available_archives = [x for x in pa.list_objects_in_bucket(os.getenv('OLD_ARCHIVES_BUCKET_NAME'), db_schema=db_schema) if (x.startswith('output_archive-') and ('.zip' in x))]
 
         available_archives_trimmed = []
@@ -432,7 +432,9 @@ class Platform:
             curr_parts_files = [x for x in available_archives if x.startswith(archive_basename + '.zip.')]
             num_parts_files = len(curr_parts_files)
             if num_parts_files > 0:  # it's in parts
-                num_expected_parts = int(curr_parts_files[0].split('_')[-1])
+                last_field = curr_parts_files[0].split('_')[-1]
+                last_field = last_field.removesuffix(".gz") if last_field.endswith(".gz") else last_field
+                num_expected_parts = int(last_field)
                 if num_parts_files == num_expected_parts:
                     print('{} is a complete set of zip parts; adding it to the list'.format(archive_basename))
                     available_archives_trimmed.append(archive_basename + '.zip.')
@@ -524,8 +526,8 @@ class Platform:
                     start_time = time.time()
 
                     user_group = pa.get_user_group(pa.get_current_username())
-                    app_name = os.getenv('APP_NAME')
-                    db_schema = f"{user_group}_group_db.{app_name}_schema"
+                    app_shortname = os.getenv('APP_SHORTNAME')
+                    db_schema = f"{user_group}_group_db.{app_shortname}_schema"
                     results = pa.download_objects_parallel(bucket_name=os.getenv("OLD_ARCHIVES_BUCKET_NAME"), db_schema=db_schema, object_names=[selected_archive_with_proper_extension], dest_dir=local_output_dir())
                     local_download_path = results[selected_archive_with_proper_extension]['path']
 
@@ -544,8 +546,8 @@ class Platform:
 
                     # Obtain the corresponding chunked set of zip files
                     user_group = pa.get_user_group(pa.get_current_username())
-                    app_name = os.getenv('APP_NAME')
-                    db_schema = f"{user_group}_group_db.{app_name}_schema"
+                    app_shortname = os.getenv('APP_SHORTNAME')
+                    db_schema = f"{user_group}_group_db.{app_shortname}_schema"
                     matching_archives_files = sorted([x for x in pa.list_objects_in_bucket(os.getenv('OLD_ARCHIVES_BUCKET_NAME'), db_schema=db_schema) if x.startswith(selected_archive_with_proper_extension)])  # there must be at least one
 
                     # Download the files from the dataset in parallel

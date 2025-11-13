@@ -15,6 +15,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
 import hashlib
 import mimetypes
+import gzip
+import tempfile
 
 
 ST_KEY_PREFIX_STARTUP = "startup.py__"
@@ -26,7 +28,8 @@ ST_KEY_PREFIX_STARTUP = "startup.py__"
 DB_URL_GROUP = os.getenv('DB_URL_GROUP')
 DB_URL_APP = os.getenv('DB_URL_APP')  # Aren't actually using this yet, but it would be used to get the archive compatibility IDs so we only display archives that are compatible with the currently running image.
 DB_URL_COMMON = os.getenv('DB_URL_COMMON')
-APP_NAME = os.getenv('APP_NAME')
+DB_URL_DATA_MANAGER = os.getenv('DB_URL_DATA_MANAGER')
+APP_SHORTNAME = os.getenv('APP_SHORTNAME')
 
 
 @st.cache_resource()
@@ -135,25 +138,26 @@ def set_up_postgresql():
             with conn_group.cursor() as cur:
                 # Create schema if it doesn't exist
                 cur.execute(f"""
-                    CREATE SCHEMA IF NOT EXISTS {APP_NAME}_schema
+                    CREATE SCHEMA IF NOT EXISTS {APP_SHORTNAME}_schema
                 """)
                 
                 # Create app_sessions_table table.
                 cur.execute(f"""
-                    CREATE TABLE IF NOT EXISTS {APP_NAME}_schema.app_sessions_table (
+                    CREATE TABLE IF NOT EXISTS {APP_SHORTNAME}_schema.app_sessions_table (
                         id SERIAL PRIMARY KEY,
                         app_session_id VARCHAR(255) UNIQUE NOT NULL,
                         username VARCHAR(255),
                         user_group VARCHAR(255),
                         startup_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                         explicit_shutdown_time TIMESTAMP,
-                        container_image_id VARCHAR(255)
+                        container_image_id VARCHAR(255),
+                        compute_resource VARCHAR(255)
                     )
                 """)
 
                 # Create archives_table table.
                 cur.execute(f"""
-                    CREATE TABLE IF NOT EXISTS {APP_NAME}_schema.archives_table (
+                    CREATE TABLE IF NOT EXISTS {APP_SHORTNAME}_schema.archives_table (
                         id SERIAL PRIMARY KEY,
                         creator VARCHAR(255),
                         user_group VARCHAR(255),
@@ -162,13 +166,14 @@ def set_up_postgresql():
                         container_image_id VARCHAR(255),
                         archive_id VARCHAR(255) UNIQUE NOT NULL,
                         app_session_id VARCHAR(255),
+                        archive_compatibility_id INTEGER,
                         creation_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     )
                 """)
 
                 # Create jobs_table table.
                 cur.execute(f"""
-                    CREATE TABLE IF NOT EXISTS {APP_NAME}_schema.jobs_table (
+                    CREATE TABLE IF NOT EXISTS {APP_SHORTNAME}_schema.jobs_table (
                         id SERIAL PRIMARY KEY,
                         job_id VARCHAR(255) UNIQUE NOT NULL,
                         job_name VARCHAR(255),
@@ -180,7 +185,8 @@ def set_up_postgresql():
                         submission_time TIMESTAMP,
                         start_time TIMESTAMP,
                         completion_time TIMESTAMP,
-                        failure_time TIMESTAMP
+                        failure_time TIMESTAMP,
+                        compute_resource VARCHAR(255)
                     )
                 """)
             conn_group.commit()
@@ -231,12 +237,45 @@ def set_up_postgresql():
             conn_app.commit()
             return_database_connection(conn_app, DB_URL_APP)
                 
+            conn_manager = get_database_connection(DB_URL_DATA_MANAGER)
+            with conn_manager.cursor() as cur:
+                # Create schema if it doesn't exist
+                cur.execute(f"""
+                    CREATE SCHEMA IF NOT EXISTS general_schema
+                """)
+                
+                # Check if image_metadata_table table exists and is empty
+                cur.execute(f"""
+                    SELECT EXISTS (
+                        SELECT FROM information_schema.tables
+                        WHERE table_schema = 'general_schema'
+                        AND table_name = 'image_metadata_table'
+                    )
+                """)
+                table_exists = cur.fetchone()[0]
+                # Create image_metadata_table table.
+                cur.execute(f"""
+                    CREATE TABLE IF NOT EXISTS general_schema.image_metadata_table (
+                        id SERIAL PRIMARY KEY,
+                        image_id VARCHAR(255) UNIQUE NOT NULL,
+                        name VARCHAR(255),
+                        tag VARCHAR(255),
+                        git_commit VARCHAR(255),
+                        environment_yaml_file TEXT,
+                        image_added_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        who_added VARCHAR(255)
+                    )
+                """)
+            conn_manager.commit()
+            return_database_connection(conn_manager, DB_URL_DATA_MANAGER)
+                
             return True
         except Exception as e:
             st.error(f"Failed to set up databases: {e}")
             _rollback_and_return(conn_common, DB_URL_COMMON)
             _rollback_and_return(conn_group, DB_URL_GROUP)
             _rollback_and_return(conn_app, DB_URL_APP)
+            _rollback_and_return(conn_manager, DB_URL_DATA_MANAGER)
             return False
     elif framework_utils.platform() == "snowflake":
         pass
@@ -248,7 +287,7 @@ def write_archive_database_data(row_tuple):
             conn = get_database_connection(DB_URL_GROUP)
             with conn.cursor() as cur:
                 cur.execute(f"""
-                    INSERT INTO {APP_NAME}_schema.archives_table (creator, user_group, archive_description, current_git_commit, container_image_id, archive_id, app_session_id)
+                    INSERT INTO {APP_SHORTNAME}_schema.archives_table (creator, user_group, archive_description, current_git_commit, container_image_id, archive_id, app_session_id)
                     VALUES (%s, %s, %s, %s, %s, %s, %s)
                 """, row_tuple)
             conn.commit()
@@ -262,7 +301,7 @@ def write_archive_database_data(row_tuple):
         try:
             session = snowflake_connections.get_snowpark_session()
             session.sql(f"""
-                INSERT INTO {get_user_group(get_current_username())}_group_db.{APP_NAME}_schema.archives_table (creator, user_group, archive_description, current_git_commit, container_image_id, archive_id, app_session_id)
+                INSERT INTO {get_user_group(get_current_username())}_group_db.{APP_SHORTNAME}_schema.archives_table (creator, user_group, archive_description, current_git_commit, container_image_id, archive_id, app_session_id)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
             """, row_tuple).collect()
             return True
@@ -277,7 +316,7 @@ def log_app_session(row_tuple):
             conn = get_database_connection(DB_URL_GROUP)
             with conn.cursor() as cur:
                 cur.execute(f"""
-                    INSERT INTO {APP_NAME}_schema.app_sessions_table (app_session_id, username, user_group, container_image_id)
+                    INSERT INTO {APP_SHORTNAME}_schema.app_sessions_table (app_session_id, username, user_group, container_image_id)
                     VALUES (%s, %s, %s, %s)
                 """, row_tuple)
             conn.commit()
@@ -291,7 +330,7 @@ def log_app_session(row_tuple):
         try:
             session = snowflake_connections.get_snowpark_session()
             session.sql(f"""
-                INSERT INTO {get_user_group(get_current_username())}_group_db.{APP_NAME}_schema.app_sessions_table (app_session_id, username, user_group, container_image_id)
+                INSERT INTO {get_user_group(get_current_username())}_group_db.{APP_SHORTNAME}_schema.app_sessions_table (app_session_id, username, user_group, container_image_id)
                 VALUES (?, ?, ?, ?)
             """, row_tuple).collect()
             return True
@@ -306,7 +345,7 @@ def set_app_session_shutdown_time(app_session_id):
             conn = get_database_connection(DB_URL_GROUP)
             with conn.cursor() as cur:
                 cur.execute(f"""
-                    UPDATE {APP_NAME}_schema.app_sessions_table
+                    UPDATE {APP_SHORTNAME}_schema.app_sessions_table
                     SET explicit_shutdown_time = %s
                     WHERE app_session_id = %s
                 """, (framework_utils.get_timestamp(), app_session_id))
@@ -321,7 +360,7 @@ def set_app_session_shutdown_time(app_session_id):
         try:
             session = snowflake_connections.get_snowpark_session()
             session.sql(f"""
-                UPDATE {get_user_group(get_current_username())}_group_db.{APP_NAME}_schema.app_sessions_table
+                UPDATE {get_user_group(get_current_username())}_group_db.{APP_SHORTNAME}_schema.app_sessions_table
                 SET explicit_shutdown_time = CURRENT_TIMESTAMP()
                 WHERE app_session_id = ?
             """, (app_session_id,)).collect()
@@ -404,13 +443,13 @@ def get_app_sessions_table_data():
             conn = get_database_connection(DB_URL_GROUP)
             with conn.cursor() as cur:
                 cur.execute(f"""
-                    SELECT app_session_id, username, user_group, startup_time, explicit_shutdown_time, container_image_id
-                    FROM {APP_NAME}_schema.app_sessions_table
+                    SELECT app_session_id, username, user_group, startup_time, explicit_shutdown_time, container_image_id, compute_resource
+                    FROM {APP_SHORTNAME}_schema.app_sessions_table
                     ORDER BY startup_time DESC
                 """)
                 rows = cur.fetchall()
             return_database_connection(conn, DB_URL_GROUP)
-            df = pl.DataFrame(rows, schema=["app_session_id", "username", "user_group", "startup_time", "explicit_shutdown_time", "container_image_id"], strict=False, orient="row")
+            df = pl.DataFrame(rows, schema=["app_session_id", "username", "user_group", "startup_time", "explicit_shutdown_time", "container_image_id", "compute_resource"], strict=False, orient="row")
             return df
         except Exception as e:
             st.error(f"Failed to retrieve app sessions table data: {e}")
@@ -421,11 +460,11 @@ def get_app_sessions_table_data():
         try:
             session = snowflake_connections.get_snowpark_session()
             rows = session.sql(f"""
-                SELECT app_session_id, username, user_group, startup_time, explicit_shutdown_time, container_image_id
-                FROM {get_user_group(get_current_username())}_group_db.{APP_NAME}_schema.app_sessions_table
+                SELECT app_session_id, username, user_group, startup_time, explicit_shutdown_time, container_image_id, compute_resource
+                FROM {get_user_group(get_current_username())}_group_db.{APP_SHORTNAME}_schema.app_sessions_table
                 ORDER BY startup_time DESC
             """).collect()
-            df = pl.DataFrame(rows, schema=["app_session_id", "username", "user_group", "startup_time", "explicit_shutdown_time", "container_image_id"], strict=False, orient="row")
+            df = pl.DataFrame(rows, schema=["app_session_id", "username", "user_group", "startup_time", "explicit_shutdown_time", "container_image_id", "compute_resource"], strict=False, orient="row")
             return df
         except Exception as e:
             st.error(f"Failed to retrieve app sessions table data: {e}")
@@ -439,13 +478,13 @@ def get_archives_table_data():
             conn = get_database_connection(DB_URL_GROUP)
             with conn.cursor() as cur:
                 cur.execute(f"""
-                    SELECT creator, user_group, archive_description, current_git_commit, container_image_id, archive_id, app_session_id, creation_time
-                    FROM {APP_NAME}_schema.archives_table
+                    SELECT creator, user_group, archive_description, current_git_commit, container_image_id, archive_id, app_session_id, creation_time, archive_compatibility_id
+                    FROM {APP_SHORTNAME}_schema.archives_table
                     ORDER BY creation_time DESC
                 """)
                 rows = cur.fetchall()
             return_database_connection(conn, DB_URL_GROUP)
-            df = pl.DataFrame(rows, schema=["creator", "user_group", "archive_description", "current_git_commit", "container_image_id", "archive_id", "app_session_id", "creation_time"], strict=False, orient="row")
+            df = pl.DataFrame(rows, schema=["creator", "user_group", "archive_description", "current_git_commit", "container_image_id", "archive_id", "app_session_id", "creation_time", "archive_compatibility_id"], strict=False, orient="row")
             return df
         except Exception as e:
             st.error(f"Failed to retrieve archives_table table data: {e}")
@@ -456,11 +495,11 @@ def get_archives_table_data():
         try:
             session = snowflake_connections.get_snowpark_session()
             rows = session.sql(f"""
-                SELECT creator, user_group, archive_description, current_git_commit, container_image_id, archive_id, app_session_id, creation_time
-                FROM {get_user_group(get_current_username())}_group_db.{APP_NAME}_schema.archives_table
+                SELECT creator, user_group, archive_description, current_git_commit, container_image_id, archive_id, app_session_id, creation_time, archive_compatibility_id
+                FROM {get_user_group(get_current_username())}_group_db.{APP_SHORTNAME}_schema.archives_table
                 ORDER BY creation_time DESC
             """).collect()
-            df = pl.DataFrame(rows, schema=["creator", "user_group", "archive_description", "current_git_commit", "container_image_id", "archive_id", "app_session_id", "creation_time"], strict=False, orient="row")
+            df = pl.DataFrame(rows, schema=["creator", "user_group", "archive_description", "current_git_commit", "container_image_id", "archive_id", "app_session_id", "creation_time", "archive_compatibility_id"], strict=False, orient="row")
             return df
         except Exception as e:
             st.error(f"Failed to retrieve archives_table table data: {e}")
@@ -473,15 +512,15 @@ def get_jobs_table_data():
         try:
             conn = get_database_connection(DB_URL_GROUP)
             with conn.cursor() as cur:
-                columns = "job_id, job_name, job_status, submitter, submitter_group, app_session_id, worker_image_id, submission_time, start_time, completion_time, failure_time"
+                columns = "job_id, job_name, job_status, submitter, submitter_group, app_session_id, worker_image_id, submission_time, start_time, completion_time, failure_time, compute_resource"
                 cur.execute(f"""
                     SELECT {columns}
-                    FROM {APP_NAME}_schema.jobs_table
+                    FROM {APP_SHORTNAME}_schema.jobs_table
                     ORDER BY submission_time DESC NULLS LAST
                 """)
                 rows = cur.fetchall()
             return_database_connection(conn, DB_URL_GROUP)
-            df = pl.DataFrame(rows, schema=["job_id", "job_name", "job_status", "submitter", "submitter_group", "app_session_id", "worker_image_id", "submission_time", "start_time", "completion_time", "failure_time"], strict=False, orient="row")
+            df = pl.DataFrame(rows, schema=["job_id", "job_name", "job_status", "submitter", "submitter_group", "app_session_id", "worker_image_id", "submission_time", "start_time", "completion_time", "failure_time", "compute_resource"], strict=False, orient="row")
             return df
         except Exception as e:
             st.error(f"Failed to retrieve jobs_table table data: {e}")
@@ -491,13 +530,13 @@ def get_jobs_table_data():
     elif framework_utils.platform() == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
-            columns = "job_id, job_name, job_status, submitter, submitter_group, app_session_id, worker_image_id, submission_time, start_time, completion_time, failure_time"
+            columns = "job_id, job_name, job_status, submitter, submitter_group, app_session_id, worker_image_id, submission_time, start_time, completion_time, failure_time, compute_resource"
             rows = session.sql(f"""
                 SELECT {columns}
-                FROM {get_user_group(get_current_username())}_group_db.{APP_NAME}_schema.jobs_table
+                FROM {get_user_group(get_current_username())}_group_db.{APP_SHORTNAME}_schema.jobs_table
                 ORDER BY submission_time DESC NULLS LAST
             """).collect()
-            df = pl.DataFrame(rows, schema=["job_id", "job_name", "job_status", "submitter", "submitter_group", "app_session_id", "worker_image_id", "submission_time", "start_time", "completion_time", "failure_time"], strict=False, orient="row")
+            df = pl.DataFrame(rows, schema=["job_id", "job_name", "job_status", "submitter", "submitter_group", "app_session_id", "worker_image_id", "submission_time", "start_time", "completion_time", "failure_time", "compute_resource"], strict=False, orient="row")
             return df
         except Exception as e:
             st.error(f"Failed to retrieve jobs_table table data: {e}")
@@ -512,7 +551,7 @@ def get_available_archives():
             with conn.cursor() as cur:
                 cur.execute(f"""
                     SELECT creator, creation_time, archive_description, archive_id, app_session_id
-                    FROM {APP_NAME}_schema.archives_table
+                    FROM {APP_SHORTNAME}_schema.archives_table
                     ORDER BY creation_time DESC
                 """)
                 rows = cur.fetchall()
@@ -529,7 +568,7 @@ def get_available_archives():
             session = snowflake_connections.get_snowpark_session()
             rows = session.sql(f"""
                 SELECT creator, creation_time, archive_description, archive_id, app_session_id
-                FROM {get_user_group(get_current_username())}_group_db.{APP_NAME}_schema.archives_table
+                FROM {get_user_group(get_current_username())}_group_db.{APP_SHORTNAME}_schema.archives_table
                 ORDER BY creation_time DESC
             """).collect()
             df = pl.DataFrame(rows, schema=["Creator", "Creation time", "Archive description", "Archive ID", "App session ID"], strict=False, orient="row")
@@ -545,7 +584,7 @@ def log_job(row_tuple):
             conn = get_database_connection(DB_URL_GROUP)
             with conn.cursor() as cur:
                 cur.execute(f"""
-                    INSERT INTO {APP_NAME}_schema.jobs_table (job_id, job_name, submitter, submitter_group, app_session_id)
+                    INSERT INTO {APP_SHORTNAME}_schema.jobs_table (job_id, job_name, submitter, submitter_group, app_session_id)
                     VALUES (%s, %s, %s, %s, %s)
                 """, row_tuple)
             conn.commit()
@@ -559,7 +598,7 @@ def log_job(row_tuple):
         try:
             session = snowflake_connections.get_snowpark_session()
             session.sql(f"""
-                INSERT INTO {get_user_group(get_current_username())}_group_db.{APP_NAME}_schema.jobs_table (job_id, job_name, submitter, submitter_group, app_session_id)
+                INSERT INTO {get_user_group(get_current_username())}_group_db.{APP_SHORTNAME}_schema.jobs_table (job_id, job_name, submitter, submitter_group, app_session_id)
                 VALUES (?, ?, ?, ?, ?)
             """, row_tuple).collect()
             return True
@@ -574,7 +613,7 @@ def update_job_status(job_id, new_status, time_column):
             conn = get_database_connection(DB_URL_GROUP)
             with conn.cursor() as cur:
                 cur.execute(f"""
-                    UPDATE {APP_NAME}_schema.jobs_table
+                    UPDATE {APP_SHORTNAME}_schema.jobs_table
                     SET job_status = %s, {time_column} = %s
                     WHERE job_id = %s
                 """, (new_status, framework_utils.get_timestamp(), job_id))
@@ -589,13 +628,30 @@ def update_job_status(job_id, new_status, time_column):
         try:
             session = snowflake_connections.get_snowpark_session()
             session.sql(f"""
-                UPDATE {get_user_group(get_current_username())}_group_db.{APP_NAME}_schema.jobs_table
+                UPDATE {get_user_group(get_current_username())}_group_db.{APP_SHORTNAME}_schema.jobs_table
                 SET job_status = ?, {time_column} = CURRENT_TIMESTAMP()
                 WHERE job_id = ?
             """, (new_status, job_id)).collect()
             return True
         except Exception as e:
             st.error(f"Failed to update status of job {job_id} to {new_status} and update {time_column}: {e}")
+            return False
+
+
+def log_compute_resource_for_job(job_id: str, compute_resource: str):
+    if framework_utils.platform() == "local":
+        pass
+    elif framework_utils.platform() == "snowflake":
+        try:
+            session = snowflake_connections.get_snowpark_session()
+            session.sql(f"""
+                UPDATE {get_user_group(get_current_username())}_group_db.{APP_SHORTNAME}_schema.jobs_table
+                SET compute_resource = ?
+                WHERE job_id = ?
+            """, (compute_resource, job_id)).collect()
+            return True
+        except Exception as e:
+            st.error(f"Failed to set compute resource for job {job_id} to {compute_resource}: {e}")
             return False
 
 
@@ -606,7 +662,7 @@ def get_job_status(job_id):
             with conn.cursor() as cur:
                 cur.execute(f"""
                     SELECT job_status
-                    FROM {APP_NAME}_schema.jobs_table
+                    FROM {APP_SHORTNAME}_schema.jobs_table
                     WHERE job_id = %s
                 """, (job_id,))
                 job_status = cur.fetchone()
@@ -622,7 +678,7 @@ def get_job_status(job_id):
             session = snowflake_connections.get_snowpark_session()
             result = session.sql(f"""
                 SELECT job_status
-                FROM {get_user_group(get_current_username())}_group_db.{APP_NAME}_schema.jobs_table
+                FROM {get_user_group(get_current_username())}_group_db.{APP_SHORTNAME}_schema.jobs_table
                 WHERE job_id = ?
             """, (job_id,)).collect()
             return result[0]["JOB_STATUS"] if result else None
@@ -639,7 +695,7 @@ def get_job_function_name(job_id):
             with conn.cursor() as cur:
                 cur.execute(f"""
                     SELECT job_name
-                    FROM {APP_NAME}_schema.jobs_table
+                    FROM {APP_SHORTNAME}_schema.jobs_table
                     WHERE job_id = %s
                 """, (job_id,))
                 job_name = cur.fetchone()
@@ -655,7 +711,7 @@ def get_job_function_name(job_id):
             session = snowflake_connections.get_snowpark_session()
             result = session.sql(f"""
                 SELECT job_name
-                FROM {get_user_group(get_current_username())}_group_db.{APP_NAME}_schema.jobs_table
+                FROM {get_user_group(get_current_username())}_group_db.{APP_SHORTNAME}_schema.jobs_table
                 WHERE job_id = ?
             """, (job_id,)).collect()
             return result[0]["JOB_NAME"] if result else None
@@ -670,7 +726,7 @@ def set_worker_image_id(job_id, worker_image_id):
             conn = get_database_connection(DB_URL_GROUP)
             with conn.cursor() as cur:
                 cur.execute(f"""
-                    UPDATE {APP_NAME}_schema.jobs_table
+                    UPDATE {APP_SHORTNAME}_schema.jobs_table
                     SET worker_image_id = %s
                     WHERE job_id = %s
                 """, (worker_image_id, job_id))
@@ -685,7 +741,7 @@ def set_worker_image_id(job_id, worker_image_id):
         try:
             session = snowflake_connections.get_snowpark_session()
             session.sql(f"""
-                UPDATE {get_user_group(get_current_username())}_group_db.{APP_NAME}_schema.jobs_table
+                UPDATE {get_user_group(get_current_username())}_group_db.{APP_SHORTNAME}_schema.jobs_table
                 SET worker_image_id = ?
                 WHERE job_id = ?
             """, (worker_image_id, job_id)).collect()
@@ -701,7 +757,7 @@ def record_explicit_shutdown_time(app_session_id):
             conn = get_database_connection(DB_URL_GROUP)
             with conn.cursor() as cur:
                 cur.execute(f"""
-                    UPDATE {APP_NAME}_schema.app_sessions_table
+                    UPDATE {APP_SHORTNAME}_schema.app_sessions_table
                     SET explicit_shutdown_time = %s
                     WHERE app_session_id = %s
                 """, (framework_utils.get_timestamp(), app_session_id))
@@ -716,7 +772,7 @@ def record_explicit_shutdown_time(app_session_id):
         try:
             session = snowflake_connections.get_snowpark_session()
             session.sql(f"""
-                UPDATE {get_user_group(get_current_username())}_group_db.{APP_NAME}_schema.app_sessions_table
+                UPDATE {get_user_group(get_current_username())}_group_db.{APP_SHORTNAME}_schema.app_sessions_table
                 SET explicit_shutdown_time = CURRENT_TIMESTAMP()
                 WHERE app_session_id = ?
             """, (app_session_id,)).collect()
@@ -805,7 +861,7 @@ def upload_zip_object_data(bucket_name, zip_name, zip_buffer, db_schema: str = N
             session = snowflake_connections.get_snowpark_session()
             zip_buffer.seek(0)
             if db_schema is None:
-                db_schema = f"{get_user_group(get_current_username())}_group_db.{APP_NAME}_schema"
+                db_schema = f"{get_user_group(get_current_username())}_group_db.{APP_SHORTNAME}_schema"
             results = session.file.put_stream(
                 input_stream=zip_buffer,
                 stage_location=f"@{db_schema}.{bucket_name}_stage/{zip_name}.zip",
@@ -838,7 +894,7 @@ def download_zip_object_data(bucket_name, zip_name, db_schema: str = None):
         try:
             session = snowflake_connections.get_snowpark_session()
             if db_schema is None:
-                db_schema = f"{get_user_group(get_current_username())}_group_db.{APP_NAME}_schema"
+                db_schema = f"{get_user_group(get_current_username())}_group_db.{APP_SHORTNAME}_schema"
             stage_path = f"@{db_schema}.{bucket_name}_stage/{zip_name}.zip"
             bytes_io = session.file.get_stream(stage_location=stage_path)
             bytes_io.seek(0)
@@ -866,7 +922,7 @@ def list_objects_in_bucket(bucket_name: str, db_schema: str = None):
                 db_schema = f"{user_group}_group_db.curated_schema"
             stage_location = f"@{db_schema}.{bucket_name}_stage"
             files = session.file.list(stage_location=stage_location)
-            object_list = [file['name'] for file in files]
+            object_list = [file.name.removeprefix(f"{bucket_name}_stage/") for file in files]
             return object_list
         except Exception as e:
             st.error(f"Failed to list objects in {bucket_name} stage in database.schema {db_schema}: {e}")
@@ -877,160 +933,113 @@ def download_objects_parallel(
     bucket_name: str,
     object_names: list[str],
     dest_dir: str,
-    db_schema: str = None,
-    max_workers: int = 8,
+    db_schema: str | None = None,
+    max_workers: int | None = None,
     chunk_size: int = 1024 * 1024,
-    retries: int = 3,
-    backoff_base: float = 0.3,
-    verify_etag: bool = False
+    gunzip_if_gz: bool = True,
 ):
+    """Download objects in parallel for the active platform (local MinIO or Snowflake stage).
+
+    Mirrors upload_objects_parallel design (shared core + per-platform adapters) for symmetry & less duplication.
+
+    Features:
+        - Parallel streaming download (chunk_size per read).
+        - Optional transparent gunzip: if remote object ends in .gz and gunzip_if_gz=True, writes decompressed file locally (drops .gz) then removes original .gz.
+        - Memory efficiency: streamed read/write & streamed gunzip (chunk_size blocks, no full-file buffering).
+        - Simplified: no retries, backoff, checksum/etag verification, or local skip-existing (downloads overwrite).
+
+    Return: {final_local_name: {status:'ok'|'error', path:local_path|None, size:int|None, error:Exception|None}}
     """
-    Download arbitrary objects from MinIO in parallel.
-    object_names: list of object keys exactly as stored (may include extensions or paths).
-    dest_dir: local directory root to place downloaded files (object key subpaths preserved).
-    Returns dict {object_name: {'status': 'ok', 'path': local_path} or {'status': 'error', 'error': Exception}}.
-    """
-    if framework_utils.platform() == "local":
+    os.makedirs(dest_dir, exist_ok=True)
+    platform_value = framework_utils.platform()
+    effective_workers = max_workers or (os.cpu_count() or 1)
+
+    def _gunzip_if_needed(local_path: str) -> tuple[str, int]:
+        """If gunzip enabled and file endswith .gz, stream decompress (chunk_size blocks) to path without .gz; remove original .gz; return (final_path, size)."""
+        if not gunzip_if_gz or not local_path.lower().endswith('.gz'):
+            return local_path, os.path.getsize(local_path) if os.path.exists(local_path) else None
+        final_path = local_path[:-3]
+        try:
+            with gzip.open(local_path, 'rb') as src, open(final_path, 'wb') as dst:
+                for chunk in iter(lambda: src.read(chunk_size), b''):
+                    if not chunk:
+                        break
+                    dst.write(chunk)
+            try: os.remove(local_path)
+            except Exception: pass
+            return final_path, os.path.getsize(final_path)
+        except Exception:
+            # Decompression failed; keep original .gz
+            return local_path, os.path.getsize(local_path) if os.path.exists(local_path) else None
+
+    def _core_parallel_download(get_stream_func):
+        """Shared parallel engine: obtains stream via adapter, writes file, optional gunzip, returns result dict entries."""
+        def _download_one(obj_name: str):
+            stream = None
+            local_path = os.path.join(dest_dir, obj_name)
+            parent = os.path.dirname(local_path)
+            if parent:
+                os.makedirs(parent, exist_ok=True)
+            try:
+                stream = get_stream_func(obj_name)
+                with open(local_path, 'wb') as f:
+                    for chunk in iter(lambda: stream.read(chunk_size), b''):
+                        if not chunk:
+                            break
+                        f.write(chunk)
+                try:
+                    stream.close()
+                except Exception:
+                    pass
+                final_path, size = _gunzip_if_needed(local_path)
+                return obj_name, {'status': 'ok', 'path': final_path, 'size': size, 'final_name': os.path.basename(final_path)}
+            except Exception as e:
+                if stream:
+                    try: stream.close()
+                    except Exception: pass
+                return obj_name, {'status': 'error', 'error': e, 'path': None, 'size': None}
+
+        results: dict[str, dict] = {}
+        with ThreadPoolExecutor(max_workers=effective_workers) as executor:
+            future_map = {executor.submit(_download_one, name): name for name in object_names}
+            for fut in as_completed(future_map):
+                original_name = future_map[fut]
+                try:
+                    obj_name, res = fut.result()
+                    results[obj_name] = res
+                except Exception as e:
+                    results[original_name] = {'status': 'error', 'error': e, 'path': None, 'size': None}
+        failures = [(k, v) for k, v in results.items() if v['status'] != 'ok']
+        if failures:
+            st.warning(f"{len(failures)} downloads did not complete for the stated reasons (might be fine!)")
+            st.write(failures)
+        else:
+            st.success(f"Downloaded {len(results)} objects.")
+        return results
+
+    if platform_value == "local":
         try:
             client = get_object_storage_client()
-
-            os.makedirs(dest_dir, exist_ok=True)
-
-            def download_one(obj_name: str):
-                attempt = 0
-                while attempt < retries:
-                    response = None
-                    try:
-                        response = client.get_object(bucket_name, obj_name)
-                        local_path = os.path.join(dest_dir, obj_name)
-                        parent = os.path.dirname(local_path)
-                        if parent:
-                            os.makedirs(parent, exist_ok=True)
-                        with open(local_path, "wb") as f:
-                            while True:
-                                data = response.read(chunk_size)
-                                if not data:
-                                    break
-                                f.write(data)
-                        response.close()
-
-                        if verify_etag:
-                            # NOTE: For multipart uploads the ETag is not a simple MD5; skip strict verify in that case.
-                            stat = client.stat_object(bucket_name, obj_name)
-                            etag = getattr(stat, "etag", None)
-                            if etag and "-" not in etag:  # Heuristic: multipart ETags contain '-'
-                                h = hashlib.md5()
-                                with open(local_path, "rb") as f:
-                                    for block in iter(lambda: f.read(chunk_size), b""):
-                                        h.update(block)
-                                if h.hexdigest() != etag.lower():
-                                    raise ValueError(f"ETag mismatch for {obj_name}: expected {etag}, got {h.hexdigest()}")
-                        return obj_name, {'status': 'ok', 'path': local_path}
-                    except Exception as e:
-                        if response:
-                            try:
-                                response.close()
-                            except Exception:
-                                pass
-                        attempt += 1
-                        if attempt < retries:
-                            time.sleep(backoff_base * (2 ** (attempt - 1)))
-                        else:
-                            return obj_name, {'status': 'error', 'error': e}
-
-            results: dict[str, dict] = {}
-            with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                future_map = {executor.submit(download_one, name): name for name in object_names}
-                for fut in as_completed(future_map):
-                    name = future_map[fut]
-                    try:
-                        obj_name, res = fut.result()
-                        results[obj_name] = res
-                    except Exception as e:
-                        results[name] = {'status': 'error', 'error': e}
-
-            failures = [k for k, v in results.items() if v['status'] == 'error']
-            if failures:
-                st.warning(f"{len(failures)} downloads failed.")
-            else:
-                st.success(f"Downloaded {len(results)} objects.")
-            return results
+            if client is None:
+                st.error("MinIO client unavailable.")
+                return None
+            def _get_stream(name: str):
+                return client.get_object(bucket_name, name)
+            return _core_parallel_download(_get_stream)
         except Exception as e:
             st.error(f"Failed to download objects from MinIO bucket: {e}")
             return None
-    elif framework_utils.platform() == "snowflake":
+    elif platform_value == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
-            os.makedirs(dest_dir, exist_ok=True)
-
             if db_schema is None:
-                user_group = get_user_group(get_current_username())
-                db_schema = f"{user_group}_group_db.curated_schema"
+                st.error("db_schema must be provided for Snowflake downloads.")
+                return None
             stage_prefix = f"@{db_schema}.{bucket_name}_stage"
-
-            def download_one(obj_name: str):
-                attempt = 0
-                while attempt < retries:
-                    stream = None
-                    try:
-                        stage_location = f"{stage_prefix}/{obj_name}"
-                        stream = session.file.get_stream(stage_location=stage_location)
-                        local_path = os.path.join(dest_dir, obj_name)
-                        parent = os.path.dirname(local_path)
-                        if parent:
-                            os.makedirs(parent, exist_ok=True)
-                        with open(local_path, "wb") as f:
-                            while True:
-                                chunk = stream.read(chunk_size)
-                                if not chunk:
-                                    break
-                                f.write(chunk)
-                        stream.close()
-
-                        if verify_etag:
-                            # Use MD5 from stage listing when available.
-                            dir_part = os.path.dirname(obj_name)
-                            list_location = stage_prefix + ("/" + dir_part if dir_part else "")
-                            files = session.file.list(stage_location=list_location)
-                            meta = next((m for m in files if m.get("name") == os.path.basename(obj_name)), None)
-                            remote_md5 = meta.get("md5") if meta else None
-                            if remote_md5:
-                                h = hashlib.md5()
-                                with open(local_path, "rb") as f:
-                                    for block in iter(lambda: f.read(chunk_size), b""):
-                                        h.update(block)
-                                if h.hexdigest().lower() != remote_md5.lower():
-                                    raise ValueError(f"MD5 mismatch for {obj_name}: expected {remote_md5}, got {h.hexdigest()}")
-                        return obj_name, {'status': 'ok', 'path': local_path}
-                    except Exception as e:
-                        attempt += 1
-                        if stream:
-                            try:
-                                stream.close()
-                            except Exception:
-                                pass
-                        if attempt < retries:
-                            time.sleep(backoff_base * (2 ** (attempt - 1)))
-                        else:
-                            return obj_name, {'status': 'error', 'error': e}
-
-            results: dict[str, dict] = {}
-            with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                future_map = {executor.submit(download_one, name): name for name in object_names}
-                for fut in as_completed(future_map):
-                    name = future_map[fut]
-                    try:
-                        obj_name, res = fut.result()
-                        results[obj_name] = res
-                    except Exception as e:
-                        results[name] = {'status': 'error', 'error': e}
-
-            failures = [k for k, v in results.items() if v['status'] == 'error']
-            if failures:
-                st.warning(f"{len(failures)} downloads failed.")
-            else:
-                st.success(f"Downloaded {len(results)} objects.")
-            return results
+            def _get_stream(name: str):
+                stage_location = f"{stage_prefix}/{name}"
+                return session.file.get_stream(stage_location=stage_location)
+            return _core_parallel_download(_get_stream)
         except Exception as e:
             st.error(f"Failed to download objects from Snowflake stage: {e}")
             return None
@@ -1038,176 +1047,229 @@ def download_objects_parallel(
 
 def upload_objects_parallel(
     bucket_name: str,
-    file_paths: list[str],
-    base_dir: str,
-    db_schema: str = None,
-    max_workers: int = 8,
-    retries: int = 3,
-    backoff_base: float = 0.3,
-    guess_content_type: bool = True,
-    verify_etag: bool = False
+    file_paths: list,  # Iterable of filesystem path strings and/or Streamlit UploadedFile objects.
+    db_schema: str | None = None,
+    gzip_if_possible: bool = False,
+    overwrite: bool = False,
+    max_workers: int | None = None,
+    chunk_size: int = 1024 * 1024,
 ):
-    """
-    Upload arbitrary local files to object storage in parallel.
+    """Upload path strings or Streamlit UploadedFile objects to object storage for the active platform.
 
-    file_paths: list of absolute or relative local file paths.
-    base_dir: if provided, object names are path-relative to this directory; else filename only.
-    Returns dict {object_name: {'status': 'ok', 'size': bytes} or {'status': 'error', 'error': Exception}}.
-    """
+        Platform branches (explicit):
+            local      -> MinIO bucket (put_object).
+            snowflake  -> Snowflake stage (file.put_stream).
 
-    def compute_object_name(path: str):
-        if base_dir:
-            b = os.path.abspath(base_dir)
-            p = os.path.abspath(path)
-            rel = os.path.relpath(p, b)
-            if rel.startswith(".."):
-                raise ValueError(f"{path} outside base_dir {base_dir}")
-            return rel.replace("\\", "/")
-        return os.path.basename(path)
+        Features:
+            - Optional gzip (adds .gz) for inputs not already .zip/.gz (streams in chunk_size blocks).
+            - Optional overwrite prevention (skip if object already exists).
+            - Memory efficiency: path compression streams in 1MB chunks; UploadedFile also streamed (no full duplicate buffer).
+            - Snowflake overwrite uses native put_stream overwrite flag when overwrite=True (avoids pre-listing).
 
-    if framework_utils.platform() == "local":
+        Return: {object_name: {status: 'ok'|'skipped-existing'|'error', size: int|None, error: Exception|None}}.
+
+        Extensibility: Add a new platform by adding another top-level elif branch that defines two callables:
+                exists(name)->bool and upload(name,size,stream,content_type)->None then calls _core_parallel(...).
+        """
+
+    def _is_uploaded_file(item):
+        """Return True if item looks like a Streamlit UploadedFile (has .read() and .name)."""
+        return hasattr(item, "read") and hasattr(item, "name")
+
+    def _compute_object_name(item):
+        """Return basename for a path or original .name for an UploadedFile (collision possible if duplicate basenames)."""
+        if isinstance(item, str):
+            return os.path.basename(item)
+        if _is_uploaded_file(item):
+            return item.name
+        raise TypeError("Items must be str paths or Streamlit UploadedFile objects.")
+
+    def _prepare_item(item):
+        """Return (size_bytes, stream, inferred_mime_type, file_handle_or_None) for a path or UploadedFile (always infers type)."""
+        if isinstance(item, str):
+            size = os.path.getsize(item)
+            f = open(item, "rb")
+            content_type = mimetypes.guess_type(item)[0] or "application/octet-stream"
+            return size, f, content_type, f
+        # UploadedFile case.
+        bytes_data = item.read()
+        size = len(bytes_data)
+        data_stream = io.BytesIO(bytes_data)
+        content_type = getattr(item, "type", None) or mimetypes.guess_type(item.name)[0] or "application/octet-stream"
+        item.seek(0)
+        return size, data_stream, content_type, None
+
+    # Determine worker count: explicit override or CPU heuristic.
+    effective_workers = max_workers or (os.cpu_count() or 1)
+
+    def _core_parallel_upload(exists_func, upload_func):
+        """Execute uploads with provided existence and upload callables; handles gzip and overwrite semantics."""
+        def _upload_one(item):
+            # Determine final object name first (gzip adds .gz); perform existence check on final name before any heavy work.
+            original_name = _compute_object_name(item)
+            lower = original_name.lower()
+            will_gzip = gzip_if_possible and not (lower.endswith('.zip') or lower.endswith('.gz'))
+            final_name = original_name + '.gz' if will_gzip else original_name
+            f = None
+            temp_path_to_remove = None
+            size = None
+            data_stream = None
+            content_type = None
+            try:
+                # Early skip based on final name only (raw existence does not block creating gzip variant).
+                if not overwrite and exists_func(final_name):
+                    return final_name, {'status': 'skipped-existing', 'size': None}
+
+                if will_gzip:
+                    # Stream compression to temp file without loading entire file into memory.
+                    source_stream = None
+                    if isinstance(item, str):
+                        source_stream = open(item, 'rb')
+                    elif _is_uploaded_file(item):
+                        # Read in 1MB chunks directly from UploadedFile object.
+                        item.seek(0)
+                        source_stream = item
+                    else:
+                        raise TypeError("Items must be str paths or Streamlit UploadedFile objects.")
+                    with tempfile.NamedTemporaryFile(delete=False) as tmp_out:
+                        temp_path_to_remove = tmp_out.name
+                        with gzip.GzipFile(fileobj=tmp_out, mode='wb') as gz_out:
+                            for chunk in iter(lambda: source_stream.read(chunk_size), b''):
+                                if not chunk:
+                                    break
+                                gz_out.write(chunk)
+                    # Close source_stream if it's a file handle (path case).
+                    if isinstance(item, str) and source_stream:
+                        try: source_stream.close()
+                        except Exception: pass
+                    # Open compressed for upload.
+                    f = open(temp_path_to_remove, 'rb')
+                    data_stream = f
+                    size = os.path.getsize(temp_path_to_remove)
+                    content_type = 'application/gzip'
+                else:
+                    # Non-gzip path: prepare item normally (this may read UploadedFile fully into memory).
+                    size, data_stream, content_type, f = _prepare_item(item)
+
+                upload_func(final_name, size, data_stream, content_type)
+                return final_name, {'status': 'ok', 'size': size}
+            except Exception as e:
+                return final_name, {'status': 'error', 'error': e}
+            finally:
+                if f:
+                    try: f.close()
+                    except Exception: pass
+                if temp_path_to_remove:
+                    try: os.remove(temp_path_to_remove)
+                    except Exception: pass
+
+        # Parallel execution.
+        results: dict[str, dict] = {}
+        with ThreadPoolExecutor(max_workers=effective_workers) as executor:
+            future_map = {executor.submit(_upload_one, item): item for item in file_paths}
+            for fut in as_completed(future_map):
+                item = future_map[fut]
+                try:
+                    obj_name, res = fut.result()
+                    results[obj_name] = res
+                except Exception as e:
+                    fallback_name = _compute_object_name(item)
+                    results[fallback_name] = {'status': 'error', 'error': e}
+        failures = [(k, v) for k, v in results.items() if v['status'] != 'ok']
+        if failures:
+            st.warning(f"{len(failures)} uploads did not complete for the stated reasons (might be fine!)")
+            st.write(failures)
+        else:
+            st.success(f"Uploaded {len(results)} objects.")
+        return results
+
+    platform_value = framework_utils.platform()
+    if platform_value == "local":
         try:
             client = get_object_storage_client()
-
-            def upload_one(local_path: str):
-                object_name = compute_object_name(local_path)
-                attempt = 0
-                while attempt < retries:
-                    f = None
-                    try:
-                        size = os.path.getsize(local_path)
-                        f = open(local_path, "rb")
-                        content_type = None
-                        if guess_content_type:
-                            content_type = mimetypes.guess_type(local_path)[0] or "application/octet-stream"
-                        client.put_object(
-                            bucket_name=bucket_name,
-                            object_name=object_name,
-                            data=f,
-                            length=size,
-                            content_type=content_type
-                        )
-                        if f:
-                            f.close()
-
-                        if verify_etag:
-                            # Only reliable for single-part uploads (heuristic: size <= 64MB default MinIO part size).
-                            stat = client.stat_object(bucket_name, object_name)
-                            etag = getattr(stat, "etag", None)
-                            if etag and "-" not in etag:
-                                h = hashlib.md5()
-                                with open(local_path, "rb") as vf:
-                                    for block in iter(lambda: vf.read(1024 * 1024), b""):
-                                        h.update(block)
-                                if h.hexdigest() != etag.lower():
-                                    raise ValueError(f"ETag mismatch for {object_name}: expected {etag}, got {h.hexdigest()}")
-                        return object_name, {'status': 'ok', 'size': size}
-                    except Exception as e:
-                        attempt += 1
-                        if f:
-                            try:
-                                f.close()
-                            except Exception:
-                                pass
-                        if attempt < retries:
-                            time.sleep(backoff_base * (2 ** (attempt - 1)))
-                        else:
-                            return object_name, {'status': 'error', 'error': e}
-
-            results: dict[str, dict] = {}
-            with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                future_map = {executor.submit(upload_one, p): p for p in file_paths}
-                for fut in as_completed(future_map):
-                    try:
-                        obj_name, res = fut.result()
-                        results[obj_name] = res
-                    except Exception as e:
-                        # Should rarely happen since we catch inside fetch, but just in case.
-                        fallback_name = compute_object_name(future_map[fut])
-                        results[fallback_name] = {'status': 'error', 'error': e}
-
-            failures = [k for k, v in results.items() if v['status'] != 'ok']
-            if failures:
-                st.warning(f"{len(failures)} uploads failed.")
-            else:
-                st.success(f"Uploaded {len(results)} objects.")
-            return results
+            if client is None:
+                st.error("MinIO client unavailable.")
+                return None
+            def _exists_local(name: str) -> bool:
+                try:
+                    client.stat_object(bucket_name, name)
+                    return True
+                except Exception:
+                    return False
+            def _upload_local(name: str, size: int, stream, content_type: str):
+                client.put_object(bucket_name=bucket_name, object_name=name, data=stream, length=size, content_type=content_type)
+            return _core_parallel_upload(_exists_local, _upload_local)
         except Exception as e:
             st.error(f"Failed to upload objects to MinIO: {e}")
             return None
-
-    elif framework_utils.platform() == "snowflake":
+    elif platform_value == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
-
             if db_schema is None:
-                user_group = get_user_group(get_current_username())
-                db_schema = f"{user_group}_group_db.curated_schema"
+                st.error("db_schema must be provided for Snowflake uploads.")
+                return None
             stage_prefix = f"@{db_schema}.{bucket_name}_stage"
-
-            def upload_one(local_path: str):
-                object_name = compute_object_name(local_path)
-                attempt = 0
-                while attempt < retries:
-                    f = None
-                    try:
-                        size = os.path.getsize(local_path)
-                        f = open(local_path, "rb")
-                        session.file.put_stream(
-                            input_stream=f,
-                            stage_location=f"{stage_prefix}/{object_name}",
-                            auto_compress=False
-                        )
-                        if f:
-                            f.close()
-
-                        if verify_etag:
-                            # List the directory to get md5.
-                            dir_part = os.path.dirname(object_name)
-                            list_location = stage_prefix + ("/" + dir_part if dir_part else "")
-                            files = session.file.list(stage_location=list_location)
-                            meta = next((m for m in files if m.get("name") == os.path.basename(object_name)), None)
-                            remote_md5 = meta.get("md5") if meta else None
-                            if remote_md5:
-                                h = hashlib.md5()
-                                with open(local_path, "rb") as vf:
-                                    for block in iter(lambda: vf.read(1024 * 1024), b""):
-                                        h.update(block)
-                                if h.hexdigest().lower() != remote_md5.lower():
-                                    raise ValueError(f"MD5 mismatch for {object_name}: expected {remote_md5}, got {h.hexdigest()}")
-                        return object_name, {'status': 'ok', 'size': size}
-                    except Exception as e:
-                        attempt += 1
-                        if f:
-                            try:
-                                f.close()
-                            except Exception:
-                                pass
-                        if attempt < retries:
-                            time.sleep(backoff_base * (2 ** (attempt - 1)))
-                        else:
-                            return object_name, {'status': 'error', 'error': e}
-
-            results: dict[str, dict] = {}
-            with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                future_map = {executor.submit(upload_one, p): p for p in file_paths}
-                for fut in as_completed(future_map):
-                    try:
-                        obj_name, res = fut.result()
-                        results[obj_name] = res
-                    except Exception as e:
-                        fallback_name = compute_object_name(future_map[fut])
-                        results[fallback_name] = {'status': 'error', 'error': e}
-
-            failures = [k for k, v in results.items() if v['status'] != 'ok']
-            if failures:
-                st.warning(f"{len(failures)} uploads failed.")
-            else:
-                st.success(f"Uploaded {len(results)} objects.")
-            return results
+            def _exists_snowflake(name: str) -> bool:
+                # Only perform existence check when overwrite is False; otherwise skip for performance.
+                if overwrite:
+                    return False
+                try:
+                    listing = session.file.list(stage_location=f"{stage_prefix}/{name}")
+                    return any(entry.get('name') == name for entry in listing)
+                except Exception:
+                    return False
+            def _upload_snowflake(name: str, size: int, stream, content_type: str):
+                # size/content_type are ignored by Snowflake put_stream; overwrite handled natively.
+                session.file.put_stream(
+                    input_stream=stream,
+                    stage_location=f"{stage_prefix}/{name}",
+                    auto_compress=False,
+                    overwrite=overwrite
+                )
+            return _core_parallel_upload(_exists_snowflake, _upload_snowflake)
         except Exception as e:
             st.error(f"Failed to upload objects to Snowflake stage: {e}")
             return None
+
+
+def delete_objects(bucket_name: str, object_names: list[str], db_schema: str | None = None):
+    results = {}
+    if framework_utils.platform() == "local":
+        try:
+            client = get_object_storage_client()
+            for name in object_names:
+                try:
+                    client.remove_object(bucket_name, name)
+                    results[name] = "ok"
+                except Exception as e:
+                    results[name] = f"error: {e}"
+            if any(v.startswith("error") for v in results.values()):
+                st.warning(f"Some deletions failed in bucket {bucket_name}: {results}")
+                return False
+            return True
+        except Exception as e:
+            st.error(f"Failed bulk delete in bucket {bucket_name}: {e}")
+            return False
+    elif framework_utils.platform() == "snowflake":
+        if db_schema is None:
+            st.error("db_schema required for Snowflake delete.")
+            return False
+        try:
+            session = snowflake_connections.get_snowpark_session()
+            for name in object_names:
+                try:
+                    stage_location = f"@{db_schema}.{bucket_name}_stage/{name}"
+                    session.file.remove(stage_location=stage_location)
+                    results[name] = "ok"
+                except Exception as e:
+                    results[name] = f"error: {e}"
+            if any(v.startswith("error") for v in results.values()):
+                st.warning(f"Some deletions failed in stage {db_schema}.{bucket_name}_stage: {results}")
+                return False
+            return True
+        except Exception as e:
+            st.error(f"Failed bulk delete in stage {db_schema}: {e}")
+            return False
 
 
 #### 3. ORCHESTRATION FUNCTIONALITY ###############################################################
@@ -1227,13 +1289,13 @@ def get_frontend_image_id():
     elif framework_utils.platform() == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
-            return snowflake_orchestrator.frontend_id(username=get_current_username(), session=session)
+            return snowflake_orchestrator.frontend_id(username=get_current_username(), session=session, app_shortname=os.getenv("APP_SHORTNAME", "app_a"), group_name=get_user_group(get_current_username()), compute_resource=os.getenv("COMPUTE_RESOURCE", "<COMPUTE RESOURCE NOT SET IN ENV>"))
         except Exception as e:
             st.error(f"Could not retrieve frontend image id: {e}")
             return None
 
 
-def submit_job(job_id, blocking=True):
+def submit_job(job_id, blocking=True, selected_compute_resource: str = None):
     if framework_utils.platform() == "local":
         try:
             update_job_status(job_id, "Submitted", "submission_time")
@@ -1256,10 +1318,15 @@ def submit_job(job_id, blocking=True):
         try:
             update_job_status(job_id, "Submitted", "submission_time")
             if blocking:
+                log_compute_resource_for_job(job_id, f"Sync: {os.getenv('COMPUTE_RESOURCE', '<COMPUTE RESOURCE NOT SET IN ENV>')}")
                 analysis_framework.run_local_analysis(job_id)  # This is the worker code.
             else:
                 session = snowflake_connections.get_snowpark_session()
-                worker_image_id = snowflake_orchestrator.submit_job(job_id=job_id, username=get_current_username(), session=session)
+                log_compute_resource_for_job(job_id, f"Async: {selected_compute_resource}")
+                worker_image_id = snowflake_orchestrator.submit_job(job_id=job_id, username=get_current_username(), session=session, selected_compute_resource=selected_compute_resource, group_name=get_user_group(get_current_username()), app_shortname=os.getenv("APP_SHORTNAME", "app_a"), image_name=os.getenv("IMAGE_NAME", "frontend"), image_tag=os.getenv("IMAGE_TAG", "latest"), app_title=os.getenv("APP_TITLE", "App A"))
+
+                print("Worker image ID returned from Snowflake orchestrator:", worker_image_id, flush=True)
+
                 if worker_image_id:
                     set_worker_image_id(job_id, worker_image_id)
             return True
@@ -1281,7 +1348,7 @@ def shut_down_app():
     elif framework_utils.platform() == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
-            snowflake_orchestrator.shutdown(username=get_current_username(), session=session)
+            snowflake_orchestrator.shutdown(username=get_current_username(), session=session, app_shortname=os.getenv("APP_SHORTNAME", "app_a"), group_name=get_user_group(get_current_username()), compute_resource=os.getenv("COMPUTE_RESOURCE", "<COMPUTE RESOURCE NOT SET IN ENV>"))
             st.success("Application is shutting down...")
             return True
         except Exception as e:
