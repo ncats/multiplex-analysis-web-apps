@@ -26,13 +26,9 @@ def session_dir():
     if ST_KEY_PREFIX_STARTUP + "app_session_id" not in st.session_state:
         st.error("Session ID not found in session state; cannot return the session directory.")
         return None
-    
     app_session_id = st.session_state[ST_KEY_PREFIX_STARTUP + "app_session_id"]
-
     session_dir = f"/tmp/{_app_title_simple()}/app_session_data/{app_session_id}"
-
     os.makedirs(session_dir, exist_ok=True)
-
     return session_dir
 
 

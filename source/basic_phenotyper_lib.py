@@ -684,7 +684,8 @@ def perform_density_calc(spatial_umap, calc_areas, cpu_pool_size = 1, area_thres
 
     return spatial_umap
 
-def perform_spatialUMAP(spatial_umap, bc, umap_subset_per_fit, umap_subset_toggle, umap_subset_per):
+#def perform_spatialUMAP(spatial_umap, bc, umap_subset_per_fit, umap_subset_toggle, umap_subset_per):
+def perform_spatialUMAP(spatial_umap, umap_subset_per_fit, umap_subset_toggle, umap_subset_per):
     '''
     Perform the spatial UMAP analysis
 
@@ -708,12 +709,12 @@ def perform_spatialUMAP(spatial_umap, bc, umap_subset_per_fit, umap_subset_toggl
     # fit umap on training cells
     print('Fitting Model')
     spatial_umap.umap_fit = umap.UMAP().fit(spatial_umap.density[spatial_umap.cells['umap_train'].values].reshape((spatial_umap.cells['umap_train'].sum(), -1)))
-    bc.printElapsedTime(f'      Fitting {np.sum(spatial_umap.cells["umap_train"] == 1)} points to a model', split = True)
+    #bc.printElapsedTime(f'      Fitting {np.sum(spatial_umap.cells["umap_train"] == 1)} points to a model', split = True)
 
     # Transform test cells based on fitted model
     print('Transforming Data')
     spatial_umap.umap_test = spatial_umap.umap_fit.transform(spatial_umap.density[spatial_umap.cells['umap_test'].values].reshape((spatial_umap.cells['umap_test'].sum(), -1)))
-    bc.printElapsedTime(f'      Transforming {np.sum(spatial_umap.cells["umap_test"] == 1)} points with the model', split = True)
+    #bc.printElapsedTime(f'      Transforming {np.sum(spatial_umap.cells["umap_test"] == 1)} points with the model', split = True)
 
     spatial_umap.umap_completed = True
 
