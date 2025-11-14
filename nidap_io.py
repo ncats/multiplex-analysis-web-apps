@@ -1,10 +1,11 @@
-# This is a single place to put all the functions that interact with NIDAP. It is called exclusively from platform_io.py.
+'''This is a single place to put all the functions
+that interact with NIDAP. It is called exclusively
+from platform_io.py.'''
 
 import os
 import shutil
 import time
 import utils
-
 
 def get_foundry_dataset(alias='input'):
     """Create a dataset object.
@@ -20,7 +21,15 @@ def upload_file_to_dataset(dataset, selected_filepath='/home/user/repo/bleh.txt'
     This overwrites existing files.
     This trivially returns a string of the uploaded filename.
     This is consistent with Code Workspaces snippets on 3/10/24.
+
     This should be slow.
+
+    Args:
+        dataset: The dataset to upload the file to.
+        selected_filepath: The local file path to upload.
+
+    Returns:
+        str: The uploaded filename.
     """
     return dataset.upload_file(selected_filepath)
 
@@ -28,7 +37,12 @@ def upload_file_to_dataset(dataset, selected_filepath='/home/user/repo/bleh.txt'
 def upload_dir_to_dataset(dataset, path_to_dir_to_upload='../junk_files'):
     """Upload a local directory to a dataset.
     This overwrites existing files.
-    This returns a dictionary where each key is the path to the local file in path_to_dir_to_upload and each value is the name of the file in the dataset on NIDAP, where the name includes separators (e.g., "/") and is equal to the local file path without the prefix path_to_dir_to_upload (plus following "/"), probably as you would expect on Amazon S3. E.g., the return value could be:
+    This returns a dictionary where each key is the path to the local file
+    in path_to_dir_to_upload and each value is the name of the file in the
+    dataset on NIDAP, where the name includes separators (e.g., "/") and is
+    equal to the local file path without the prefix path_to_dir_to_upload
+    (plus following "/"), probably as you would expect on Amazon S3.
+    E.g., the return value could be:
         {'../junk_files/junk-200mb-20': 'junk-200mb-20',
          '../junk_files/junk-200mb-09': 'junk-200mb-09',
          '../junk_files/junk-200mb-39': 'junk-200mb-39',
@@ -38,10 +52,19 @@ def upload_dir_to_dataset(dataset, path_to_dir_to_upload='../junk_files'):
          '../junk_files/subdir/subdir2/junk-200mb-4': 'subdir/subdir2/junk-200mb-4',
          '../junk_files/subdir/subdir2/junk-200mb-9': 'subdir/subdir2/junk-200mb-9',
          '../junk_files/subdir/subdir2/junk-200mb-0': 'subdir/subdir2/junk-200mb-0'}
-    Note there is at least a single-file upload limit of about 2000 MB, which is higher than reported in an old Issue to Palantir.
+    Note there is at least a single-file upload limit of about 2000 MB, which is higher
+    than reported in an old Issue to Palantir.
+
     This should be slow.
+
+    Args:
+        dataset: The dataset to upload the directory to.
+        path_to_dir_to_upload: The local directory path to upload.
+
+    Returns:
+        dict: A dictionary mapping local file paths to their dataset names.
     """
-    output_dir = os.path.join(os.environ["USER_WORKING_DIR"], "outputs")  # per Palantir on 4/10/24: write files and directories to output_dir or a subdir to upload them
+    output_dir = os.path.join(os.environ["USER_WORKING_DIR"], "outputs")
     print(f'Transferring {utils.get_dir_size(path_to_dir_to_upload):.2f} MB from directory {path_to_dir_to_upload}...', end='')
     shutil.rmtree(output_dir)
     shutil.copytree(path_to_dir_to_upload, output_dir)
@@ -61,6 +84,14 @@ def download_files_from_dataset(dataset, dataset_filter_func=lambda f: f.path.st
     This returns a dictionary of *all* downloaded files as described above.
     I'm pretty sure this does not overwrite already-downloaded files, so if it's been run once with the same parameters, it will be fast on subsequent runs.
     This is otherwise slow.
+
+    Args:
+        dataset: The dataset to download files from.
+        dataset_filter_func: A function to filter the dataset files.
+        limit: The maximum number of files to download in each batch.
+
+    Returns:
+        dict: A dictionary mapping local file paths to their dataset names.
     """
     # limit=15 seems to be the best value for downloading 60 200MB files. It's unclear to me exactly what this limit is doing. But in this situation, I get an overall download speed of about 800 MB/s!
     # If I had to guess, without the limit keyword I believe all matching files are downloaded in a single batch (so e.g. the loop below is iterated once and is unnecessary), and with the limit keyword, the files are downloaded in batches of size limit (so each batch has limit files). I believe that each batch is downloaded sequentially, but within each batch, multiple CPUs are used to download files in the batch in parallel. So I think you want to have at least as many files in each batch (i.e., limit) as there are CPUs available to download files in parallel. It's a bit unclear why a single batch with all the files isn't fastest because I'd think it'd parallelize the file downloads efficiently, but e.g. limit=15 was faster than limit=20, which was faster than larger limits. Likewise, smaller limit values (than 15) were slower.

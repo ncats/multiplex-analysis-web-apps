@@ -1,4 +1,3 @@
-# Much simpler now (vs. skeleton.py) as the top and bottom matter is now located in Multiplex_Analysis_Web_Apps.py using the new Streamlit multipage functionality
 
 # Import relevant libraries
 import streamlit as st

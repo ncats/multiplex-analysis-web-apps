@@ -3,12 +3,11 @@ import streamlit as st
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
-from pages2 import multiaxial_gating
+from pages import multiaxial_gating
 import utils
 
 # Global variable
 st_key_prefix = 'adaptive_phenotyping__'
-
 
 def plotly_mean_and_sem(dfs, df_names):
 

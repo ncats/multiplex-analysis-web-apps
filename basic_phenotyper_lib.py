@@ -100,26 +100,32 @@ def init_pheno_cols(df, marker_names, marker_col_prefix):
             df_markers = df[marker_cols]
 
         df_markers = df_markers.map(lambda x: {'+': '1', '-': '0'}[x[-1]])
-    df['mark_bits'] = df_markers.astype(str).apply(''.join, axis='columns')  # efficiently create a series of strings that are the columns (in string format) concatenated together
+
+    # Vectorized creation of 'mark_bits'
+    df['mark_bits'] = df_markers.astype(str).agg(''.join, axis=1)
 
     # Add a column of prettier names for the species, e.g., 'VIM- ECAD+ COX2+ NOS2-'
-    df['species_name_long'] = df['mark_bits'].apply(lambda mark_bits: ' '.join([marker_name + ('+' if marker_bit == '1' else '-') for marker_name, marker_bit in zip(marker_names, mark_bits)]))
+    df['species_name_long'] = df['mark_bits'].apply(
+        lambda mark_bits: ' '.join(
+            [f"{marker_name}{'+' if bit == '1' else '-'}" for marker_name, bit in zip(marker_names, mark_bits)]
+        )
+    )
 
-    # Add a column dropping the negative markers from these pretty names, e.g., 'ECAD+ COX2+'
-    def species_name_long_to_short(species_name_long):
-        x = '+ '.join([marker_names[iy] for iy, y in enumerate([x for x in species_name_long if x in ('+', '-')]) if y == '+']) + '+'
-        species_name_short = x if len(x) != 1 else 'Other'
-        return species_name_short
-    # This can possibly be made faster (if it's correct) via but I haven't tested it:
-        # marker_indices = [i for i, x in enumerate(species_name_long) if x == '+']
-        # if not marker_indices:
-        #     return 'Other'
-        # return ' + '.join(marker_names[i] for i in marker_indices) + '+'
-    df['species_name_short'] = df['species_name_long'].apply(species_name_long_to_short)
+    # # Add a column dropping the negative markers from these pretty names, e.g., 'ECAD+ COX2+'
+    # def species_name_long_to_short(species_name_long):
+    #     x = '+ '.join([marker_names[iy] for iy, y in enumerate([x for x in species_name_long if x in ('+', '-')]) if y == '+']) + '+'
+    #     species_name_short = x if len(x) != 1 else 'Other'
+    #     return species_name_short
+    # # This can possibly be made faster (if it's correct) via but I haven't tested it:
+    #     # marker_indices = [i for i, x in enumerate(species_name_long) if x == '+']
+    #     # if not marker_indices:
+    #     #     return 'Other'
+    #     # return ' + '.join(marker_names[i] for i in marker_indices) + '+'
+    # df['species_name_short'] = df['species_name_long'].apply(species_name_long_to_short)
+    df['species_name_short'] = df['species_name_long'].str.extractall(r'(\w+)\+').groupby(level=0).agg(' + '.join).fillna('Other') + '+'
 
-    # Create a new column called 'has pos mark' identifying which species_name_shorts are not Other
-    df['has_pos_mark'] = True
-    df.loc[df['species_name_short'] == 'Other', 'has_pos_mark'] = False
+    # Create a new column called 'has pos mark' identifying which species_name_shorts are not "Other"
+    df['has_pos_mark'] = df['species_name_short'] != 'Other'
 
     # Create phenotype column and assign a value of 'unassigned'
     df['phenotype'] = 'unassigned'
@@ -143,36 +149,15 @@ def init_pheno_assign(df):
                                       of each "exclusive" species
     '''
 
-    st_init_species = time.time()
-    spec_summ = df[['species_name_short', 'phenotype', 'species_name_long']]
-    sp_init_species = time.time()
-    elapsed = round(sp_init_species - st_init_species, 3)
-    print(f'        Initalizing Phenotying Assignments: {elapsed}s')
+    spec_summ = df[['species_name_short', 'phenotype', 'species_name_long']].copy()
 
-    # This line seems to throw a TypeError: unhashable type: 'numpy.ndarray' error
-    spec_summ['species_count'] = spec_summ['species_name_short'].groupby(spec_summ['species_name_short']).transform('count')
-    spec_summ = spec_summ.drop_duplicates().reset_index(drop=True)
+    species_counts = spec_summ['species_name_short'].value_counts().reset_index()
+    species_counts.columns = ['species_name_short', 'species_count']
 
-    # The above seems a bit inefficient and should probably be replaced with something like this:
-    # spec_summ = spec_summ['species_name_short'].value_counts().reset_index()
-    # spec_summ.columns = ['species_name_short', 'species_count']
+    spec_summ = spec_summ.drop_duplicates(subset=['species_name_short']).merge(species_counts, on='species_name_short')
+    spec_summ['species_percent'] = (spec_summ['species_count'] / spec_summ['species_count'].sum() * 100).round(2)
 
-    sp_species_count = time.time()
-    elapsed_counts = round(sp_species_count - sp_init_species, 3)
-    print(f'        Phenotying Assignments Counts Calculations: {elapsed_counts}s')
-
-    spec_summ['species_percent'] = [round(100*x/sum(spec_summ['species_count']), 2) for x in spec_summ['species_count']]
-    sp_species_per = time.time()
-    elapsed_per = round(sp_species_per - sp_species_count, 3)
-    print(f'        Phenotying Assignments Percents Calculations: {elapsed_per}s')
-
-    spec_summ = spec_summ.sort_values(by='species_count', ascending= False).reset_index(drop=True)
-    sp_species_sort = time.time()
-    elapsed_sort = round(sp_species_sort - sp_species_per, 3)
-    print(f'        Phenotying Assignments sorting: {elapsed_sort}s')
-
-    # Return the created dataframe
-    return spec_summ
+    return spec_summ.sort_values(by='species_count', ascending=False).reset_index(drop=True)
 
 def init_pheno_summ(df):
     '''For each unique species (elsewhere called "exclusive" phenotyping),
@@ -187,11 +172,21 @@ def init_pheno_summ(df):
                                         each "exclusive" species
     '''
 
-    assign_pheno = df[['phenotype', 'species_name_short', 'species_name_long']].groupby(by='phenotype', as_index = False).agg(lambda x: np.unique(list(x)))
+    # Group by phenotype and aggregate unique values for species_name_short and species_name_long
+    assign_pheno = df.groupby('phenotype', as_index=False).agg({
+        'species_name_short': lambda x: ', '.join(str(val) for val in pd.unique(x.dropna())),   
+        'species_name_long': lambda x: ', '.join(str(val) for val in pd.unique(x.dropna()))
+    })
 
-    assign_pheno['phenotype_count'] = [sum(df['phenotype'] == x) for x in assign_pheno.phenotype]
-    assign_pheno['phenotype_percent'] = [round(100*x/sum(assign_pheno['phenotype_count']), 2) for x in assign_pheno['phenotype_count']]
-    assign_pheno = assign_pheno.sort_values(by='phenotype_count', ascending=False)
+    # Calculate phenotype counts and percentages
+    phenotype_counts = df['phenotype'].value_counts()
+    total_count = phenotype_counts.sum()
+
+    assign_pheno['phenotype_count'] = assign_pheno['phenotype'].map(phenotype_counts)
+    assign_pheno['phenotype_percent'] = (assign_pheno['phenotype_count'] / total_count * 100).round(2)
+
+    # Sort by phenotype count in descending order
+    assign_pheno = assign_pheno.sort_values(by='phenotype_count', ascending=False).reset_index(drop=True)
 
     return assign_pheno
 

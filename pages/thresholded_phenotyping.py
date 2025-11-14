@@ -20,7 +20,9 @@ def data_editor_change_callback():
     st.session_state.df = bpl.assign_phenotype_custom(st.session_state.df, st.session_state['pheno__de_phenotype_assignments'].reconstruct_edited_dataframe())
 
     # Create Phenotypes Summary Table based on 'phenotype' column in df
+    st.session_state.bc.startTimer()
     st.session_state.pheno_summ = bpl.init_pheno_summ(st.session_state.df)
+    st.session_state.bc.printElapsedTime(msg = 'Updating Phenotype Summary Table after phenotype assignment change')
 
 def slide_id_prog_left_callback():
     '''
@@ -170,10 +172,14 @@ def main():
 
     mid_col = st.columns(2)
     with mid_col[1]:
-        with st.expander('Choose Markers to include'):
+        with st.form('Choose Markers to include'):
             st.multiselect('Markers', options = st.session_state.loaded_marker_names,
-                                      key = 'marker_multi_sel',
-                                      on_change=marker_multiselect_callback)
+                                      key = 'marker_multi_sel')
+
+            # Every form must have a submit button.
+            submitted = st.form_submit_button('Apply Changes')
+            if submitted:
+                marker_multiselect_callback()
 
     ## In-App Instructions
     if st.session_state.data_loaded is False:

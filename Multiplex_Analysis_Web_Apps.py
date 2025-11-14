@@ -3,6 +3,7 @@ Top level Streamlit Application for MAWA
 '''
 import os
 import re
+import logging
 import subprocess
 import numpy as np
 
@@ -12,41 +13,45 @@ import streamlit_session_state_management
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
 import streamlit_utils
 import platform_io
-import install_missing_packages
-
-install_missing_packages.live_package_installation()
 
 # Note if any of the following imports having "  # slow" are not commented out, there is a delay in running the forking test
-from pages2 import data_import_and_export
-from pages2 import datafile_format_unifier
-from pages2 import open_file
-from pages2 import feature_creation
-from pages2 import robust_scatter_plotter
-from pages2 import multiaxial_gating
-from pages2 import thresholded_phenotyping  # slow due to things ultimately importing umap
-from pages2 import adaptive_phenotyping
-from pages2 import Pheno_Cluster_a  # "slow" for forking test initialization
-from pages2 import Pheno_Cluster_b  # "slow" for forking test initialization
-from pages2 import Tool_parameter_selection
-from pages2 import Run_workflow
-from pages2 import Display_individual_ROI_heatmaps
-from pages2 import Display_average_heatmaps
-from pages2 import Display_average_heatmaps_per_annotation
-from pages2 import Display_ROI_P_values_overlaid_on_slides
-from pages2 import Neighborhood_Profiles  # slow due to things ultimately importing umap
-from pages2 import UMAP_Analyzer  # slow due to things ultimately importing umap
-from pages2 import Clusters_Analyzer  # slow due to things ultimately importing umap
-from pages2 import memory_analyzer
-from pages2 import radial_bins_plots
-from pages2 import radial_profiles_analysis
-from pages2 import preprocessing
-from pages2 import results_transfer
-# from pages2 import forking_test
+from pages import data_import_and_export
+from pages import datafile_format_unifier
+from pages import open_file
+from pages import feature_creation
+from pages import robust_scatter_plotter
+from pages import multiaxial_gating
+from pages import thresholded_phenotyping  # slow due to things ultimately importing umap
+from pages import adaptive_phenotyping
+from pages import Pheno_Cluster_a  # "slow" for forking test initialization
+from pages import Pheno_Cluster_b  # "slow" for forking test initialization
+from pages import Tool_parameter_selection
+from pages import Run_workflow
+from pages import Display_individual_ROI_heatmaps
+from pages import Display_average_heatmaps
+from pages import Display_average_heatmaps_per_annotation
+from pages import Display_ROI_P_values_overlaid_on_slides
+from pages import Neighborhood_Profiles  # slow due to things ultimately importing umap
+from pages import UMAP_Analyzer  # slow due to things ultimately importing umap
+from pages import Clusters_Analyzer  # slow due to things ultimately importing umap
+from pages import memory_analyzer
+from pages import radial_bins_plots
+from pages import radial_profiles_analysis
+from pages import preprocessing
+from pages import results_transfer
+# from pages import forking_test
 
+# Configure logging
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 def welcome_page():
     '''
-    First page displayed when the app opens
+    First page displayed when the app opens.
+
+    This requires some extra work to make the markdown rendering
+    work properly.
     '''
     # Markdown text
     with open("markdown/MAWA_WelcomePage.md", "r", encoding="utf-8") as f:
@@ -73,13 +78,20 @@ def check_for_platform(session_state):
     '''
     Set the platform parameters based on the platform the Streamlit app is running on
     '''
+
     # Initialize the platform object
     if 'platform' not in session_state:
+        logger.info('Platform initialization starting.')
+
         session_state['platform'] = platform_io.Platform(platform=('nidap' if platform_is_nidap() else 'local'))
+        logger.info('Platform initialization complete.')
     return session_state
 
 
 def main():
+    '''
+    Main function for running the Multiplex Analysis Web Apps
+    '''
 
     st.set_page_config(layout="wide")
 
@@ -143,9 +155,11 @@ def main():
     # Ensure the input/output directories exist
     input_path = './input'
     if not os.path.exists(input_path):
+        logger.info("Creating input directory at %s", input_path)
         os.makedirs(input_path)
     output_path = './output'
     if not os.path.exists(output_path):
+        logger.info("Creating output directory at %s", output_path)
         os.makedirs(output_path)
 
     # For widget persistence, we need always copy the session state to itself, being careful with widgets that cannot be persisted, like st.data_editor() (where we use the "__do_not_persist" suffix to avoid persisting it)
@@ -173,16 +187,18 @@ def main():
 
     # Initalize session_state values for streamlit processing
     if 'init' not in st.session_state:
+        logger.info("Initializing session state")
         st.session_state = ndl.init_session_state(st.session_state)
 
     # Sidebar organization
     with st.sidebar:
-        st.write('**:book: [Documentation](https://ncats.github.io/multiplex-analysis-web-apps/)**')
+        st.write('**📖 [Documentation](https://ncats.github.io/multiplex-analysis-web-apps/)**')
         with st.expander('Advanced:'):
-            benchmark_button = True
-            if benchmark_button:
-                st.button('Record Benchmarking', on_click = st.session_state.bc.save_run_to_csv)
+            if st.button('Record Benchmarking'):
+                logger.info("Recording benchmark information")
+                st.session_state.bc.save_run_to_csv()
             if st.button('Calculate memory used by Python session'):
+                logger.info("Calculating memory used by Python session")
                 streamlit_utils.write_python_session_memory_usage()
 
     # Check the platform

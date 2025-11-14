@@ -15,7 +15,9 @@ def is_mamba_installed():
     '''
     try:
         # Run the 'mamba --version' command
-        result = subprocess.run(['mamba', '--version'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        result = subprocess.run(['mamba', '--version'],
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE, text=True, check=False)
 
         # Check if the command was successful
         if result.returncode == 0:
@@ -36,7 +38,9 @@ def install_with_mamba(packages):
     print(f"&&&& Attempting to install {', '.join(packages)} with mamba.")
     try:
         # Run the 'mamba install <packages>' command
-        result = subprocess.run(['mamba', 'install', '-y'] + packages, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        result = subprocess.run(['mamba', 'install', '-y'] + packages,
+                                stdout=subprocess.PIPE, 
+                                stderr=subprocess.PIPE, text=True, check=False)
 
         # Check if the command was successful
         if result.returncode == 0:
@@ -56,7 +60,9 @@ def install_with_conda(packages):
     print(f"&&&& Attempting to install {', '.join(packages)} with conda.")
     try:
         # Run the 'conda install <packages>' command
-        result = subprocess.run(['conda', 'install', '-y'] + packages, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        result = subprocess.run(['conda', 'install', '-y'] + packages,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE, text=True, check=False)
 
         # Check if the command was successful
         if result.returncode == 0:
@@ -75,7 +81,9 @@ def install_with_pip(packages):
     print(f"&&&& Attempting to install {', '.join(packages)} with pip.")
     try:
         # Run the 'pip install <packages>' command
-        result = subprocess.run(['pip', 'install'] + packages, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        result = subprocess.run(['pip', 'install'] + packages,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE, text=True, check=False)
 
         # Check if the command was successful
         if result.returncode == 0:
@@ -91,7 +99,7 @@ def live_package_installation():
     '''
     Function to check if packages are installed
     '''
-    
+
     # last two probably only needed for published dashboards
     packages_to_install = ['hnswlib', 'parc', 'sklearn_ann', 'annoy', 'pyNNDescent']
     installers_to_use = ['mamba', 'pip']

@@ -1,17 +1,21 @@
+'''
+child_process_killer.py
+'''
+
 # Import relevant libraries
-import streamlit as st
-import app_top_of_page as top
-import streamlit_dataframe_editor as sde
 import os
 import subprocess
 import psutil
 import pandas as pd
-import time
+
+import streamlit as st
+import app_top_of_page as top
+import streamlit_dataframe_editor as sde
 
 def get_system_info():
     # Run the top command and get its output
     output = subprocess.check_output(
-        ["top", "-b", "-n", "1"], 
+        ["top", "-b", "-n", "1"],
         universal_newlines=True
     )
 
@@ -45,7 +49,6 @@ def get_system_info():
 
     return df
 
-    
 def kill_child_processes(dry_run=False):
     parent_pid = os.getpid()  # Get the process ID of the current process
 
@@ -68,10 +71,10 @@ def main():
     if st.button('Show system info'):
         df = get_system_info()
         st.dataframe(df)
-    
+
     if st.button('Show what child processes *would* be killed if the following button is clicked'):
         kill_child_processes(dry_run=True)
-    
+
     if st.button('Kill child processes'):
         kill_child_processes()
 
