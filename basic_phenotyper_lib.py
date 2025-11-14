@@ -589,7 +589,7 @@ def setup_Spatial_UMAP(df, marker_names, pheno_order, smallest_image_size):
     # dist_bin_um (np.array): Array of distances in microns
     # um_per_px (float): Microns per pixel
     # area_downsample (float): Area downsample
-    spatial_umap = SpatialUMAP(dist_bin_um=np.array([25, 50, 100, 150, 200]), um_per_px=1.0, area_downsample=0.2)
+    spatial_umap = SpatialUMAP(dist_bin_um=np.array([25, 50, 100, 150, 200]), um_per_px=1.0, area_downsample=1.0)
     spatial_umap.cells = df
     spatial_umap.patients = spatial_umap.makeDummyClinic(10)
 

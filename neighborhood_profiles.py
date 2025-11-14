@@ -127,7 +127,7 @@ class NeighborhoodProfiles:
         # dist_bin_um (np.array): Array of distances in microns
         # um_per_px (float): Microns per pixel
         # area_downsample (float): Area downsample
-        self.spatial_umap = SpatialUMAP(dist_bin_um=np.array([25, 50, 100, 150, 200]), um_per_px=1.0, area_downsample=0.2)
+        self.spatial_umap = SpatialUMAP(dist_bin_um=np.array([25, 50, 100, 150, 200]), um_per_px=1.0, area_downsample=1.0)
         self.spatial_umap.cells = df
         self.spatial_umap.patients = self.spatial_umap.makeDummyClinic(10)
 
@@ -182,12 +182,13 @@ class NeighborhoodProfiles:
         This is using Andrew's code to calculate the cell counts
 
         Args:
-            calc_areas (bool): Whether to calculate cell areas
+            spatial_umap (SpatialUMAP): SpatialUMAP object
+            bc (benchmark_collector): Benchmark Collector object
             cpu_pool_size (int): Number of CPUs to use for parallel processing
-            area_threshold (float): Threshold for area calculation
 
         Returns:
-            None
+            SpatialUMAP: SpatialUMAP object with the cell counts, cell areas, 
+                        cell densities and cell proportions analyses performed
         '''
 
         # clear metrics

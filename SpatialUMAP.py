@@ -74,47 +74,28 @@ class SpatialUMAP:
         return np.stack([arcs[:, :, 0]] + [arcs[:, :, i] != arcs[:, :, i - 1] for i in range(1, arcs.shape[2])], axis=2)
 
     @staticmethod
-    def process_cell_areas(i, cell_positions, dist_bin_px, img_mask, arcs):
-        '''Processing the cell_area information
+    def process_cell_areas(i, region_id, cell_positions, dist_bin_px, img_mask, arcs):
+        '''Processing the cell_area information'''
 
-        Args:
-            i (int): index of the current cell
-            cell_positions (np.array): array of cell positions
-            dist_bin_px (np.array): distance bins in pixels
-            img_mask (np.array): binary mask of the image
-            arcs (np.array): boolean mask of concentric circles
+        # Print the image name
+        # print(f'Calculating neighborhood area for image {region_id} (cells)...')
 
-        Returns:
-            tuple: index and areas array
-        '''
+        # Record the start time
+        start_time = time.time()
 
-        # Convert to int
-        cell_pos_int = cell_positions[i].astype(int)
-        max_dist_int = dist_bin_px[-1].astype(int)
-
-        # true bounds to match arcs (optimized with pre-cast integers)
-        bounds = np.array([cell_pos_int - max_dist_int, 
-                          max_dist_int + 1 + cell_pos_int]).T
-
-        # actual coordinate slices given tissue image (vectorized min/max)
-        img_shape = np.array(img_mask.shape) - 1
-        coords = np.column_stack([
-            np.maximum(0, bounds[:, 0]),
-            np.minimum(img_shape, bounds[:, 1])
-        ])
-
+        # true bounds to match arcs
+        bounds = np.array([cell_positions[i].astype(int) - dist_bin_px[-1].astype(int), dist_bin_px[-1].astype(int) + 1 + cell_positions[i].astype(int)]).T
+        # actual coordinate slices given tissue image
+        coords = np.stack([np.maximum(0, bounds[:, 0]), np.array([np.minimum(a, b) for a, b in zip(np.array(img_mask.shape) - 1, bounds[:, 1])])], axis=1)
         # padded extract
-        areas = np.pad(
-            img_mask[coords[0, 0]:coords[0, 1], coords[1, 0]:coords[1, 1]], 
-            ((bounds[0, 0] - coords[0, 0], coords[0, 1] - bounds[0, 1]),
-             (bounds[1, 0] - coords[1, 0], coords[1, 1] - bounds[1, 1])),
-            mode='constant',
-            constant_values=0
-        )
-
-        # area in square pixels (broadcast and sum in one operation)
+        areas = np.pad(img_mask[tuple(map(lambda x: slice(*x), coords))], (bounds - coords) * np.array([-1, 1])[np.newaxis, :], mode='constant', constant_values=0)
+        # area in square pixels
         areas = (areas[:, :, np.newaxis] & arcs).sum(axis=(0, 1))
 
+        # Print the time taken to calculate the neighbor counts for the current image
+        # print(f'  ...finished calculating neighborhood areas for image {region_id} (cells) in {time.time() - start_time:.2f} seconds')
+
+        # return i and areas
         return i, areas
 
     @staticmethod
@@ -310,7 +291,7 @@ class SpatialUMAP:
     def start_pool(self, processes):
         start_method = mp.get_start_method()
         if start_method == 'fork':
-            start_method = 'forkserver'
+            start_method = 'forkserver'  # to prevent crashing resulting in "Stopping..."
         self.pool = mp.get_context(start_method).Pool(processes)
 
     def close_pool(self):
