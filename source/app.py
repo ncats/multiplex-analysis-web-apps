@@ -37,6 +37,7 @@ from pages2 import results_transfer
 from streamlit_extras.app_logo import add_logo
 import streamlit_session_state_management
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
+from fast_neighborhood_profiles import load_data
 
 ST_KEY_PREFIX = "app.py__"
 ST_KEY_PREFIX_STARTUP = "startup.py__"
@@ -75,6 +76,9 @@ def main():
     # Define the pages for the navigation bar.
     pg = st.navigation(
         {
+            "Fast": [
+                st.Page(load_data.main, title="Load data", url_path='load_data'),
+                ],
             "Framework": [
                 st.Page(manage_sessions.main, title="Manage sessions", default=True, url_path='manage_sessions'),
                 st.Page(generate_results.main, title="Generate results", url_path='generate_results'),
