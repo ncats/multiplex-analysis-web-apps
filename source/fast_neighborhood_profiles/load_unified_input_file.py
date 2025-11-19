@@ -7,14 +7,19 @@ import os
 import zipfile
 from fast_neighborhood_profiles import main as fnp_main
 
+# Define constant.
 ST_KEY_PREFIX = "load_unified_input_file.py__"
 
 
+# Load the lazyframe from the specified file using an intermediate file.
 def load_lazyframe(file_format, db_schema, bucket_name, object_filename):
     with st.spinner("Loading file..."):
+
+        # Shortcuts, the first for generalizability.
         full_filenames = [object_filename]
         input_dir = os.path.join(framework_utils.session_dir(), "input")
 
+        # Download the file from the server.
         pa.download_objects_parallel(
             object_names=full_filenames,
             db_schema=db_schema,
@@ -22,6 +27,7 @@ def load_lazyframe(file_format, db_schema, bucket_name, object_filename):
             dest_dir=input_dir,
         )
 
+        # Unzip the downloaded file.
         unzipped_paths = []
         for full_filename in full_filenames:
             with zipfile.ZipFile(os.path.join(input_dir, full_filename), 'r') as zip_ref:
@@ -30,15 +36,20 @@ def load_lazyframe(file_format, db_schema, bucket_name, object_filename):
             os.remove(os.path.join(input_dir, full_filename))
             unzipped_paths.append(os.path.join(input_dir, base_name))
 
+        # Generate an intermediate file from which to load the lazyframe.
         for unzipped_path in unzipped_paths:
             filename = os.path.basename(unzipped_path)
             filepath = fnp_main.subset_csv_to_file(csv_filename=filename, handle="unified_input_file", topdir=framework_utils.session_dir(), subdir="input", file_format=file_format)
             os.remove(unzipped_path)
 
+        # Load the lazyframe.
         lf = fnp_main.get_lf("unified_input_file", topdir=framework_utils.session_dir(), subdir="input", file_format=file_format)
-        st.session_state[ST_KEY_PREFIX + "unified_input_file"] = {"lf": lf, "file_format": file_format, "db_schema": get_location_settings()["Available input files"]["db_schema"], "bucket_name": get_location_settings()["Available input files"]["bucket_name"], "object_filename": full_filenames[0], "local_filepath": filepath}
+
+        # Save the lazyframe and its metadata to the session state.
+        st.session_state[ST_KEY_PREFIX + "unified_input_file"] = {"lf": lf, "file_format": file_format, "db_schema": get_location_settings()["Available input files"]["db_schema"], "bucket_name": get_location_settings()["Available input files"]["bucket_name"], "object_filename": full_filenames[0], "local_filepath": filepath.removeprefix(framework_utils.session_dir() + os.sep)}
 
 
+# Get the list of objects in the bucket.
 @st.cache_data()
 def get_objects_list(upload_location):
     objects_list = pa.list_objects_in_bucket(
@@ -62,7 +73,7 @@ def get_location_settings():
 # Define the main function.
 def main():
 
-    # Show the current contents of the selected upload location.
+    # Show the current contents of the selected upload location using a selectable dataframe.
     upload_location = "Available input files"
     objects_list = get_objects_list(upload_location)
     unified_datafile_mapping = {fullname.removeprefix("mawa-unified_datafile-").removesuffix(".csv.zip"): fullname for fullname in objects_list if fullname.startswith("mawa-unified_datafile-") and fullname.endswith(".csv.zip")}
@@ -81,12 +92,15 @@ def main():
     if key in st.session_state:
         rows = st.session_state[key]["selection"]["rows"]
         if rows:
+            
+            # Get a list of the selected shortnames (short versions of the filenames).
             selected_filenames = df[rows][column_heading].to_list()
 
+            # Allow the user to select the intermediate file format.
             available_file_formats = ["parquet (recommended)", "arrow", "csv"]
             intermediate_file_format = st.selectbox("Select intermediate file format:", options=available_file_formats, index=available_file_formats.index("parquet (recommended)"))
 
-            # Allow the user to download them from the server to the machine where the app is running.
+            # Load the lazyframe from the selected row.
             if st.button(f"Load unified input file"):
                 with st.spinner("Loading file..."):
                     object_filename = unified_datafile_mapping[selected_filenames[0]]
@@ -95,20 +109,23 @@ def main():
                     bucket_name = get_location_settings()[upload_location]["bucket_name"]
                     load_lazyframe(file_format, db_schema, bucket_name, object_filename)
 
+    # If there's lazyframe information in the session state...
     key = ST_KEY_PREFIX + "unified_input_file"
     if key in st.session_state:
 
+        # Get information about the lazyframe from the metadata in the session state, including a possibly disconnected lazyframe handle.
         lf = st.session_state[key]["lf"]
         file_format = st.session_state[key]["file_format"]
         db_schema = st.session_state[key]["db_schema"]
         bucket_name = st.session_state[key]["bucket_name"]
         object_filename = st.session_state[key]["object_filename"]
-        local_filepath = st.session_state[key]["local_filepath"]
+        filepath = os.path.join(framework_utils.session_dir(), st.session_state[key]["local_filepath"])
 
-        if not os.path.exists(local_filepath):
-            st.button("You appear to have loaded a prior app session. Please load the data from the server by pressing here. No need to make a selection above.", type="primary", on_click=load_lazyframe, kwargs={"file_format": file_format, "db_schema": db_schema, "bucket_name": bucket_name, "object_filename": object_filename})
-            return
+        # If the intermediate file doesn't actually exist, in which case the lazyframe won't have anything to load, then load using the information from the session state.
+        if not os.path.exists(filepath):
+            load_lazyframe(file_format=file_format, db_schema=db_schema, bucket_name=bucket_name, object_filename=object_filename)
 
+        # At this point the lazyframe must be working, so display information about it.
         information = f'''
         Properties:
 
@@ -116,14 +133,14 @@ def main():
         :small_orange_diamond: database.schema: `{db_schema}`  
         :small_orange_diamond: Bucket name: `{bucket_name}`  
         :small_orange_diamond: Object filename: `{object_filename}`  
-        :small_orange_diamond: Local filepath: `{local_filepath}`  
+        :small_orange_diamond: Filepath: `{filepath}`  
         :small_orange_diamond: Number of rows: `{lf.select(pl.len()).collect().item()}`  
         :small_orange_diamond: Number of columns: `{len(lf.collect_schema())}`  
         '''
         st.markdown(information)
 
+        # Show a sample of 100 rows from the lazyframe.
         st.write(lf.collect().sample(100).sort(pl.col("Image ID_(standardized)")))
-
         st.button("Resample dataset")
 
 
