@@ -23,10 +23,10 @@ def get_min_positive_values(pd_df, group_col="TMA_core_id", boolean_column="area
     return pd_df.groupby(group_col)[boolean_column].sum().min()
 
 
-def subset_csv_to_file(csv_filename="mawa-unified_datafile-TLS_tissue_SF_-20251112_130129_EST.csv", basename="two_images", filter_column="Image ID_(standardized)", filter_values=["MS_01__cele_1400w", "MS_02__cele_1400w"], topdir=".", file_format="parquet"):
+def subset_csv_to_file(csv_filename="mawa-unified_datafile-TLS_tissue_SF_-20251112_130129_EST.csv", handle="two_images", filter_column="Image ID_(standardized)", filter_values=["MS_01__cele_1400w", "MS_02__cele_1400w"], topdir=".", subdir="datafiles", file_format="parquet"):
     try:    
-        csv_filepath = os.path.join(topdir, "datafiles", csv_filename)
-        filepath = os.path.join(topdir, "datafiles", basename + "." + file_format)
+        csv_filepath = os.path.join(topdir, subdir, csv_filename)
+        filepath = os.path.join(topdir, subdir, handle + "." + file_format)
         lf = pl.scan_csv(csv_filepath)
         if file_format == "parquet":
             write_method = "write_parquet"
@@ -46,9 +46,9 @@ def subset_csv_to_file(csv_filename="mawa-unified_datafile-TLS_tissue_SF_-202511
         return ""
 
 
-def save_pandas_df_to_file(pd_df, basename="two_images", topdir=".", file_format="parquet"):
+def save_pandas_df_to_file(pd_df, handle="two_images", topdir=".", file_format="parquet"):
     try:    
-        filepath = os.path.join(topdir, "datafiles", basename + "." + file_format)
+        filepath = os.path.join(topdir, "datafiles", handle + "." + file_format)
         pl_df = pl.from_pandas(pd_df)
         if file_format == "parquet":
             pl_df.write_parquet(filepath)
@@ -64,9 +64,9 @@ def save_pandas_df_to_file(pd_df, basename="two_images", topdir=".", file_format
         return ""
 
 
-def get_lf(basename, topdir=".", file_format="parquet"):
+def get_lf(handle, topdir=".", subdir="datafiles", file_format="parquet"):
     try:    
-        filepath = os.path.join(topdir, "datafiles", basename + "." + file_format)
+        filepath = os.path.join(topdir, subdir, handle + "." + file_format)
         if file_format == "parquet":
             return pl.scan_parquet(filepath)
         elif file_format == "arrow":
@@ -334,7 +334,7 @@ def generate_umap(lf, dist_bin_um_list=[25, 50, 100, 150, 200], area_downsample=
     # # save spatial_umap object as pickle
     # pickle.dump(spatial_umap, open(data_dir + '/pkl/spatial_umap.pkl', 'wb'))
 
-    save_pandas_df_to_file(spatial_umap.cells, basename="sumap_cells", file_format=sumap_cells_file_format)
+    save_pandas_df_to_file(spatial_umap.cells, handle="sumap_cells", file_format=sumap_cells_file_format)
 
     # Return the spatial UMAP object.
     return spatial_umap, True

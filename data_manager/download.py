@@ -30,7 +30,7 @@ def main():
     st.write(f"Running as user: **{pa.get_current_username()}** in group: **{pa.get_user_group(pa.get_current_username())}**")
 
     # Have the user select to where they want to upload data.
-    upload_location_options = ["Relatively tidy data (e.g., MAWA input files)", "NIDAP-formatted MAWA archives"]
+    upload_location_options = get_location_settings().keys()
     upload_location = st.selectbox("Select upload location:", options=upload_location_options)
 
     # Show the current contents of the selected upload location.
