@@ -23,7 +23,7 @@ def get_min_positive_values(pd_df, group_col="TMA_core_id", boolean_column="area
     return pd_df.groupby(group_col)[boolean_column].sum().min()
 
 
-def subset_csv_to_file(csv_filename="mawa-unified_datafile-TLS_tissue_SF_-20251112_130129_EST.csv", basename="two_images", filter_column="Image ID_(standardized)", filter_values=["MS_01__cele_1400w", "MS_02__cele_1400w"], topdir=".", file_format="arrow"):
+def subset_csv_to_file(csv_filename="mawa-unified_datafile-TLS_tissue_SF_-20251112_130129_EST.csv", basename="two_images", filter_column="Image ID_(standardized)", filter_values=["MS_01__cele_1400w", "MS_02__cele_1400w"], topdir=".", file_format="parquet"):
     try:    
         csv_filepath = os.path.join(topdir, "datafiles", csv_filename)
         filepath = os.path.join(topdir, "datafiles", basename + "." + file_format)
@@ -46,7 +46,7 @@ def subset_csv_to_file(csv_filename="mawa-unified_datafile-TLS_tissue_SF_-202511
         return ""
 
 
-def save_pandas_df_to_file(pd_df, basename="two_images", topdir=".", file_format="arrow"):
+def save_pandas_df_to_file(pd_df, basename="two_images", topdir=".", file_format="parquet"):
     try:    
         filepath = os.path.join(topdir, "datafiles", basename + "." + file_format)
         pl_df = pl.from_pandas(pd_df)
@@ -64,7 +64,7 @@ def save_pandas_df_to_file(pd_df, basename="two_images", topdir=".", file_format
         return ""
 
 
-def get_lf(basename, topdir=".", file_format="arrow"):
+def get_lf(basename, topdir=".", file_format="parquet"):
     try:    
         filepath = os.path.join(topdir, "datafiles", basename + "." + file_format)
         if file_format == "parquet":
@@ -197,7 +197,7 @@ def plot_image_from_frame(
         return None
 
 
-def generate_umap(lf, dist_bin_um_list=[25, 50, 100, 150, 200], area_downsample=0.2, um_per_px=1, cpu_pool_size=None, topdir=".", sample_size=None, sample_seed=42, counts_method="andrew", area_threshold=0.8, custom_areas=True, seed_for_train_test_split=54321, n=2500, train_sample_frac=1.0, test_sample_frac=1.0):
+def generate_umap(lf, dist_bin_um_list=[25, 50, 100, 150, 200], area_downsample=0.2, um_per_px=1, cpu_pool_size=None, topdir=".", sample_size=None, sample_seed=42, counts_method="andrew", area_threshold=0.8, custom_areas=True, seed_for_train_test_split=54321, n=2500, keep_images_with_too_little_data=True, train_sample_frac=1.0, test_sample_frac=1.0, sumap_cells_file_format="parquet", de_min_coords=True):
     # Note that cpu_pool_size=None will default to the number of available CPUs.
 
     # Instantiate the spatial umap object.
@@ -226,7 +226,7 @@ def generate_umap(lf, dist_bin_um_list=[25, 50, 100, 150, 200], area_downsample=
             )
         
     # Normalize coordinates to start at (0,0) for each image.
-    if custom_areas:
+    if custom_areas and de_min_coords:
         pldf = pldf.with_columns([
             (pl.col("Xcor") - pl.min("Xcor").over("TMA_core_id")).alias("Xcor"),
             (pl.col("Ycor") - pl.min("Ycor").over("TMA_core_id")).alias("Ycor"),
@@ -267,7 +267,11 @@ def generate_umap(lf, dist_bin_um_list=[25, 50, 100, 150, 200], area_downsample=
 
     # Get the areas of cells and save to pickle file.
     if custom_areas:
-        spatial_umap.get_areas(area_threshold, pool_size=cpu_pool_size, save_file=os.path.join(topdir, "results", f"areas.csv"), plots_directory=os.path.join(topdir, "results"))  # Sets spatial_umap.cells["area_filter"] and spatial_umap.areas.
+        try:
+            spatial_umap.get_areas(area_threshold, pool_size=cpu_pool_size, save_file=os.path.join(topdir, "results", f"areas.csv"), plots_directory=os.path.join(topdir, "results"))  # Sets spatial_umap.cells["area_filter"] and spatial_umap.areas.
+        except Exception as e:
+            print(f"An error occurred while calculating custom areas, potentially in SpatialUMAP.FitEllipse.fit() in \"hull = ConvexHull(d[idx_fit])\": {e}")
+            return spatial_umap, False
     else:
         # Keep in mind areas in the Baras code seem to be in units of pixels squared.
         spatial_umap.cells["area_filter"] = True  # If not using custom areas, set all cells to pass the area filter.
@@ -283,11 +287,35 @@ def generate_umap(lf, dist_bin_um_list=[25, 50, 100, 150, 200], area_downsample=
     else:
         spatial_umap.density = spatial_umap.counts / spatial_umap.areas  # We're not doing this yet (so units are currently in #/px), but we divide by square of um_per_px to get density in units of # per square micron.
 
-    min_filtered_cells = get_min_positive_values(spatial_umap.cells, group_col="TMA_core_id", boolean_column="area_filter")
+    # Output the percentage of the dataset that has been filtered out due to area filtering.
+    num_total_cells = spatial_umap.cells.shape[0]
+    num_kept_cells = spatial_umap.cells["area_filter"].sum()
+    print(f"{100 * (1 - num_kept_cells / num_total_cells):.1f}% of the cells have been filtered out due to area filtering.")
+
+    # Check for dropped images due to insufficient cells passing area filter.
+    original_images = set(spatial_umap.region_ids)
+    remaining_images = set(spatial_umap.cells[spatial_umap.cells["area_filter"]]["TMA_core_id"].unique())
+    dropped_images = original_images - remaining_images
+    if dropped_images:
+        print(f"WARNING:")
+        print(f"  The following images were dropped (i.e., missing scatter plots) due to no cells passing the area filter: {sorted(list(dropped_images))}.")
+        print(f"  These images remain: {sorted(list(remaining_images))}.")
+        if remaining_images:
+            print(f"  Keep in mind that just because some images may not have been dropped, significant numbers of cells in those images may have been dropped.")
+        else:
+            print(f"  Since no images remain after area filtering, we are aborting UMAP generation.")
+            return spatial_umap, False
+        remaining_loc = spatial_umap.cells["TMA_core_id"].isin(remaining_images)
+        spatial_umap.cells = spatial_umap.cells[remaining_loc]
+        spatial_umap.density = spatial_umap.density[remaining_loc.values]
+
+    min_filtered_cells = get_min_positive_values(spatial_umap.cells, group_col="TMA_core_id", boolean_column="area_filter")  # this would be zero if we didn't do the filtering-out line above (spatial_umap.cells = ...)
     print(f"Minimum number of cells passing area filter across all TMA cores: {min_filtered_cells}")
 
-    # Set training and "test" cells for umap training and embedding, respectively.
-    n = min(n, min_filtered_cells // 2)
+    # Set training and "test" cells for umap training and embedding, respectively. Baras's original code had a hard cutoff of n=2500 so images with fewer than 2500 non-filtered-out cells were discarded entirely. n = min(n, min_filtered_cells // 2) allows these images to remain in the analysis with smaller n.
+    if keep_images_with_too_little_data:
+        n = min(n, min_filtered_cells // 2)
+
     print(f"Using n_train={int(train_sample_frac*n)} cells per image for UMAP training and n_test={int(test_sample_frac*n)} for testing.")
     spatial_umap.set_train_test(n=n, seed=seed_for_train_test_split, train_sample_frac=train_sample_frac, test_sample_frac=test_sample_frac)
 
@@ -306,10 +334,10 @@ def generate_umap(lf, dist_bin_um_list=[25, 50, 100, 150, 200], area_downsample=
     # # save spatial_umap object as pickle
     # pickle.dump(spatial_umap, open(data_dir + '/pkl/spatial_umap.pkl', 'wb'))
 
-    save_pandas_df_to_file(spatial_umap.cells, basename="sumap_cells", file_format="arrow")
+    save_pandas_df_to_file(spatial_umap.cells, basename="sumap_cells", file_format=sumap_cells_file_format)
 
     # Return the spatial UMAP object.
-    return spatial_umap
+    return spatial_umap, True
 
 
 def generate_figures(spatial_umap):
