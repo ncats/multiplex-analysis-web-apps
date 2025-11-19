@@ -23,7 +23,7 @@ def get_min_positive_values(pd_df, group_col="TMA_core_id", boolean_column="area
     return pd_df.groupby(group_col)[boolean_column].sum().min()
 
 
-def subset_csv_to_file(csv_filename="mawa-unified_datafile-TLS_tissue_SF_-20251112_130129_EST.csv", handle="two_images", filter_column="Image ID_(standardized)", filter_values=["MS_01__cele_1400w", "MS_02__cele_1400w"], topdir=".", subdir="datafiles", file_format="parquet"):
+def subset_csv_to_file(csv_filename="mawa-unified_datafile-TLS_tissue_SF_-20251112_130129_EST.csv", handle="two_images", do_filtering=False, filter_column="Image ID_(standardized)", filter_values=["MS_01__cele_1400w", "MS_02__cele_1400w"], topdir=".", subdir="datafiles", file_format="parquet"):
     try:    
         csv_filepath = os.path.join(topdir, subdir, csv_filename)
         filepath = os.path.join(topdir, subdir, handle + "." + file_format)
@@ -36,7 +36,7 @@ def subset_csv_to_file(csv_filename="mawa-unified_datafile-TLS_tissue_SF_-202511
             write_method = "write_csv"
         else:
             raise ValueError(f"Unsupported file format: {file_format}")
-        if filter_values:
+        if do_filtering:
             getattr(lf.filter(pl.col(filter_column).is_in(filter_values)).collect(), write_method)(filepath)
         else:
             getattr(lf.collect(), write_method)(filepath)

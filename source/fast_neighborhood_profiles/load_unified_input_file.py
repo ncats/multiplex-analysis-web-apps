@@ -10,6 +10,35 @@ from fast_neighborhood_profiles import main as fnp_main
 ST_KEY_PREFIX = "load_unified_input_file.py__"
 
 
+def load_lazyframe(file_format, db_schema, bucket_name, object_filename):
+    with st.spinner("Loading file..."):
+        full_filenames = [object_filename]
+        input_dir = os.path.join(framework_utils.session_dir(), "input")
+
+        pa.download_objects_parallel(
+            object_names=full_filenames,
+            db_schema=db_schema,
+            bucket_name=bucket_name,
+            dest_dir=input_dir,
+        )
+
+        unzipped_paths = []
+        for full_filename in full_filenames:
+            with zipfile.ZipFile(os.path.join(input_dir, full_filename), 'r') as zip_ref:
+                zip_ref.extractall(input_dir)
+            base_name = full_filename.removesuffix(".zip")
+            os.remove(os.path.join(input_dir, full_filename))
+            unzipped_paths.append(os.path.join(input_dir, base_name))
+
+        for unzipped_path in unzipped_paths:
+            filename = os.path.basename(unzipped_path)
+            filepath = fnp_main.subset_csv_to_file(csv_filename=filename, handle="unified_input_file", topdir=framework_utils.session_dir(), subdir="input", file_format=file_format)
+            os.remove(unzipped_path)
+
+        lf = fnp_main.get_lf("unified_input_file", topdir=framework_utils.session_dir(), subdir="input", file_format=file_format)
+        st.session_state[ST_KEY_PREFIX + "unified_input_file"] = {"lf": lf, "file_format": file_format, "db_schema": get_location_settings()["Available input files"]["db_schema"], "bucket_name": get_location_settings()["Available input files"]["bucket_name"], "object_filename": full_filenames[0], "local_filepath": filepath}
+
+
 @st.cache_data()
 def get_objects_list(upload_location):
     objects_list = pa.list_objects_in_bucket(
@@ -60,32 +89,42 @@ def main():
             # Allow the user to download them from the server to the machine where the app is running.
             if st.button(f"Load unified input file"):
                 with st.spinner("Loading file..."):
-                    full_filenames = [unified_datafile_mapping[short_filename] for short_filename in selected_filenames]
-                    input_dir = os.path.join(framework_utils.session_dir(), "input")
-
-                    pa.download_objects_parallel(
-                        object_names=full_filenames,
-                        db_schema=get_location_settings()[upload_location]["db_schema"],
-                        bucket_name=get_location_settings()[upload_location]["bucket_name"],
-                        dest_dir=input_dir,
-                    )
-
-                    unzipped_paths = []
-                    for full_filename in full_filenames:
-                        with zipfile.ZipFile(os.path.join(input_dir, full_filename), 'r') as zip_ref:
-                            zip_ref.extractall(input_dir)
-                        base_name = full_filename.removesuffix(".zip")
-                        os.remove(os.path.join(input_dir, full_filename))
-                        unzipped_paths.append(os.path.join(input_dir, base_name))
-
+                    object_filename = unified_datafile_mapping[selected_filenames[0]]
                     file_format = "parquet" if intermediate_file_format == "parquet (recommended)" else intermediate_file_format
-                    for unzipped_path in unzipped_paths:
-                        filename = os.path.basename(unzipped_path)
-                        filepath = fnp_main.subset_csv_to_file(csv_filename=filename, handle="unified_input_file", topdir=framework_utils.session_dir(), subdir="input", file_format=file_format)
-                        os.remove(unzipped_path)
+                    db_schema = get_location_settings()[upload_location]["db_schema"]
+                    bucket_name = get_location_settings()[upload_location]["bucket_name"]
+                    load_lazyframe(file_format, db_schema, bucket_name, object_filename)
 
-                    lf = fnp_main.get_lf("unified_input_file", topdir=framework_utils.session_dir(), subdir="input", file_format=file_format)
-                    st.session_state[ST_KEY_PREFIX + "unified_input_file"] = {"lf": lf, "file_format": file_format, "db_schema": get_location_settings()["Available input files"]["db_schema"], "bucket_name": get_location_settings()["Available input files"]["bucket_name"], "object_filename": full_filenames[0], "local_filepath": filepath}
+    key = ST_KEY_PREFIX + "unified_input_file"
+    if key in st.session_state:
+
+        lf = st.session_state[key]["lf"]
+        file_format = st.session_state[key]["file_format"]
+        db_schema = st.session_state[key]["db_schema"]
+        bucket_name = st.session_state[key]["bucket_name"]
+        object_filename = st.session_state[key]["object_filename"]
+        local_filepath = st.session_state[key]["local_filepath"]
+
+        if not os.path.exists(local_filepath):
+            st.button("Please load the data from the server by pressing here!", type="primary", on_click=load_lazyframe, kwargs={"file_format": file_format, "db_schema": db_schema, "bucket_name": bucket_name, "object_filename": object_filename})
+            return
+
+        information = f'''
+        Properties:
+
+        :small_orange_diamond: File format: `{file_format}`  
+        :small_orange_diamond: database.schema: `{db_schema}`  
+        :small_orange_diamond: Bucket name: `{bucket_name}`  
+        :small_orange_diamond: Object filename: `{object_filename}`  
+        :small_orange_diamond: Local filepath: `{local_filepath}`  
+        :small_orange_diamond: Number of rows: `{lf.select(pl.len()).collect().item()}`  
+        :small_orange_diamond: Number of columns: `{len(lf.schema)}`  
+        '''
+        st.markdown(information)
+
+        st.write(lf.collect().sample(100).sort(pl.col("Image ID_(standardized)")))
+
+        st.button("Resample dataset")
 
 
 # Run the main function if this script is executed.
