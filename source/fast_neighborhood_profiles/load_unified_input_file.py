@@ -106,7 +106,7 @@ def main():
         local_filepath = st.session_state[key]["local_filepath"]
 
         if not os.path.exists(local_filepath):
-            st.button("Please load the data from the server by pressing here!", type="primary", on_click=load_lazyframe, kwargs={"file_format": file_format, "db_schema": db_schema, "bucket_name": bucket_name, "object_filename": object_filename})
+            st.button("You appear to have loaded a prior app session. Please load the data from the server by pressing here. No need to make a selection above.", type="primary", on_click=load_lazyframe, kwargs={"file_format": file_format, "db_schema": db_schema, "bucket_name": bucket_name, "object_filename": object_filename})
             return
 
         information = f'''

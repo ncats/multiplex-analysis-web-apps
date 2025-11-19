@@ -122,7 +122,7 @@ def deserialize_binary_files_to_dictionary(dict_name, directory, dictionary=None
         return None
 
 
-def zip_directory_to_buffer(directory, compresslevel=6):
+def zip_directory_to_buffer(directory, compresslevel=6, ignore_subdirs=[]):
     """Create a zip archive of a directory (includes hidden files and empty dirs; no symlink handling)."""
     try:
         main_path = pathlib.Path(directory)
@@ -134,6 +134,10 @@ def zip_directory_to_buffer(directory, compresslevel=6):
             all_paths = sorted(main_path.rglob('*'), key=lambda p: p.as_posix())
             for file_path in all_paths:
                 rel = file_path.relative_to(main_path).as_posix()
+
+                # Skip any ignored subdirectories (and their contents)
+                if ignore_subdirs and any(rel == sub or rel.startswith(f"{sub}/") for sub in ignore_subdirs):
+                    continue
 
                 if file_path.is_dir():
                     if rel:
