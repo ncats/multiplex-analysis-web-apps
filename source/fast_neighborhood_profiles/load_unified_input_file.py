@@ -46,7 +46,7 @@ def load_lazyframe(file_format, db_schema, bucket_name, object_filename):
         lf = fnp_main.get_lf("unified_input_file", topdir=framework_utils.session_dir(), subdir="input", file_format=file_format)
 
         # Save the lazyframe and its metadata to the session state.
-        st.session_state[ST_KEY_PREFIX + "unified_input_file"] = {"lf": lf, "file_format": file_format, "db_schema": get_location_settings()["Available input files"]["db_schema"], "bucket_name": get_location_settings()["Available input files"]["bucket_name"], "object_filename": full_filenames[0], "local_filepath": filepath.removeprefix(framework_utils.session_dir() + os.sep)}
+        st.session_state[ST_KEY_PREFIX + "unified_input_file"] = {"lf": lf, "file_format": file_format, "db_schema": db_schema, "bucket_name": bucket_name, "object_filename": full_filenames[0], "local_filepath": filepath.removeprefix(framework_utils.session_dir() + os.sep)}
 
 
 # Get the list of objects in the bucket.
@@ -102,28 +102,29 @@ def main():
 
             # Load the lazyframe from the selected row.
             if st.button(f"Load unified input file"):
-                with st.spinner("Loading file..."):
-                    object_filename = unified_datafile_mapping[selected_filenames[0]]
-                    file_format = "parquet" if intermediate_file_format == "parquet (recommended)" else intermediate_file_format
-                    db_schema = get_location_settings()[upload_location]["db_schema"]
-                    bucket_name = get_location_settings()[upload_location]["bucket_name"]
-                    load_lazyframe(file_format, db_schema, bucket_name, object_filename)
+                object_filename = unified_datafile_mapping[selected_filenames[0]]
+                file_format = "parquet" if intermediate_file_format == "parquet (recommended)" else intermediate_file_format
+                db_schema = get_location_settings()[upload_location]["db_schema"]
+                bucket_name = get_location_settings()[upload_location]["bucket_name"]
+                load_lazyframe(file_format, db_schema, bucket_name, object_filename)
 
     # If there's lazyframe information in the session state...
     key = ST_KEY_PREFIX + "unified_input_file"
     if key in st.session_state:
 
-        # Get information about the lazyframe from the metadata in the session state, including a possibly disconnected lazyframe handle.
-        lf = st.session_state[key]["lf"]
+        # Get information about the lazyframe from the metadata in the session state.
         file_format = st.session_state[key]["file_format"]
         db_schema = st.session_state[key]["db_schema"]
         bucket_name = st.session_state[key]["bucket_name"]
         object_filename = st.session_state[key]["object_filename"]
         filepath = os.path.join(framework_utils.session_dir(), st.session_state[key]["local_filepath"])
 
-        # If the intermediate file doesn't actually exist, in which case the lazyframe won't have anything to load, then load using the information from the session state.
+        # If the intermediate file doesn't actually exist, we know we have to load the intermediate file and define a lazyframe to point to it.
         if not os.path.exists(filepath):
             load_lazyframe(file_format=file_format, db_schema=db_schema, bucket_name=bucket_name, object_filename=object_filename)
+
+        # Get the lazyframe from the session state now that it's certainly up-to-date using either loading method (choosing a row or reading metadata from the session state).
+        lf = st.session_state[key]["lf"]
 
         # At this point the lazyframe must be working, so display information about it.
         information = f'''
