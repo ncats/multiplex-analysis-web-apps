@@ -77,7 +77,7 @@ def main():
     # Define the pages for the navigation bar.
     pg = st.navigation(
         {
-            "Fast": [
+            "Fast workflow": [
                 st.Page(load_unified_input_file.main, title="Load unified input file", url_path='load_unified_input_file'),
                 st.Page(phenotype.main, title="Phenotype", url_path='phenotype'),
                 ],

@@ -24,13 +24,16 @@ def get_marker_columns(lf, exclusion_suffix=""):
 def main():
 
     # Ensure we'the lazyframe is ready for usage.
-    key = ST_KEY_PREFIX_LOAD + "unified_input_file"
-    if not ((key in st.session_state) and (os.path.exists(os.path.join(framework_utils.session_dir(), st.session_state[key]["local_filepath"])))):
+    if not (
+        ("LAZYFRAMES" in st.session_state)
+        and ("unified_input_file" in st.session_state["LAZYFRAMES"])
+        and (os.path.exists(os.path.join(framework_utils.session_dir(), st.session_state["LAZYFRAMES"]["unified_input_file"]["input_params"]["local_filepath"])))
+        ):
         st.warning("Please load a unified input file first (at left).")
         return
 
     # Get the main lazyframe from session state.
-    lf = st.session_state[key]["lf"]
+    lf = st.session_state["LAZYFRAMES"]["unified_input_file"]["lf"]
 
     # Optionally add a suffix to exclude when detecting marker columns.
     key = ST_KEY_PREFIX + "exclusion_suffix"
@@ -53,22 +56,26 @@ def main():
     st.write(marker_columns)
 
     # Allow the user to perform phenotyping.
-    key = ST_KEY_PREFIX + "lf_phenotyped"
     if st.button("Perform marker phenotyping"):
         lf_phenotyped = fnp_main.perform_marker_phenotyping_on_lazyframe(lf, marker_columns)
-        st.session_state[key] = lf_phenotyped
-        st.session_state["TRANSFORMS"]["marker_phenotyping"] = {"output_key": key, "function": fnp_main.perform_marker_phenotyping_on_lazyframe, "dataset": "lf", "inputs": {"marker_columns": marker_columns}}
+        st.session_state["LAZYFRAMES"]["marker_phenotyping"] = {
+            "lf": lf_phenotyped,
+            "input_params": {"input_key": "unified_input_file", "function": fnp_main.perform_marker_phenotyping_on_lazyframe, "inputs": {"marker_columns": marker_columns}},
+        }
         st.session_state[ST_KEY_PREFIX + "num_phenotyped_rows"] = lf_phenotyped.select(pl.len()).collect().item()
 
     # Ensure the phenotyped lazyframe is in session state.
-    if key not in st.session_state:
+    if "marker_phenotyping" not in st.session_state["LAZYFRAMES"]:
         st.info("Please press the button above to perform marker phenotyping.")
         return
     
     # Display the number of rows in the phenotyped lazyframe.
-    lf_phenotyped = st.session_state[key]
+    lf_phenotyped = st.session_state["LAZYFRAMES"]["marker_phenotyping"]["lf"]
     num_phenotyped_rows = st.session_state[ST_KEY_PREFIX + "num_phenotyped_rows"]
     st.write(f"The phenotyped lazyframe has {num_phenotyped_rows:_} rows.")
+
+    # Temporarily write something that access the lazyframe so we can test the framework.
+    st.write(lf_phenotyped)
 
 
 # Run the main function if this script is executed.
