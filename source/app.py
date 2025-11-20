@@ -78,11 +78,11 @@ def main():
     pg = st.navigation(
         {
             "Fast workflow": [
+                st.Page(manage_sessions.main, title="Manage sessions", default=True, url_path='manage_sessions'),
                 st.Page(load_unified_input_file.main, title="Load unified input file", url_path='load_unified_input_file'),
                 st.Page(phenotype.main, title="Phenotype", url_path='phenotype'),
                 ],
             "Framework": [
-                st.Page(manage_sessions.main, title="Manage sessions", default=True, url_path='manage_sessions'),
                 st.Page(generate_results.main, title="Generate results", url_path='generate_results'),
                 st.Page(monitor_jobs.main, title="Monitor jobs", url_path='monitor_jobs'),
                 st.Page(inspect_database_tables.main, title="Inspect database tables", url_path='inspect_database_tables'),

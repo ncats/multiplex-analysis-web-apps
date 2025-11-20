@@ -74,19 +74,20 @@ def get_location_settings():
 def main():
 
     # Show the current contents of the selected upload location using a selectable dataframe.
-    upload_location = "Available input files"
-    objects_list = get_objects_list(upload_location)
-    unified_datafile_mapping = {fullname.removeprefix("mawa-unified_datafile-").removesuffix(".csv.zip"): fullname for fullname in objects_list if fullname.startswith("mawa-unified_datafile-") and fullname.endswith(".csv.zip")}
-    objects_list = unified_datafile_mapping.keys()
-    column_heading = "Unified input file"
-    key = "current_contents_table__do_not_persist"
-    if objects_list:
-        df = pl.DataFrame({column_heading: objects_list})
-        st.dataframe(df, on_select="rerun", key=key, selection_mode="single-row")
-        st.write(f"{len(objects_list)} unified input file(s) found.")
-    else:
-        st.write("No unified input files found.")
-    st.button("Refresh file list", on_click=get_objects_list.clear)
+    with st.columns(2)[0]:
+        upload_location = "Available input files"
+        objects_list = get_objects_list(upload_location)
+        unified_datafile_mapping = {fullname.removeprefix("mawa-unified_datafile-").removesuffix(".csv.zip"): fullname for fullname in objects_list if fullname.startswith("mawa-unified_datafile-") and fullname.endswith(".csv.zip")}
+        objects_list = unified_datafile_mapping.keys()
+        column_heading = "Unified input file"
+        key = "current_contents_table__do_not_persist"
+        if objects_list:
+            df = pl.DataFrame({column_heading: objects_list})
+            st.dataframe(df, on_select="rerun", key=key, selection_mode="single-row")
+            st.write(f"{len(objects_list)} unified input file(s) found.")
+        else:
+            st.write("No unified input files found.")
+        st.button("Refresh file list", on_click=get_objects_list.clear)
 
     # If some files are selected...
     if key in st.session_state:

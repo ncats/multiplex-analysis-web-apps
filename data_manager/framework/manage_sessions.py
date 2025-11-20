@@ -142,38 +142,32 @@ def main():
 
     st.header("Save app session")
 
-    st.write(f"Current session ID: {st.session_state[ST_KEY_PREFIX_STARTUP + 'app_session_id']}")
+    with st.columns(2)[0]:
+        st.write(f"Current session ID: {st.session_state[ST_KEY_PREFIX_STARTUP + 'app_session_id']}")
 
-    # Allow the user to select their favorite fruit.
-    fruit_options = ["Apple", "Banana", "Cherry", "Date", "Elderberry"]
-    key = ST_KEY_PREFIX + "favorite_fruit"
-    if key not in st.session_state:
-        st.session_state[key] = fruit_options[0]
-    st.selectbox("Select your favorite fruit:", fruit_options, key=key)
+        # Allow user to describe the session state.
+        key = ST_KEY_PREFIX + "session_description"
+        if key not in st.session_state:
+            st.session_state[key] = ""
+        session_description = st.text_area("Describe the app session archive that will be saved:", key=key)
 
-    # Allow user to describe the session state.
-    key = ST_KEY_PREFIX + "session_description"
-    if key not in st.session_state:
-        st.session_state[key] = ""
-    session_description = st.text_area("Describe the app session archive that will be saved:", key=key)
-
-    # Allow the user to save the current session state.
-    if st.button("Save app session"):
-        username = pa.get_current_username()
-        user_group = pa.get_user_group(username)
-        current_git_commit = get_current_git_commit()
-        container_image_id = pa.get_frontend_image_id()
-        archive_id = framework_utils.get_unique_id()
-        app_session_id = st.session_state[ST_KEY_PREFIX_STARTUP + "app_session_id"]
-        archive_metadata = {"username": username, "user_group": user_group, "session_description": session_description, "current_git_commit": current_git_commit, "container_image_id": container_image_id, "archive_id": archive_id, "app_session_id": app_session_id}
-        write_dictionary_to_text_file(archive_metadata, "archive_metadata", framework_utils.session_dir())  # Writes archive_metadata.txt to the session directory.
-        write_conda_environment("environment.yml", framework_utils.session_dir())  # Writes environment.yml to the session directory.
-        save_session_state()  # Writes session_state.pkl, session_state.dill, and session_state_contents.txt to the session directory.
-        zip_buffer = framework_utils.zip_directory_to_buffer(framework_utils.session_dir())
-        pa.write_archive_database_data(tuple(archive_metadata.values()))
-        pa.upload_zip_object_data(ARCHIVES_BUCKET_NAME, archive_id, zip_buffer)
-        pa.get_available_archives.clear()  # Do this to refresh the archive listing below.
-        st.success("✅ App session saved successfully!")
+        # Allow the user to save the current session state.
+        if st.button("Save app session"):
+            username = pa.get_current_username()
+            user_group = pa.get_user_group(username)
+            current_git_commit = get_current_git_commit()
+            container_image_id = pa.get_frontend_image_id()
+            archive_id = framework_utils.get_unique_id()
+            app_session_id = st.session_state[ST_KEY_PREFIX_STARTUP + "app_session_id"]
+            archive_metadata = {"username": username, "user_group": user_group, "session_description": session_description, "current_git_commit": current_git_commit, "container_image_id": container_image_id, "archive_id": archive_id, "app_session_id": app_session_id}
+            write_dictionary_to_text_file(archive_metadata, "archive_metadata", framework_utils.session_dir())  # Writes archive_metadata.txt to the session directory.
+            write_conda_environment("environment.yml", framework_utils.session_dir())  # Writes environment.yml to the session directory.
+            save_session_state()  # Writes session_state.pkl, session_state.dill, and session_state_contents.txt to the session directory.
+            zip_buffer = framework_utils.zip_directory_to_buffer(framework_utils.session_dir(), ignore_subdirs=["input"])
+            pa.write_archive_database_data(tuple(archive_metadata.values()))
+            pa.upload_zip_object_data(ARCHIVES_BUCKET_NAME, archive_id, zip_buffer)
+            pa.get_available_archives.clear()  # Do this to refresh the archive listing below.
+            st.success("✅ App session saved successfully!")
 
     st.header("Load app session")
 
@@ -198,6 +192,7 @@ def main():
             framework_utils.ensure_empty_directory(framework_utils.session_dir())
             framework_utils.unzip_buffer_to_directory(zip_buffer, framework_utils.session_dir())
             load_session_state()
+            os.makedirs(os.path.join(framework_utils.session_dir(), "input"), exist_ok=True)  # Ensure input directory exists since we deliberately exclude it when saving an archive.
             st.rerun()  # Keeping this rerun because masking of errors here is less risky and it's really helpful to see the archive description just pop up when loading an archive.
 
 
