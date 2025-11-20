@@ -136,7 +136,7 @@ def main():
         :small_orange_diamond: Bucket name: `{bucket_name}`  
         :small_orange_diamond: Object filename: `{object_filename}`  
         :small_orange_diamond: Filepath: `{filepath}`  
-        :small_orange_diamond: Number of rows: `{lf.select(pl.len()).collect().item()}`  
+        :small_orange_diamond: Number of rows: `{lf.select(pl.len()).collect().item():_}`  
         :small_orange_diamond: Number of columns: `{len(lf.collect_schema())}`  
         '''
         st.markdown(information)

@@ -68,7 +68,7 @@ def main():
     # Display the number of rows in the phenotyped lazyframe.
     lf_phenotyped = st.session_state[key]
     num_phenotyped_rows = st.session_state[ST_KEY_PREFIX + "num_phenotyped_rows"]
-    st.write(f"The phenotyped lazyframe has {num_phenotyped_rows} rows.")
+    st.write(f"The phenotyped lazyframe has {num_phenotyped_rows:_} rows.")
 
 
 # Run the main function if this script is executed.
