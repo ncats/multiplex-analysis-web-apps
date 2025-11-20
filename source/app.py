@@ -38,6 +38,7 @@ from streamlit_extras.app_logo import add_logo
 import streamlit_session_state_management
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
 from fast_neighborhood_profiles import load_unified_input_file
+from fast_neighborhood_profiles import phenotype
 
 ST_KEY_PREFIX = "app.py__"
 ST_KEY_PREFIX_STARTUP = "startup.py__"
@@ -78,6 +79,7 @@ def main():
         {
             "Fast": [
                 st.Page(load_unified_input_file.main, title="Load unified input file", url_path='load_unified_input_file'),
+                st.Page(phenotype.main, title="Phenotype", url_path='phenotype'),
                 ],
             "Framework": [
                 st.Page(manage_sessions.main, title="Manage sessions", default=True, url_path='manage_sessions'),
