@@ -16,13 +16,13 @@ def get_marker_columns(lf, exclusion_suffix=""):
         marker_columns = [column for column in lf.collect_schema().names() if column.startswith("Phenotype_(standardized) ") and not column.endswith(exclusion_suffix)]
     else:
         marker_columns = [column for column in lf.collect_schema().names() if column.startswith("Phenotype_(standardized) ")]
-    return marker_columns
+    return sorted(marker_columns)
 
 
 # Define the main function.
 def main():
 
-    # Ensure we'the lazyframe is ready for usage.
+    # Ensure the main lazyframe is ready for usage.
     if not (
         ("LAZYFRAMES" in st.session_state)
         and ("unified_input_file" in st.session_state["LAZYFRAMES"])
@@ -46,7 +46,7 @@ def main():
         # Button to get the marker columns.
         key = ST_KEY_PREFIX + "marker_columns"
         if st.button("Get marker columns"):
-            st.session_state[key] = sorted(get_marker_columns(lf, exclusion_suffix=exclusion_suffix))
+            st.session_state[key] = get_marker_columns(lf, exclusion_suffix=exclusion_suffix)
 
         # Ensure the marker columns are in session state.
         if key not in st.session_state:
@@ -66,8 +66,8 @@ def main():
                 "input_params": {"input_key": "unified_input_file", "function": fnp_main.perform_marker_phenotyping_on_lazyframe, "inputs": {"marker_columns": marker_columns}},
             }
             st.session_state[ST_KEY_PREFIX + "num_phenotyped_rows"] = lf_phenotyped.select(pl.len()).collect().item()
-            st.session_state[ST_KEY_PREFIX + "unique_labels"] = sorted(lf_phenotyped.select(pl.col("label")).unique().collect().to_series().to_list())
-            st.session_state[ST_KEY_PREFIX + "unique_image_ids"] = sorted(lf_phenotyped.select(pl.col("Image ID_(standardized)")).unique().collect().to_series().to_list())
+            st.session_state[ST_KEY_PREFIX + "unique_labels"] = lf_phenotyped.select(pl.col("label").unique().sort()).collect().to_series().to_list()
+            st.session_state[ST_KEY_PREFIX + "unique_image_ids"] = lf_phenotyped.select(pl.col("Image ID_(standardized)").unique().sort()).collect().to_series().to_list()
 
         # Ensure the phenotyped lazyframe is in session state.
         if "marker_phenotyping" not in st.session_state["LAZYFRAMES"]:

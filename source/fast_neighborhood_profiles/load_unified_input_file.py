@@ -89,26 +89,26 @@ def main():
             st.write("No unified input files found.")
         st.button("Refresh file list", on_click=get_objects_list.clear)
 
-    # If some files are selected...
-    if key in st.session_state:
-        rows = st.session_state[key]["selection"]["rows"]
-        if rows:
-            
-            # Get a list of the selected shortnames (short versions of the filenames).
-            selected_filenames = df[rows][column_heading].to_list()
+        # If some files are selected...
+        if key in st.session_state:
+            rows = st.session_state[key]["selection"]["rows"]
+            if rows:
+                
+                # Get a list of the selected shortnames (short versions of the filenames).
+                selected_filenames = df[rows][column_heading].to_list()
 
-            # Allow the user to select the intermediate file format.
-            available_file_formats = ["parquet (recommended)", "arrow", "csv"]
-            intermediate_file_format = st.selectbox("Select intermediate file format:", options=available_file_formats, index=available_file_formats.index("parquet (recommended)"))
+                # Allow the user to select the intermediate file format.
+                available_file_formats = ["parquet (recommended)", "arrow", "csv"]
+                intermediate_file_format = st.selectbox("Select intermediate file format:", options=available_file_formats, index=available_file_formats.index("parquet (recommended)"))
 
-            # Load the lazyframe from the selected row.
-            if st.button(f"Load unified input file"):
-                object_filename = unified_datafile_mapping[selected_filenames[0]]
-                file_format = "parquet" if intermediate_file_format == "parquet (recommended)" else intermediate_file_format
-                db_schema = get_location_settings()[upload_location]["db_schema"]
-                bucket_name = get_location_settings()[upload_location]["bucket_name"]
-                st.session_state["LAZYFRAMES"] = {}  # Clear existing lazyframes.
-                st.session_state["LAZYFRAMES"]["unified_input_file"] = load_unified_input_file_data(file_format, db_schema, bucket_name, object_filename)
+                # Load the lazyframe from the selected row.
+                if st.button(f"Load unified input file"):
+                    object_filename = unified_datafile_mapping[selected_filenames[0]]
+                    file_format = "parquet" if intermediate_file_format == "parquet (recommended)" else intermediate_file_format
+                    db_schema = get_location_settings()[upload_location]["db_schema"]
+                    bucket_name = get_location_settings()[upload_location]["bucket_name"]
+                    st.session_state["LAZYFRAMES"] = {}  # Clear existing lazyframes.
+                    st.session_state["LAZYFRAMES"]["unified_input_file"] = load_unified_input_file_data(file_format, db_schema, bucket_name, object_filename)
 
     # If there's lazyframe information in the session state...
     if "LAZYFRAMES" in st.session_state and "unified_input_file" in st.session_state["LAZYFRAMES"]:

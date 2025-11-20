@@ -3,20 +3,20 @@ import os
 import plotly.express as px
 import numpy as np
 import pandas as pd
-import SpatialUMAP
+from fast_neighborhood_profiles import SpatialUMAP
 import umap
 import PlottingTools
 import matplotlib.pyplot as plt
 
 
-def get_unique_column_values(csv_filename="mawa-unified_datafile-TLS_tissue_SF_-20251112_130129_EST.csv", column_name="Image ID_(standardized)", topdir="."):
-    try:
-        csv_filepath = os.path.join(topdir, "datafiles", csv_filename)
-        lf = pl.scan_csv(csv_filepath)
-        return lf.select(pl.col(column_name).unique()).collect().to_series().to_list()
-    except Exception as e:
-        print(f"An error occurred in function {os.path.basename(__file__)}.{get_unique_column_values.__name__}: {e}")
-        return []
+# def get_unique_column_values(csv_filename="mawa-unified_datafile-TLS_tissue_SF_-20251112_130129_EST.csv", column_name="Image ID_(standardized)", topdir="."):
+#     try:
+#         csv_filepath = os.path.join(topdir, "datafiles", csv_filename)
+#         lf = pl.scan_csv(csv_filepath)
+#         return lf.select(pl.col(column_name).unique()).collect().to_series().to_list()
+#     except Exception as e:
+#         print(f"An error occurred in function {os.path.basename(__file__)}.{get_unique_column_values.__name__}: {e}")
+#         return []
 
 
 def get_min_positive_values(pd_df, group_col="TMA_core_id", boolean_column="area_filter"):
@@ -46,9 +46,9 @@ def subset_csv_to_file(csv_filename="mawa-unified_datafile-TLS_tissue_SF_-202511
         return ""
 
 
-def save_pandas_df_to_file(pd_df, handle="two_images", topdir=".", file_format="parquet"):
+def save_pandas_df_to_file(pd_df, handle="two_images", topdir=".", file_format="parquet", subdir="datafiles"):
     try:    
-        filepath = os.path.join(topdir, "datafiles", handle + "." + file_format)
+        filepath = os.path.join(topdir, subdir, handle + "." + file_format)
         pl_df = pl.from_pandas(pd_df)
         if file_format == "parquet":
             pl_df.write_parquet(filepath)
@@ -197,34 +197,12 @@ def plot_image_from_frame(
         return None
 
 
-def generate_umap(lf, dist_bin_um_list=[25, 50, 100, 150, 200], area_downsample=0.2, um_per_px=1, cpu_pool_size=None, topdir=".", sample_size=None, sample_seed=42, counts_method="andrew", area_threshold=0.8, custom_areas=True, seed_for_train_test_split=54321, n=2500, keep_images_with_too_little_data=True, train_sample_frac=1.0, test_sample_frac=1.0, sumap_cells_file_format="parquet", de_min_coords=True):
+def generate_umap(pldf, unique_labels, dist_bin_um_list=[25, 50, 100, 150, 200], area_downsample=0.2, um_per_px=1, cpu_pool_size=None, topdir=".", counts_method="andrew", area_threshold=0.8, custom_areas=True, seed_for_train_test_split=54321, n=2500, keep_images_with_too_little_data=True, train_sample_frac=1.0, test_sample_frac=1.0, de_min_coords=True):
     # Note that cpu_pool_size=None will default to the number of available CPUs.
 
     # Instantiate the spatial umap object.
     spatial_umap = SpatialUMAP.SpatialUMAP(dist_bin_um=np.array(dist_bin_um_list), um_per_px=um_per_px, area_downsample=area_downsample)
 
-    # Load in cells and patient data.
-    lf = (
-        lf
-        .rename({"Image ID_(standardized)": "TMA_core_id", "Centroid X (µm)_(standardized)": "Xcor", "Centroid Y (µm)_(standardized)": "Ycor", "label": "Lineage"})
-        .select(pl.col(["TMA_core_id", "Xcor", "Ycor", "Lineage"]))
-        )
-
-    # Load in cells and patient data. Sampling will aid in faster testing and development. The sorting after the sampling is crucial to ensure consistent ordering.
-    if sample_size is None:
-        pldf = (
-            lf
-            .sort(by="TMA_core_id")
-            .collect()
-            )
-    else:
-        pldf = (
-            lf
-            .collect()
-            .sample(n=sample_size, seed=sample_seed)
-            .sort(by="TMA_core_id")
-            )
-        
     # Normalize coordinates to start at (0,0) for each image.
     if custom_areas and de_min_coords:
         pldf = pldf.with_columns([
@@ -249,7 +227,7 @@ def generate_umap(lf, dist_bin_um_list=[25, 50, 100, 150, 200], area_downsample=
     spatial_umap.clear_areas()
 
     # Save the unique labels/lineages/species. This is only used for Andrew's counting method.
-    spatial_umap.species = sorted(lf.select(pl.col("Lineage").unique()).collect().to_series().to_list())
+    spatial_umap.species = unique_labels
 
     # Ensure results directory exists.
     os.makedirs(os.path.join(topdir, "results"), exist_ok=True)
@@ -333,8 +311,6 @@ def generate_umap(lf, dist_bin_um_list=[25, 50, 100, 150, 200], area_downsample=
 
     # # save spatial_umap object as pickle
     # pickle.dump(spatial_umap, open(data_dir + '/pkl/spatial_umap.pkl', 'wb'))
-
-    save_pandas_df_to_file(spatial_umap.cells, handle="sumap_cells", file_format=sumap_cells_file_format)
 
     # Return the spatial UMAP object.
     return spatial_umap, True

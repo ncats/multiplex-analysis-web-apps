@@ -39,6 +39,7 @@ import streamlit_session_state_management
 import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected to NIDAP
 from fast_neighborhood_profiles import load_unified_input_file
 from fast_neighborhood_profiles import phenotype
+from fast_neighborhood_profiles import run_spatial_umap
 
 ST_KEY_PREFIX = "app.py__"
 ST_KEY_PREFIX_STARTUP = "startup.py__"
@@ -81,6 +82,7 @@ def main():
                 st.Page(manage_sessions.main, title="Manage sessions", default=True, url_path='manage_sessions'),
                 st.Page(load_unified_input_file.main, title="Load unified input file", url_path='load_unified_input_file'),
                 st.Page(phenotype.main, title="Phenotype", url_path='phenotype'),
+                st.Page(run_spatial_umap.main, title="Run spatial UMAP", url_path='run_spatial_umap'),
                 ],
             "Framework": [
                 st.Page(generate_results.main, title="Generate results", url_path='generate_results'),
