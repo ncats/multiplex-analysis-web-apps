@@ -3,6 +3,7 @@ import streamlit as st
 from fast_neighborhood_profiles import main as fnp_main
 import os
 import framework.utils as framework_utils
+import polars as pl
 
 # Define constant.
 ST_KEY_PREFIX = "phenotype.py__"
@@ -50,6 +51,24 @@ def main():
     marker_columns = st.session_state[key]
     st.write(f"Found {len(marker_columns)} marker columns:")
     st.write(marker_columns)
+
+    # Allow the user to perform phenotyping.
+    key = ST_KEY_PREFIX + "lf_phenotyped"
+    if st.button("Perform marker phenotyping"):
+        lf_phenotyped = fnp_main.perform_marker_phenotyping_on_lazyframe(lf, marker_columns)
+        st.session_state[key] = lf_phenotyped
+        st.session_state["TRANSFORMS"]["marker_phenotyping"] = {"output_key": key, "function": fnp_main.perform_marker_phenotyping_on_lazyframe, "dataset": "lf", "inputs": {"marker_columns": marker_columns}}
+        st.session_state[ST_KEY_PREFIX + "num_phenotyped_rows"] = lf_phenotyped.select(pl.len()).collect().item()
+
+    # Ensure the phenotyped lazyframe is in session state.
+    if key not in st.session_state:
+        st.info("Please press the button above to perform marker phenotyping.")
+        return
+    
+    # Display the number of rows in the phenotyped lazyframe.
+    lf_phenotyped = st.session_state[key]
+    num_phenotyped_rows = st.session_state[ST_KEY_PREFIX + "num_phenotyped_rows"]
+    st.write(f"The phenotyped lazyframe has {num_phenotyped_rows} rows.")
 
 
 # Run the main function if this script is executed.

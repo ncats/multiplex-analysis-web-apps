@@ -107,6 +107,7 @@ def main():
                 db_schema = get_location_settings()[upload_location]["db_schema"]
                 bucket_name = get_location_settings()[upload_location]["bucket_name"]
                 load_lazyframe(file_format, db_schema, bucket_name, object_filename)
+                st.session_state["TRANSFORMS"] = {}
 
     # If there's lazyframe information in the session state...
     key = ST_KEY_PREFIX + "unified_input_file"
