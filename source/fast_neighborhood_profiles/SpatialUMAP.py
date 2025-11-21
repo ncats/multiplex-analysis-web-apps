@@ -166,7 +166,7 @@ class SpatialUMAP:
             self.counts = pd.read_csv(save_file, sep=',').values.reshape((self.counts.shape[0], self.dist_bin_um.shape[0], self.cell_labels.shape[1]))
             # self.counts_after_load = self.counts.copy()
 
-    def calculate_density_matrix_for_all_images(self, cpu_pool_size = 8):
+    def calculate_density_matrix_for_all_images(self, cpu_pool_size = 8, mp_start_method=None):
         """
         Calculate the density matrix for all images.
 
@@ -185,6 +185,12 @@ class SpatialUMAP:
         Returns:
             pandas.DataFrame: The dataframe containing the density matrix for all images.
         """
+
+        if mp_start_method is None:
+            mp_start_method = mp.get_start_method()
+        if mp_start_method == 'fork':
+            mp_start_method = 'forkserver'
+            print(f'Note: We are forcing the multiprocessing module to use the "forkserver" start method instead of the automatically (or manually) chosen "fork" start method.', flush=True)
 
         df          = self.cells
         phenotypes  = self.species
@@ -216,7 +222,8 @@ class SpatialUMAP:
             )
 
         # Create a pool of worker processes
-        with mp.Pool(processes=cpu_pool_size) as pool:
+        print(f"Using start method {mp_start_method} with {cpu_pool_size} CPUs.", flush=True)
+        with mp.get_context(mp_start_method).Pool(processes=cpu_pool_size) as pool:
             results = pool.starmap(utils.fast_neighbors_counts_for_block2, kwargs_list)
 
         df_density_matrix = pd.concat(self.get_dataframes(results))
