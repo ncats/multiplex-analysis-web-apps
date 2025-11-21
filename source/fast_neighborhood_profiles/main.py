@@ -19,6 +19,10 @@ import matplotlib.pyplot as plt
 #         return []
 
 
+def print_flush(msg):
+    print(msg, flush=True)
+
+
 def get_min_positive_values(pd_df, group_col="TMA_core_id", boolean_column="area_filter"):
     return pd_df.groupby(group_col)[boolean_column].sum().min()
 
@@ -42,7 +46,7 @@ def subset_csv_to_file(csv_filename="mawa-unified_datafile-TLS_tissue_SF_-202511
             getattr(lf.collect(), write_method)(filepath)
         return filepath
     except Exception as e:
-        print(f"An error occurred in function {os.path.basename(__file__)}.{subset_csv_to_file.__name__}: {e}")
+        print_flush(f"An error occurred in function {os.path.basename(__file__)}.{subset_csv_to_file.__name__}: {e}")
         return ""
 
 
@@ -60,7 +64,7 @@ def save_pandas_df_to_file(pd_df, handle="two_images", topdir=".", file_format="
             raise ValueError(f"Unsupported file format: {file_format}")
         return filepath
     except Exception as e:
-        print(f"An error occurred in function {os.path.basename(__file__)}.{save_pandas_df_to_file.__name__}: {e}")
+        print_flush(f"An error occurred in function {os.path.basename(__file__)}.{save_pandas_df_to_file.__name__}: {e}")
         return ""
 
 
@@ -76,7 +80,7 @@ def get_lf(handle, topdir=".", subdir="datafiles", file_format="parquet"):
         else:
             raise ValueError(f"Unsupported file format: {file_format}")
     except Exception as e:
-        print(f"An error occurred in function {os.path.basename(__file__)}.{get_lf.__name__}: {e}")
+        print_flush(f"An error occurred in function {os.path.basename(__file__)}.{get_lf.__name__}: {e}")
         return None
 
 
@@ -121,13 +125,13 @@ def perform_marker_phenotyping_on_lazyframe(lf, marker_columns, colname_regex_to
 
         # Ensure they match.
         assert expanded_count == total_marker_ones, f"Mismatch: num_final_rows={expanded_count}, num_original_ones={total_marker_ones}"
-        print(f"Final number of rows: {expanded_count} == total marker 1s: {total_marker_ones}")
+        print_flush(f"Final number of rows: {expanded_count} == total marker 1s: {total_marker_ones}")
 
         # Return the marker-phenotyped lazyframe.
         return marker_phenotyped_lf
     
     except Exception as e:
-        print(f"An error occurred in function {os.path.basename(__file__)}.{perform_marker_phenotyping_on_lazyframe.__name__}: {e}")
+        print_flush(f"An error occurred in function {os.path.basename(__file__)}.{perform_marker_phenotyping_on_lazyframe.__name__}: {e}")
         return None
 
 
@@ -189,7 +193,7 @@ def plot_image_from_frame(
         return fig
 
     except Exception as e:
-        print(
+        print_flush(
             f"An error occurred in function "
             f"{os.path.basename(__file__) if '__file__' in globals() else '<interactive>'}."
             f"{plot_image_from_frame.__name__}: {e}"
@@ -197,7 +201,7 @@ def plot_image_from_frame(
         return None
 
 
-def generate_umap(pldf, unique_labels, dist_bin_um_list=[25, 50, 100, 150, 200], area_downsample=0.2, um_per_px=1, cpu_pool_size=None, topdir=".", counts_method="andrew", area_threshold=0.8, custom_areas=True, seed_for_train_test_split=54321, n=2500, keep_images_with_too_little_data=True, train_sample_frac=1.0, test_sample_frac=1.0, de_min_coords=True):
+def generate_umap(pldf, unique_labels, dist_bin_um_list=[25, 50, 100, 150, 200], area_downsample=0.2, um_per_px=1, cpu_pool_size=None, topdir=".", subdir="results", counts_method="andrew", area_threshold=0.8, custom_areas=True, seed_for_train_test_split=54321, n=2500, keep_images_with_too_little_data=True, train_sample_frac=1.0, test_sample_frac=1.0, de_min_coords=True):
     # Note that cpu_pool_size=None will default to the number of available CPUs.
 
     # Instantiate the spatial umap object.
@@ -230,14 +234,14 @@ def generate_umap(pldf, unique_labels, dist_bin_um_list=[25, 50, 100, 150, 200],
     spatial_umap.species = unique_labels
 
     # Ensure results directory exists.
-    os.makedirs(os.path.join(topdir, "results"), exist_ok=True)
+    os.makedirs(os.path.join(topdir, subdir), exist_ok=True)
 
     # Determine which counting method to use based on the input parameter. Note I have shown that the methods precisely agree.
     if counts_method == "andrew":
-        print("Using Andrew's counts method.")
+        print_flush("Using Andrew's counts method.")
         get_counts_func = spatial_umap.get_counts_And
     else:
-        print("Using Baras' counts method.")
+        print_flush("Using Baras' counts method.")
         get_counts_func = spatial_umap.get_counts
 
     # Get the counts per cell and save to pickle file.
@@ -246,9 +250,9 @@ def generate_umap(pldf, unique_labels, dist_bin_um_list=[25, 50, 100, 150, 200],
     # Get the areas of cells and save to pickle file.
     if custom_areas:
         try:
-            spatial_umap.get_areas(area_threshold, pool_size=cpu_pool_size, save_file=os.path.join(topdir, "results", f"areas.csv"), plots_directory=os.path.join(topdir, "results"))  # Sets spatial_umap.cells["area_filter"] and spatial_umap.areas.
+            spatial_umap.get_areas(area_threshold, pool_size=cpu_pool_size, save_file=os.path.join(topdir, subdir, f"areas.csv"), plots_directory=os.path.join(topdir, subdir))  # Sets spatial_umap.cells["area_filter"] and spatial_umap.areas.
         except Exception as e:
-            print(f"An error occurred while calculating custom areas, potentially in SpatialUMAP.FitEllipse.fit() in \"hull = ConvexHull(d[idx_fit])\": {e}")
+            print_flush(f"An error occurred while calculating custom areas, potentially in SpatialUMAP.FitEllipse.fit() in \"hull = ConvexHull(d[idx_fit])\": {e}")
             return spatial_umap, False
     else:
         # Keep in mind areas in the Baras code seem to be in units of pixels squared.
@@ -268,42 +272,42 @@ def generate_umap(pldf, unique_labels, dist_bin_um_list=[25, 50, 100, 150, 200],
     # Output the percentage of the dataset that has been filtered out due to area filtering.
     num_total_cells = spatial_umap.cells.shape[0]
     num_kept_cells = spatial_umap.cells["area_filter"].sum()
-    print(f"{100 * (1 - num_kept_cells / num_total_cells):.1f}% of the cells have been filtered out due to area filtering.")
+    print_flush(f"{100 * (1 - num_kept_cells / num_total_cells):.1f}% of the cells have been filtered out due to area filtering.")
 
     # Check for dropped images due to insufficient cells passing area filter.
     original_images = set(spatial_umap.region_ids)
     remaining_images = set(spatial_umap.cells[spatial_umap.cells["area_filter"]]["TMA_core_id"].unique())
     dropped_images = original_images - remaining_images
     if dropped_images:
-        print(f"WARNING:")
-        print(f"  The following images were dropped (i.e., missing scatter plots) due to no cells passing the area filter: {sorted(list(dropped_images))}.")
-        print(f"  These images remain: {sorted(list(remaining_images))}.")
+        print_flush(f"WARNING:")
+        print_flush(f"  The following images were dropped (i.e., missing scatter plots) due to no cells passing the area filter: {sorted(list(dropped_images))}.")
+        print_flush(f"  These images remain: {sorted(list(remaining_images))}.")
         if remaining_images:
-            print(f"  Keep in mind that just because some images may not have been dropped, significant numbers of cells in those images may have been dropped.")
+            print_flush(f"  Keep in mind that just because some images may not have been dropped, significant numbers of cells in those images may have been dropped.")
         else:
-            print(f"  Since no images remain after area filtering, we are aborting UMAP generation.")
+            print_flush(f"  Since no images remain after area filtering, we are aborting UMAP generation.")
             return spatial_umap, False
         remaining_loc = spatial_umap.cells["TMA_core_id"].isin(remaining_images)
         spatial_umap.cells = spatial_umap.cells[remaining_loc]
         spatial_umap.density = spatial_umap.density[remaining_loc.values]
 
     min_filtered_cells = get_min_positive_values(spatial_umap.cells, group_col="TMA_core_id", boolean_column="area_filter")  # this would be zero if we didn't do the filtering-out line above (spatial_umap.cells = ...)
-    print(f"Minimum number of cells passing area filter across all TMA cores: {min_filtered_cells}")
+    print_flush(f"Minimum number of cells passing area filter across all TMA cores: {min_filtered_cells}")
 
     # Set training and "test" cells for umap training and embedding, respectively. Baras's original code had a hard cutoff of n=2500 so images with fewer than 2*2500 non-filtered-out cells were discarded entirely. n = min(n, min_filtered_cells // 2) allows these images to remain in the analysis with smaller n.
     if keep_images_with_too_little_data:
         n = min(n, min_filtered_cells // 2)
 
-    print(f"Using n_train={int(train_sample_frac*n)} cells per image for UMAP training and n_test={int(test_sample_frac*n)} for testing.")
+    print_flush(f"Using n_train={int(train_sample_frac*n)} cells per image for UMAP training and n_test={int(test_sample_frac*n)} for testing.")
     spatial_umap.set_train_test(n=n, seed=seed_for_train_test_split, train_sample_frac=train_sample_frac, test_sample_frac=test_sample_frac)
 
     # Fit umap on training cells.
     spatial_umap.umap_fit = umap.UMAP().fit(spatial_umap.density[spatial_umap.cells['umap_train'].values].reshape((spatial_umap.cells['umap_train'].sum(), -1)))
-    print(spatial_umap.umap_fit.embedding_.shape)
+    print_flush(spatial_umap.umap_fit.embedding_.shape)
 
     # Apply umap embedding on test cells.
     spatial_umap.umap_test = spatial_umap.umap_fit.transform(spatial_umap.density[spatial_umap.cells['umap_test'].values].reshape((spatial_umap.cells['umap_test'].sum(), -1)))
-    print(spatial_umap.umap_test.shape)
+    print_flush(spatial_umap.umap_test.shape)
 
     # Save the UMAP coordinates back to the cells dataframe.
     spatial_umap.cells[["umap_1", "umap_2"]] = np.nan
