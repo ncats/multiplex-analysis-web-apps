@@ -11,7 +11,7 @@ from multiprocessing import Pool
 from functools import partial
 from scipy import optimize
 import multiprocessing as mp
-import utils
+from fast_neighborhood_profiles import utils
 
 
 class SpatialUMAP:
