@@ -71,8 +71,8 @@ services:
     environment:
       # Worker image to launch (reuses frontend image for parity)
       WORKER_IMAGE: frontend  ## ENSURE THIS MATCHES FRONTEND IMAGE NAME
-      WORKER_CPUS: "8"  # Note some machines may not have 8 CPUs available so we need to change this; ensure this is changed elsewhere in code!
-      WORKER_MEM: "8g"
+      WORKER_CPUS: ""  # Note some machines may not have 8 CPUs available so we need to change this; ensure this is changed elsewhere in code!
+      WORKER_MEM: ""
       # Pass-through envs required by the worker
       DB_URL_GROUP: postgresql://postgres:password@database:5432/group_alpha_group_db
       DB_URL_APP: postgresql://postgres:password@database:5432/app_a_app_db
