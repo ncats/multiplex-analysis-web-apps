@@ -170,8 +170,8 @@ def plot_image_from_frame(
             else:
                 df = frame[[xcol, ycol, color_col]]
         else:
-            raise ValueError("Input lf must be a Polars LazyFrame, Polars DataFrame, or Pandas DataFrame.")
-
+            raise ValueError("Input frame must be a Polars LazyFrame, Polars DataFrame, or Pandas DataFrame.")
+        
         # Draw the scatter plot.
         fig = px.scatter(
             df,

@@ -59,8 +59,8 @@ def main():
         for key in widget_keys:
             del st.session_state[ST_KEY_PREFIX + key]
 
-    settings_columns = st.columns(2)
-    with settings_columns[0]:
+    main_columns = st.columns(2)
+    with main_columns[0]:
 
         # Set whether to de-min the coordinates.
         key = ST_KEY_PREFIX + "de_min_coords"
@@ -92,8 +92,6 @@ def main():
         key = ST_KEY_PREFIX + "keep_images_with_too_little_data"
         st.session_state.setdefault(key, True)
         keep_images_with_too_little_data = st.checkbox("Keep images with too little data", key=key, help="Giraldo et. al. did not do this, i.e., they dropped entire images with too little non-filtered-out data.")
-
-    with settings_columns[1]:
 
         # Set param related to the minimum number of cells per image before the image is discarded for UMAP (min=int((train_sample_frac+test_sample_frac)*n)).
         key = ST_KEY_PREFIX + "n"
@@ -162,7 +160,21 @@ def main():
         
     lf = st.session_state["LAZYFRAMES"]["sumap_cells"]["lf"]
 
-    st.write(lf.head().collect())
+    with main_columns[1]:
+
+        st.header("Check images for which (if any) cells were dropped")
+
+        st.write("`area_filter==True` means the cell was not filtered out by any custom areas calculation (if custom areas were used).")
+
+        image_colname = "TMA_core_id"
+        unique_image_ids = st.session_state[ST_KEY_PREFIX_PHENOTYPE + "unique_image_ids"]
+        with st.container(horizontal=True, vertical_alignment="bottom"):
+            st.session_state.setdefault(ST_KEY_PREFIX + "selected_image_to_plot", unique_image_ids[0])
+            selected_image_to_plot = st.selectbox("Select image to plot:", options=unique_image_ids, key=ST_KEY_PREFIX + "selected_image_to_plot")
+            st.button("Previous", on_click=lambda: st.session_state.update({ST_KEY_PREFIX + "selected_image_to_plot": unique_image_ids[max(0, unique_image_ids.index(st.session_state[ST_KEY_PREFIX + "selected_image_to_plot"]) - 1)]}), disabled=(st.session_state[ST_KEY_PREFIX + "selected_image_to_plot"] == unique_image_ids[0]))
+            st.button("Next", on_click=lambda: st.session_state.update({ST_KEY_PREFIX + "selected_image_to_plot": unique_image_ids[min(len(unique_image_ids) - 1, unique_image_ids.index(st.session_state[ST_KEY_PREFIX + "selected_image_to_plot"]) + 1)]}), disabled=(st.session_state[ST_KEY_PREFIX + "selected_image_to_plot"] == unique_image_ids[-1]))
+        marker_size = st.slider("Marker size:", min_value=1, max_value=10, value=1)
+        st.plotly_chart(fnp_main.plot_image_from_frame(lf, image_colname=image_colname, selected_images=[selected_image_to_plot], marker_size=marker_size, xcol="Xcor", ycol="Ycor", color_col="area_filter"))
 
 
 if __name__ == "__main__":
