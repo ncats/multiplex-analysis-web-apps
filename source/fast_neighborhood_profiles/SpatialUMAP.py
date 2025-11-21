@@ -221,10 +221,16 @@ class SpatialUMAP:
                 )
             )
 
-        # Create a pool of worker processes
+        # Being very explicit with errors because with forkserver/spawn I sometimes get missing output from workers. Actually confirm all workers complete using the following catches.
         print(f"Using start method {mp_start_method} with {cpu_pool_size} CPUs.", flush=True)
-        with mp.get_context(mp_start_method).Pool(processes=cpu_pool_size) as pool:
-            results = pool.starmap(fast_neighbors_counts_for_block2, kwargs_list)
+        try:
+            with mp.get_context(mp_start_method).Pool(processes=cpu_pool_size) as pool:
+                results = pool.starmap(fast_neighbors_counts_for_block2, kwargs_list)
+        except Exception as e:
+            # surface hard failures clearly in Streamlit
+            raise RuntimeError(f"Parallel run failed: {e}") from e
+
+        assert len(results) == len(kwargs_list), "Got fewer results than tasks."
 
         df_density_matrix = pd.concat(self.get_dataframes(results))
         full_array = None
