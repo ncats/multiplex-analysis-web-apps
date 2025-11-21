@@ -11,7 +11,7 @@ from multiprocessing import Pool
 from functools import partial
 from scipy import optimize
 import multiprocessing as mp
-from fast_neighborhood_profiles import utils
+from .utils import fast_neighbors_counts_for_block2
 
 
 class SpatialUMAP:
@@ -224,7 +224,7 @@ class SpatialUMAP:
         # Create a pool of worker processes
         print(f"Using start method {mp_start_method} with {cpu_pool_size} CPUs.", flush=True)
         with mp.get_context(mp_start_method).Pool(processes=cpu_pool_size) as pool:
-            results = pool.starmap(utils.fast_neighbors_counts_for_block2, kwargs_list)
+            results = pool.starmap(fast_neighbors_counts_for_block2, kwargs_list)
 
         df_density_matrix = pd.concat(self.get_dataframes(results))
         full_array = None
