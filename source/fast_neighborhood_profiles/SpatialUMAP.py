@@ -152,11 +152,11 @@ class SpatialUMAP:
             self.counts = pd.read_csv(save_file, sep=',').values.reshape((self.counts.shape[0], self.dist_bin_um.shape[0], self.cell_labels.shape[1]))
             # self.counts_after_load = self.counts.copy()
 
-    def get_counts_And(self, cpu_pool_size = 8, save_file=None):
+    def get_counts_And(self, cpu_pool_size = 8, save_file=None, mp_start_method=None):
         '''
         Andrew's method for getting counts
         '''
-        self.counts = self.calculate_density_matrix_for_all_images(cpu_pool_size)
+        self.counts = self.calculate_density_matrix_for_all_images(cpu_pool_size, mp_start_method=mp_start_method)
 
         # self.counts_before_save = self.counts.copy()
 
