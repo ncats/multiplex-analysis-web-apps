@@ -143,6 +143,8 @@ def plot_image_from_frame(
     xcol="Centroid X (µm)_(standardized)",
     ycol="Centroid Y (µm)_(standardized)",
     color_col="label",
+    existing_index_columns=[],
+    filtered_index_colname="index2",
 ):
     try:
 
@@ -151,27 +153,42 @@ def plot_image_from_frame(
             if selected_images:
                 df = (
                     frame.filter(pl.col(image_colname).is_in(selected_images))
-                    .select([image_colname, xcol, ycol, color_col])
+                    .filter(pl.col(xcol).is_not_null() & pl.col(ycol).is_not_null())
+                    .with_row_index(name=filtered_index_colname).select(existing_index_columns + [filtered_index_colname, image_colname, xcol, ycol, color_col])
                     .collect()
                 )
             else:
-                df = frame.select([image_colname, xcol, ycol, color_col]).collect()
+                df = frame.filter(pl.col(xcol).is_not_null() & pl.col(ycol).is_not_null()).with_row_index(name=filtered_index_colname).select(existing_index_columns + [filtered_index_colname, image_colname, xcol, ycol, color_col]).collect()
         elif isinstance(frame, pl.DataFrame):
             if selected_images:
                 df = (
                     frame.filter(pl.col(image_colname).is_in(selected_images))
-                    .select([image_colname, xcol, ycol, color_col])
+                    .filter(pl.col(xcol).is_not_null() & pl.col(ycol).is_not_null())
+                    .with_row_index(name=filtered_index_colname).select(existing_index_columns + [filtered_index_colname, image_colname, xcol, ycol, color_col])
                 )
             else:
-                df = frame.select([image_colname, xcol, ycol, color_col])
+                df = frame.filter(pl.col(xcol).is_not_null() & pl.col(ycol).is_not_null()).with_row_index(name=filtered_index_colname).select(existing_index_columns + [filtered_index_colname, image_colname, xcol, ycol, color_col])
         elif isinstance(frame, pd.DataFrame):
             if selected_images:
-                df = frame[frame[image_colname].isin(selected_images)][[image_colname, xcol, ycol, color_col]]
+                df = frame[frame[image_colname].isin(selected_images)][existing_index_columns + [image_colname, xcol, ycol, color_col]]
+                df[filtered_index_colname] = range(len(df))
             else:
-                df = frame[[image_colname, xcol, ycol, color_col]]
+                df = frame[existing_index_columns + [image_colname, xcol, ycol, color_col]]
+                df[filtered_index_colname] = range(len(df))
         else:
             raise ValueError("Input frame must be a Polars LazyFrame, Polars DataFrame, or Pandas DataFrame.")
         
+        hover_data = {
+                image_colname: True,
+                color_col: True,
+                xcol: True,
+                ycol: True,
+                filtered_index_colname: True,
+            }
+        
+        for index_col in existing_index_columns:
+            hover_data[index_col] = True
+
         # Draw the scatter plot.
         fig = px.scatter(
             df,
@@ -179,12 +196,7 @@ def plot_image_from_frame(
             y=ycol,
             color=color_col,
             title=f"Scatterplot colored by {color_col}",
-            hover_data={
-                image_colname: True,
-                color_col: True,
-                xcol: True,
-                ycol: True,
-            },
+            hover_data=hover_data,
         )
 
         # Preserve Plotly’s default marker size if marker_size is None.
