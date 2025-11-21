@@ -56,8 +56,8 @@ def main():
 
             density = spatial_umap.density[indices, :, :]
             density_mean = density.mean(axis=0)
-            distance_bins = st.session_state[ST_KEY_PREFIX_SUMAP + "dist_bin_um_list"]
-            phenotype_labels = st.session_state[ST_KEY_PREFIX_PHENOTYPE + "unique_labels"]
+            distance_bins = st.session_state[ST_KEY_PREFIX_SUMAP + "dist_bin_um_list"]  # should be correct
+            phenotype_labels = st.session_state[ST_KEY_PREFIX_PHENOTYPE + "unique_labels"]  # should be correct, i.e. spatial_umap.species, i.e. lf_phenotyped.select(pl.col("label").unique().sort()).collect().to_series().to_list()
 
             density_df = pl.DataFrame(density_mean, schema=phenotype_labels).with_columns(
                 pl.Series("distance_um", distance_bins)

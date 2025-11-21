@@ -74,8 +74,8 @@ class SpatialUMAP:
     def clear_areas(self):
         self.areas = np.empty((self.cell_positions.shape[0], len(self.dist_bin_um)))
 
-    def start_pool(self, processes):
-        self.pool = Pool(processes=processes)
+    def start_pool(self, processes, mp_start_method="forkserver"):
+        self.pool = mp.get_context(mp_start_method).Pool(processes=processes)
 
     def close_pool(self):
         self.pool.close()
@@ -160,11 +160,12 @@ class SpatialUMAP:
 
         # self.counts_before_save = self.counts.copy()
 
-        if save_file is not None:
-            column_names = ['%s-%s' % (cell_type, distance) for distance in self.dist_bin_um for cell_type in self.cell_labels.columns.values]
-            pd.DataFrame(self.counts.reshape((self.counts.shape[0], -1)), columns=column_names).to_csv(save_file, index=False)
-            self.counts = pd.read_csv(save_file, sep=',').values.reshape((self.counts.shape[0], self.dist_bin_um.shape[0], self.cell_labels.shape[1]))
-            # self.counts_after_load = self.counts.copy()
+        # May not necessarily be the same label order, though actually probably is (pd.dummies() vs. lazyframe sorting). So commenting out to not imply they're the same.
+        # if save_file is not None:
+        #     column_names = ['%s-%s' % (cell_type, distance) for distance in self.dist_bin_um for cell_type in self.cell_labels.columns.values]
+        #     pd.DataFrame(self.counts.reshape((self.counts.shape[0], -1)), columns=column_names).to_csv(save_file, index=False)
+        #     self.counts = pd.read_csv(save_file, sep=',').values.reshape((self.counts.shape[0], self.dist_bin_um.shape[0], self.cell_labels.shape[1]))
+        #     # self.counts_after_load = self.counts.copy()
 
     def calculate_density_matrix_for_all_images(self, cpu_pool_size = 8, mp_start_method=None):
         """
@@ -188,9 +189,9 @@ class SpatialUMAP:
 
         if mp_start_method is None:
             mp_start_method = mp.get_start_method()
-        # if mp_start_method == 'fork':
-        #     mp_start_method = 'forkserver'
-        #     print(f'Note: We are forcing the multiprocessing module to use the "forkserver" start method instead of the automatically (or manually) chosen "fork" start method.', flush=True)
+        if mp_start_method == 'fork':
+            mp_start_method = 'forkserver'
+            print(f'Note: We are forcing the multiprocessing module to use the "forkserver" start method instead of the automatically (or manually) chosen "fork" start method.', flush=True)
 
         df          = self.cells
         phenotypes  = self.species
