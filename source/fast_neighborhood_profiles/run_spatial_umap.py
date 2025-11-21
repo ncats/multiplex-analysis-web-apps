@@ -52,6 +52,12 @@ def main():
     # Get the main lazyframe from session state.
     lf_phenotyped = st.session_state["LAZYFRAMES"]["marker_phenotyping"]["lf"]
 
+    # Allow the user to reset the algorithm parameters to defaults.
+    if st.button("Reset defaults"):
+        widget_keys = ["de_min_coords", "dist_bin_um_list", "custom_areas", "area_downsample", "area_threshold", "keep_images_with_too_little_data", "n", "train_sample_frac", "test_sample_frac", "set_seed_for_train_test_split", "set_cpu_pool_size", "cpu_pool_size"]
+        for key in widget_keys:
+            del st.session_state[ST_KEY_PREFIX + key]
+
     # Set whether to de-min the coordinates.
     key = ST_KEY_PREFIX + "de_min_coords"
     st.session_state.setdefault(key, True)
@@ -81,12 +87,12 @@ def main():
     # Set whether to keep images with too little data.
     key = ST_KEY_PREFIX + "keep_images_with_too_little_data"
     st.session_state.setdefault(key, True)
-    keep_images_with_too_little_data = st.checkbox("Keep images with too little data", key=key, help="Giraldo et. al. did not do this, i.e., they dropped entire images with too little data.")
+    keep_images_with_too_little_data = st.checkbox("Keep images with too little data", key=key, help="Giraldo et. al. did not do this, i.e., they dropped entire images with too little non-filtered-out data.")
 
     # Set param related to the minimum number of cells per image before the image is discarded for UMAP (min=int((train_sample_frac+test_sample_frac)*n)).
     key = ST_KEY_PREFIX + "n"
     st.session_state.setdefault(key, 2500)
-    n = st.number_input("Param related to min. # of cells per image before the image is discarded for UMAP (`min=int((train_sample_frac+test_sample_frac)*n)`):", min_value=1, step=1, key=key)
+    n = st.number_input("Param related to min. # of cells per image before the image is discarded for UMAP (`min = int((train_sample_frac + test_sample_frac) * n)`):", min_value=1, step=1, key=key)
 
     # Set UMAP train sample fraction.
     key = ST_KEY_PREFIX + "train_sample_frac"
@@ -122,16 +128,16 @@ def main():
     if st.button("Run spatial UMAP"):
         with st.spinner("Running spatial UMAP..."):
 
-            pldf_phenotyped = format_lazyframe(lf_phenotyped, sample_size=None, sample_seed=42)  # Not making this two parameters editable as haven't used for a while.
+            pldf_phenotyped = format_lazyframe(lf_phenotyped, sample_size=None, sample_seed=42)  # Not making these two parameters editable as haven't used for a while.
             unique_labels = st.session_state[ST_KEY_PREFIX_PHENOTYPE + "unique_labels"]
 
-            spatial_umap, success = fnp_main.generate_umap(pldf_phenotyped, unique_labels, dist_bin_um_list=dist_bin_um_list, area_downsample=area_downsample, um_per_px=1, cpu_pool_size=cpu_pool_size, topdir=".", counts_method="andrew", area_threshold=area_threshold, custom_areas=custom_areas, seed_for_train_test_split=seed_for_train_test_split, n=n, keep_images_with_too_little_data=keep_images_with_too_little_data, train_sample_frac=train_sample_frac, test_sample_frac=test_sample_frac, de_min_coords=de_min_coords)
+            spatial_umap, _ = fnp_main.generate_umap(pldf_phenotyped, unique_labels, dist_bin_um_list=dist_bin_um_list, area_downsample=area_downsample, um_per_px=1, cpu_pool_size=cpu_pool_size, topdir=".", counts_method="andrew", area_threshold=area_threshold, custom_areas=custom_areas, seed_for_train_test_split=seed_for_train_test_split, n=n, keep_images_with_too_little_data=keep_images_with_too_little_data, train_sample_frac=train_sample_frac, test_sample_frac=test_sample_frac, de_min_coords=de_min_coords)
 
-            if success:
-                st.session_state[ST_KEY_PREFIX + "spatial_umap"] = spatial_umap
+            st.session_state[ST_KEY_PREFIX + "spatial_umap"] = spatial_umap
 
     if ST_KEY_PREFIX + "spatial_umap" not in st.session_state:
         st.info("Please run spatial UMAP first.")
+        return
 
     st.success("✅ Spatial UMAP completed successfully!")
 

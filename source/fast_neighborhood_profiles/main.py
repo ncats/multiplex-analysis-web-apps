@@ -290,7 +290,7 @@ def generate_umap(pldf, unique_labels, dist_bin_um_list=[25, 50, 100, 150, 200],
     min_filtered_cells = get_min_positive_values(spatial_umap.cells, group_col="TMA_core_id", boolean_column="area_filter")  # this would be zero if we didn't do the filtering-out line above (spatial_umap.cells = ...)
     print(f"Minimum number of cells passing area filter across all TMA cores: {min_filtered_cells}")
 
-    # Set training and "test" cells for umap training and embedding, respectively. Baras's original code had a hard cutoff of n=2500 so images with fewer than 2500 non-filtered-out cells were discarded entirely. n = min(n, min_filtered_cells // 2) allows these images to remain in the analysis with smaller n.
+    # Set training and "test" cells for umap training and embedding, respectively. Baras's original code had a hard cutoff of n=2500 so images with fewer than 2*2500 non-filtered-out cells were discarded entirely. n = min(n, min_filtered_cells // 2) allows these images to remain in the analysis with smaller n.
     if keep_images_with_too_little_data:
         n = min(n, min_filtered_cells // 2)
 
