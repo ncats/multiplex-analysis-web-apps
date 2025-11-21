@@ -188,9 +188,9 @@ class SpatialUMAP:
 
         if mp_start_method is None:
             mp_start_method = mp.get_start_method()
-        if mp_start_method == 'fork':
-            mp_start_method = 'forkserver'
-            print(f'Note: We are forcing the multiprocessing module to use the "forkserver" start method instead of the automatically (or manually) chosen "fork" start method.', flush=True)
+        # if mp_start_method == 'fork':
+        #     mp_start_method = 'forkserver'
+        #     print(f'Note: We are forcing the multiprocessing module to use the "forkserver" start method instead of the automatically (or manually) chosen "fork" start method.', flush=True)
 
         df          = self.cells
         phenotypes  = self.species
