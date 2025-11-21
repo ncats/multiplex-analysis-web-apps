@@ -47,7 +47,7 @@ def main():
 
     # Ensure the phenotyped lazyframe is ready for usage.
     if not ("LAZYFRAMES" in st.session_state and "marker_phenotyping" in st.session_state["LAZYFRAMES"]):
-        st.warning("Please perform phenotyping first (at left).")
+        st.warning("Please perform phenotyping (at left).")
         return
 
     # Get the main lazyframe from session state.

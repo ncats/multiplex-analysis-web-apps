@@ -151,24 +151,24 @@ def plot_image_from_frame(
             if selected_images:
                 df = (
                     frame.filter(pl.col(image_colname).is_in(selected_images))
-                    .select([xcol, ycol, color_col])
+                    .select([image_colname, xcol, ycol, color_col])
                     .collect()
                 )
             else:
-                df = frame.select([xcol, ycol, color_col]).collect()
+                df = frame.select([image_colname, xcol, ycol, color_col]).collect()
         elif isinstance(frame, pl.DataFrame):
             if selected_images:
                 df = (
                     frame.filter(pl.col(image_colname).is_in(selected_images))
-                    .select([xcol, ycol, color_col])
+                    .select([image_colname, xcol, ycol, color_col])
                 )
             else:
-                df = frame.select([xcol, ycol, color_col])
+                df = frame.select([image_colname, xcol, ycol, color_col])
         elif isinstance(frame, pd.DataFrame):
             if selected_images:
-                df = frame[frame[image_colname].isin(selected_images)][[xcol, ycol, color_col]]
+                df = frame[frame[image_colname].isin(selected_images)][[image_colname, xcol, ycol, color_col]]
             else:
-                df = frame[[xcol, ycol, color_col]]
+                df = frame[[image_colname, xcol, ycol, color_col]]
         else:
             raise ValueError("Input frame must be a Polars LazyFrame, Polars DataFrame, or Pandas DataFrame.")
         
@@ -179,6 +179,12 @@ def plot_image_from_frame(
             y=ycol,
             color=color_col,
             title=f"Scatterplot colored by {color_col}",
+            hover_data={
+                image_colname: True,
+                color_col: True,
+                xcol: True,
+                ycol: True,
+            },
         )
 
         # Preserve Plotly’s default marker size if marker_size is None.

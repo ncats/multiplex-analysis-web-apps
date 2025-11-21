@@ -86,10 +86,7 @@ def load_session_state():
                     result = function(**params)
                 elif input_dataset["type"] == "lf":
                     lf = st.session_state["LAZYFRAMES"][input_dataset["keys"][0]]["lf"]
-                    print('BEFORE', flush=True)
-                    print(type(lf), flush=True)
                     result = function(lf, **params)
-                    print('AFTER', flush=True)
                 elif input_dataset["type"] == "pandas_df":
                     pd_df = getattr(st.session_state[input_dataset["keys"][0]], input_dataset["keys"][1])
                     result = function(pd_df, **params)

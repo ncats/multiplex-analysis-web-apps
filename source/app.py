@@ -40,6 +40,7 @@ import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected 
 from fast_neighborhood_profiles import load_unified_input_file
 from fast_neighborhood_profiles import phenotype
 from fast_neighborhood_profiles import run_spatial_umap
+from fast_neighborhood_profiles import study_results
 
 ST_KEY_PREFIX = "app.py__"
 ST_KEY_PREFIX_STARTUP = "startup.py__"
@@ -83,6 +84,7 @@ def main():
                 st.Page(load_unified_input_file.main, title="Load unified input file", url_path='load_unified_input_file'),
                 st.Page(phenotype.main, title="Phenotype", url_path='phenotype'),
                 st.Page(run_spatial_umap.main, title="Run spatial UMAP", url_path='run_spatial_umap'),
+                st.Page(study_results.main, title="Study results", url_path='study_results'),
                 ],
             "Framework": [
                 st.Page(generate_results.main, title="Generate results", url_path='generate_results'),
