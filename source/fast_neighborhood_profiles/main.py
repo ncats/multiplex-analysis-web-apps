@@ -144,7 +144,6 @@ def plot_image_from_frame(
     ycol="Centroid Y (µm)_(standardized)",
     color_col="label",
     existing_index_columns=[],
-    filtered_index_colname="index2",
 ):
     try:
 
@@ -152,29 +151,41 @@ def plot_image_from_frame(
         if isinstance(frame, pl.LazyFrame):
             if selected_images:
                 df = (
-                    frame.filter(pl.col(image_colname).is_in(selected_images))
+                    frame
+                    .filter(pl.col(image_colname).is_in(selected_images))
                     .filter(pl.col(xcol).is_not_null() & pl.col(ycol).is_not_null())
-                    .with_row_index(name=filtered_index_colname).select(existing_index_columns + [filtered_index_colname, image_colname, xcol, ycol, color_col])
+                    .select(existing_index_columns + [image_colname, xcol, ycol, color_col])
                     .collect()
                 )
             else:
-                df = frame.filter(pl.col(xcol).is_not_null() & pl.col(ycol).is_not_null()).with_row_index(name=filtered_index_colname).select(existing_index_columns + [filtered_index_colname, image_colname, xcol, ycol, color_col]).collect()
+                df = (
+                    frame
+                    .filter(pl.col(xcol).is_not_null() & pl.col(ycol).is_not_null())
+                    .select(existing_index_columns + [image_colname, xcol, ycol, color_col])
+                    .collect()
+                )
         elif isinstance(frame, pl.DataFrame):
             if selected_images:
                 df = (
-                    frame.filter(pl.col(image_colname).is_in(selected_images))
+                    frame
+                    .filter(pl.col(image_colname).is_in(selected_images))
                     .filter(pl.col(xcol).is_not_null() & pl.col(ycol).is_not_null())
-                    .with_row_index(name=filtered_index_colname).select(existing_index_columns + [filtered_index_colname, image_colname, xcol, ycol, color_col])
+                    .select(existing_index_columns + [image_colname, xcol, ycol, color_col])
                 )
             else:
-                df = frame.filter(pl.col(xcol).is_not_null() & pl.col(ycol).is_not_null()).with_row_index(name=filtered_index_colname).select(existing_index_columns + [filtered_index_colname, image_colname, xcol, ycol, color_col])
+                df = (
+                    frame
+                    .filter(pl.col(xcol).is_not_null() & pl.col(ycol).is_not_null())
+                    .select(existing_index_columns + [image_colname, xcol, ycol, color_col])
+                )
         elif isinstance(frame, pd.DataFrame):
             if selected_images:
-                df = frame[frame[image_colname].isin(selected_images)][existing_index_columns + [image_colname, xcol, ycol, color_col]]
-                df[filtered_index_colname] = range(len(df))
+                mask = frame[image_colname].isin(selected_images)
+                mask &= frame[xcol].notna() & frame[ycol].notna()
+                df = frame.loc[mask, existing_index_columns + [image_colname, xcol, ycol, color_col]]
             else:
-                df = frame[existing_index_columns + [image_colname, xcol, ycol, color_col]]
-                df[filtered_index_colname] = range(len(df))
+                mask = frame[xcol].notna() & frame[ycol].notna()
+                df = frame.loc[mask, existing_index_columns + [image_colname, xcol, ycol, color_col]]
         else:
             raise ValueError("Input frame must be a Polars LazyFrame, Polars DataFrame, or Pandas DataFrame.")
         
@@ -183,7 +194,6 @@ def plot_image_from_frame(
                 color_col: True,
                 xcol: True,
                 ycol: True,
-                filtered_index_colname: True,
             }
         
         for index_col in existing_index_columns:
