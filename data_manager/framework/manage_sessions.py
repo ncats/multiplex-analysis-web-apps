@@ -77,6 +77,29 @@ def load_session_state():
         # Restore the startup keys.
         st.session_state.update(startup_keys)
 
+        if "LAZYFRAMES" in st.session_state:
+            for key in st.session_state["LAZYFRAMES"]:
+                function = st.session_state["LAZYFRAMES"][key]["function"]
+                input_dataset = st.session_state["LAZYFRAMES"][key]["input_dataset"]
+                params = st.session_state["LAZYFRAMES"][key]["params"]
+                if input_dataset is None:
+                    result = function(**params)
+                elif input_dataset["type"] == "lf":
+                    lf = st.session_state["LAZYFRAMES"][input_dataset["keys"][0]]["lf"]
+                    print('BEFORE', flush=True)
+                    print(type(lf), flush=True)
+                    result = function(lf, **params)
+                    print('AFTER', flush=True)
+                elif input_dataset["type"] == "pandas_df":
+                    pd_df = getattr(st.session_state[input_dataset["keys"][0]], input_dataset["keys"][1])
+                    result = function(pd_df, **params)
+                if isinstance(result, tuple):
+                    st.session_state["LAZYFRAMES"][key]["lf"] = result[0]
+                    st.session_state["LAZYFRAMES"][key]["extras"] = result[1]
+                else:
+                    st.session_state["LAZYFRAMES"][key]["lf"] = result
+                    st.session_state["LAZYFRAMES"][key]["extras"] = None
+
         return True
     except Exception as e:
         st.error(f"Failed to load session state: {e}")

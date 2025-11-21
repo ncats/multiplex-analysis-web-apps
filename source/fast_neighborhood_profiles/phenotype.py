@@ -1,8 +1,6 @@
 # Import relevant libraries.
 import streamlit as st
 from fast_neighborhood_profiles import main as fnp_main
-import os
-import framework.utils as framework_utils
 import polars as pl
 
 # Define constant.
@@ -23,12 +21,8 @@ def get_marker_columns(lf, exclusion_suffix=""):
 def main():
 
     # Ensure the main lazyframe is ready for usage.
-    if not (
-        ("LAZYFRAMES" in st.session_state)
-        and ("unified_input_file" in st.session_state["LAZYFRAMES"])
-        and (os.path.exists(os.path.join(framework_utils.session_dir(), st.session_state["LAZYFRAMES"]["unified_input_file"]["input_params"]["local_filepath"])))
-        ):
-        st.warning("Please load a unified input file first (at left).")
+    if not ("LAZYFRAMES" in st.session_state and "unified_input_file" in st.session_state["LAZYFRAMES"]):
+        st.warning("Please load a unified input file (at left).")
         return
 
     # Get the main lazyframe from session state.
@@ -60,10 +54,14 @@ def main():
 
         # Allow the user to perform phenotyping.
         if st.button("Perform marker phenotyping"):
-            lf_phenotyped = fnp_main.perform_marker_phenotyping_on_lazyframe(lf, marker_columns)
+            params = {"marker_columns": marker_columns}
+            lf_phenotyped = fnp_main.perform_marker_phenotyping_on_lazyframe(lf, **params)
             st.session_state["LAZYFRAMES"]["marker_phenotyping"] = {
                 "lf": lf_phenotyped,
-                "input_params": {"input_key": "unified_input_file", "function": fnp_main.perform_marker_phenotyping_on_lazyframe, "inputs": {"marker_columns": marker_columns}},
+                "function": fnp_main.perform_marker_phenotyping_on_lazyframe,
+                "input_dataset": {"type": "lf", "keys": ("unified_input_file",)},
+                "params": params,
+                "extras": None,
             }
             st.session_state[ST_KEY_PREFIX + "num_phenotyped_rows"] = lf_phenotyped.select(pl.len()).collect().item()
             st.session_state[ST_KEY_PREFIX + "unique_labels"] = lf_phenotyped.select(pl.col("label").unique().sort()).collect().to_series().to_list()
@@ -86,7 +84,7 @@ def main():
         '''
         st.markdown(information)
 
-    # Temporarily write something that access the lazyframe so we can test the framework.
+    # Plot the phenotyped data.
     with main_columns[1]:
         image_colname = "Image ID_(standardized)"
         with st.container(horizontal=True, vertical_alignment="bottom"):

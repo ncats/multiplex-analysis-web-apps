@@ -45,8 +45,9 @@ def load_unified_input_file_data(file_format, db_schema, bucket_name, object_fil
         # Load the lazyframe.
         lf = fnp_main.get_lf("unified_input_file", topdir=framework_utils.session_dir(), subdir="input", file_format=file_format)
 
-        # Save the lazyframe and its metadata to the session state.
-        return {"lf": lf, "input_params": {"file_format": file_format, "db_schema": db_schema, "bucket_name": bucket_name, "object_filename": full_filenames[0], "local_filepath": filepath.removeprefix(framework_utils.session_dir() + os.sep)}}
+        local_filepath = filepath.removeprefix(framework_utils.session_dir() + os.sep)
+
+        return lf, {"local_filepath": local_filepath}
 
 
 # Get the list of objects in the bucket.
@@ -107,50 +108,49 @@ def main():
                     file_format = "parquet" if intermediate_file_format == "parquet (recommended)" else intermediate_file_format
                     db_schema = get_location_settings()[upload_location]["db_schema"]
                     bucket_name = get_location_settings()[upload_location]["bucket_name"]
+                    params = dict(file_format=file_format, db_schema=db_schema, bucket_name=bucket_name, object_filename=object_filename)
+                    lf, extras = load_unified_input_file_data(**params)
                     st.session_state["LAZYFRAMES"] = {}  # Clear existing lazyframes.
-                    st.session_state["LAZYFRAMES"]["unified_input_file"] = load_unified_input_file_data(file_format, db_schema, bucket_name, object_filename)
+                    st.session_state["LAZYFRAMES"]["unified_input_file"] = {
+                        "lf": lf,
+                        "function": load_unified_input_file_data,
+                        "input_dataset": None,
+                        "params": params,
+                        "extras": extras,
+                    }
 
     # If there's lazyframe information in the session state...
-    if "LAZYFRAMES" in st.session_state and "unified_input_file" in st.session_state["LAZYFRAMES"]:
+    if not ("LAZYFRAMES" in st.session_state and "unified_input_file" in st.session_state["LAZYFRAMES"]):
+        st.info("Please load a unified input file (whether above or from a session archive) to see its details here.")
+        return
 
-        # Get information about the lazyframe from the metadata in the session state.
-        file_format = st.session_state["LAZYFRAMES"]["unified_input_file"]["input_params"]["file_format"]
-        db_schema = st.session_state["LAZYFRAMES"]["unified_input_file"]["input_params"]["db_schema"]
-        bucket_name = st.session_state["LAZYFRAMES"]["unified_input_file"]["input_params"]["bucket_name"]
-        object_filename = st.session_state["LAZYFRAMES"]["unified_input_file"]["input_params"]["object_filename"]
-        filepath = os.path.join(framework_utils.session_dir(), st.session_state["LAZYFRAMES"]["unified_input_file"]["input_params"]["local_filepath"])
+    # Get information about the lazyframe from the metadata in the session state.
+    file_format = st.session_state["LAZYFRAMES"]["unified_input_file"]["params"]["file_format"]
+    db_schema = st.session_state["LAZYFRAMES"]["unified_input_file"]["params"]["db_schema"]
+    bucket_name = st.session_state["LAZYFRAMES"]["unified_input_file"]["params"]["bucket_name"]
+    object_filename = st.session_state["LAZYFRAMES"]["unified_input_file"]["params"]["object_filename"]
+    filepath = os.path.join(framework_utils.session_dir(), st.session_state["LAZYFRAMES"]["unified_input_file"]["extras"]["local_filepath"])
 
-        # If the intermediate file doesn't actually exist, we know we have to load the intermediate file and define a lazyframe to point to it.
-        if not os.path.exists(filepath):
-            # Load the unified input file into a lazyframe.
-            st.session_state["LAZYFRAMES"]["unified_input_file"] = load_unified_input_file_data(file_format=file_format, db_schema=db_schema, bucket_name=bucket_name, object_filename=object_filename)
+    # Get the lazyframe from the session state now.
+    lf = st.session_state["LAZYFRAMES"]["unified_input_file"]["lf"]
 
-            # Load any other lazyframes.
-            other_lazyframes = [lf_name for lf_name in st.session_state["LAZYFRAMES"] if lf_name != "unified_input_file"]
-            for lf_name in other_lazyframes:
-                input_params = st.session_state["LAZYFRAMES"][lf_name]["input_params"]
-                st.session_state["LAZYFRAMES"][lf_name]["lf"] = input_params["function"](st.session_state["LAZYFRAMES"][input_params["input_key"]]["lf"], **input_params["inputs"])
+    # At this point the lazyframe must be working, so display information about it.
+    information = f'''
+    Properties:
 
-        # Get the lazyframe from the session state now that it's certainly up-to-date using either loading method (choosing a row or reading metadata from the session state).
-        lf = st.session_state["LAZYFRAMES"]["unified_input_file"]["lf"]
+    :small_orange_diamond: File format: `{file_format}`  
+    :small_orange_diamond: database.schema: `{db_schema}`  
+    :small_orange_diamond: Bucket name: `{bucket_name}`  
+    :small_orange_diamond: Object filename: `{object_filename}`  
+    :small_orange_diamond: Filepath: `{filepath}`  
+    :small_orange_diamond: Number of rows: `{lf.select(pl.len()).collect().item():_}`  
+    :small_orange_diamond: Number of columns: `{len(lf.collect_schema())}`  
+    '''
+    st.markdown(information)
 
-        # At this point the lazyframe must be working, so display information about it.
-        information = f'''
-        Properties:
-
-        :small_orange_diamond: File format: `{file_format}`  
-        :small_orange_diamond: database.schema: `{db_schema}`  
-        :small_orange_diamond: Bucket name: `{bucket_name}`  
-        :small_orange_diamond: Object filename: `{object_filename}`  
-        :small_orange_diamond: Filepath: `{filepath}`  
-        :small_orange_diamond: Number of rows: `{lf.select(pl.len()).collect().item():_}`  
-        :small_orange_diamond: Number of columns: `{len(lf.collect_schema())}`  
-        '''
-        st.markdown(information)
-
-        # Show a sample of 100 rows from the lazyframe.
-        st.write(lf.collect().sample(100).sort(pl.col("Image ID_(standardized)")))
-        st.button("Resample dataset")
+    # Show a sample of 100 rows from the lazyframe.
+    st.write(lf.collect().sample(100).sort(pl.col("Image ID_(standardized)")))
+    st.button("Resample dataset")
 
 
 # Run the main function if this script is executed.

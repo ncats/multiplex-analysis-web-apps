@@ -9,6 +9,11 @@ ST_KEY_PREFIX = "run_spatial_umap.py__"
 ST_KEY_PREFIX_PHENOTYPE = "phenotype.py__"
 
 
+def save_and_load_pandas_df_to_lf(pd_df, handle, file_format):
+    fnp_main.save_pandas_df_to_file(pd_df, handle=handle, file_format=file_format, topdir=framework_utils.session_dir(), subdir="input")
+    return fnp_main.get_lf(handle, topdir=framework_utils.session_dir(), subdir="input", file_format=file_format)
+
+
 # Format the lazyframe, optionally sample it, and convert to a polars dataframe.
 def format_lazyframe(lf, sample_size=None, sample_seed=42):
 
@@ -41,16 +46,12 @@ def format_lazyframe(lf, sample_size=None, sample_seed=42):
 def main():
 
     # Ensure the phenotyped lazyframe is ready for usage.
-    if not (
-        ("LAZYFRAMES" in st.session_state)
-        and ("marker_phenotyping" in st.session_state["LAZYFRAMES"])
-        and (os.path.exists(os.path.join(framework_utils.session_dir(), st.session_state["LAZYFRAMES"]["unified_input_file"]["input_params"]["local_filepath"])))
-        ):
+    if not ("LAZYFRAMES" in st.session_state and "marker_phenotyping" in st.session_state["LAZYFRAMES"]):
         st.warning("Please perform phenotyping first (at left).")
         return
 
     # Get the main lazyframe from session state.
-    lf_phenotyped = st.session_state["LAZYFRAMES"]["marker_phenotyping"]["lf"]
+    lf = st.session_state["LAZYFRAMES"]["marker_phenotyping"]["lf"]
 
     # Allow the user to reset the algorithm parameters to defaults.
     if st.button("Reset defaults"):
@@ -131,33 +132,37 @@ def main():
             cpu_pool_size = None
 
     sumap_cell_file_format = "parquet"
+    key = ST_KEY_PREFIX + "spatial_umap"
     if st.button("Run spatial UMAP"):
         with st.spinner("Running spatial UMAP..."):
 
-            pldf_phenotyped = format_lazyframe(lf_phenotyped, sample_size=None, sample_seed=42)  # Not making these two parameters editable as haven't used for a while.
+            pldf_phenotyped = format_lazyframe(lf, sample_size=None, sample_seed=42)  # Not making these two parameters editable as haven't used for a while.
             unique_labels = st.session_state[ST_KEY_PREFIX_PHENOTYPE + "unique_labels"]
             topdir = framework_utils.session_dir()
             subdir = os.path.join("output", "spatial_umap")
 
             spatial_umap, _ = fnp_main.generate_umap(pldf_phenotyped, unique_labels, dist_bin_um_list=dist_bin_um_list, area_downsample=area_downsample, um_per_px=1, cpu_pool_size=cpu_pool_size, topdir=topdir, subdir=subdir, counts_method="andrew", area_threshold=area_threshold, custom_areas=custom_areas, seed_for_train_test_split=seed_for_train_test_split, n=n, keep_images_with_too_little_data=keep_images_with_too_little_data, train_sample_frac=train_sample_frac, test_sample_frac=test_sample_frac, de_min_coords=de_min_coords, mp_start_method='forkserver')
 
-            st.session_state[ST_KEY_PREFIX + "spatial_umap"] = spatial_umap
+            st.session_state[key] = spatial_umap
 
-            sumap_cells_filepath = os.path.join(framework_utils.session_dir(), "input", f"sumap_cells.{sumap_cell_file_format}")
-            if os.path.exists(sumap_cells_filepath):
-                os.remove(sumap_cells_filepath)
-
-    if ST_KEY_PREFIX + "spatial_umap" not in st.session_state:
-        st.info("Please run spatial UMAP first.")
+            params = dict(handle="sumap_cells", file_format=sumap_cell_file_format)
+            lf = save_and_load_pandas_df_to_lf(spatial_umap.cells, **params)
+            st.session_state["LAZYFRAMES"]["sumap_cells"] = {
+                "lf": lf,
+                "function": save_and_load_pandas_df_to_lf,
+                "input_dataset": {"type": "pandas_df", "keys": (key, "cells")},
+                "params": params,
+                "extras": None,
+                }
+            
+    # Ensure the cells lazyframe is in session state.
+    if "sumap_cells" not in st.session_state["LAZYFRAMES"]:
+        st.info("Please press the button above to generate spatial UMAP results.")
         return
+        
+    lf = st.session_state["LAZYFRAMES"]["sumap_cells"]["lf"]
 
-    st.success("Spatial UMAP results are ready.")
-
-    spatial_umap = st.session_state[ST_KEY_PREFIX + "spatial_umap"]
-
-    if not os.path.exists(os.path.join(framework_utils.session_dir(), "input", f"sumap_cells.{sumap_cell_file_format}")):
-        with st.spinner("Saving spatial UMAP results to file..."):
-            fnp_main.save_pandas_df_to_file(spatial_umap.cells, handle="sumap_cells", file_format=sumap_cell_file_format, topdir=framework_utils.session_dir(), subdir="input")
+    st.write(lf.head().collect())
 
 
 if __name__ == "__main__":
