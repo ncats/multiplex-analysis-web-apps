@@ -53,14 +53,16 @@ def main():
     # Get the main lazyframe from session state.
     lf = st.session_state["LAZYFRAMES"]["marker_phenotyping"]["lf"]
 
-    # Allow the user to reset the algorithm parameters to defaults.
-    if st.button("Reset defaults"):
-        widget_keys = ["de_min_coords", "dist_bin_um_list", "custom_areas", "area_downsample", "area_threshold", "keep_images_with_too_little_data", "n", "train_sample_frac", "test_sample_frac", "set_seed_for_train_test_split", "set_cpu_pool_size", "cpu_pool_size"]
-        for key in widget_keys:
-            del st.session_state[ST_KEY_PREFIX + key]
-
     main_columns = st.columns(2)
     with main_columns[0]:
+
+        st.header("Analysis parameters")
+
+        # Allow the user to reset the algorithm parameters to defaults.
+        if st.button("Reset defaults"):
+            widget_keys = ["de_min_coords", "dist_bin_um_list", "custom_areas", "area_downsample", "area_threshold", "keep_images_with_too_little_data", "n", "train_sample_frac", "test_sample_frac", "set_seed_for_train_test_split", "set_cpu_pool_size", "cpu_pool_size"]
+            for key in widget_keys:
+                del st.session_state[ST_KEY_PREFIX + key]
 
         # Set whether to de-min the coordinates.
         key = ST_KEY_PREFIX + "de_min_coords"
