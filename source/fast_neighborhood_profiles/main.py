@@ -207,6 +207,7 @@ def plot_image_from_frame(
             color=color_col,
             title=f"Scatterplot colored by {color_col}",
             hover_data=hover_data,
+            render_mode="webgl",
         )
 
         # Preserve Plotly’s default marker size if marker_size is None.

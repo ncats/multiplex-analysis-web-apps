@@ -78,7 +78,9 @@ def main():
         marker_size = st.slider("Marker size:", min_value=1, max_value=10, value=1)
 
         # Plot the UMAP with selectable points.
-        selection = st.plotly_chart(fnp_main.plot_image_from_frame(lf_indexed, image_colname=image_colname, selected_images=selected_images_to_plot, marker_size=marker_size, xcol="umap_1", ycol="umap_2", color_col="Lineage", custom_columns=["index"]), on_select="rerun", selection_mode=("points", "box", "lasso"))
+        fig = fnp_main.plot_image_from_frame(lf_indexed, image_colname=image_colname, selected_images=selected_images_to_plot, marker_size=marker_size, xcol="umap_1", ycol="umap_2", color_col="Lineage", custom_columns=["index"])
+        fig.update_layout(uirevision="static")  # this doesn't seem to be honored; investigate in the future
+        selection = st.plotly_chart(fig, on_select="rerun", selection_mode=("points", "box", "lasso"), key=ST_KEY_PREFIX + "umap_plot__do_not_persist")
 
     # In the second of two columns...
     with main_columns[1]:
