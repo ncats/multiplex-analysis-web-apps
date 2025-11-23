@@ -1,7 +1,8 @@
 import streamlit as st
 import os
 import io
-import psycopg2.pool  # Probably change to version 3 (psycopg) soon!
+# import psycopg  # psycopg v3 main package (migrated from psycopg2)
+from psycopg_pool import ConnectionPool  # Lightweight, thread-safe pooling (best practice Nov 2025)
 import minio
 import getpass
 import polars as pl
@@ -12,8 +13,6 @@ import framework.analysis_framework as analysis_framework
 import framework.snowflake_connections as snowflake_connections
 import framework.snowflake_orchestrator as snowflake_orchestrator
 from concurrent.futures import ThreadPoolExecutor, as_completed
-import time
-import hashlib
 import mimetypes
 import gzip
 import tempfile
@@ -33,249 +32,197 @@ APP_SHORTNAME = os.getenv('APP_SHORTNAME')
 
 
 @st.cache_resource()
-def get_connection_pool(db_url):
-    if framework_utils.platform() == "local":
-        # Note we could use atexit to gracefully close the db connection pool. Note that nothing is needed for minio as shutdown is already clean.
-        try:
-            pool = psycopg2.pool.ThreadedConnectionPool(
-                minconn=1,
-                maxconn=10,
-                dsn=db_url
-            )
-            atexit.register(lambda: pool.closeall())
-            return pool
-        except Exception as e:
-            st.error(f"Failed to create database pool: {e}")
-            return None
-    elif framework_utils.platform() == "snowflake":
-        pass  # Like everything left as "pass", this is not needed on Snowflake.
+def get_connection_pool(db_url: str):
+    """Return a psycopg v3 ConnectionPool for a given Postgres conninfo.
 
-
-# Note we could set this and the following up using @contextmanager as in 8/28/25 chat with GH Copilot, but keeping out for now for simplicity.
-def get_database_connection(db_url):
-    if framework_utils.platform() == "local":
-        try:
-            db_pool = get_connection_pool(db_url)
-            if db_pool:
-                return db_pool.getconn()
-        except Exception as e:
-            st.error(f"Failed to get database connection: {e}")
-            return None
-    elif framework_utils.platform() == "snowflake":
-        pass
-
-
-def return_database_connection(conn, db_url):
-    if framework_utils.platform() == "local":
-        try:
-            db_pool = get_connection_pool(db_url)
-            if db_pool and conn:
-                db_pool.putconn(conn)
-            return True
-        except Exception as e:
-            st.error(f"Failed to return database connection: {e}")
-            return False
-    elif framework_utils.platform() == "snowflake":
-        pass
-
-# Helper to avoid repeating rollback logic in postgresql.
-def _rollback_and_return(conn, db_url):
-    if conn:
-        try:
-            conn.rollback()
-        except Exception:
-            pass
-        return_database_connection(conn, db_url)
+    Notes (Nov 2025 best practice):
+    - psycopg_pool.ConnectionPool offers automatic recycling and safe usage from multiple threads.
+    - Use pool.connection() context manager for automatic return and rollback on exceptions.
+    - Explicit close() registered at exit for clean shutdown.
+    - We keep min_size=1/max_size=10 similar to previous configuration; tune as needed.
+    """
+    if framework_utils.platform() != "local":
+        return None  # Snowflake path does not use PostgreSQL.
+    try:
+        pool = ConnectionPool(
+            conninfo=db_url,
+            min_size=1,
+            max_size=10,
+            timeout=30,      # seconds to wait for a free connection (adjust if needed)
+            num_workers=3,   # async maintenance workers; small number for lightweight local usage
+        )
+        atexit.register(lambda: pool.close())
+        return pool
+    except Exception as e:
+        st.error(f"Failed to create database pool: {e}")
+        return None
 
 
 # Create four tables for the app. Note it should be largely consistent with what's in 01_set_up_non_user_objects.sql for now, and later on we should probably have this function, if even still necessary, just run setup.sql so we don't have to maintain this logic in two places.
-@st.cache_data()
 def set_up_postgresql():
     if framework_utils.platform() == "local":
         try:
-            conn_common = get_database_connection(DB_URL_COMMON)
-            with conn_common.cursor() as cur:
-                # Create schema if it doesn't exist
-                cur.execute(f"""
-                    CREATE SCHEMA IF NOT EXISTS admin_schema
-                """)
-                
-                # Check if user_groups_table table exists and is empty
-                cur.execute(f"""
-                    SELECT EXISTS (
-                        SELECT FROM information_schema.tables
-                        WHERE table_schema = 'admin_schema'
-                        AND table_name = 'user_groups_table'
-                    )
-                """)
-                table_exists = cur.fetchone()[0]
-                # Create user_groups_table table.
-                cur.execute(f"""
-                    CREATE TABLE IF NOT EXISTS admin_schema.user_groups_table (
-                        id SERIAL PRIMARY KEY,
-                        username VARCHAR(255) UNIQUE NOT NULL,
-                        user_group VARCHAR(255),
-                        user_added_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        who_added VARCHAR(255),
-                        user_email VARCHAR(255)
-                    )
-                """)
-                # Only insert initial users if table was just created (didn't exist before)
-                if not table_exists:
-                    initial_users = [
-                        ('andrew', 'dmap', 'andrew', 'andrew@example.com'),
-                        ('jessica', 'ABC Lab', 'andrew', 'jessica@example.com'),
-                        ('Tessa', 'dmap', 'andrew', 'tessa@example.com')
-                    ]
-                    cur.executemany(f"""
-                        INSERT INTO admin_schema.user_groups_table (username, user_group, who_added, user_email)
-                        VALUES (%s, %s, %s, %s)
-                    """, initial_users)
-            conn_common.commit()
-            return_database_connection(conn_common, DB_URL_COMMON)
-                
-            conn_group = get_database_connection(DB_URL_GROUP)
-            with conn_group.cursor() as cur:
-                # Create schema if it doesn't exist
-                cur.execute(f"""
-                    CREATE SCHEMA IF NOT EXISTS {APP_SHORTNAME}_schema
-                """)
-                
-                # Create app_sessions_table table.
-                cur.execute(f"""
-                    CREATE TABLE IF NOT EXISTS {APP_SHORTNAME}_schema.app_sessions_table (
-                        id SERIAL PRIMARY KEY,
-                        app_session_id VARCHAR(255) UNIQUE NOT NULL,
-                        username VARCHAR(255),
-                        user_group VARCHAR(255),
-                        startup_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        explicit_shutdown_time TIMESTAMP,
-                        container_image_id VARCHAR(255),
-                        compute_resource VARCHAR(255)
-                    )
-                """)
+            with get_connection_pool(DB_URL_COMMON).connection() as conn_common:
+                with conn_common.cursor() as cur:
+                    # Create schema if it doesn't exist
+                    cur.execute(f"""
+                        CREATE SCHEMA IF NOT EXISTS admin_schema
+                    """)
+                    
+                    # Check if user_groups_table table exists and is empty
+                    cur.execute(f"""
+                        SELECT EXISTS (
+                            SELECT FROM information_schema.tables
+                            WHERE table_schema = 'admin_schema'
+                            AND table_name = 'user_groups_table'
+                        )
+                    """)
+                    table_exists = cur.fetchone()[0]
+                    # Create user_groups_table table.
+                    cur.execute(f"""
+                        CREATE TABLE IF NOT EXISTS admin_schema.user_groups_table (
+                            id INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+                            username VARCHAR(255) UNIQUE NOT NULL,
+                            user_group VARCHAR(255),
+                            user_added_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            who_added VARCHAR(255),
+                            user_email VARCHAR(255)
+                        )
+                    """)
+                    # Only insert initial users if table was just created (didn't exist before)
+                    if not table_exists:
+                        initial_users = [
+                            ('andrew', 'dmap', 'andrew', 'andrew@example.com'),
+                            ('jessica', 'ABC Lab', 'andrew', 'jessica@example.com'),
+                            ('Tessa', 'dmap', 'andrew', 'tessa@example.com')
+                        ]
+                        cur.executemany(
+                            """
+                            INSERT INTO admin_schema.user_groups_table (username, user_group, who_added, user_email)
+                            VALUES (%s, %s, %s, %s)
+                            """,
+                            initial_users,
+                        )
 
-                # Create archives_table table.
-                cur.execute(f"""
-                    CREATE TABLE IF NOT EXISTS {APP_SHORTNAME}_schema.archives_table (
-                        id SERIAL PRIMARY KEY,
-                        creator VARCHAR(255),
-                        user_group VARCHAR(255),
-                        archive_description TEXT,
-                        current_git_commit VARCHAR(255),
-                        container_image_id VARCHAR(255),
-                        archive_id VARCHAR(255) UNIQUE NOT NULL,
-                        app_session_id VARCHAR(255),
-                        archive_compatibility_id INTEGER,
-                        creation_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    )
-                """)
+            with get_connection_pool(DB_URL_GROUP).connection() as conn_group:
+                with conn_group.cursor() as cur:
+                    # Create schema if it doesn't exist
+                    cur.execute(f"""
+                        CREATE SCHEMA IF NOT EXISTS {APP_SHORTNAME}_schema
+                    """)
+                    
+                    # Create app_sessions_table table.
+                    cur.execute(f"""
+                        CREATE TABLE IF NOT EXISTS {APP_SHORTNAME}_schema.app_sessions_table (
+                            id INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+                            app_session_id VARCHAR(255) UNIQUE NOT NULL,
+                            username VARCHAR(255),
+                            user_group VARCHAR(255),
+                            startup_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            explicit_shutdown_time TIMESTAMP,
+                            container_image_id VARCHAR(255),
+                            compute_resource VARCHAR(255)
+                        )
+                    """)
 
-                # Create jobs_table table.
-                cur.execute(f"""
-                    CREATE TABLE IF NOT EXISTS {APP_SHORTNAME}_schema.jobs_table (
-                        id SERIAL PRIMARY KEY,
-                        job_id VARCHAR(255) UNIQUE NOT NULL,
-                        job_name VARCHAR(255),
-                        job_status VARCHAR(255),
-                        submitter VARCHAR(255),
-                        submitter_group VARCHAR(255),
-                        app_session_id VARCHAR(255),
-                        worker_image_id VARCHAR(255),
-                        submission_time TIMESTAMP,
-                        start_time TIMESTAMP,
-                        completion_time TIMESTAMP,
-                        failure_time TIMESTAMP,
-                        compute_resource VARCHAR(255)
-                    )
-                """)
-            conn_group.commit()
-            return_database_connection(conn_group, DB_URL_GROUP)
+                    # Create archives_table table.
+                    cur.execute(f"""
+                        CREATE TABLE IF NOT EXISTS {APP_SHORTNAME}_schema.archives_table (
+                            id INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+                            creator VARCHAR(255),
+                            user_group VARCHAR(255),
+                            archive_description TEXT,
+                            current_git_commit VARCHAR(255),
+                            container_image_id VARCHAR(255),
+                            archive_id VARCHAR(255) UNIQUE NOT NULL,
+                            app_session_id VARCHAR(255),
+                            archive_compatibility_id INTEGER,
+                            creation_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                        )
+                    """)
 
-            conn_app = get_database_connection(DB_URL_APP)
-            with conn_app.cursor() as cur:
-                # Create schema if it doesn't exist
-                cur.execute(f"""
-                    CREATE SCHEMA IF NOT EXISTS general_schema
-                """)
-                
-                # Check if image_metadata_table table exists and is empty
-                cur.execute(f"""
-                    SELECT EXISTS (
-                        SELECT FROM information_schema.tables
-                        WHERE table_schema = 'general_schema'
-                        AND table_name = 'image_metadata_table'
-                    )
-                """)
-                table_exists = cur.fetchone()[0]
-                # Create image_metadata_table table.
-                cur.execute(f"""
-                    CREATE TABLE IF NOT EXISTS general_schema.image_metadata_table (
-                        id SERIAL PRIMARY KEY,
-                        image_id VARCHAR(255) UNIQUE NOT NULL,
-                        name VARCHAR(255),
-                        tag VARCHAR(255),
-                        git_commit VARCHAR(255),
-                        environment_yaml_file TEXT,
-                        archive_compatibility_id INTEGER,
-                        image_added_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        who_added VARCHAR(255)
-                    )
-                """)
-                # Modify this in the future.
-                # # Only insert initial data if table was just created (didn't exist before)
-                # if not table_exists:
-                #     initial_users = [
-                #         ('andrew', 'dmap', 'andrew', 'andrew@example.com'),
-                #         ('jessica', 'ABC Lab', 'andrew', 'jessica@example.com'),
-                #         ('Tessa', 'dmap', 'andrew', 'tessa@example.com')
-                #     ]
-                #     cur.executemany(f"""
-                #         INSERT INTO general_schema.image_metadata_table (username, user_group, who_added, user_email)
-                #         VALUES (%s, %s, %s, %s)
-                #     """, initial_users)
-            conn_app.commit()
-            return_database_connection(conn_app, DB_URL_APP)
-                
-            conn_manager = get_database_connection(DB_URL_DATA_MANAGER)
-            with conn_manager.cursor() as cur:
-                # Create schema if it doesn't exist
-                cur.execute(f"""
-                    CREATE SCHEMA IF NOT EXISTS general_schema
-                """)
-                
-                # Check if image_metadata_table table exists and is empty
-                cur.execute(f"""
-                    SELECT EXISTS (
-                        SELECT FROM information_schema.tables
-                        WHERE table_schema = 'general_schema'
-                        AND table_name = 'image_metadata_table'
-                    )
-                """)
-                table_exists = cur.fetchone()[0]
-                # Create image_metadata_table table.
-                cur.execute(f"""
-                    CREATE TABLE IF NOT EXISTS general_schema.image_metadata_table (
-                        id SERIAL PRIMARY KEY,
-                        image_id VARCHAR(255) UNIQUE NOT NULL,
-                        name VARCHAR(255),
-                        tag VARCHAR(255),
-                        git_commit VARCHAR(255),
-                        environment_yaml_file TEXT,
-                        image_added_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        who_added VARCHAR(255)
-                    )
-                """)
-            conn_manager.commit()
-            return_database_connection(conn_manager, DB_URL_DATA_MANAGER)
-                
+                    # Create jobs_table table.
+                    cur.execute(f"""
+                        CREATE TABLE IF NOT EXISTS {APP_SHORTNAME}_schema.jobs_table (
+                            id INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+                            job_id VARCHAR(255) UNIQUE NOT NULL,
+                            job_name VARCHAR(255),
+                            job_status VARCHAR(255),
+                            submitter VARCHAR(255),
+                            submitter_group VARCHAR(255),
+                            app_session_id VARCHAR(255),
+                            worker_image_id VARCHAR(255),
+                            submission_time TIMESTAMP,
+                            start_time TIMESTAMP,
+                            completion_time TIMESTAMP,
+                            failure_time TIMESTAMP,
+                            compute_resource VARCHAR(255)
+                        )
+                    """)
+
+            with get_connection_pool(DB_URL_APP).connection() as conn_app:
+                with conn_app.cursor() as cur:
+                    # Create schema if it doesn't exist
+                    cur.execute(f"""
+                        CREATE SCHEMA IF NOT EXISTS general_schema
+                    """)
+                    
+                    # Check if image_metadata_table table exists and is empty
+                    cur.execute(f"""
+                        SELECT EXISTS (
+                            SELECT FROM information_schema.tables
+                            WHERE table_schema = 'general_schema'
+                            AND table_name = 'image_metadata_table'
+                        )
+                    """)
+                    table_exists = cur.fetchone()[0]
+                    # Create image_metadata_table table.
+                    cur.execute(f"""
+                        CREATE TABLE IF NOT EXISTS general_schema.image_metadata_table (
+                            id INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+                            image_id VARCHAR(255) UNIQUE NOT NULL,
+                            name VARCHAR(255),
+                            tag VARCHAR(255),
+                            git_commit VARCHAR(255),
+                            environment_yaml_file TEXT,
+                            archive_compatibility_id INTEGER,
+                            image_added_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            who_added VARCHAR(255)
+                        )
+                    """)
+
+            with get_connection_pool(DB_URL_DATA_MANAGER).connection() as conn_manager:
+                with conn_manager.cursor() as cur:
+                    # Create schema if it doesn't exist
+                    cur.execute(f"""
+                        CREATE SCHEMA IF NOT EXISTS general_schema
+                    """)
+                    
+                    # Check if image_metadata_table table exists and is empty
+                    cur.execute(f"""
+                        SELECT EXISTS (
+                            SELECT FROM information_schema.tables
+                            WHERE table_schema = 'general_schema'
+                            AND table_name = 'image_metadata_table'
+                        )
+                    """)
+                    table_exists = cur.fetchone()[0]
+                    # Create image_metadata_table table.
+                    cur.execute(f"""
+                        CREATE TABLE IF NOT EXISTS general_schema.image_metadata_table (
+                            id INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+                            image_id VARCHAR(255) UNIQUE NOT NULL,
+                            name VARCHAR(255),
+                            tag VARCHAR(255),
+                            git_commit VARCHAR(255),
+                            environment_yaml_file TEXT,
+                            image_added_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            who_added VARCHAR(255)
+                        )
+                    """)
             return True
         except Exception as e:
             st.error(f"Failed to set up databases: {e}")
-            _rollback_and_return(conn_common, DB_URL_COMMON)
-            _rollback_and_return(conn_group, DB_URL_GROUP)
-            _rollback_and_return(conn_app, DB_URL_APP)
-            _rollback_and_return(conn_manager, DB_URL_DATA_MANAGER)
             return False
     elif framework_utils.platform() == "snowflake":
         pass
@@ -284,18 +231,15 @@ def set_up_postgresql():
 def write_archive_database_data(row_tuple):
     if framework_utils.platform() == "local":
         try:
-            conn = get_database_connection(DB_URL_GROUP)
-            with conn.cursor() as cur:
-                cur.execute(f"""
-                    INSERT INTO {APP_SHORTNAME}_schema.archives_table (creator, user_group, archive_description, current_git_commit, container_image_id, archive_id, app_session_id)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
-                """, row_tuple)
-            conn.commit()
-            return_database_connection(conn, DB_URL_GROUP)
+            with get_connection_pool(DB_URL_GROUP).connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(f"""
+                        INSERT INTO {APP_SHORTNAME}_schema.archives_table (creator, user_group, archive_description, current_git_commit, container_image_id, archive_id, app_session_id)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    """, row_tuple)
             return True
         except Exception as e:
             st.error(f"Failed to write archive database data: {e}")
-            _rollback_and_return(conn, DB_URL_GROUP)
             return False
     elif framework_utils.platform() == "snowflake":
         try:
@@ -313,18 +257,15 @@ def write_archive_database_data(row_tuple):
 def log_app_session(row_tuple):
     if framework_utils.platform() == "local":
         try:
-            conn = get_database_connection(DB_URL_GROUP)
-            with conn.cursor() as cur:
-                cur.execute(f"""
-                    INSERT INTO {APP_SHORTNAME}_schema.app_sessions_table (app_session_id, username, user_group, container_image_id)
-                    VALUES (%s, %s, %s, %s)
-                """, row_tuple)
-            conn.commit()
-            return_database_connection(conn, DB_URL_GROUP)
+            with get_connection_pool(DB_URL_GROUP).connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(f"""
+                        INSERT INTO {APP_SHORTNAME}_schema.app_sessions_table (app_session_id, username, user_group, container_image_id)
+                        VALUES (%s, %s, %s, %s)
+                    """, row_tuple)
             return True
         except Exception as e:
             st.error(f"Failed to log app session: {e}")
-            _rollback_and_return(conn, DB_URL_GROUP)
             return False
     elif framework_utils.platform() == "snowflake":
         try:
@@ -342,19 +283,16 @@ def log_app_session(row_tuple):
 def set_app_session_shutdown_time(app_session_id):
     if framework_utils.platform() == "local":
         try:
-            conn = get_database_connection(DB_URL_GROUP)
-            with conn.cursor() as cur:
-                cur.execute(f"""
-                    UPDATE {APP_SHORTNAME}_schema.app_sessions_table
-                    SET explicit_shutdown_time = %s
-                    WHERE app_session_id = %s
-                """, (framework_utils.get_timestamp(), app_session_id))
-            conn.commit()
-            return_database_connection(conn, DB_URL_GROUP)
+            with get_connection_pool(DB_URL_GROUP).connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(f"""
+                        UPDATE {APP_SHORTNAME}_schema.app_sessions_table
+                        SET explicit_shutdown_time = %s
+                        WHERE app_session_id = %s
+                    """, (framework_utils.get_timestamp(), app_session_id))
             return True
         except Exception as e:
             st.error(f"Failed to set app session shutdown time: {e}")
-            _rollback_and_return(conn, DB_URL_GROUP)
             return False
     elif framework_utils.platform() == "snowflake":
         try:
@@ -374,20 +312,17 @@ def set_app_session_shutdown_time(app_session_id):
 def get_user_group(username):
     if framework_utils.platform() == "local":
         try:
-            conn = get_database_connection(DB_URL_COMMON)
-            with conn.cursor() as cur:
-                cur.execute(f"""
-                    SELECT user_group
-                    FROM admin_schema.user_groups_table
-                    WHERE username = %s
-                """, (username,))
-                user_group = cur.fetchone()
-            return_database_connection(conn, DB_URL_COMMON)
+            with get_connection_pool(DB_URL_COMMON).connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(f"""
+                        SELECT user_group
+                        FROM admin_schema.user_groups_table
+                        WHERE username = %s
+                    """, (username,))
+                    user_group = cur.fetchone()
             return user_group[0] if user_group else None
         except Exception as e:
             st.error(f"Failed to retrieve user group: {e}")
-            if conn:
-                return_database_connection(conn, DB_URL_COMMON)
             return None
     elif framework_utils.platform() == "snowflake":
         try:
@@ -407,20 +342,17 @@ def get_user_group(username):
 def get_user_groups_table_data():
     if framework_utils.platform() == "local":
         try:
-            conn = get_database_connection(DB_URL_COMMON)
-            with conn.cursor() as cur:
-                cur.execute(f"""
-                    SELECT username, user_group, user_added_time, who_added, user_email
-                    FROM admin_schema.user_groups_table
-                """)
-                rows = cur.fetchall()
-            return_database_connection(conn, DB_URL_COMMON)
+            with get_connection_pool(DB_URL_COMMON).connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(f"""
+                        SELECT username, user_group, user_added_time, who_added, user_email
+                        FROM admin_schema.user_groups_table
+                    """)
+                    rows = cur.fetchall()
             df = pl.DataFrame(rows, schema=["username", "user_group", "user_added_time", "who_added", "user_email"], strict=False, orient="row")
             return df
         except Exception as e:
             st.error(f"Failed to retrieve user groups table data: {e}")
-            if conn:
-                return_database_connection(conn, DB_URL_COMMON)
             return None
     elif framework_utils.platform() == "snowflake":
         try:
@@ -440,21 +372,18 @@ def get_user_groups_table_data():
 def get_app_sessions_table_data():
     if framework_utils.platform() == "local":
         try:
-            conn = get_database_connection(DB_URL_GROUP)
-            with conn.cursor() as cur:
-                cur.execute(f"""
-                    SELECT app_session_id, username, user_group, startup_time, explicit_shutdown_time, container_image_id, compute_resource
-                    FROM {APP_SHORTNAME}_schema.app_sessions_table
-                    ORDER BY startup_time DESC
-                """)
-                rows = cur.fetchall()
-            return_database_connection(conn, DB_URL_GROUP)
+            with get_connection_pool(DB_URL_GROUP).connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(f"""
+                        SELECT app_session_id, username, user_group, startup_time, explicit_shutdown_time, container_image_id, compute_resource
+                        FROM {APP_SHORTNAME}_schema.app_sessions_table
+                        ORDER BY startup_time DESC
+                    """)
+                    rows = cur.fetchall()
             df = pl.DataFrame(rows, schema=["app_session_id", "username", "user_group", "startup_time", "explicit_shutdown_time", "container_image_id", "compute_resource"], strict=False, orient="row")
             return df
         except Exception as e:
             st.error(f"Failed to retrieve app sessions table data: {e}")
-            if conn:
-                return_database_connection(conn, DB_URL_GROUP)
             return None
     elif framework_utils.platform() == "snowflake":
         try:
@@ -475,21 +404,18 @@ def get_app_sessions_table_data():
 def get_archives_table_data():
     if framework_utils.platform() == "local":
         try:
-            conn = get_database_connection(DB_URL_GROUP)
-            with conn.cursor() as cur:
-                cur.execute(f"""
-                    SELECT creator, user_group, archive_description, current_git_commit, container_image_id, archive_id, app_session_id, creation_time, archive_compatibility_id
-                    FROM {APP_SHORTNAME}_schema.archives_table
-                    ORDER BY creation_time DESC
-                """)
-                rows = cur.fetchall()
-            return_database_connection(conn, DB_URL_GROUP)
+            with get_connection_pool(DB_URL_GROUP).connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(f"""
+                        SELECT creator, user_group, archive_description, current_git_commit, container_image_id, archive_id, app_session_id, creation_time, archive_compatibility_id
+                        FROM {APP_SHORTNAME}_schema.archives_table
+                        ORDER BY creation_time DESC
+                    """)
+                    rows = cur.fetchall()
             df = pl.DataFrame(rows, schema=["creator", "user_group", "archive_description", "current_git_commit", "container_image_id", "archive_id", "app_session_id", "creation_time", "archive_compatibility_id"], strict=False, orient="row")
             return df
         except Exception as e:
             st.error(f"Failed to retrieve archives_table table data: {e}")
-            if conn:
-                return_database_connection(conn, DB_URL_GROUP)
             return None
     elif framework_utils.platform() == "snowflake":
         try:
@@ -510,22 +436,19 @@ def get_archives_table_data():
 def get_jobs_table_data():
     if framework_utils.platform() == "local":
         try:
-            conn = get_database_connection(DB_URL_GROUP)
-            with conn.cursor() as cur:
-                columns = "job_id, job_name, job_status, submitter, submitter_group, app_session_id, worker_image_id, submission_time, start_time, completion_time, failure_time, compute_resource"
-                cur.execute(f"""
-                    SELECT {columns}
-                    FROM {APP_SHORTNAME}_schema.jobs_table
-                    ORDER BY submission_time DESC NULLS LAST
-                """)
-                rows = cur.fetchall()
-            return_database_connection(conn, DB_URL_GROUP)
+            with get_connection_pool(DB_URL_GROUP).connection() as conn:
+                with conn.cursor() as cur:
+                    columns = "job_id, job_name, job_status, submitter, submitter_group, app_session_id, worker_image_id, submission_time, start_time, completion_time, failure_time, compute_resource"
+                    cur.execute(f"""
+                        SELECT {columns}
+                        FROM {APP_SHORTNAME}_schema.jobs_table
+                        ORDER BY submission_time DESC NULLS LAST
+                    """)
+                    rows = cur.fetchall()
             df = pl.DataFrame(rows, schema=["job_id", "job_name", "job_status", "submitter", "submitter_group", "app_session_id", "worker_image_id", "submission_time", "start_time", "completion_time", "failure_time", "compute_resource"], strict=False, orient="row")
             return df
         except Exception as e:
             st.error(f"Failed to retrieve jobs_table table data: {e}")
-            if conn:
-                return_database_connection(conn, DB_URL_GROUP)
             return None
     elif framework_utils.platform() == "snowflake":
         try:
@@ -547,21 +470,18 @@ def get_jobs_table_data():
 def get_available_archives():
     if framework_utils.platform() == "local":
         try:
-            conn = get_database_connection(DB_URL_GROUP)
-            with conn.cursor() as cur:
-                cur.execute(f"""
-                    SELECT creator, creation_time, archive_description, archive_id, app_session_id
-                    FROM {APP_SHORTNAME}_schema.archives_table
-                    ORDER BY creation_time DESC
-                """)
-                rows = cur.fetchall()
-            return_database_connection(conn, DB_URL_GROUP)
+            with get_connection_pool(DB_URL_GROUP).connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(f"""
+                        SELECT creator, creation_time, archive_description, archive_id, app_session_id
+                        FROM {APP_SHORTNAME}_schema.archives_table
+                        ORDER BY creation_time DESC
+                    """)
+                    rows = cur.fetchall()
             df = pl.DataFrame(rows, schema=["Creator", "Creation time", "Archive description", "Archive ID", "App session ID"], strict=False, orient="row")
             return df
         except Exception as e:
             st.error(f"Failed to retrieve available archives_table: {e}")
-            if conn:
-                return_database_connection(conn, DB_URL_GROUP)
             return None
     elif framework_utils.platform() == "snowflake":
         try:
@@ -581,18 +501,15 @@ def get_available_archives():
 def log_job(row_tuple):
     if framework_utils.platform() == "local":
         try:
-            conn = get_database_connection(DB_URL_GROUP)
-            with conn.cursor() as cur:
-                cur.execute(f"""
-                    INSERT INTO {APP_SHORTNAME}_schema.jobs_table (job_id, job_name, submitter, submitter_group, app_session_id)
-                    VALUES (%s, %s, %s, %s, %s)
-                """, row_tuple)
-            conn.commit()
-            return_database_connection(conn, DB_URL_GROUP)
+            with get_connection_pool(DB_URL_GROUP).connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(f"""
+                        INSERT INTO {APP_SHORTNAME}_schema.jobs_table (job_id, job_name, submitter, submitter_group, app_session_id)
+                        VALUES (%s, %s, %s, %s, %s)
+                    """, row_tuple)
             return True
         except Exception as e:
             st.error(f"Failed to log job: {e}. It's possible that job with ID {row_tuple[0]} already exists (unique constraint violated), which would indicate a job ID generation bug.")
-            _rollback_and_return(conn, DB_URL_GROUP)
             return False
     elif framework_utils.platform() == "snowflake":
         try:
@@ -610,19 +527,16 @@ def log_job(row_tuple):
 def update_job_status(job_id, new_status, time_column):
     if framework_utils.platform() == "local":
         try:
-            conn = get_database_connection(DB_URL_GROUP)
-            with conn.cursor() as cur:
-                cur.execute(f"""
-                    UPDATE {APP_SHORTNAME}_schema.jobs_table
-                    SET job_status = %s, {time_column} = %s
-                    WHERE job_id = %s
-                """, (new_status, framework_utils.get_timestamp(), job_id))
-            conn.commit()
-            return_database_connection(conn, DB_URL_GROUP)
+            with get_connection_pool(DB_URL_GROUP).connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(f"""
+                        UPDATE {APP_SHORTNAME}_schema.jobs_table
+                        SET job_status = %s, {time_column} = %s
+                        WHERE job_id = %s
+                    """, (new_status, framework_utils.get_timestamp(), job_id))
             return True
         except Exception as e:
             st.error(f"Failed to update status of job {job_id} to {new_status} and update {time_column}: {e}")
-            _rollback_and_return(conn, DB_URL_GROUP)
             return False
     elif framework_utils.platform() == "snowflake":
         try:
@@ -658,20 +572,17 @@ def log_compute_resource_for_job(job_id: str, compute_resource: str):
 def get_job_status(job_id):
     if framework_utils.platform() == "local":
         try:
-            conn = get_database_connection(DB_URL_GROUP)
-            with conn.cursor() as cur:
-                cur.execute(f"""
-                    SELECT job_status
-                    FROM {APP_SHORTNAME}_schema.jobs_table
-                    WHERE job_id = %s
-                """, (job_id,))
-                job_status = cur.fetchone()
-            return_database_connection(conn, DB_URL_GROUP)
+            with get_connection_pool(DB_URL_GROUP).connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(f"""
+                        SELECT job_status
+                        FROM {APP_SHORTNAME}_schema.jobs_table
+                        WHERE job_id = %s
+                    """, (job_id,))
+                    job_status = cur.fetchone()
             return job_status[0] if job_status else None
         except Exception as e:
             st.error(f"Failed to retrieve status of job {job_id}: {e}")
-            if conn:
-                return_database_connection(conn, DB_URL_GROUP)
             return None
     elif framework_utils.platform() == "snowflake":
         try:
@@ -691,20 +602,17 @@ def get_job_status(job_id):
 def get_job_function_name(job_id):
     if framework_utils.platform() == "local":
         try:
-            conn = get_database_connection(DB_URL_GROUP)
-            with conn.cursor() as cur:
-                cur.execute(f"""
-                    SELECT job_name
-                    FROM {APP_SHORTNAME}_schema.jobs_table
-                    WHERE job_id = %s
-                """, (job_id,))
-                job_name = cur.fetchone()
-            return_database_connection(conn, DB_URL_GROUP)
+            with get_connection_pool(DB_URL_GROUP).connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(f"""
+                        SELECT job_name
+                        FROM {APP_SHORTNAME}_schema.jobs_table
+                        WHERE job_id = %s
+                    """, (job_id,))
+                    job_name = cur.fetchone()
             return job_name[0] if job_name else None
         except Exception as e:
             st.error(f"Failed to retrieve function name of job {job_id}: {e}")
-            if conn:
-                return_database_connection(conn, DB_URL_GROUP)
             return None
     elif framework_utils.platform() == "snowflake":
         try:
@@ -723,19 +631,16 @@ def get_job_function_name(job_id):
 def set_worker_image_id(job_id, worker_image_id):
     if framework_utils.platform() == "local":
         try:
-            conn = get_database_connection(DB_URL_GROUP)
-            with conn.cursor() as cur:
-                cur.execute(f"""
-                    UPDATE {APP_SHORTNAME}_schema.jobs_table
-                    SET worker_image_id = %s
-                    WHERE job_id = %s
-                """, (worker_image_id, job_id))
-            conn.commit()
-            return_database_connection(conn, DB_URL_GROUP)
+            with get_connection_pool(DB_URL_GROUP).connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(f"""
+                        UPDATE {APP_SHORTNAME}_schema.jobs_table
+                        SET worker_image_id = %s
+                        WHERE job_id = %s
+                    """, (worker_image_id, job_id))
             return True
         except Exception as e:
             st.error(f"Failed to set worker image ID for job {job_id} to {worker_image_id}: {e}")
-            _rollback_and_return(conn, DB_URL_GROUP)
             return False
     elif framework_utils.platform() == "snowflake":
         try:
@@ -754,19 +659,16 @@ def set_worker_image_id(job_id, worker_image_id):
 def record_explicit_shutdown_time(app_session_id):
     if framework_utils.platform() == "local":
         try:
-            conn = get_database_connection(DB_URL_GROUP)
-            with conn.cursor() as cur:
-                cur.execute(f"""
-                    UPDATE {APP_SHORTNAME}_schema.app_sessions_table
-                    SET explicit_shutdown_time = %s
-                    WHERE app_session_id = %s
-                """, (framework_utils.get_timestamp(), app_session_id))
-            conn.commit()
-            return_database_connection(conn, DB_URL_GROUP)
+            with get_connection_pool(DB_URL_GROUP).connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(f"""
+                        UPDATE {APP_SHORTNAME}_schema.app_sessions_table
+                        SET explicit_shutdown_time = %s
+                        WHERE app_session_id = %s
+                    """, (framework_utils.get_timestamp(), app_session_id))
             return True
         except Exception as e:
             st.error(f"Failed to record explicit shutdown time for app session {app_session_id}: {e}")
-            _rollback_and_return(conn, DB_URL_GROUP)
             return False
     elif framework_utils.platform() == "snowflake":
         try:

@@ -5,7 +5,8 @@ FROM mambaorg/micromamba@sha256:800e7ade3ffe29c9a9ac2026163131495f8197c3852e572c
 WORKDIR /app
 
 # Copy ONLY the environment file first (changes less frequently).
-COPY source/environment-leandro-compatible.yml .
+COPY source/environment.yml .
+# COPY source/environment-leandro-compatible.yml .
 # COPY source/environment-ana-20240814_to_20241219-compatible.yml .
 # COPY source/environment-ana-20250605-compatible.yml .
 # COPY source/environment-gmb-20240628_to_20240701-compatible.yml .
@@ -13,7 +14,8 @@ COPY source/environment-leandro-compatible.yml .
 # COPY source/environment-dceg-compatible.yml .
 
 # Create conda environment from environment.yml.
-RUN micromamba install -y -f environment-leandro-compatible.yml && micromamba clean --all --yes
+RUN micromamba install -y -f environment.yml && micromamba clean --all --yes
+# RUN micromamba install -y -f environment-leandro-compatible.yml && micromamba clean --all --yes
 # RUN micromamba install -y -f environment-ana-20240814_to_20241219-compatible.yml && micromamba clean --all --yes
 # RUN micromamba install -y -f environment-ana-20250605-compatible.yml && micromamba clean --all --yes
 # RUN micromamba install -y -f environment-gmb-20240628_to_20240701-compatible.yml && micromamba clean --all --yes
@@ -22,7 +24,8 @@ RUN micromamba install -y -f environment-leandro-compatible.yml && micromamba cl
 
 # "Install" foundry_transforms_lib_python by unpacking it into site-packages.
 COPY --chown=mambauser:mambauser temp_vendor/foundry_transforms_lib_python-0.881.0.tar.gz .
-RUN tar -xzvf foundry_transforms_lib_python-0.881.0.tar.gz -C /opt/conda/lib/python3.12/site-packages/ && rm foundry_transforms_lib_python-0.881.0.tar.gz
+RUN tar -xzvf foundry_transforms_lib_python-0.881.0.tar.gz -C /opt/conda/lib/python3.14/site-packages/ && rm foundry_transforms_lib_python-0.881.0.tar.gz
+# RUN tar -xzvf foundry_transforms_lib_python-0.881.0.tar.gz -C /opt/conda/lib/python3.12/site-packages/ && rm foundry_transforms_lib_python-0.881.0.tar.gz
 # RUN tar -xzvf foundry_transforms_lib_python-0.881.0.tar.gz -C /opt/conda/lib/python3.9/site-packages/ && rm foundry_transforms_lib_python-0.881.0.tar.gz
 
 # Copy source files to the container
