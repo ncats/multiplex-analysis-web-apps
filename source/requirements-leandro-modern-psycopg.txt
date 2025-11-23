@@ -19,9 +19,6 @@ docrep==0.3.2
 dulwich==0.22.8
 ensureconda==1.6.0
 fastjsonschema==2.21.2
-foundry-data-sidecar-api==0.836.0
-foundry-transforms-lib-python==0.881.0
-foundry_container_sidecar_api==0.1990.0
 inflect==7.5.0
 installer==0.7.0
 jaraco.classes==3.4.0
