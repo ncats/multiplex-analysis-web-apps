@@ -56,8 +56,6 @@ split-file-reader==0.1.4
 squidpy==1.6.2
 st-pages==1.0.1
 streamlit-javascript==0.1.5
-tables-api==0.1066.0
-transforms-container-ops-python==0.145.0
 trove-classifiers==2025.11.14.15
 typeguard==4.4.4
 typing-inspection==0.4.2
