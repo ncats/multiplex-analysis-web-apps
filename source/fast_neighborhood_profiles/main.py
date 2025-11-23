@@ -143,7 +143,7 @@ def plot_image_from_frame(
     xcol="Centroid X (µm)_(standardized)",
     ycol="Centroid Y (µm)_(standardized)",
     color_col="label",
-    existing_index_columns=[],
+    custom_columns=[],
 ):
     try:
 
@@ -154,14 +154,14 @@ def plot_image_from_frame(
                     frame
                     .filter(pl.col(image_colname).is_in(selected_images))
                     .filter(pl.col(xcol).is_not_null() & pl.col(ycol).is_not_null())
-                    .select(existing_index_columns + [image_colname, xcol, ycol, color_col])
+                    .select(custom_columns + [image_colname, xcol, ycol, color_col])
                     .collect()
                 )
             else:
                 df = (
                     frame
                     .filter(pl.col(xcol).is_not_null() & pl.col(ycol).is_not_null())
-                    .select(existing_index_columns + [image_colname, xcol, ycol, color_col])
+                    .select(custom_columns + [image_colname, xcol, ycol, color_col])
                     .collect()
                 )
         elif isinstance(frame, pl.DataFrame):
@@ -170,22 +170,22 @@ def plot_image_from_frame(
                     frame
                     .filter(pl.col(image_colname).is_in(selected_images))
                     .filter(pl.col(xcol).is_not_null() & pl.col(ycol).is_not_null())
-                    .select(existing_index_columns + [image_colname, xcol, ycol, color_col])
+                    .select(custom_columns + [image_colname, xcol, ycol, color_col])
                 )
             else:
                 df = (
                     frame
                     .filter(pl.col(xcol).is_not_null() & pl.col(ycol).is_not_null())
-                    .select(existing_index_columns + [image_colname, xcol, ycol, color_col])
+                    .select(custom_columns + [image_colname, xcol, ycol, color_col])
                 )
         elif isinstance(frame, pd.DataFrame):
             if selected_images:
                 mask = frame[image_colname].isin(selected_images)
                 mask &= frame[xcol].notna() & frame[ycol].notna()
-                df = frame.loc[mask, existing_index_columns + [image_colname, xcol, ycol, color_col]]
+                df = frame.loc[mask, custom_columns + [image_colname, xcol, ycol, color_col]]
             else:
                 mask = frame[xcol].notna() & frame[ycol].notna()
-                df = frame.loc[mask, existing_index_columns + [image_colname, xcol, ycol, color_col]]
+                df = frame.loc[mask, custom_columns + [image_colname, xcol, ycol, color_col]]
         else:
             raise ValueError("Input frame must be a Polars LazyFrame, Polars DataFrame, or Pandas DataFrame.")
         
@@ -196,8 +196,8 @@ def plot_image_from_frame(
                 ycol: True,
             }
         
-        for index_col in existing_index_columns:
-            hover_data[index_col] = True
+        for custom_col in custom_columns:
+            hover_data[custom_col] = True
 
         # Draw the scatter plot.
         fig = px.scatter(
