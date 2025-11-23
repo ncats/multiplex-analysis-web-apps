@@ -7,7 +7,6 @@ dependencies:
   - python
   - streamlit
   - psycopg
-  - psycopg_pool
   - pyyaml
   - dill
   - git
@@ -25,7 +24,7 @@ dependencies:
   - seaborn
   - scikit-image
   - scikit-learn
-  - anaconda::streamlit-extras
+  - anaconda::streamlit-extras  # micromamba works through here
   - tqdm
   - umap-learn
   - pympler
