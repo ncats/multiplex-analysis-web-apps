@@ -1,3 +1,4 @@
+# Import relevant libraries.
 import polars as pl
 import os
 import plotly.express as px
@@ -8,10 +9,205 @@ import umap
 import PlottingTools
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
+import framework.utils as framework_utils
+import zipfile
+import framework.platform_abstraction as pa
+import time
+import scipy.spatial
+
+
+def fast_neighbors_counts_for_block2(df_image, image_name, coord_column_names, phenotypes, radii, phenotype_column_name, max_chunk_size_in_mb=200):
+    # A block can be an image, ROI, etc. It's the entity over which it makes sense to calculate the neighbors of centers. Here, we're assuming it's an image, but in the SIT for e.g., we generally want it to refer to a ROI.
+
+    # max_chunk_size_in_mb=200, for a 100K-cell dataset, will yield about 250-row chunks, which will yield about 400 chunks i.e. center KDTrees
+    # max_chunk_size_in_mb=500, for a 100K-cell dataset, will yield about 650-row chunks, which will yield about 150 chunks i.e. center KDTrees
+    # max_chunk_size_in_mb=1000, for a 100K-cell dataset, will yield about 1300-row chunks, which will yield about 80 chunks i.e. center KDTrees
+    # max_chunk_size_in_mb=2000, for a 100K-cell dataset, will yield about 2600-row chunks, which will yield about 40 chunks i.e. center KDTrees
+    # max_chunk_size_in_mb=5000, for a 100K-cell dataset, will yield about 6600-row chunks, which will yield about 15 chunks i.e. center KDTrees
+
+    # Print the image name
+    print(f'Calculating neighbor counts for image {image_name} ({len(df_image)} cells) using the new kdtree method...')
+
+    # Record the start time
+    start_time = time.time()
+
+    # Store some properties of the input dataframe
+    df_image_index = df_image.index
+    num_cells = len(df_image)
+
+    # Get the number of rows per chunk based on the maximum chunk size in MB and assuming every cell will be counted as a neighbor around every center (i.e., use upper limits)
+    largest_sublist_size_in_mb = num_cells * 8  / 1024 ** 2  # 8 bytes per int64 --> units = mb / row
+    num_rows_per_chunk = int(max_chunk_size_in_mb / largest_sublist_size_in_mb)
+
+    # Get the corresponding integer indices to index things like the input image dataframe
+    start_indices = np.arange(0, num_cells, num_rows_per_chunk)
+    stop_indices = start_indices + num_rows_per_chunk
+
+    # Initialize a list to hold the dataframes of neighbor counts for each radius (not each radius range)
+    df_counts_holder = [pd.DataFrame(0, index=phenotypes, columns=df_image_index) for _ in radii]
+
+    # Pre-calculate the neighbor tree for each phenotype
+    neighbor_trees = []
+    for neighbor_phenotype in phenotypes:
+
+        # Get the boolean series identifying the current neighbor phenotype
+        ser_curr_neighbor_phenotype = df_image[phenotype_column_name] == neighbor_phenotype
+
+        # Construct the KDTree for the current phenotype in the entire current image. This represents the neighbors
+        neighbor_trees.append(scipy.spatial.KDTree(df_image.loc[ser_curr_neighbor_phenotype, coord_column_names]))
+
+    # For each chunk of centers...
+    for start_index, stop_index in zip(start_indices, stop_indices):
+
+        # Construct the KDTree for the current chunk. This represents the centers
+        center_tree = scipy.spatial.KDTree(df_image.loc[df_image_index[start_index:stop_index], coord_column_names])
+
+        # For each neighbor tree...
+        for ineighbor_phenotype, curr_neighbor_tree in enumerate(neighbor_trees):
+
+            # For each radius, which should be monotonically increasing and start with 0...
+            for iradius, radius in enumerate(radii):
+
+                # Get the list of lists containing the indices of the neighbors for each center
+                neighbors_for_radius = center_tree.query_ball_tree(curr_neighbor_tree, radius)
+
+                # In the correct dataframe (corresponding to the current radius), set the counts of neighbors (of the current phenotype) for each center
+                df_counts_holder[iradius].iloc[ineighbor_phenotype, start_index:stop_index] = [len(neighbors_for_center) for neighbors_for_center in neighbors_for_radius]
+
+    # For each annulus, i.e., each radius range...
+    df_counts_holder_annulus = []
+    for iradius in range(len(radii) - 1):
+
+        # Get the counts of neighbors in the current annulus
+        df_counts_curr_annulus = df_counts_holder[iradius + 1] - df_counts_holder[iradius]
+
+        # Rename the index to reflect the current radius range
+        radius_range_str = f'({radii[iradius]}, {radii[iradius + 1]}]'
+        df_counts_curr_annulus.index = [f'{phenotype} in {radius_range_str}' for phenotype in phenotypes]
+
+        # Add a transpose of this (so centers are in rows and phenotypes/radii are in columns) to the running list of annulus dataframes
+        df_counts_holder_annulus.append(df_counts_curr_annulus.T)
+
+    # Concatenate the annulus dataframes to get the final dataframe of neighbor counts for the current image
+    df_curr_counts = pd.concat(df_counts_holder_annulus, axis='columns')
+
+    # Convert the dataframe to a more efficient dtype (from int64)
+    df_curr_counts = df_curr_counts.astype(np.int32)
+
+    # Print the time taken to calculate the neighbor counts for the current image
+    print(f'  ...finished calculating neighbor counts for image {image_name} ({len(df_image)} cells) in {time.time() - start_time:.2f} seconds')
+
+    # Return the final dataframe of neighbor counts for the current image
+    return df_curr_counts
+
+
+# Format the lazyframe, optionally sample it, and convert to a polars dataframe.
+def format_lazyframe(lf, sample_size=None, sample_seed=42):
+
+    # Load in cells and patient data.
+    lf = (
+        lf
+        .rename({"Image ID_(standardized)": "TMA_core_id", "Centroid X (µm)_(standardized)": "Xcor", "Centroid Y (µm)_(standardized)": "Ycor", "label": "Lineage"})
+        .select(pl.col(["TMA_core_id", "Xcor", "Ycor", "Lineage"]))
+        )
+
+    # Load in cells and patient data. Sampling will aid in faster testing and development. The sorting after the sampling is crucial to ensure consistent ordering.
+    if sample_size is None:
+        pldf = (
+            lf
+            .sort(by="TMA_core_id")
+            .collect()
+            )
+    else:
+        pldf = (
+            lf
+            .collect()
+            .sample(n=sample_size, seed=sample_seed)
+            .sort(by="TMA_core_id")
+            )
+        
+    return pldf
+
+
+def save_and_load_pandas_df_to_lf(pd_df, handle, file_format):
+    save_pandas_df_to_file(pd_df, handle=handle, file_format=file_format, topdir=framework_utils.session_dir(), subdir="input")
+    return get_lf(handle, topdir=framework_utils.session_dir(), subdir="input", file_format=file_format)
+
+
+def get_true_false_color_map():
+    colors = px.colors.qualitative.Plotly
+    color_map = {label: colors[i % len(colors)] for i, label in enumerate((True, False))}
+    return color_map
+
+
+# Get the marker column names from the lazyframe.
+def get_marker_columns(lf, exclusion_suffix=""):
+    if exclusion_suffix:
+        marker_columns = [column for column in lf.collect_schema().names() if column.startswith("Phenotype_(standardized) ") and not column.endswith(exclusion_suffix)]
+    else:
+        marker_columns = [column for column in lf.collect_schema().names() if column.startswith("Phenotype_(standardized) ")]
+    return sorted(marker_columns)
 
 
 def print_flush(msg):
     print(msg, flush=True)
+
+
+def get_location_settings():
+    return {
+        "Available input files": {
+            "bucket_name": pa.DATA_OBJECTS_BUCKET_NAME,
+            "db_schema": f"{pa.get_user_group(pa.get_current_username())}_group_db.curated_schema",
+        },
+    }
+
+
+def get_objects_list(upload_location):
+    objects_list = pa.list_objects_in_bucket(
+        db_schema=get_location_settings()[upload_location]["db_schema"],
+        bucket_name=get_location_settings()[upload_location]["bucket_name"],
+    )
+    return objects_list
+
+
+# Load the lazyframe from the specified file using an intermediate file.
+def load_unified_input_file_data(file_format, db_schema, bucket_name, object_filename):
+
+    # Shortcuts, the first for generalizability.
+    full_filenames = [object_filename]
+    input_dir = os.path.join(framework_utils.session_dir(), "input")
+
+    # Download the file from the server.
+    pa.download_objects_parallel(
+        object_names=full_filenames,
+        db_schema=db_schema,
+        bucket_name=bucket_name,
+        dest_dir=input_dir,
+    )
+
+    # Unzip the downloaded file.
+    unzipped_paths = []
+    for full_filename in full_filenames:
+        with zipfile.ZipFile(os.path.join(input_dir, full_filename), 'r') as zip_ref:
+            zip_ref.extractall(input_dir)
+        base_name = full_filename.removesuffix(".zip")
+        os.remove(os.path.join(input_dir, full_filename))
+        unzipped_paths.append(os.path.join(input_dir, base_name))
+
+    # Generate an intermediate file from which to load the lazyframe.
+    for unzipped_path in unzipped_paths:
+        filename = os.path.basename(unzipped_path)
+        filepath = subset_csv_to_file(csv_filename=filename, handle="unified_input_file", topdir=framework_utils.session_dir(), subdir="input", file_format=file_format)
+        os.remove(unzipped_path)
+
+    # Load the lazyframe.
+    lf = get_lf("unified_input_file", topdir=framework_utils.session_dir(), subdir="input", file_format=file_format)
+
+    # Store the local filepath relative to the session directory.
+    local_filepath = filepath.removeprefix(framework_utils.session_dir() + os.sep)
+
+    # Return the lazyframe and extras.
+    return lf, {"local_filepath": local_filepath}
 
 
 def get_min_positive_values(pd_df, group_col="TMA_core_id", boolean_column="area_filter"):
@@ -257,6 +453,50 @@ def plot_image_from_frame(
     except Exception as e:
         print_flush(f"An error occurred in function {os.path.basename(__file__) if '__file__' in globals() else '<interactive>'}.{plot_image_from_frame.__name__}: {e}")
         return None
+
+
+# Function to create a line plot with multiple series.
+def line_plot_with_series(data, labels_axis_0, labels_axis_1, axis_0_name="Distance bin (µm)", axis_1_name="Phenotype", value_name="Mean density", color_map=None):
+    # Note the axes here refer to the axes of data, not the plot axes.
+
+    # Create a DataFrame from the data.
+    data = pl.DataFrame(data, schema=labels_axis_1).with_columns(
+        pl.Series(axis_0_name, labels_axis_0)
+    )
+
+    # Unpivot the DataFrame for plotting.
+    data_unpivoted = data.unpivot(
+        index=axis_0_name,
+        on=labels_axis_1,
+        variable_name=axis_1_name,
+        value_name=value_name,
+    )
+
+    # Define color map if not provided.
+    if not color_map:
+        colors = px.colors.qualitative.Plotly
+        unique_labels = sorted(labels_axis_1)
+        color_map = {label: colors[i % len(colors)] for i, label in enumerate(unique_labels)}
+
+    # Create the line plot.
+    fig = px.line(
+        data_unpivoted,
+        x=axis_0_name,
+        y=value_name,
+        color=axis_1_name,
+        color_discrete_map=color_map,
+        markers=True,
+    )
+
+    # Update layout for clarity.
+    fig.update_layout(
+        xaxis_title=axis_0_name,
+        yaxis_title=value_name,
+        legend_title=axis_1_name,
+    )
+
+    # Return the figure.
+    return fig
 
 
 def generate_umap(pldf, unique_labels, dist_bin_um_list=[25, 50, 100, 150, 200], area_downsample=0.2, um_per_px=1, cpu_pool_size=None, topdir=".", subdir="results", counts_method="andrew", area_threshold=0.8, custom_areas=True, seed_for_train_test_split=54321, n=2500, keep_images_with_too_little_data=True, train_sample_frac=1.0, test_sample_frac=1.0, de_min_coords=True, mp_start_method=None):

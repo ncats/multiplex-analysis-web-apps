@@ -4,18 +4,9 @@ from fast_neighborhood_profiles import main as fnp_main
 import polars as pl
 import plotly.express as px
 
-# Define constant.
+# Define constants.
 ST_KEY_PREFIX = "phenotype.py__"
 ST_KEY_PREFIX_LOAD = "load_unified_input_file.py__"
-
-
-# Get the marker column names from the lazyframe.
-def get_marker_columns(lf, exclusion_suffix=""):
-    if exclusion_suffix:
-        marker_columns = [column for column in lf.collect_schema().names() if column.startswith("Phenotype_(standardized) ") and not column.endswith(exclusion_suffix)]
-    else:
-        marker_columns = [column for column in lf.collect_schema().names() if column.startswith("Phenotype_(standardized) ")]
-    return sorted(marker_columns)
 
 
 # Define the main function.
@@ -41,7 +32,7 @@ def main():
         # Button to get the marker columns.
         key = ST_KEY_PREFIX + "marker_columns"
         if st.button("Get marker columns"):
-            st.session_state[key] = get_marker_columns(lf, exclusion_suffix=exclusion_suffix)
+            st.session_state[key] = fnp_main.get_marker_columns(lf, exclusion_suffix=exclusion_suffix)
 
         # Ensure the marker columns are in session state.
         if key not in st.session_state:

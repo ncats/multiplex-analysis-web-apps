@@ -3,51 +3,16 @@ import streamlit as st
 from fast_neighborhood_profiles import main as fnp_main
 import framework.utils as framework_utils
 import os
-import polars as pl
-import plotly.express as px
 
+# Define constants.
 ST_KEY_PREFIX = "run_spatial_umap.py__"
 ST_KEY_PREFIX_PHENOTYPE = "phenotype.py__"
 
 
+# Get a color map for True/False values.
 @st.cache_data()
 def get_true_false_color_map():
-    colors = px.colors.qualitative.Plotly
-    color_map = {label: colors[i % len(colors)] for i, label in enumerate((True, False))}
-    return color_map
-
-
-def save_and_load_pandas_df_to_lf(pd_df, handle, file_format):
-    fnp_main.save_pandas_df_to_file(pd_df, handle=handle, file_format=file_format, topdir=framework_utils.session_dir(), subdir="input")
-    return fnp_main.get_lf(handle, topdir=framework_utils.session_dir(), subdir="input", file_format=file_format)
-
-
-# Format the lazyframe, optionally sample it, and convert to a polars dataframe.
-def format_lazyframe(lf, sample_size=None, sample_seed=42):
-
-    # Load in cells and patient data.
-    lf = (
-        lf
-        .rename({"Image ID_(standardized)": "TMA_core_id", "Centroid X (µm)_(standardized)": "Xcor", "Centroid Y (µm)_(standardized)": "Ycor", "label": "Lineage"})
-        .select(pl.col(["TMA_core_id", "Xcor", "Ycor", "Lineage"]))
-        )
-
-    # Load in cells and patient data. Sampling will aid in faster testing and development. The sorting after the sampling is crucial to ensure consistent ordering.
-    if sample_size is None:
-        pldf = (
-            lf
-            .sort(by="TMA_core_id")
-            .collect()
-            )
-    else:
-        pldf = (
-            lf
-            .collect()
-            .sample(n=sample_size, seed=sample_seed)
-            .sort(by="TMA_core_id")
-            )
-        
-    return pldf
+    return fnp_main.get_true_false_color_map()
 
 
 # Define the main function.
@@ -61,9 +26,9 @@ def main():
     # Get the main lazyframe from session state.
     lf = st.session_state["LAZYFRAMES"]["marker_phenotyping"]["lf"]
 
+    # In the first of two main columns...
     main_columns = st.columns(2)
     with main_columns[0]:
-
         st.header("Analysis parameters")
 
         # Allow the user to reset the algorithm parameters to defaults.
@@ -139,25 +104,30 @@ def main():
         if not set_cpu_pool_size:
             cpu_pool_size = None
 
+    # Allow the user to initiate the analysis.
     sumap_cell_file_format = "parquet"
     key = ST_KEY_PREFIX + "spatial_umap"
     if st.button("Run spatial UMAP"):
         with st.spinner("Running spatial UMAP..."):
 
-            pldf_phenotyped = format_lazyframe(lf, sample_size=None, sample_seed=42)  # Not making these two parameters editable as haven't used for a while.
+            # Prepare inputs for the analysis.
+            pldf_phenotyped = fnp_main.format_lazyframe(lf, sample_size=None, sample_seed=42)  # Not making these two parameters editable as haven't used for a while.
             unique_labels = st.session_state[ST_KEY_PREFIX_PHENOTYPE + "unique_labels"]
             topdir = framework_utils.session_dir()
             subdir = os.path.join("output", "spatial_umap")
 
+            # Run the spatial UMAP analysis.
             spatial_umap, _ = fnp_main.generate_umap(pldf_phenotyped, unique_labels, dist_bin_um_list=dist_bin_um_list, area_downsample=area_downsample, um_per_px=1, cpu_pool_size=cpu_pool_size, topdir=topdir, subdir=subdir, counts_method="andrew", area_threshold=area_threshold, custom_areas=custom_areas, seed_for_train_test_split=seed_for_train_test_split, n=n, keep_images_with_too_little_data=keep_images_with_too_little_data, train_sample_frac=train_sample_frac, test_sample_frac=test_sample_frac, de_min_coords=de_min_coords, mp_start_method='forkserver')
 
+            # Store the result in the session state.
             st.session_state[key] = spatial_umap
 
+            # Convert some of the results to a lazyframe.
             params = dict(handle="sumap_cells", file_format=sumap_cell_file_format)
-            lf = save_and_load_pandas_df_to_lf(spatial_umap.cells, **params)
+            lf = fnp_main.save_and_load_pandas_df_to_lf(spatial_umap.cells, **params)
             st.session_state["LAZYFRAMES"]["sumap_cells"] = {
                 "lf": lf,
-                "function": save_and_load_pandas_df_to_lf,
+                "function": fnp_main.save_and_load_pandas_df_to_lf,
                 "input_dataset": {"type": "pandas_df", "keys": (key, "cells")},
                 "params": params,
                 "extras": None,
@@ -168,14 +138,17 @@ def main():
         st.info("Please press the button above to generate spatial UMAP results.")
         return
         
+    # Get a shortcut to the cells lazyframe.
     lf = st.session_state["LAZYFRAMES"]["sumap_cells"]["lf"]
 
+    # In the second of two main columns...
     with main_columns[1]:
-
         st.header("Check images for which (if any) cells were dropped")
 
+        # Write a note.
         st.write("`area_filter==True` means the cell was not filtered out by any custom areas calculation (if custom areas were used).")
 
+        # Allow for image selection and plot it colored by area filter.
         image_colname = "TMA_core_id"
         unique_image_ids = st.session_state[ST_KEY_PREFIX_PHENOTYPE + "unique_image_ids"]
         with st.container(horizontal=True, vertical_alignment="bottom"):
@@ -187,5 +160,6 @@ def main():
         st.plotly_chart(fnp_main.plot_image_from_frame(lf, image_colname=image_colname, selected_images=[selected_image_to_plot], marker_size=marker_size, xcol="Xcor", ycol="Ycor", color_col="area_filter", color_map=get_true_false_color_map()))
 
 
+# Run the main function if this script is executed.
 if __name__ == "__main__":
     main()

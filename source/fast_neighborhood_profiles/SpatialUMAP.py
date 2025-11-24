@@ -11,7 +11,7 @@ from multiprocessing import Pool
 from functools import partial
 from scipy import optimize
 import multiprocessing as mp
-from .utils import fast_neighbors_counts_for_block2
+import fast_neighborhood_profiles.main as fnp_main
 
 
 class SpatialUMAP:
@@ -226,7 +226,7 @@ class SpatialUMAP:
         print(f"Using start method {mp_start_method} with {cpu_pool_size} CPUs.", flush=True)
         try:
             with mp.get_context(mp_start_method).Pool(processes=cpu_pool_size) as pool:
-                results = pool.starmap(fast_neighbors_counts_for_block2, kwargs_list)
+                results = pool.starmap(fnp_main.fast_neighbors_counts_for_block2, kwargs_list)
         except Exception as e:
             # surface hard failures clearly in Streamlit
             raise RuntimeError(f"Parallel run failed: {e}") from e

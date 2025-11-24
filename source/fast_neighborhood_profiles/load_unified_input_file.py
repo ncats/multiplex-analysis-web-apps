@@ -1,74 +1,24 @@
 # Import relevant libraries.
 import streamlit as st
 import polars as pl
-import framework.platform_abstraction as pa
-import framework.utils as framework_utils
 import os
-import zipfile
+import framework.utils as framework_utils
 from fast_neighborhood_profiles import main as fnp_main
 
 # Define constant.
 ST_KEY_PREFIX = "load_unified_input_file.py__"
 
 
-# Load the lazyframe from the specified file using an intermediate file.
-def load_unified_input_file_data(file_format, db_schema, bucket_name, object_filename):
-    with st.spinner("Loading file..."):
-
-        # Shortcuts, the first for generalizability.
-        full_filenames = [object_filename]
-        input_dir = os.path.join(framework_utils.session_dir(), "input")
-
-        # Download the file from the server.
-        pa.download_objects_parallel(
-            object_names=full_filenames,
-            db_schema=db_schema,
-            bucket_name=bucket_name,
-            dest_dir=input_dir,
-        )
-
-        # Unzip the downloaded file.
-        unzipped_paths = []
-        for full_filename in full_filenames:
-            with zipfile.ZipFile(os.path.join(input_dir, full_filename), 'r') as zip_ref:
-                zip_ref.extractall(input_dir)
-            base_name = full_filename.removesuffix(".zip")
-            os.remove(os.path.join(input_dir, full_filename))
-            unzipped_paths.append(os.path.join(input_dir, base_name))
-
-        # Generate an intermediate file from which to load the lazyframe.
-        for unzipped_path in unzipped_paths:
-            filename = os.path.basename(unzipped_path)
-            filepath = fnp_main.subset_csv_to_file(csv_filename=filename, handle="unified_input_file", topdir=framework_utils.session_dir(), subdir="input", file_format=file_format)
-            os.remove(unzipped_path)
-
-        # Load the lazyframe.
-        lf = fnp_main.get_lf("unified_input_file", topdir=framework_utils.session_dir(), subdir="input", file_format=file_format)
-
-        local_filepath = filepath.removeprefix(framework_utils.session_dir() + os.sep)
-
-        return lf, {"local_filepath": local_filepath}
-
-
 # Get the list of objects in the bucket.
 @st.cache_data()
 def get_objects_list(upload_location):
-    objects_list = pa.list_objects_in_bucket(
-        db_schema=get_location_settings()[upload_location]["db_schema"],
-        bucket_name=get_location_settings()[upload_location]["bucket_name"],
-    )
-    return objects_list
+    return fnp_main.get_objects_list(upload_location)
 
 
 # Store information about possible upload locations.
 @st.cache_data()
 def get_location_settings():
-    return {
-        "Available input files": {
-            "bucket_name": pa.DATA_OBJECTS_BUCKET_NAME,
-            "db_schema": f"{pa.get_user_group(pa.get_current_username())}_group_db.curated_schema",
-        },
-    }
+    return fnp_main.get_location_settings()
 
 
 # Define the main function.
@@ -109,11 +59,12 @@ def main():
                     db_schema = get_location_settings()[upload_location]["db_schema"]
                     bucket_name = get_location_settings()[upload_location]["bucket_name"]
                     params = dict(file_format=file_format, db_schema=db_schema, bucket_name=bucket_name, object_filename=object_filename)
-                    lf, extras = load_unified_input_file_data(**params)
+                    with st.spinner("Loading file..."):
+                        lf, extras = fnp_main.load_unified_input_file_data(**params)
                     st.session_state["LAZYFRAMES"] = {}  # Clear existing lazyframes.
                     st.session_state["LAZYFRAMES"]["unified_input_file"] = {
                         "lf": lf,
-                        "function": load_unified_input_file_data,
+                        "function": fnp_main.load_unified_input_file_data,
                         "input_dataset": None,
                         "params": params,
                         "extras": extras,
