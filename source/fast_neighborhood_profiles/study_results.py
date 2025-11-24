@@ -4,6 +4,7 @@ from fast_neighborhood_profiles import main as fnp_main
 import polars as pl
 import plotly.express as px
 import numpy as np
+from functools import partial
 
 # Define session state key prefixes.
 ST_KEY_PREFIX = "study_results.py__"
@@ -11,14 +12,16 @@ ST_KEY_PREFIX_PHENOTYPE = "phenotype.py__"
 ST_KEY_PREFIX_SUMAP = "run_spatial_umap.py__"
 
 
-def get_selected_indices():
-    selection = st.session_state[ST_KEY_PREFIX + "umap_plot__do_not_persist"]
+def get_selected_indices(selected_handle):
+    both_handles = {"umap", "real_space"}
+    other_handle = (both_handles - {selected_handle}).pop()
+    selection = st.session_state[ST_KEY_PREFIX + f"{selected_handle}_plot__do_not_persist"]
     if "selection" in selection and "points" in selection["selection"] and selection["selection"]["points"]:
         points_list = selection["selection"]["points"]
         indices = [point["customdata"][4] for point in points_list]  # Note this means that if the "index" column is added to the plot data when calling main.plot_image_from_frame(), it must be the very first custom_column, i.e., at position 4 (0-based indexing).
-        st.session_state[ST_KEY_PREFIX + "selected_indices"] = indices
+        st.session_state[ST_KEY_PREFIX + "selected_indices_for_" + other_handle] = indices
     else:
-        st.session_state[ST_KEY_PREFIX + "selected_indices"] = []
+        st.session_state[ST_KEY_PREFIX + "selected_indices_for_" + other_handle] = []
 
 
 # Function to create a line plot with multiple series.
@@ -99,17 +102,16 @@ def main():
         st.session_state.setdefault(ST_KEY_PREFIX + "marker_size_umap", 3)
         marker_size_umap = st.slider("Marker size:", min_value=2, max_value=10, key=ST_KEY_PREFIX + "marker_size_umap")
 
-        # Plot the UMAP with selectable points.
-        fig = fnp_main.plot_image_from_frame(lf_indexed, image_colname=image_colname, selected_images=selected_images_to_plot, marker_size=marker_size_umap, xcol="umap_1", ycol="umap_2", color_col="Lineage", custom_columns=["index"], color_map=phenotype_color_map)
-        fig.update_layout(uirevision="static")  # this doesn't seem to be honored; investigate in the future
-        selected_umap_space = st.plotly_chart(fig, on_select=get_selected_indices, selection_mode=("points", "box", "lasso"), key=ST_KEY_PREFIX + "umap_plot__do_not_persist")
-        st.write(selected_umap_space)
+        if ST_KEY_PREFIX + "selected_indices_for_umap" in st.session_state and st.session_state[ST_KEY_PREFIX + "selected_indices_for_umap"]:
+            selected_indices = st.session_state[ST_KEY_PREFIX + "selected_indices_for_umap"]
+        else:
+            selected_indices = []
+        st.write(f"Number of selected points in real space: {len(selected_indices):_}")
 
-    if ST_KEY_PREFIX + "selected_indices" in st.session_state and st.session_state[ST_KEY_PREFIX + "selected_indices"]:
-        selected_indices = st.session_state[ST_KEY_PREFIX + "selected_indices"]
-        st.write(f"Number of selected points: {len(selected_indices):_}")
-    else:
-        selected_indices = []
+        # Plot the UMAP with selectable points.
+        fig = fnp_main.plot_image_from_frame(lf_indexed, image_colname=image_colname, selected_images=selected_images_to_plot, marker_size=marker_size_umap, xcol="umap_1", ycol="umap_2", color_col="Lineage", custom_columns=["index"], color_map=phenotype_color_map, highlight_indices=selected_indices)
+        fig.update_layout(uirevision="static")  # this doesn't seem to be honored; investigate in the future
+        st.plotly_chart(fig, on_select=partial(get_selected_indices, selected_handle="umap"), selection_mode=("points", "box", "lasso"), key=ST_KEY_PREFIX + "umap_plot__do_not_persist")
 
     # In the second of two columns...
     with main_columns[1]:
@@ -128,21 +130,33 @@ def main():
             st.session_state.setdefault(ST_KEY_PREFIX + "marker_size_real_space", 3)
             marker_size_real_space = st.slider("Marker size:", min_value=2, max_value=10, key=ST_KEY_PREFIX + "marker_size_real_space")
 
+            if ST_KEY_PREFIX + "selected_indices_for_real_space" in st.session_state and st.session_state[ST_KEY_PREFIX + "selected_indices_for_real_space"]:
+                selected_indices = st.session_state[ST_KEY_PREFIX + "selected_indices_for_real_space"]
+            else:
+                selected_indices = []
+            st.write(f"Number of selected points in UMAP: {len(selected_indices):_}")
+
+            st.session_state.setdefault(ST_KEY_PREFIX + "display_only_real_space_coords_with_umap_coords", False)
+            display_only_real_space_coords_with_umap_coords = st.checkbox("Display only real space coords with UMAP coords", key=ST_KEY_PREFIX + "display_only_real_space_coords_with_umap_coords")
+            if display_only_real_space_coords_with_umap_coords:
+                lf_indexed = lf_indexed.filter(pl.col("umap_test"))
+
             fig = fnp_main.plot_image_from_frame(lf_indexed, image_colname="TMA_core_id", xcol="Xcor", ycol="Ycor", color_col="Lineage", selected_images=[selected_image_to_plot], marker_size=marker_size_real_space, highlight_indices=selected_indices, custom_columns=["index"], color_map=phenotype_color_map)
             fig.update_layout(uirevision="static")  # this doesn't seem to be honored; investigate in the future
-            selected_real_space = st.plotly_chart(fig, on_select="rerun", selection_mode=("points", "box", "lasso"), key=ST_KEY_PREFIX + "real_space_plot__do_not_persist")
-            st.write(selected_real_space)
+            st.plotly_chart(fig, on_select=partial(get_selected_indices, selected_handle="real_space"), selection_mode=("points", "box", "lasso"), key=ST_KEY_PREFIX + "real_space_plot__do_not_persist")
+            if not display_only_real_space_coords_with_umap_coords:
+                st.write("Keep in mind that not every point in real space was used for UMAP inference. So while selecting points in UMAP space will render the same number of selections in real space (over all the images), selecting points in real space will often render fewer selections in UMAP space. However, selecting points in real space still allows you to faithfully see their neighborhood profiles below.")
 
-    # If there are selected points...
-    if selected_indices:
+    # # If there are selected points...
+    # if selected_indices:
 
-        # Obtain from it the mean density for the selected points.
-        density = spatial_umap.density[selected_indices, :, :]
-        density_mean = density.mean(axis=0, dtype=np.float32)
+    #     # Obtain from it the mean density for the selected points.
+    #     density = spatial_umap.density[selected_indices, :, :]
+    #     density_mean = density.mean(axis=0, dtype=np.float32)
 
-        # Plot the neighborhood profiles.
-        fig = line_plot_with_series(density_mean, dist_bin_um_list, unique_labels, axis_0_name="Distance bin (µm)", axis_1_name="Phenotype", value_name="Mean density", color_map=phenotype_color_map)
-        st.plotly_chart(fig)
+    #     # Plot the neighborhood profiles.
+    #     fig = line_plot_with_series(density_mean, dist_bin_um_list, unique_labels, axis_0_name="Distance bin (µm)", axis_1_name="Phenotype", value_name="Mean density", color_map=phenotype_color_map)
+    #     st.plotly_chart(fig)
 
 
 # Run the main function if this script is executed.

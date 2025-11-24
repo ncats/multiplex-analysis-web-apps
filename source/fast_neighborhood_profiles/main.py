@@ -178,7 +178,7 @@ def plot_image_from_frame(
         
         # Determine if we should highlight.
         index_col = "index"
-        do_highlight = index_col in df.columns and index_col in custom_columns and highlight_indices
+        do_highlight = index_col in df.columns and index_col in custom_columns and len(highlight_indices) > 0
         if do_highlight:
             mask_high = df[index_col].isin(highlight_indices)
             df_high = df[mask_high]
