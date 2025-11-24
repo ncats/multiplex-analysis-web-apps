@@ -20,10 +20,10 @@ def get_selected_indices(selected_handle):
         points_list = selection["selection"]["points"]
         indices = [point["customdata"][4] for point in points_list]  # Note this means that if the "index" column is added to the plot data when calling main.plot_image_from_frame(), it must be the very first custom_column, i.e., at position 4 (0-based indexing).
         st.session_state[ST_KEY_PREFIX + "selected_indices_for_" + other_handle] = indices
-        st.session_state[ST_KEY_PREFIX + "selected_indices_for_line_plots"] = indices
+        st.session_state[ST_KEY_PREFIX + "selected_indices_for_neighborhood_profile"] = indices
     else:
         st.session_state[ST_KEY_PREFIX + "selected_indices_for_" + other_handle] = []
-        st.session_state[ST_KEY_PREFIX + "selected_indices_for_line_plots"] = []
+        st.session_state[ST_KEY_PREFIX + "selected_indices_for_neighborhood_profile"] = []
 
 
 # Main function.
@@ -53,9 +53,9 @@ def main():
     selected_indices_for_real_space = []
     if ST_KEY_PREFIX + "selected_indices_for_real_space" in st.session_state and st.session_state[ST_KEY_PREFIX + "selected_indices_for_real_space"]:
         selected_indices_for_real_space = st.session_state[ST_KEY_PREFIX + "selected_indices_for_real_space"]
-    selected_indices_for_line_plots = []
-    if ST_KEY_PREFIX + "selected_indices_for_line_plots" in st.session_state and st.session_state[ST_KEY_PREFIX + "selected_indices_for_line_plots"]:
-        selected_indices_for_line_plots = st.session_state[ST_KEY_PREFIX + "selected_indices_for_line_plots"]
+    selected_indices_for_neighborhood_profile = []
+    if ST_KEY_PREFIX + "selected_indices_for_neighborhood_profile" in st.session_state and st.session_state[ST_KEY_PREFIX + "selected_indices_for_neighborhood_profile"]:
+        selected_indices_for_neighborhood_profile = st.session_state[ST_KEY_PREFIX + "selected_indices_for_neighborhood_profile"]
 
     # In the first of two columns...
     main_columns = st.columns(2)
@@ -70,7 +70,9 @@ def main():
         marker_size_umap = st.slider("Marker size:", min_value=2, max_value=10, key=ST_KEY_PREFIX + "marker_size_umap")
 
         # Write the number of selected points in the UMAP. Remember it says _for_real_space even though the selection is done on the UMAP because it's the selection of points on the UMAP that will be highlighted *for* the real space plot.
-        st.write(f"Number of selected points in UMAP: {len(selected_indices_for_real_space):_}")
+        with st.container(horizontal=True):
+            st.write(f"Number of selected points in UMAP: {len(selected_indices_for_real_space):_}")
+            st.button("Clear selection", on_click=lambda: st.session_state.update({ST_KEY_PREFIX + "selected_indices_for_real_space": []}))
 
         # Plot the UMAP with selectable points.
         fig = fnp_main.plot_image_from_frame(lf_indexed, image_colname=image_colname, selected_images=selected_images_to_plot, marker_size=marker_size_umap, xcol="umap_1", ycol="umap_2", color_col="Lineage", custom_columns=["index"], color_map=phenotype_color_map, highlight_indices=selected_indices_for_umap)
@@ -99,7 +101,9 @@ def main():
             marker_size_real_space = st.slider("Marker size:", min_value=2, max_value=10, key=ST_KEY_PREFIX + "marker_size_real_space")
 
             # Write the number of selected points in real space. Remember it says _for_umap even though the selection is done on real space because it's the selection of points in real space that will be highlighted *for* the UMAP plot.
-            st.write(f"Number of selected points in real space: {len(selected_indices_for_umap):_}")
+            with st.container(horizontal=True):
+                st.write(f"Number of selected points in real space: {len(selected_indices_for_umap):_}")
+                st.button("Clear selection", on_click=lambda: st.session_state.update({ST_KEY_PREFIX + "selected_indices_for_umap": []}))
 
             # Give the user the option to only plot real space points that were used for UMAP inference.
             st.session_state.setdefault(ST_KEY_PREFIX + "display_only_real_space_coords_with_umap_coords", False)
@@ -117,14 +121,19 @@ def main():
                 st.write("Keep in mind that not every point in real space was used for UMAP inference. So while selecting points in UMAP space will render the same number of selections in real space (over all the images), selecting points in real space will often render fewer selections in UMAP space. However, selecting points in real space still allows you to faithfully see their neighborhood profiles below.")
 
     # If there are selected points...
-    if selected_indices_for_line_plots:
+    if selected_indices_for_neighborhood_profile:
+
+        # Write the number of selected points for the neighborhood profile plot.
+        with st.container(horizontal=True):
+            st.write(f"Last number of selected points for neighborhood profile: {len(selected_indices_for_neighborhood_profile):_}")
+            st.button("Clear selection", on_click=lambda: st.session_state.update({ST_KEY_PREFIX + "selected_indices_for_neighborhood_profile": []}))
 
         # Obtain from it the mean density for the selected points.
-        density = spatial_umap.density[selected_indices_for_line_plots, :, :]
-        density_mean = density.mean(axis=0, dtype=np.float32)
+        density = spatial_umap.density[selected_indices_for_neighborhood_profile, :, :]
 
         # Plot the neighborhood profiles.
-        fig = fnp_main.line_plot_with_series(density_mean, dist_bin_um_list, unique_labels, axis_0_name="Distance bin (µm)", axis_1_name="Phenotype", value_name="Mean density", color_map=phenotype_color_map)
+        # fig = fnp_main.line_plot_with_series(density.mean(axis=0, dtype=np.float32), dist_bin_um_list, unique_labels, axis_0_name="Distance bin (µm)", axis_1_name="Phenotype", value_name="Mean density", color_map=phenotype_color_map)
+        fig = fnp_main.violin_plot_with_series(density, dist_bin_um_list, unique_labels, axis_1_name="Distance bin (µm)", axis_2_name="Phenotype", value_name="Density", color_map=phenotype_color_map)
         st.plotly_chart(fig)
 
 

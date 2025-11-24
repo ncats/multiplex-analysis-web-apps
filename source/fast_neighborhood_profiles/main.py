@@ -455,6 +455,52 @@ def plot_image_from_frame(
         return None
 
 
+# Function to create a violin plot with distributions from a third axis.
+def violin_plot_with_series(data, labels_axis_1, labels_axis_2, axis_1_name="Distance bin (µm)", axis_2_name="Phenotype", value_name="Density", color_map=None):
+    # Note the axes here refer to the axes of data, not the plot axes.
+    # data shape: (axis_0, axis_1, axis_2) where axis_0 is the distribution dimension (e.g., cells), axis_1 is the distance bin, and axis_2 is the phenotype.
+    
+    # Define color map if not provided.
+    if not color_map:
+        colors = px.colors.qualitative.Plotly
+        unique_labels = sorted(labels_axis_2)
+        color_map = {label: colors[i % len(colors)] for i, label in enumerate(unique_labels)}
+    
+    # Create the figure.
+    fig = go.Figure()
+    
+    # For each phenotype (axis_2)...
+    for i2, label_axis_2 in enumerate(labels_axis_2):
+        # For each distance bin (axis_1)...
+        for i1, label_axis_1 in enumerate(labels_axis_1):
+            # Extract the distribution across axis_0 for this combination
+            distribution_values = data[:, i1, i2]
+            
+            # Add violin trace
+            fig.add_trace(go.Violin(
+                x=[label_axis_1] * data.shape[0],
+                y=distribution_values,
+                name=label_axis_2,
+                legendgroup=label_axis_2,
+                scalegroup=label_axis_2,
+                line_color=color_map[label_axis_2],
+                showlegend=(i1 == 0),  # Only show legend for first distance bin
+                box_visible=True,
+                meanline_visible=True,
+            ))
+    
+    # Update layout for clarity.
+    fig.update_layout(
+        xaxis_title=axis_1_name,
+        yaxis_title=value_name,
+        legend_title=axis_2_name,
+        violinmode='group',
+    )
+    
+    # Return the figure.
+    return fig
+
+
 # Function to create a line plot with multiple series.
 def line_plot_with_series(data, labels_axis_0, labels_axis_1, axis_0_name="Distance bin (µm)", axis_1_name="Phenotype", value_name="Mean density", color_map=None):
     # Note the axes here refer to the axes of data, not the plot axes.
