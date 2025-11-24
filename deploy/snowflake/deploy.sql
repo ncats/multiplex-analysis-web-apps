@@ -57,7 +57,7 @@ CREATE TABLE IF NOT EXISTS app_a_schema.archives_table (
   container_image_id VARCHAR(255),
   archive_id VARCHAR(255) UNIQUE NOT NULL,
   app_session_id VARCHAR(255),
-  archive_compatibility_id INTEGER,
+  archive_compatibility_id VARCHAR(255),
   creation_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 CREATE TABLE IF NOT EXISTS app_a_schema.jobs_table (
@@ -200,7 +200,7 @@ CREATE TABLE IF NOT EXISTS general_schema.image_metadata_table (
   tag VARCHAR(255),
   git_commit VARCHAR(255),
   environment_yaml_file VARCHAR(255),
-  archive_compatibility_id INTEGER,
+  archive_compatibility_id VARCHAR(255),
   image_added_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   who_added VARCHAR(255)
 );
