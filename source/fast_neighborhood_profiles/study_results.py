@@ -15,7 +15,7 @@ def get_selected_indices():
     selection = st.session_state[ST_KEY_PREFIX + "umap_plot__do_not_persist"]
     if "selection" in selection and "points" in selection["selection"] and selection["selection"]["points"]:
         points_list = selection["selection"]["points"]
-        indices = [point["customdata"][2] for point in points_list]
+        indices = [point["customdata"][4] for point in points_list]  # Note this means that if the "index" column is added to the plot data when calling main.plot_image_from_frame(), it must be the very first custom_column, i.e., at position 4 (0-based indexing).
         st.session_state[ST_KEY_PREFIX + "selected_indices"] = indices
     else:
         st.session_state[ST_KEY_PREFIX + "selected_indices"] = []
@@ -102,7 +102,8 @@ def main():
         # Plot the UMAP with selectable points.
         fig = fnp_main.plot_image_from_frame(lf_indexed, image_colname=image_colname, selected_images=selected_images_to_plot, marker_size=marker_size_umap, xcol="umap_1", ycol="umap_2", color_col="Lineage", custom_columns=["index"], color_map=phenotype_color_map)
         fig.update_layout(uirevision="static")  # this doesn't seem to be honored; investigate in the future
-        st.plotly_chart(fig, on_select=get_selected_indices, selection_mode=("points", "box", "lasso"), key=ST_KEY_PREFIX + "umap_plot__do_not_persist")
+        selected_umap_space = st.plotly_chart(fig, on_select=get_selected_indices, selection_mode=("points", "box", "lasso"), key=ST_KEY_PREFIX + "umap_plot__do_not_persist")
+        st.write(selected_umap_space)
 
     if ST_KEY_PREFIX + "selected_indices" in st.session_state and st.session_state[ST_KEY_PREFIX + "selected_indices"]:
         selected_indices = st.session_state[ST_KEY_PREFIX + "selected_indices"]

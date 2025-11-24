@@ -99,7 +99,7 @@ def main():
             st.button("Previous", on_click=lambda: st.session_state.update({ST_KEY_PREFIX + "selected_image_to_plot": unique_image_ids[max(0, unique_image_ids.index(st.session_state[ST_KEY_PREFIX + "selected_image_to_plot"]) - 1)]}), disabled=(st.session_state[ST_KEY_PREFIX + "selected_image_to_plot"] == unique_image_ids[0]))
             st.button("Next", on_click=lambda: st.session_state.update({ST_KEY_PREFIX + "selected_image_to_plot": unique_image_ids[min(len(unique_image_ids) - 1, unique_image_ids.index(st.session_state[ST_KEY_PREFIX + "selected_image_to_plot"]) + 1)]}), disabled=(st.session_state[ST_KEY_PREFIX + "selected_image_to_plot"] == unique_image_ids[-1]))
         marker_size = st.slider("Marker size:", min_value=2, max_value=10, value=3)
-        st.plotly_chart(fnp_main.plot_image_from_frame(lf_phenotyped, image_colname=image_colname, selected_images=[selected_image_to_plot], marker_size=marker_size), color_map=st.session_state[ST_KEY_PREFIX + "phenotype_color_map"])
+        st.plotly_chart(fnp_main.plot_image_from_frame(lf_phenotyped, image_colname=image_colname, selected_images=[selected_image_to_plot], marker_size=marker_size, color_map=st.session_state[ST_KEY_PREFIX + "phenotype_color_map"]))
 
 
 # Run the main function if this script is executed.

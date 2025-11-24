@@ -13,7 +13,7 @@ ST_KEY_PREFIX_PHENOTYPE = "phenotype.py__"
 @st.cache_data()
 def get_true_false_color_map():
     colors = px.colors.qualitative.Plotly
-    color_map = {label: colors[i % len(colors)] for i, label in enumerate(("False", "True"))}
+    color_map = {label: colors[i % len(colors)] for i, label in enumerate((True, False))}
     return color_map
 
 
