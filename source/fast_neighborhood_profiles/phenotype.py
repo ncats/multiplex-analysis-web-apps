@@ -2,6 +2,7 @@
 import streamlit as st
 from fast_neighborhood_profiles import main as fnp_main
 import polars as pl
+import plotly.express as px
 
 # Define constant.
 ST_KEY_PREFIX = "phenotype.py__"
@@ -66,6 +67,9 @@ def main():
             st.session_state[ST_KEY_PREFIX + "num_phenotyped_rows"] = lf_phenotyped.select(pl.len()).collect().item()
             st.session_state[ST_KEY_PREFIX + "unique_labels"] = lf_phenotyped.select(pl.col("label").unique().sort()).collect().to_series().to_list()
             st.session_state[ST_KEY_PREFIX + "unique_image_ids"] = lf_phenotyped.select(pl.col("Image ID_(standardized)").unique().sort()).collect().to_series().to_list()
+            colors = px.colors.qualitative.Plotly
+            st.session_state[ST_KEY_PREFIX + "phenotype_color_map"] = {label: colors[i % len(colors)] for i, label in enumerate(st.session_state[ST_KEY_PREFIX + "unique_labels"])}
+
 
         # Ensure the phenotyped lazyframe is in session state.
         if "marker_phenotyping" not in st.session_state["LAZYFRAMES"]:
@@ -94,8 +98,8 @@ def main():
             selected_image_to_plot = st.selectbox("Select image to plot:", options=unique_image_ids, key=ST_KEY_PREFIX + "selected_image_to_plot")
             st.button("Previous", on_click=lambda: st.session_state.update({ST_KEY_PREFIX + "selected_image_to_plot": unique_image_ids[max(0, unique_image_ids.index(st.session_state[ST_KEY_PREFIX + "selected_image_to_plot"]) - 1)]}), disabled=(st.session_state[ST_KEY_PREFIX + "selected_image_to_plot"] == unique_image_ids[0]))
             st.button("Next", on_click=lambda: st.session_state.update({ST_KEY_PREFIX + "selected_image_to_plot": unique_image_ids[min(len(unique_image_ids) - 1, unique_image_ids.index(st.session_state[ST_KEY_PREFIX + "selected_image_to_plot"]) + 1)]}), disabled=(st.session_state[ST_KEY_PREFIX + "selected_image_to_plot"] == unique_image_ids[-1]))
-        marker_size = st.slider("Marker size:", min_value=1, max_value=10, value=1)
-        st.plotly_chart(fnp_main.plot_image_from_frame(lf_phenotyped, image_colname=image_colname, selected_images=[selected_image_to_plot], marker_size=marker_size))
+        marker_size = st.slider("Marker size:", min_value=2, max_value=10, value=3)
+        st.plotly_chart(fnp_main.plot_image_from_frame(lf_phenotyped, image_colname=image_colname, selected_images=[selected_image_to_plot], marker_size=marker_size), color_map=st.session_state[ST_KEY_PREFIX + "phenotype_color_map"])
 
 
 # Run the main function if this script is executed.

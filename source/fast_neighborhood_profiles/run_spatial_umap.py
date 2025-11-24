@@ -4,9 +4,17 @@ from fast_neighborhood_profiles import main as fnp_main
 import framework.utils as framework_utils
 import os
 import polars as pl
+import plotly.express as px
 
 ST_KEY_PREFIX = "run_spatial_umap.py__"
 ST_KEY_PREFIX_PHENOTYPE = "phenotype.py__"
+
+
+@st.cache_data()
+def get_true_false_color_map():
+    colors = px.colors.qualitative.Plotly
+    color_map = {label: colors[i % len(colors)] for i, label in enumerate(("False", "True"))}
+    return color_map
 
 
 def save_and_load_pandas_df_to_lf(pd_df, handle, file_format):
@@ -175,8 +183,8 @@ def main():
             selected_image_to_plot = st.selectbox("Select image to plot:", options=unique_image_ids, key=ST_KEY_PREFIX + "selected_image_to_plot")
             st.button("Previous", on_click=lambda: st.session_state.update({ST_KEY_PREFIX + "selected_image_to_plot": unique_image_ids[max(0, unique_image_ids.index(st.session_state[ST_KEY_PREFIX + "selected_image_to_plot"]) - 1)]}), disabled=(st.session_state[ST_KEY_PREFIX + "selected_image_to_plot"] == unique_image_ids[0]))
             st.button("Next", on_click=lambda: st.session_state.update({ST_KEY_PREFIX + "selected_image_to_plot": unique_image_ids[min(len(unique_image_ids) - 1, unique_image_ids.index(st.session_state[ST_KEY_PREFIX + "selected_image_to_plot"]) + 1)]}), disabled=(st.session_state[ST_KEY_PREFIX + "selected_image_to_plot"] == unique_image_ids[-1]))
-        marker_size = st.slider("Marker size:", min_value=1, max_value=10, value=1)
-        st.plotly_chart(fnp_main.plot_image_from_frame(lf, image_colname=image_colname, selected_images=[selected_image_to_plot], marker_size=marker_size, xcol="Xcor", ycol="Ycor", color_col="area_filter"))
+        marker_size = st.slider("Marker size:", min_value=2, max_value=10, value=3)
+        st.plotly_chart(fnp_main.plot_image_from_frame(lf, image_colname=image_colname, selected_images=[selected_image_to_plot], marker_size=marker_size, xcol="Xcor", ycol="Ycor", color_col="area_filter", color_map=get_true_false_color_map()))
 
 
 if __name__ == "__main__":

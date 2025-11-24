@@ -7,16 +7,7 @@ from fast_neighborhood_profiles import SpatialUMAP
 import umap
 import PlottingTools
 import matplotlib.pyplot as plt
-
-
-# def get_unique_column_values(csv_filename="mawa-unified_datafile-TLS_tissue_SF_-20251112_130129_EST.csv", column_name="Image ID_(standardized)", topdir="."):
-#     try:
-#         csv_filepath = os.path.join(topdir, "datafiles", csv_filename)
-#         lf = pl.scan_csv(csv_filepath)
-#         return lf.select(pl.col(column_name).unique()).collect().to_series().to_list()
-#     except Exception as e:
-#         print(f"An error occurred in function {os.path.basename(__file__)}.{get_unique_column_values.__name__}: {e}")
-#         return []
+import plotly.graph_objects as go
 
 
 def print_flush(msg):
@@ -139,94 +130,132 @@ def plot_image_from_frame(
     frame: pl.LazyFrame | pl.DataFrame | pd.DataFrame,
     image_colname: str = "Image ID_(standardized)",
     selected_images: list[str] = ["MS_02__cele_1400w"],
-    marker_size: int | float | None = None,  # None -> use Plotly's default
+    marker_size: int | float | None = None,
     xcol="Centroid X (µm)_(standardized)",
     ycol="Centroid Y (µm)_(standardized)",
     color_col="label",
+    color_map: dict | None = None,
     custom_columns=[],
+    highlight_indices: list | set = (),
+    default_marker_size: int | float | None = None,
+    default_marker_line_color: str = "rgba(0,0,0,0.3)",
+    default_marker_alpha: float = 0.5,
+    highlight_marker_size: int | float | None = None,
+    highlight_marker_line_color: str = "black",
+    highlight_marker_alpha: float = 1.0,
+    highlight_show_legend: bool = False,
 ):
     try:
 
-        # Filter and collect to an eager frame; convert to pandas for Plotly Express robustness
+        # Efficiently convert the input frame to a pandas DataFrame with necessary filtering.
+        # If there is slowness, we can try keeping as a Polars DataFrame and using Plotly's ability to plot from Polars DataFrames directly, proceeding with polars dataframes in all operations below.
+        cols_to_keep = [color_col, image_colname, xcol, ycol] + custom_columns
         if isinstance(frame, pl.LazyFrame):
+            base = frame.filter(pl.col(xcol).is_not_null() & pl.col(ycol).is_not_null())
             if selected_images:
-                df = (
-                    frame
-                    .filter(pl.col(image_colname).is_in(selected_images))
-                    .filter(pl.col(xcol).is_not_null() & pl.col(ycol).is_not_null())
-                    .select(custom_columns + [image_colname, xcol, ycol, color_col])
-                    .collect()
-                )
-            else:
-                df = (
-                    frame
-                    .filter(pl.col(xcol).is_not_null() & pl.col(ycol).is_not_null())
-                    .select(custom_columns + [image_colname, xcol, ycol, color_col])
-                    .collect()
-                )
+                base = base.filter(pl.col(image_colname).is_in(selected_images))
+            df = base.select(cols_to_keep).collect().to_pandas()
         elif isinstance(frame, pl.DataFrame):
+            base = frame.filter(pl.col(xcol).is_not_null() & pl.col(ycol).is_not_null())
             if selected_images:
-                df = (
-                    frame
-                    .filter(pl.col(image_colname).is_in(selected_images))
-                    .filter(pl.col(xcol).is_not_null() & pl.col(ycol).is_not_null())
-                    .select(custom_columns + [image_colname, xcol, ycol, color_col])
-                )
-            else:
-                df = (
-                    frame
-                    .filter(pl.col(xcol).is_not_null() & pl.col(ycol).is_not_null())
-                    .select(custom_columns + [image_colname, xcol, ycol, color_col])
-                )
+                base = base.filter(pl.col(image_colname).is_in(selected_images))
+            df = base.select(cols_to_keep).to_pandas()
         elif isinstance(frame, pd.DataFrame):
+            mask = frame[xcol].notna() & frame[ycol].notna()
             if selected_images:
-                mask = frame[image_colname].isin(selected_images)
-                mask &= frame[xcol].notna() & frame[ycol].notna()
-                df = frame.loc[mask, custom_columns + [image_colname, xcol, ycol, color_col]]
-            else:
-                mask = frame[xcol].notna() & frame[ycol].notna()
-                df = frame.loc[mask, custom_columns + [image_colname, xcol, ycol, color_col]]
+                mask &= frame[image_colname].isin(selected_images)
+            df = frame.loc[mask, cols_to_keep]
         else:
             raise ValueError("Input frame must be a Polars LazyFrame, Polars DataFrame, or Pandas DataFrame.")
+
+        # Prepare hover data columns.
+        hover_template = \
+        f'<b>{color_col}</b>: %{{customdata[0]}}<br>' + \
+        f'<b>{image_colname}</b>: %{{customdata[1]}}<br>' + \
+        f'<b>{xcol}</b>: %{{customdata[2]}}<br>' + \
+        f'<b>{ycol}</b>: %{{customdata[3]}}' + \
+        "".join([f'<br><b>{custom_column}</b>: %{{customdata[{4 + i}]}}' for i, custom_column in enumerate(custom_columns)])
         
-        hover_data = {
-                image_colname: True,
-                color_col: True,
-                xcol: True,
-                ycol: True,
-            }
-        
-        for custom_col in custom_columns:
-            hover_data[custom_col] = True
+        # Determine if we should highlight.
+        index_col = "index"
+        do_highlight = index_col in df.columns and index_col in custom_columns and highlight_indices
+        if do_highlight:
+            mask_high = df[index_col].isin(highlight_indices)
+            df_high = df[mask_high]
+            df_other = df[~mask_high]
+        else:
+            df_high = None
+            df_other = df
 
-        # Draw the scatter plot.
-        fig = px.scatter(
-            df,
-            x=xcol,
-            y=ycol,
-            color=color_col,
-            title=f"Scatterplot colored by {color_col}",
-            hover_data=hover_data,
-            render_mode="webgl",
-        )
+        # Get unique labels and assign colors using Plotly's default color sequence.
+        if not color_map:
+            unique_labels = sorted(df[color_col].unique())
+            colors = px.colors.qualitative.Plotly
+            color_map = {label: colors[i % len(colors)] for i, label in enumerate(unique_labels)}
+        else:
+            unique_labels = color_map.keys()
 
-        # Preserve Plotly’s default marker size if marker_size is None.
-        if marker_size is not None:
-            fig.update_traces(marker=dict(size=marker_size))
+        # Determine effective marker sizes.
+        effective_default_size = default_marker_size if default_marker_size is not None else (marker_size if marker_size is not None else 5)
+        effective_highlight_size = highlight_marker_size if highlight_marker_size is not None else (3 * marker_size if marker_size is not None else 15)
 
-        # Ensure 1:1 aspect ratio so spatial distances are faithful.
+        # Create figure and add non-highlighted traces.
+        fig = go.Figure()
+        for label in unique_labels:
+            label_mask = df_other[color_col] == label
+            if label_mask.any():
+                label_data = df_other[label_mask]
+                fig.add_trace(go.Scattergl(
+                    x=label_data[xcol],
+                    y=label_data[ycol],
+                    mode="markers",
+                    name=label,
+                    marker=dict(
+                        size=effective_default_size,
+                        color=color_map[label],
+                        line=dict(color=default_marker_line_color, width=1),
+                    ),
+                    opacity=default_marker_alpha,
+                    customdata=label_data.values,
+                    hovertemplate=hover_template,
+                ))
+
+        # Add highlighted traces if applicable.
+        if do_highlight and df_high is not None and not df_high.empty:
+            for label in unique_labels:
+                label_mask = df_high[color_col] == label
+                if label_mask.any():
+                    label_data = df_high[label_mask]
+                    fig.add_trace(go.Scattergl(
+                        x=label_data[xcol],
+                        y=label_data[ycol],
+                        mode="markers",
+                        name=label,
+                        showlegend=highlight_show_legend,
+                        marker=dict(
+                            size=effective_highlight_size,
+                            color=color_map[label],
+                            line=dict(color=highlight_marker_line_color, width=1),
+                        ),
+                        opacity=highlight_marker_alpha,
+                        customdata=label_data.values,
+                        hovertemplate=hover_template,
+                    ))
+
+        # Update layout.
         fig.update_yaxes(scaleanchor="x", scaleratio=1)
-        fig.update_layout(legend_title_text=f"{color_col}")
+        fig.update_layout(
+            title=f"Scatterplot colored by {color_col.lower()}",
+            legend_title_text=color_col,
+            xaxis_title=xcol,
+            yaxis_title=ycol,
+        )
 
         # Return the figure.
         return fig
 
     except Exception as e:
-        print_flush(
-            f"An error occurred in function "
-            f"{os.path.basename(__file__) if '__file__' in globals() else '<interactive>'}."
-            f"{plot_image_from_frame.__name__}: {e}"
-        )
+        print_flush(f"An error occurred in function {os.path.basename(__file__) if '__file__' in globals() else '<interactive>'}.{plot_image_from_frame.__name__}: {e}")
         return None
 
 
