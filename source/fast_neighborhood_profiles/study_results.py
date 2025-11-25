@@ -72,7 +72,7 @@ def main():
         # Write the number of selected points in the UMAP. Remember it says _for_real_space even though the selection is done on the UMAP because it's the selection of points on the UMAP that will be highlighted *for* the real space plot.
         with st.container(horizontal=True):
             st.write(f"Number of selected points in UMAP: {len(selected_indices_for_real_space):_}")
-            st.button("Clear selection", on_click=lambda: st.session_state.update({ST_KEY_PREFIX + "selected_indices_for_real_space": []}))
+            st.button("Clear selection", on_click=lambda: st.session_state.update({ST_KEY_PREFIX + "selected_indices_for_real_space": []}), key=ST_KEY_PREFIX + "clear_umap_selection_button__do_not_persist")
 
         # Plot the UMAP with selectable points.
         fig = fnp_main.plot_image_from_frame(lf_indexed, image_colname=image_colname, selected_images=selected_images_to_plot, marker_size=marker_size_umap, xcol="umap_1", ycol="umap_2", color_col="Lineage", custom_columns=["index"], color_map=phenotype_color_map, highlight_indices=selected_indices_for_umap)
@@ -103,7 +103,7 @@ def main():
             # Write the number of selected points in real space. Remember it says _for_umap even though the selection is done on real space because it's the selection of points in real space that will be highlighted *for* the UMAP plot.
             with st.container(horizontal=True):
                 st.write(f"Number of selected points in real space: {len(selected_indices_for_umap):_}")
-                st.button("Clear selection", on_click=lambda: st.session_state.update({ST_KEY_PREFIX + "selected_indices_for_umap": []}))
+                st.button("Clear selection", on_click=lambda: st.session_state.update({ST_KEY_PREFIX + "selected_indices_for_umap": []}), key=ST_KEY_PREFIX + "clear_real_space_selection_button__do_not_persist")
 
             # Give the user the option to only plot real space points that were used for UMAP inference.
             st.session_state.setdefault(ST_KEY_PREFIX + "display_only_real_space_coords_with_umap_coords", False)
@@ -126,7 +126,7 @@ def main():
         # Write the number of selected points for the neighborhood profile plot.
         with st.container(horizontal=True):
             st.write(f"Last number of selected points for neighborhood profile: {len(selected_indices_for_neighborhood_profile):_}")
-            st.button("Clear selection", on_click=lambda: st.session_state.update({ST_KEY_PREFIX + "selected_indices_for_neighborhood_profile": []}))
+            st.button("Clear selection", on_click=lambda: st.session_state.update({ST_KEY_PREFIX + "selected_indices_for_neighborhood_profile": []}), key=ST_KEY_PREFIX + "clear_neighborhood_profile_selection_button__do_not_persist")
 
         # Obtain from it the mean density for the selected points.
         density = spatial_umap.density[selected_indices_for_neighborhood_profile, :, :]

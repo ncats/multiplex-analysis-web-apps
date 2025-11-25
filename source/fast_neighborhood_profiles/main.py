@@ -471,10 +471,16 @@ def violin_plot_with_series(data, labels_axis_1, labels_axis_2, axis_1_name="Dis
     
     # For each phenotype (axis_2)...
     for i2, label_axis_2 in enumerate(labels_axis_2):
+        # Store means for this phenotype to connect with a line
+        means = []
+        
         # For each distance bin (axis_1)...
         for i1, label_axis_1 in enumerate(labels_axis_1):
             # Extract the distribution across axis_0 for this combination
             distribution_values = data[:, i1, i2]
+            
+            # Calculate and store mean
+            means.append(np.mean(distribution_values))
             
             # Add violin trace
             fig.add_trace(go.Violin(
@@ -485,16 +491,28 @@ def violin_plot_with_series(data, labels_axis_1, labels_axis_2, axis_1_name="Dis
                 scalegroup=label_axis_2,
                 line_color=color_map[label_axis_2],
                 showlegend=(i1 == 0),  # Only show legend for first distance bin
-                box_visible=True,
+                box_visible=False,
                 meanline_visible=True,
             ))
+        
+        # Add line trace connecting the means
+        fig.add_trace(go.Scatter(
+            x=labels_axis_1,
+            y=means,
+            mode='lines+markers',
+            line=dict(color=color_map[label_axis_2], width=2),
+            marker=dict(size=8, color=color_map[label_axis_2]),
+            name=label_axis_2,
+            legendgroup=label_axis_2,
+            showlegend=False,  # Already shown in violin legend
+        ))
     
     # Update layout for clarity.
     fig.update_layout(
         xaxis_title=axis_1_name,
         yaxis_title=value_name,
         legend_title=axis_2_name,
-        violinmode='group',
+        violinmode='overlay',
     )
     
     # Return the figure.
