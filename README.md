@@ -16,31 +16,36 @@ Build the `frontend`, `orchestrator`, and `data_manager` images using:
 * `cd multiplex-analysis-web-apps`
 * `git checkout full-stack`.
 * Ensure the clone contains the file `foundry_transforms_lib_python-0.881.0.tar.gz` in a `temp_vendor` subdirectory (not present in the repository by default).
-* E.g., `IMAGE_TAG=2025-10-24-v03-gmb-earliest docker compose build`.
+* E.g., `ENV_NAME=leandro-robert ENV_PY_VER=3.12 DATE=2025-11-24 BUILD_VER=04 docker compose build`.
   * Unless you're already running on AMD64, include `--platform=linux/amd64` if you want to be able to use the same image on Snowflake (which we do). For testing locally on a Mac, this should work but should be a bit slower. Alternatively, you can leave off this extra argument for testing on a Mac, but know that the image will need to be rebuilt with the argument so that it works on Snowpark Container Services.
 
 The other two images (`postgres` and `minio`) should be pulled when the multi-container app is launched, below.
 
 ### 3. Run the app locally
 
-* E.g., `IMAGE_TAG=2025-10-24-v03-gmb-earliest docker compose up`.
+* E.g., `ENV_NAME=leandro-robert ENV_PY_VER=3.12 DATE=2025-11-24 BUILD_VER=04 docker compose up`.
 * To launch MAWA, go to: http://localhost:8501.
-* To launch the data manager, go to: http://localhost:8502. (This currently allows uploads of MAWA input files or old NIDAP archives but will be built out further.)
+* To launch the data manager, go to: http://localhost:8502.
 
 ### 4. Simultaneous build/run
 
-* E.g., `IMAGE_TAG=2025-10-24-v03-gmb-earliest docker compose up --build`.
+* E.g., `ENV_NAME=leandro-robert ENV_PY_VER=3.12 DATE=2025-11-24 BUILD_VER=04 docker compose up --build`.
 
 ### 5. Shut down the container
 
-After shutting down the app using the in-app sidebar button or `ctrl-c` in the terminal, run, e.g., `IMAGE_TAG=2025-10-24-v03-gmb-earliest docker compose down`.
+After shutting down the app using the in-app sidebar button or `ctrl-c` in the terminal, run, e.g., `ENV_NAME=leandro-robert ENV_PY_VER=3.12 DATE=2025-11-24 BUILD_VER=04 docker compose down`.
 
 ### 6. Tag and push the images to Docker Hub
+
+**Note: NCI IT is currently in the process of giving us an NCI Docker Hub account to use.**
 
 E.g.:
 
 ```bash
-IMAGE_TAG=2025-10-24-v03-gmb-earliest
+ENV_NAME=leandro-robert
+DATE=2025-11-24
+BUILD_VER=04
+IMAGE_TAG=${DATE}-v${BUILD_VER}-${ENV_NAME}-env
 docker tag postgres:15 andrewweisman/mawa-postgres:$IMAGE_TAG && docker push andrewweisman/mawa-postgres:$IMAGE_TAG
 docker tag minio/minio:RELEASE.2025-09-07T16-13-09Z-cpuv1 andrewweisman/mawa-minio:$IMAGE_TAG && docker push andrewweisman/mawa-minio:$IMAGE_TAG
 docker tag orchestrator:$IMAGE_TAG andrewweisman/mawa-orchestrator:$IMAGE_TAG && docker push andrewweisman/mawa-orchestrator:$IMAGE_TAG
@@ -60,7 +65,7 @@ In general, in this section below, make the following sample substitutions, incl
   * `user_1` --> `aweisman`
   * `frontend` --> `mawa-frontend`
   * `data-manager` --> `mawa-data-manager`
-  * `latest` --> `2025-11-04-v02-leandro`
+  * `latest` --> `2025-11-24-v04-leandro-robert-env`
 
 `user_1` can become anything; it does not need to match the Snowflake username. All that matters is that the username match what is in the `user_groups` table and the real Snowflake username is used at the botton of `deploy.sql`. **To keep this ID short (since there is an object character limit), we should use the format `<first-initial><last-name>`, e.g., `aweisman`.** This means that the combination of the app shortname and username (including a connecting underscore) should be at most 23 characters long since the object name can be no more than 63 characters: `XXXXX_YYYYYYYYYYYYYYYYY_frontend_28vcpu_240gib_19x_compute_pool`.
 
@@ -69,7 +74,10 @@ In addition, ensure you have stepped through enough of `deploy/snowflake/deploy.
 Push the MAWA frontend and the data manager to Snowflake. Note that if the Snowflake deployment changes, we need to use its name in place of `nihnci-eval`:
 
 ```bash
-IMAGE_TAG=2025-10-24-v03-gmb-earliest
+ENV_NAME=leandro-robert
+DATE=2025-11-24
+BUILD_VER=04
+IMAGE_TAG=${DATE}-v${BUILD_VER}-${ENV_NAME}-env
 docker tag andrewweisman/mawa-frontend:$IMAGE_TAG nihnci-eval.registry.snowflakecomputing.com/app_a_app_db/general_schema/image_repository/mawa-frontend:$IMAGE_TAG
 docker tag andrewweisman/mawa-data-manager:$IMAGE_TAG nihnci-eval.registry.snowflakecomputing.com/dmgr_db/general_schema/image_repository/mawa-data-manager:$IMAGE_TAG
 snow spcs image-registry login --role accountadmin
@@ -96,6 +104,8 @@ snow sql --connection eval3 --role accountadmin  # Works for Andrew since he has
 
 Step through `deploy/snowflake/deploy.sql`.
 
+As you add new services to Snowflake, please update the file `service_modification.sql` in the GitHub repository `git@github.com:CBIIT/snowflake-user-setup.git` so the services can be modified easily in the future.
+
 ## Additional notes
 
 ### Testing external loading of archives created on NIDAP
@@ -109,75 +119,54 @@ Step through `deploy/snowflake/deploy.sql`.
   * For general testing, we are fine using a Mac; everything should work probably even without any emulation.
   * For prod, we need to ensure we test on amd64 architecture.
 
-### To use a different environment
+### To use different environments
 
-Figure out the new environment, and then create a new corresponding `.yml` file, e.g., `source/environment-ana.yml`. Confirm it builds successfully locally, ensure necessary packages import, etc. Make sure that environment is solid.
-
-Modify the three lines (see commented lines) in `streamlit/Dockerfile` as, e.g.:
-
-```dockerfile
-# Use Micromamba as base image
-# In the future, pin this version to ensure consistency.
-FROM mambaorg/micromamba:latest
-
-# Set the working directory in the container
-WORKDIR /app
-
-# Copy ONLY the environment file first (changes less frequently)
-# COPY source/environment.yml .
-COPY source/environment-ana.yml .
-
-# Create conda environment from environment.yml
-# RUN micromamba install -y -f environment.yml && micromamba clean --all --yes
-RUN micromamba install -y -f environment-ana.yml && micromamba clean --all --yes
-
-# "Install" foundry_transforms_lib_python by unpacking it into site-packages.
-COPY temp_vendor/foundry_transforms_lib_python-0.881.0.tar.gz .
-# RUN tar -xzvf foundry_transforms_lib_python-0.881.0.tar.gz -C /opt/conda/lib/python3.12/site-packages/ && rm foundry_transforms_lib_python-0.881.0.tar.gz
-RUN tar -xzvf foundry_transforms_lib_python-0.881.0.tar.gz -C /opt/conda/lib/python3.9/site-packages/ && rm foundry_transforms_lib_python-0.881.0.tar.gz
-
-# Copy source files to the container
-COPY source/ .
-
-# Copy .git to get commit hash
-COPY .git .git
-
-# Expose the port that Streamlit runs on
-EXPOSE 8501
-
-# Run the Streamlit app when the container starts
-CMD ["streamlit", "run", "app.py", "--server.address", "0.0.0.0", "--server.port", "8501"]
-```
-
-Build a new image using e.g. `IMAGE_TAG=2025-10-24-v03-gmb-earliest docker compose build`.
-
-Ensure the previously run app is fully shut down using e.g. `IMAGE_TAG=2025-10-24-v03-gmb-earliest docker compose down`.
-
-Run using e.g. `IMAGE_TAG=2025-10-24-v03-gmb-earliest docker compose up`.
-
-Did similar dependency resolution for Ana's last archive. Now have three different environments with the following tags on Andrew's laptop:
+We have multiple environments available corresponding to those that got regularly rebuilt by Maestro on NIDAP:
 
 * environment-ana-20240814_to_20241219-compatible.yml --> `ana-older`: Should work for all of Ana's previous archives. Note that Leandro's environment works for Ana's oldest archive actually.
 * environment-ana-20250605-compatible.yml --> `ana-latest`: Should work for Ana's latest archive.
-* environment-leandro-compatible.yml --> `leandro`: Should work for all of Leandro's (and Robert's once confirmed) archives. Not the most up-to-date packages as these are based on some of Leandro's original archives to ensure compatibility with those.
+* environment-leandro-compatible.yml --> `leandro-robert`: Should work for all of Leandro's (and Robert's once confirmed) archives. Not the most up-to-date packages as these are based on some of Leandro's original archives to ensure compatibility with those.
 * environment-gmb-20240628_to_20240701-compatible.yml --> `gmb-earliest`
 * environment-gmb-20240917_to_20241003-compatible.yml --> `gmb-latest`
 * environment-dceg-compatible.yml --> `dceg`
 
-### Notes
+As of roughly Nov. 2025, even with pinned version of packages in a `.yml` file, `micromamba` is no longer able to resolve our environment (hangs indefinitely), at least with the settings at the top of the `.yml` files. In fact, unpinning all versions of packages and removing the bottom half of the packages picks up Python 3.9.18, which is old and we know we can do better (e.g., 3.12.9), e.g, the leandro-robert environment. In lieu of addressing this comprehensively now (I started to do this in `environment/environment-no_pins.yml`), we are instead solving from specific already-solved packages so there is no need for online environment solving at all. We are doing this by replacing the `.yml` files with an *explicit* lockfile and a frozen pip requirements file for each environment. All environment files will be present in `source/environment`. Here are example steps to perform this:
 
-* Reference for buckets/stages:
-  * archives --> for new archives generated by the new framework
-  * inputs --> these hold data that are needed as inputs for an ephemeral job
-  * outputs --> these hold results from ephemeral jobs
-  * oldarchives --> temporary bucket to hold archives from NIDAP (like the "output" dataset on NIDAP)
-  * objects --> this holds user input files (like the "input" dataset on NIDAP)
-  The "input" and "output" directories are purely local folders existing in the containers and have nothing to do with the "input" and "output" buckets, which have to do with asynchronous job inputs/outputs. The local "input" and "output" directories are not buckets (Docker) or stages (Snowflake) like everything above.
-* To access any of these buckets, go to http://127.0.0.1:9001. Username=`minioadmin` and password=`minioadmin123`.
-* To use full stack MAWA, place input .csv etc. files into the `objects` bucket. These files are then accessible in the app via the Data Import and Export page as usual (previously on NIDAP).
-* At some point we want to implement multi-arch builds using `docker buildx`.
-* Asynchronous execution is not yet implemented. For guidance, see `generate_results.py`.
-* Per the comment in the last line of `deploy.sql`: That line is the one place (the argument of USER) that the real Snowflake username must be used. Other instances of "user_1" can be anything, as long as they have an entry in the user_groups table so we know which group they should be accessing. E.g., user_1_alpha should correspond to the group_alpha group and user_1_beta should correspond to the group_beta group in the user_groups table. Then this script will create e.g. (1) data_apps_user_1_alpha_role and assign it to user_1 and (2) data_apps_user_1_beta_role and assign it to user_1. Then, user_1 in Snowsight can select either role to access the app/data for either group.
+```bash
+# From inside a running frontend image in Docker with name "xxxx", save from active environment.
+micromamba env export --explicit > leandro-robert.lock
+python -m pip freeze --exclude-editable | sed -E '/(file:|^@|feedstock_root|build_artifacts)/d' | grep -v "^foundry\|^tables-api==\|^transforms-container-ops-python==" > requirements-leandro-robert.txt
+
+# Copy those files to the codebase.
+docker cp xxxx:/app/leandro-robert.lock /home/andrew/repos/multiplex-analysis-web-apps/source/environment/
+docker cp xxxx:/app/requirements-leandro-robert.txt /home/andrew/repos/multiplex-analysis-web-apps/source/environment/
+```
+
+Call docker compose as usual (first closing down the previous container network using `... docker compose down`) with something like the following so that the two environment-related variables are passed through:
+
+```bash
+ENV_NAME=leandro-robert ENV_PY_VER=3.12 DATE=2025-11-24 BUILD_VER=04 docker compose build
+```
+
+Here is what the environment-related Dockerfile looks like:
+
+```dockerfile
+# New environment setup.
+COPY source/environment/${ENV_NAME}.lock .
+COPY source/environment/requirements-${ENV_NAME}.txt .
+RUN micromamba install -y --file ${ENV_NAME}.lock
+RUN micromamba run python -m pip install -r requirements-${ENV_NAME}.txt
+RUN micromamba clean --all --yes
+COPY --chown=mambauser:mambauser temp_vendor/foundry_transforms_lib_python-0.881.0.tar.gz .
+RUN tar -xzvf foundry_transforms_lib_python-0.881.0.tar.gz -C /opt/conda/lib/python${ENV_PY_VER}/site-packages/ && rm foundry_transforms_lib_python-0.881.0.tar.gz
+
+# This replaces the **OLD** environment setup:
+COPY source/environment/environment-${ENV_NAME}.yml .
+RUN micromamba install -y --file environment-${ENV_NAME}.yml
+RUN micromamba clean --all --yes
+COPY --chown=mambauser:mambauser temp_vendor/foundry_transforms_lib_python-0.881.0.tar.gz .
+RUN tar -xzvf foundry_transforms_lib_python-0.881.0.tar.gz -C /opt/conda/lib/python${ENV_PY_VER}/site-packages/ && rm foundry_transforms_lib_python-0.881.0.tar.gz
+```
 
 ### How to add a new deployment in general, e.g., Snowflake
 
@@ -201,8 +190,11 @@ Note that the only existing code that is modified is `platform_abstraction.py`.
 Bash:
 
 ```bash
-IMAGE_TAG=2025-11-05-v06-leandro-full-stack docker compose build
-IMAGE_TAG=2025-11-05-v06-leandro-full-stack
+ENV_NAME=leandro-robert
+DATE=2025-11-24
+BUILD_VER=04
+IMAGE_TAG=${DATE}-v${BUILD_VER}-${ENV_NAME}-env
+docker compose build
 docker tag orchestrator:$IMAGE_TAG andrewweisman/mawa-orchestrator:$IMAGE_TAG && docker push andrewweisman/mawa-orchestrator:$IMAGE_TAG
 docker tag frontend:$IMAGE_TAG andrewweisman/mawa-frontend:$IMAGE_TAG && docker push andrewweisman/mawa-frontend:$IMAGE_TAG
 docker tag mawa-data-manager:$IMAGE_TAG andrewweisman/mawa-data-manager:$IMAGE_TAG && docker push andrewweisman/mawa-data-manager:$IMAGE_TAG
@@ -221,10 +213,10 @@ Snowflake SQL:
 
 ```sql
 insert into mawa_app_db.general_schema.image_metadata_table (image_id, name, tag, git_commit, environment_yaml_file, archive_compatibility_id, who_added) values 
-('sha256:50d9492c8c022ef8e1d03a4a1ba631f12d8d92a2756d6304bcd825cf0b4f576a', 'mawa-frontend', '2025-11-09-v01-leandro', '3da40cf2eaa6e80b0baf847b809aa2ab3f59f059', 'environment-leandro-compatible.yml', 1, 'andrewweisman');
+('sha256:50d9492c8c022ef8e1d03a4a1ba631f12d8d92a2756d6304bcd825cf0b4f576a', 'mawa-frontend', '2025-11-24-v04-leandro-robert-env', '3da40cf2eaa6e80b0baf847b809aa2ab3f59f059', 'environment-leandro-compatible.yml', 1, 'andrewweisman');
 
 insert into dmgr_db.general_schema.image_metadata_table (image_id, name, tag, git_commit, environment_yaml_file, who_added) values 
-('sha256:0fb08033b700a7f9ddd1630cdc7f25b3487274362cab02f72628290d78420516', 'mawa-data-manager', '2025-11-09-v01-leandro', '3da40cf2eaa6e80b0baf847b809aa2ab3f59f059', 'environment-leandro-compatible.yml', 'andrewweisman');
+('sha256:0fb08033b700a7f9ddd1630cdc7f25b3487274362cab02f72628290d78420516', 'mawa-data-manager', '2025-11-24-v04-leandro-robert-env', '3da40cf2eaa6e80b0baf847b809aa2ab3f59f059', 'environment-leandro-compatible.yml', 'andrewweisman');
 
 -- 1vcpu_6gib_1x
 ALTER SERVICE mawa_app_db.cil_schema.mawa_robert_cheng_frontend_1vcpu_6gib_1x_service
@@ -236,13 +228,13 @@ USING (
   SNOWFLAKE_USER => '"robert_cheng"',
   COMPUTE_RESOURCE => '"1vcpu_6gib_1x"',
   ALL_COMPUTE_RESOURCES => '"1vcpu_6gib_1x 3vcpu_13gib_2x 6vcpu_28gib_4x 6vcpu_58gib_5x 14vcpu_58gib_7x 28vcpu_116gib_14x 28vcpu_240gib_19x"',
-  IMAGE => '"/mawa_app_db/general_schema/image_repository/mawa-frontend:2025-11-09-v01-leandro"',  -- updated
+  IMAGE => '"/mawa_app_db/general_schema/image_repository/mawa-frontend:2025-11-24-v04-leandro-robert-env"',  -- updated
   SNOWFLAKE_WAREHOUSE => '"mawa_robert_cheng_xs_warehouse"',
   MOUNTPATH => '"/tmp/mawa"',
   MEMORY => '6Gi',
   CPU => 1,
   IMAGE_NAME => '"mawa-frontend"',
-  IMAGE_TAG => '"2025-11-09-v01-leandro"'  -- updated
+  IMAGE_TAG => '"2025-11-24-v04-leandro-robert-env"'  -- updated
 );
 alter service mawa_app_db.cil_schema.mawa_robert_cheng_frontend_1vcpu_6gib_1x_service suspend;
 alter compute pool mawa_robert_cheng_frontend_1vcpu_6gib_1x_compute_pool suspend;
@@ -257,10 +249,27 @@ alter compute pool mawa_robert_cheng_frontend_1vcpu_6gib_1x_compute_pool suspend
 
 ALTER SERVICE dmgr_db.cil_schema.dmgr_robert_cheng_xs_service
 FROM @dmgr_db.general_schema.general_stage SPECIFICATION_TEMPLATE_FILE='snowflake_service_spec.yaml'
-USING ( APP_SHORTNAME=>'dmgr', APP_TITLE=>' "Data Manager" ', SNOWFLAKE_USER=>' "robert_cheng" ', COMPUTE_RESOURCE=>' "1vcpu_6gib_1x" ', ALL_COMPUTE_RESOURCES=>' "1vcpu_6gib_1x 3vcpu_13gib_2x 6vcpu_28gib_4x 6vcpu_58gib_5x 14vcpu_58gib_7x 28vcpu_116gib_14x 28vcpu_240gib_19x" ', IMAGE=>' "/dmgr_db/general_schema/image_repository/mawa-data-manager:2025-11-09-v01-leandro" ', SNOWFLAKE_WAREHOUSE=>' "dmgr_robert_cheng_xs_warehouse" ', MOUNTPATH=>' "/tmp/dmgr" ', MEMORY=>'6Gi', CPU=>1, IMAGE_NAME=>' "mawa-data-manager" ', IMAGE_TAG=>' "2025-11-09-v01-leandro" ' );
+USING ( APP_SHORTNAME=>'dmgr', APP_TITLE=>' "Data Manager" ', SNOWFLAKE_USER=>' "robert_cheng" ', COMPUTE_RESOURCE=>' "1vcpu_6gib_1x" ', ALL_COMPUTE_RESOURCES=>' "1vcpu_6gib_1x 3vcpu_13gib_2x 6vcpu_28gib_4x 6vcpu_58gib_5x 14vcpu_58gib_7x 28vcpu_116gib_14x 28vcpu_240gib_19x" ', IMAGE=>' "/dmgr_db/general_schema/image_repository/mawa-data-manager:2025-11-24-v04-leandro-robert-env" ', SNOWFLAKE_WAREHOUSE=>' "dmgr_robert_cheng_xs_warehouse" ', MOUNTPATH=>' "/tmp/dmgr" ', MEMORY=>'6Gi', CPU=>1, IMAGE_NAME=>' "mawa-data-manager" ', IMAGE_TAG=>' "2025-11-24-v04-leandro-robert-env" ' );
 alter service dmgr_db.cil_schema.dmgr_robert_cheng_xs_service suspend;
 alter compute pool dmgr_robert_cheng_xs_compute_pool suspend;
 ```
+
+**See also the file `service_modification.sql` in the GitHub repository `git@github.com:CBIIT/snowflake-user-setup.git` for a running list of services to update with code to run in batch!**
+
+### Miscellaneous
+
+* Reference for buckets/stages:
+  * archives --> for new archives generated by the new framework
+  * inputs --> these hold data that are needed as inputs for an ephemeral job
+  * outputs --> these hold results from ephemeral jobs
+  * oldarchives --> temporary bucket to hold archives from NIDAP (like the "output" dataset on NIDAP)
+  * objects --> this holds user input files (like the "input" dataset on NIDAP)
+  The "input" and "output" directories are purely local folders existing in the containers and have nothing to do with the "input" and "output" buckets, which have to do with asynchronous job inputs/outputs. The local "input" and "output" directories are not buckets (Docker) or stages (Snowflake) like everything above.
+* To access any of these buckets, go to http://127.0.0.1:9001. Username=`minioadmin` and password=`minioadmin123`.
+* To use full stack MAWA, place input .csv etc. files into the `objects` bucket. These files are then accessible in the app via the Data Import and Export page as usual (previously on NIDAP).
+* At some point we want to implement multi-arch builds using `docker buildx`.
+* Asynchronous execution is not yet fully implemented. For guidance, see `generate_results.py`.
+* Per the comment in the last line of `deploy.sql`: That line is the one place (the argument of USER) that the real Snowflake username must be used. Other instances of "user_1" can be anything, as long as they have an entry in the user_groups table so we know which group they should be accessing. E.g., user_1_alpha should correspond to the group_alpha group and user_1_beta should correspond to the group_beta group in the user_groups table. Then this script will create e.g. (1) data_apps_user_1_alpha_role and assign it to user_1 and (2) data_apps_user_1_beta_role and assign it to user_1. Then, user_1 in Snowsight can select either role to access the app/data for either group.
 
 ### Diagrams (as of 11/9/25)
 

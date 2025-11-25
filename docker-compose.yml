@@ -1,10 +1,13 @@
 services:
   frontend:
-    image: frontend:${IMAGE_TAG}
+    image: frontend:${DATE}-v${BUILD_VER}-${ENV_NAME}-env
     container_name: streamlit
     build:
       context: .
       dockerfile: streamlit/Dockerfile
+      args:
+        ENV_NAME: ${ENV_NAME}
+        ENV_PY_VER: ${ENV_PY_VER}
     ports:
       - "8501:8501"
     restart: unless-stopped
@@ -63,7 +66,7 @@ services:
     restart: unless-stopped
 
   docker_orchestrator:
-    image: orchestrator:${IMAGE_TAG}
+    image: orchestrator:${DATE}-v${BUILD_VER}-${ENV_NAME}-env
     container_name: docker_orchestrator
     build:
       context: .
@@ -94,7 +97,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:rw
 
   data_manager:
-    image: mawa-data-manager:${IMAGE_TAG}
+    image: mawa-data-manager:${DATE}-v${BUILD_VER}-${ENV_NAME}-env
     container_name: data_manager
     build:
       context: .
