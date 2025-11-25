@@ -41,6 +41,7 @@ from fast_neighborhood_profiles import load_unified_input_file
 from fast_neighborhood_profiles import phenotype
 from fast_neighborhood_profiles import run_spatial_umap
 from fast_neighborhood_profiles import study_results
+from pathlib import Path
 
 ST_KEY_PREFIX = "app.py__"
 ST_KEY_PREFIX_STARTUP = "startup.py__"
@@ -64,6 +65,12 @@ def welcome_page():
             st.image(part)
 
 
+def suggestions_page():
+    md_path = Path("./fast_neighborhood_profiles/suggestions.md")
+    md_text = md_path.read_text(encoding="utf-8")
+    st.markdown(md_text)
+
+
 # Define the main function.
 def main():
 
@@ -79,8 +86,9 @@ def main():
     # Define the pages for the navigation bar.
     pg = st.navigation(
         {
-            "Fast workflow": [
-                st.Page(manage_sessions.main, title="Manage sessions", default=True, url_path='manage_sessions'),
+            "High-performance workflow": [
+                st.Page(suggestions_page, title="Start Here!", url_path='suggestions', default=True),
+                st.Page(manage_sessions.main, title="Manage sessions", url_path='manage_sessions'),
                 st.Page(load_unified_input_file.main, title="Load unified input file", url_path='load_unified_input_file'),
                 st.Page(phenotype.main, title="Phenotype", url_path='phenotype'),
                 st.Page(run_spatial_umap.main, title="Run spatial UMAP", url_path='run_spatial_umap'),
