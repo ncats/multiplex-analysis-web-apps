@@ -132,11 +132,13 @@ def main():
         neighborhood_profile_plot_type = st.radio("Select plot type:", options=["line", "box", "violin"], key=ST_KEY_PREFIX + "neighborhood_profile_plot_type")
 
         # Grab the density for the selected indices for all distance bins and all phenotypes.
-        density = spatial_umap.density[selected_indices_for_neighborhood_profile, :, :]
+        density_counts_per_sq_mm = spatial_umap.density[selected_indices_for_neighborhood_profile, :, :] * 1e6
 
         # Plot the neighborhood profiles.
-        fig = fnp_main.plot_neighborhood_profile(density, neighborhood_profile_plot_type, dist_bin_um_list, unique_labels, axis_1_name="Distance bin (µm)", axis_2_name="Phenotype", value_name="Density", color_map=phenotype_color_map)
+        fig, extra_return_info = fnp_main.plot_neighborhood_profile(density_counts_per_sq_mm, neighborhood_profile_plot_type, dist_bin_um_list, unique_labels, axis_1_name="Distance bin (µm)", axis_2_name="Phenotype", value_name="Density (count/mm²)", color_map=phenotype_color_map)
         st.plotly_chart(fig)
+        if extra_return_info:
+            st.write(extra_return_info)
 
 
 # Run the main function if this script is executed.

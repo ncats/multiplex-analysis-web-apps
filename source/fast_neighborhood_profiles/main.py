@@ -584,6 +584,7 @@ def plot_neighborhood_profile(data, plot_type, labels_axis_1, labels_axis_2, axi
         color = color_map[label_axis_2]
         
         # If we want to plot a line plot with shaded area...
+        extra_return_info = ""
         if plot_type == "line":
 
             # Store the quantiles for the 16-84% IQR shading.
@@ -618,6 +619,9 @@ def plot_neighborhood_profile(data, plot_type, labels_axis_1, labels_axis_2, axi
                     legendgroup=label_axis_2,
                 )
             )
+
+            # Extra return information.
+            extra_return_info = "*Median with 16-84% IQR shaded area."
 
         # If we want to plot a box plot...
         elif plot_type == 'box':
@@ -659,7 +663,7 @@ def plot_neighborhood_profile(data, plot_type, labels_axis_1, labels_axis_2, axi
     )
     
     # Return the figure.
-    return fig
+    return fig, extra_return_info
 
 
 def generate_umap(pldf, unique_labels, dist_bin_um_list=[25, 50, 100, 150, 200], area_downsample=0.2, um_per_px=1, cpu_pool_size=None, topdir=".", subdir="results", counts_method="andrew", area_threshold=0.8, custom_areas=True, seed_for_train_test_split=54321, n=2500, keep_images_with_too_little_data=True, train_sample_frac=1.0, test_sample_frac=1.0, de_min_coords=True, mp_start_method=None):
