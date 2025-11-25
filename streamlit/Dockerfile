@@ -1,6 +1,10 @@
 # Use Micromamba as base image.
 FROM mambaorg/micromamba@sha256:800e7ade3ffe29c9a9ac2026163131495f8197c3852e572c5835beb4e8a33cd6
 
+# Declare build arguments
+ARG ENV_NAME
+ARG ENV_PY_VER
+
 # Set the working directory in the container.
 WORKDIR /app
 
