@@ -513,6 +513,7 @@ def main():
                     if st.button("Initialize Neighborhood Profiles"):
                         st.session_state = ndl.reset_neigh_profile_settings(st.session_state)
 
+                    # Cell Density Analysis - framework creates its own button internally
                     analysis_framework.job_submission(
                         job_name="init_spatial_umap",
                         inputs=dict(
@@ -527,14 +528,16 @@ def main():
                         analysis_purpose="cell density analysis",
                         st_key_prefix="",
                     )
-                    # If the job has completed (session state key was set to the job results [outputs]), resume below this block.
-                    key = 'cell_density_analysis_results'
-                    if key not in st.session_state:
-                        st.warning("Cell density analysis results are not yet available.")
-                        return
-                    # Set shortcuts to the job results.
-                    st.session_state.spatial_umap = st.session_state[key]["spatial_umap"]
-                    st.session_state.density_completed = st.session_state[key]["density_completed"]
+                    
+                # Process results OUTSIDE the phenotyping_completed block to support loaded data
+                # Check if we have results from either framework job OR loaded data
+                key = 'cell_density_analysis_results'
+                if key in st.session_state and isinstance(st.session_state[key], dict):
+                    # Additional validation: ensure the results dict has the expected keys
+                    if "spatial_umap" in st.session_state[key] and "density_completed" in st.session_state[key]:
+                        # Set shortcuts to the job results
+                        st.session_state.spatial_umap = st.session_state[key]["spatial_umap"]
+                        st.session_state.density_completed = st.session_state[key]["density_completed"]
 
                 #umap_butt  = st.button('Perform UMAP Analysis')
                 #clust_butt = st.button('Perform Clustering Analysis')
@@ -550,9 +553,7 @@ def main():
 
                 if st.session_state.phenotyping_completed:
                     if st.session_state.density_completed:
-                        # if umap_butt:
-                        #     apply_umap(umap_style = 'Densities')
-
+                        # UMAP Analysis - framework creates its own button internally
                         analysis_framework.job_submission(
                             job_name = "apply_umap",
                             inputs = dict(
@@ -566,56 +567,58 @@ def main():
                             st_key_prefix = "",
                         )
 
-                        umap_key = 'umap_analysis_results'
-                        if umap_key not in st.session_state:
-                            st.warning("UMAP analysis results are not yet available.")
-                            return
-                        # Set shortcuts to the job results.
+                # Process results OUTSIDE the conditional block to support loaded data
+                # Check if we have UMAP results from either framework job OR loaded data
+                umap_key = 'umap_analysis_results'
+                if umap_key in st.session_state and isinstance(st.session_state[umap_key], dict):
+                    # Additional validation: ensure the results dict has the expected keys
+                    if "spatial_umap" in st.session_state[umap_key] and "umap_completed" in st.session_state[umap_key]:
+                        # Set shortcuts to the job results
                         st.session_state.spatial_umap = st.session_state[umap_key]["spatial_umap"]
                         st.session_state.umap_completed = st.session_state[umap_key]["umap_completed"]
 
-                        if not st.session_state.umap_completed:
-                            st.write(':x: Step 2: Perform UMAP')
-                        else:
-                            st.write(':white_check_mark: UMAP Analysis Completed')
-                        add_vertical_space(1)
+                if st.session_state.phenotyping_completed and st.session_state.density_completed:
+                    if not st.session_state.umap_completed:
+                        st.write(':x: Step 2: Perform UMAP')
+                    else:
+                        st.write(':white_check_mark: UMAP Analysis Completed')
+                    add_vertical_space(1)
 
-                        
-                        if st.session_state.umap_completed:
-                            # List of possible UMAP Lineages as defined by the completed UMAP
-                            st.session_state.umapPheno = [st.session_state.def_lineage_opt]
-                            st.session_state.umapPheno.extend(st.session_state.pheno_summ['phenotype'])
-                            st.session_state.umapMarks = [st.session_state.def_lineage_opt]
-                            st.session_state.umapMarks.extend(st.session_state.spatial_umap.markers)
-                            st.session_state.umapMarks.extend(['Other']) 
+                
+                # Initialize UMAP components if completed (from any source)
+                if st.session_state.umap_completed:
+                    # List of possible UMAP Lineages as defined by the completed UMAP
+                    st.session_state.umapPheno = [st.session_state.def_lineage_opt]
+                    st.session_state.umapPheno.extend(st.session_state.pheno_summ['phenotype'])
+                    st.session_state.umapMarks = [st.session_state.def_lineage_opt]
+                    st.session_state.umapMarks.extend(st.session_state.spatial_umap.markers)
+                    st.session_state.umapMarks.extend(['Other']) 
 
-                            # Identify all of the features in the dataframe
-                            st.session_state.outcomes = st.session_state.spatial_umap.cells.columns
-                            st.session_state.spatial_umap.outcomes = st.session_state.spatial_umap.cells.columns
+                    # Identify all of the features in the dataframe
+                    st.session_state.outcomes = st.session_state.spatial_umap.cells.columns
+                    st.session_state.spatial_umap.outcomes = st.session_state.spatial_umap.cells.columns
 
-                            # Only set default if not already set to preserve user's selection
-                            if 'dens_diff_feat_sel' not in st.session_state:
-                                st.session_state.dens_diff_feat_sel = st.session_state.outcomes[0]
+                    # Only set default if not already set to preserve user's selection
+                    if 'dens_diff_feat_sel' not in st.session_state:
+                        st.session_state.dens_diff_feat_sel = st.session_state.outcomes[0]
 
-                            # List of possible outcome variables as defined by the config yaml files
-                            st.session_state.umapOutcomes = [st.session_state.def_umap_feature]
-                            st.session_state.umapOutcomes.extend(st.session_state.outcomes)
-                            st.session_state.inciOutcomes = [st.session_state.def_inci_feature]
-                            st.session_state.inciOutcomes.extend(st.session_state.outcomes)
+                    # List of possible outcome variables as defined by the config yaml files
+                    st.session_state.umapOutcomes = [st.session_state.def_umap_feature]
+                    st.session_state.umapOutcomes.extend(st.session_state.outcomes)
+                    st.session_state.inciOutcomes = [st.session_state.def_inci_feature]
+                    st.session_state.inciOutcomes.extend(st.session_state.outcomes)
 
-                            # creates the df_umap dataframe for plotting
-                            st.session_state.spatial_umap.prepare_df_umap_plotting(st.session_state.outcomes)
+                    # creates the df_umap dataframe for plotting
+                    st.session_state.spatial_umap.prepare_df_umap_plotting(st.session_state.outcomes)
 
-                            st.session_state.wcss_calc_completed = True
-                            #st.session_state.umap_completed = True
+                    st.session_state.wcss_calc_completed = True
 
-                            # Create Neighborhood Profiles Object
-                            #st.session_state.npf = NeighborhoodProfiles(bc = st.session_state.bc)
-                            st.session_state.npf = NeighborhoodProfiles()
+                    # Create Neighborhood Profiles Object
+                    st.session_state.npf = NeighborhoodProfiles()
 
-                            # Create Full UMAP example
-                            st.session_state.udp_full = UMAPDensityProcessing(st.session_state.npf, st.session_state.spatial_umap.df_umap)
-                            st.session_state.UMAPFig = st.session_state.udp_full.UMAPdraw_density()
+                    # Create Full UMAP example
+                    st.session_state.udp_full = UMAPDensityProcessing(st.session_state.npf, st.session_state.spatial_umap.df_umap)
+                    st.session_state.UMAPFig = st.session_state.udp_full.UMAPdraw_density()
 
 
             # If UMAP is completed, display the clustering settings
@@ -692,6 +695,7 @@ def main():
                                     min_value=st.session_state.clust_minmax[0],
                                     max_value=st.session_state.clust_minmax[1],
                                     key = 'slider_clus_val')
+                            # Clustering Analysis - framework creates its own button internally
                             analysis_framework.job_submission(
                                 job_name = "set_clusters",
                                 inputs = dict(
@@ -701,16 +705,21 @@ def main():
                                 ),
                                 analysis_purpose = "clustering analysis",
                                 st_key_prefix = "",
-                                )
-                            clust_key = 'clustering_analysis_results'
-                            if clust_key not in st.session_state:
-                                st.warning("Clustering analysis results are not yet available.")
-                                return
-                            # Set shortcuts to the job results.
-                            st.session_state.spatial_umap = st.session_state[clust_key]["spatial_umap"]
-                            st.session_state.cluster_completed = st.session_state[clust_key]["cluster_completed"]
-                            st.session_state.appro_feat = st.session_state[clust_key]["appro_feat"]
-                            st.session_state.cluster_completed_diff = st.session_state[clust_key]["cluster_completed_diff"]
+                            )
+                            
+                        # Process clustering results OUTSIDE the else block to support loaded data
+                        # Check if we have clustering results from either framework job OR loaded data
+                        clust_key = 'clustering_analysis_results'
+                        if clust_key in st.session_state and isinstance(st.session_state[clust_key], dict):
+                            # Additional validation: ensure the results dict has the expected keys
+                            if all(k in st.session_state[clust_key] for k in ["spatial_umap", "cluster_completed", "appro_feat", "cluster_completed_diff"]):
+                                # Set shortcuts to the job results
+                                st.session_state.spatial_umap = st.session_state[clust_key]["spatial_umap"]
+                                st.session_state.cluster_completed = st.session_state[clust_key]["cluster_completed"]
+                                st.session_state.appro_feat = st.session_state[clust_key]["appro_feat"]
+                                st.session_state.cluster_completed_diff = st.session_state[clust_key]["cluster_completed_diff"]
+                        
+                        if not st.session_state['toggle_clust_diff']:
                             if not st.session_state.cluster_completed:
                                 st.write(':x: Step 3: Perform Clustering')
                             else:
@@ -767,6 +776,7 @@ def main():
                                     num_clus_1 = st.session_state.num_clus_1
                                     clust_minmax = st.session_state.clust_minmax
                                     spatial_umap = st.session_state.spatial_umap
+                                    # Density Difference Clustering - framework creates its own button internally
                                     analysis_framework.job_submission(
                                         job_name = "clust_umap_dens_diff",
                                         inputs = dict(
@@ -783,24 +793,31 @@ def main():
                                             spatial_umap = spatial_umap,
                                         ),
                                         analysis_purpose = "density difference clustering analysis",
-                                        st_key_prefix = "",)
+                                        st_key_prefix = "",
+                                    )
+                                    
+                                    # Process diff clustering results OUTSIDE to support loaded data
+                                    # Check if we have results from either framework job OR loaded data
                                     diff_clust_key = 'density_difference_clustering_analysis_results'
-                                    if diff_clust_key not in st.session_state:
-                                        st.warning("Density difference clustering analysis results are not yet available.")
-                                        return
-                                    # Set shortcuts to the job results.
-                                    st.session_state.spatial_umap = st.session_state[diff_clust_key]["spatial_umap"]
-                                    st.session_state.cluster_completed_diff = st.session_state[diff_clust_key]["cluster_completed_diff"]
-                                    st.session_state.UMAPFig_fals = st.session_state[diff_clust_key]["UMAPFig_fals"]
-                                    st.session_state.UMAPFig_true = st.session_state[diff_clust_key]["UMAPFig_true"]
-                                    st.session_state.UMAPFig_diff = st.session_state[diff_clust_key]["UMAPFig_diff"]
-                                    st.session_state.UMAPFig_mask = st.session_state[diff_clust_key]["UMAPFig_mask"]
-                                    st.session_state.cluster_dict = st.session_state[diff_clust_key]["cluster_dict"]
-                                    st.session_state.palette_dict = st.session_state[diff_clust_key]["palette_dict"]
-                                    st.session_state.elbow_fig_0 = st.session_state[diff_clust_key]["elbow_fig_0"]
-                                    st.session_state.elbow_fig_1 = st.session_state[diff_clust_key]["elbow_fig_1"]
-                                    st.session_state.cluster_completed = st.session_state[diff_clust_key]["cluster_completed"]
-                                    st.session_state.udp_full = st.session_state[diff_clust_key]["udp_full"]
+                                    if diff_clust_key in st.session_state and isinstance(st.session_state[diff_clust_key], dict):
+                                        # Additional validation: ensure the results dict has the expected keys
+                                        required_keys = ["spatial_umap", "cluster_completed_diff", "UMAPFig_fals", "UMAPFig_true", 
+                                                        "UMAPFig_diff", "UMAPFig_mask", "cluster_dict", "palette_dict", 
+                                                        "elbow_fig_0", "elbow_fig_1", "cluster_completed", "udp_full"]
+                                        if all(k in st.session_state[diff_clust_key] for k in required_keys):
+                                            # Set shortcuts to the job results
+                                            st.session_state.spatial_umap = st.session_state[diff_clust_key]["spatial_umap"]
+                                            st.session_state.cluster_completed_diff = st.session_state[diff_clust_key]["cluster_completed_diff"]
+                                            st.session_state.UMAPFig_fals = st.session_state[diff_clust_key]["UMAPFig_fals"]
+                                            st.session_state.UMAPFig_true = st.session_state[diff_clust_key]["UMAPFig_true"]
+                                            st.session_state.UMAPFig_diff = st.session_state[diff_clust_key]["UMAPFig_diff"]
+                                            st.session_state.UMAPFig_mask = st.session_state[diff_clust_key]["UMAPFig_mask"]
+                                            st.session_state.cluster_dict = st.session_state[diff_clust_key]["cluster_dict"]
+                                            st.session_state.palette_dict = st.session_state[diff_clust_key]["palette_dict"]
+                                            st.session_state.elbow_fig_0 = st.session_state[diff_clust_key]["elbow_fig_0"]
+                                            st.session_state.elbow_fig_1 = st.session_state[diff_clust_key]["elbow_fig_1"]
+                                            st.session_state.cluster_completed = st.session_state[diff_clust_key]["cluster_completed"]
+                                            st.session_state.udp_full = st.session_state[diff_clust_key]["udp_full"]
 
                                     # Update udp_full with cluster information and generate clustered UMAP visualization
                                     if st.session_state.cluster_completed_diff:
