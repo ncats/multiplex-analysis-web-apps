@@ -55,7 +55,11 @@ docker tag mawa-data-manager:$IMAGE_TAG andrewweisman/mawa-data-manager:$IMAGE_T
 
 The images in this example are located at https://hub.docker.com/u/andrewweisman.
 
-### 7. Deploy to Snowflake
+### 7. Update the image metadata table
+
+For this, see [the instructions here](deploy/docker/update_image_metadata.md).
+
+### 8. Deploy to Snowflake
 
 In general, in this section below, make the following sample substitutions, including in `deploy/snowflake/deploy.sql`:
 
@@ -87,8 +91,8 @@ docker push nihnci-eval.registry.snowflakecomputing.com/dmgr_db/general_schema/i
 
 Update the tables corresponding to the two images pushed above and potentially new users added in the user-specific versions of `deploy.sql` from https://github.com/CBIIT/snowflake-user-setup:
 
-* `app_a_app_db.general_schema.image_metadata_table`
-* `dmgr_db.general_schema.image_metadata_table`
+* `app_a_app_db.general_schema.image_metadata_table` --> see example [here](#common-development-workflow-from-local-to-snowflake)
+* `dmgr_db.general_schema.image_metadata_table` --> see example [here](#common-development-workflow-from-local-to-snowflake)
 * `common_db.admin_schema.user_groups_table` (Use the same as you use for `user_1`, which again can be anything.)
 
 Push required files to the relevant stages from the GitHub clone:
@@ -213,7 +217,7 @@ Snowflake SQL:
 
 ```sql
 insert into mawa_app_db.general_schema.image_metadata_table (image_id, name, tag, git_commit, environment_yaml_file, archive_compatibility_id, who_added) values 
-('sha256:50d9492c8c022ef8e1d03a4a1ba631f12d8d92a2756d6304bcd825cf0b4f576a', 'mawa-frontend', '2025-11-24-v04-leandro-robert-env', '3da40cf2eaa6e80b0baf847b809aa2ab3f59f059', 'environment-leandro-compatible.yml', 1, 'andrewweisman');
+('sha256:50d9492c8c022ef8e1d03a4a1ba631f12d8d92a2756d6304bcd825cf0b4f576a', 'mawa-frontend', '2025-11-24-v04-leandro-robert-env', '3da40cf2eaa6e80b0baf847b809aa2ab3f59f059', 'environment-leandro-compatible.yml', 'leandro-robert', 'andrewweisman');
 
 insert into dmgr_db.general_schema.image_metadata_table (image_id, name, tag, git_commit, environment_yaml_file, who_added) values 
 ('sha256:0fb08033b700a7f9ddd1630cdc7f25b3487274362cab02f72628290d78420516', 'mawa-data-manager', '2025-11-24-v04-leandro-robert-env', '3da40cf2eaa6e80b0baf847b809aa2ab3f59f059', 'environment-leandro-compatible.yml', 'andrewweisman');
