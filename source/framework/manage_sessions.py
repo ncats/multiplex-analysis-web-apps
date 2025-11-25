@@ -6,6 +6,7 @@ import pathlib
 import copy
 import framework.utils as framework_utils
 import framework.platform_abstraction as pa
+import importlib
 
 ST_KEY_PREFIX = "manage_sessions.py__"
 ST_KEY_PREFIX_STARTUP = "startup.py__"
@@ -78,6 +79,7 @@ def load_session_state():
         st.session_state.update(startup_keys)
 
         if "LAZYFRAMES" in st.session_state:
+            module_names = []
             for key in st.session_state["LAZYFRAMES"]:
                 function = st.session_state["LAZYFRAMES"][key]["function"]
                 input_dataset = st.session_state["LAZYFRAMES"][key]["input_dataset"]
@@ -96,6 +98,11 @@ def load_session_state():
                 else:
                     st.session_state["LAZYFRAMES"][key]["lf"] = result
                     st.session_state["LAZYFRAMES"][key]["extras"] = None
+                module_names.append(function.__module__)
+            # Now reload all modules from old functions since dilling those old functions may have saved an old module and we probably want the current module loaded instead. Not doing this sometimes causes strange behavior where I need to make a trivial change to a file in order for Streamlit to hot reload it so we get the current module instead of the old one.
+            for module_name in set(module_names):
+                importlib.reload(importlib.import_module(module_name))
+
 
         return True
     except Exception as e:

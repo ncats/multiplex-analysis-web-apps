@@ -32,6 +32,7 @@ Please let us know if anything urgent is not on this list; we will prioritize ac
 1. Video demo of full high-performance workflow.
 1. Enable loading of Ana's old archive.
 1. Fix coloring on scatterplot for Lisa.
+1. Remove lines from scatter plotter per Leandro's 11/25/25 email.
 1. Anything important that we missed?
 
 Please reach out to [Andrew Weisman](mailto:andrew.weisman@nih.gov) or [Andrei Bombin](mailto:andrei.bombin@nih.gov) with any questions, suggestions, or comments!
