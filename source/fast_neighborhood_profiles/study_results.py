@@ -2,7 +2,6 @@
 import streamlit as st
 from fast_neighborhood_profiles import main as fnp_main
 import polars as pl
-import numpy as np
 from functools import partial
 
 # Define session state key prefixes.
@@ -128,12 +127,15 @@ def main():
             st.write(f"Last number of selected points for neighborhood profile: {len(selected_indices_for_neighborhood_profile):_}")
             st.button("Clear selection", on_click=lambda: st.session_state.update({ST_KEY_PREFIX + "selected_indices_for_neighborhood_profile": []}), key=ST_KEY_PREFIX + "clear_neighborhood_profile_selection_button__do_not_persist")
 
-        # Obtain from it the mean density for the selected points.
+        # Allow the user to select the neighborhood profile plot type.
+        st.session_state.setdefault(ST_KEY_PREFIX + "neighborhood_profile_plot_type", "line")
+        neighborhood_profile_plot_type = st.radio("Select plot type:", options=["line", "box", "violin"], key=ST_KEY_PREFIX + "neighborhood_profile_plot_type")
+
+        # Grab the density for the selected indices for all distance bins and all phenotypes.
         density = spatial_umap.density[selected_indices_for_neighborhood_profile, :, :]
 
         # Plot the neighborhood profiles.
-        # fig = fnp_main.line_plot_with_series(density.mean(axis=0, dtype=np.float32), dist_bin_um_list, unique_labels, axis_0_name="Distance bin (µm)", axis_1_name="Phenotype", value_name="Mean density", color_map=phenotype_color_map)
-        fig = fnp_main.violin_plot_with_series(density, dist_bin_um_list, unique_labels, axis_1_name="Distance bin (µm)", axis_2_name="Phenotype", value_name="Density", color_map=phenotype_color_map)
+        fig = fnp_main.plot_neighborhood_profile(density, neighborhood_profile_plot_type, dist_bin_um_list, unique_labels, axis_1_name="Distance bin (µm)", axis_2_name="Phenotype", value_name="Density", color_map=phenotype_color_map)
         st.plotly_chart(fig)
 
 

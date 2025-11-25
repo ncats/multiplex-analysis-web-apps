@@ -14,6 +14,7 @@ import zipfile
 import framework.platform_abstraction as pa
 import time
 import scipy.spatial
+import plotly.colors
 
 
 def fast_neighbors_counts_for_block2(df_image, image_name, coord_column_names, phenotypes, radii, phenotype_column_name, max_chunk_size_in_mb=200):
@@ -559,6 +560,104 @@ def line_plot_with_series(data, labels_axis_0, labels_axis_1, axis_0_name="Dista
         legend_title=axis_1_name,
     )
 
+    # Return the figure.
+    return fig
+
+
+def plot_neighborhood_profile(data, plot_type, labels_axis_1, labels_axis_2, axis_1_name="Distance bin (µm)", axis_2_name="Phenotype", value_name="Density", color_map=None):
+    # Note the axes here refer to the axes of data, not the plot axes.
+    # data shape: (axis_0, axis_1, axis_2) where axis_0 is the distribution dimension (e.g., cells), axis_1 is the distance bin, and axis_2 is the phenotype.
+    
+    # Define color map if not provided.
+    if not color_map:
+        colors = px.colors.qualitative.Plotly
+        unique_labels = sorted(labels_axis_2)
+        color_map = {label: colors[i % len(colors)] for i, label in enumerate(unique_labels)}
+    
+    # Create the figure.
+    fig = go.Figure()
+    
+    # For each phenotype, i.e., series (axis_2)...
+    for i2, label_axis_2 in enumerate(labels_axis_2):
+
+        # Get the current color for the series.
+        color = color_map[label_axis_2]
+        
+        # If we want to plot a line plot with shaded area...
+        if plot_type == "line":
+
+            # Store the quantiles for the 16-84% IQR shading.
+            quantiles = np.quantile(data[:, :, i2], [0.16, 0.50, 0.84], axis=0)
+
+            # Get the current color in RGB format.
+            rgb = plotly.colors.hex_to_rgb(color)
+
+            # Shaded area between min/max quantiles.
+            fig.add_trace(
+                go.Scatter(
+                    x=list(labels_axis_1) + list(labels_axis_1)[::-1],
+                    y=list(quantiles[2, :]) + list(quantiles[0, :])[::-1],
+                    fill='toself',
+                    fillcolor=f'rgba({rgb[0]}, {rgb[1]}, {rgb[2]}, 0.15)',  # lighter shade
+                    line=dict(color='rgba(255,255,255,0)'),
+                    hoverinfo="skip",
+                    showlegend=False,
+                    name=label_axis_2,
+                    legendgroup=label_axis_2,
+                )
+            )
+
+            # Median line.
+            fig.add_trace(
+                go.Scatter(
+                    x=labels_axis_1,
+                    y=quantiles[1, :],
+                    mode='lines+markers',
+                    name=label_axis_2,
+                    line=dict(color=color, width=2),
+                    legendgroup=label_axis_2,
+                )
+            )
+
+        # If we want to plot a box plot...
+        elif plot_type == 'box':
+            for i1, label_axis_1 in enumerate(labels_axis_1):  # For each distance bin (axis_1)...
+                fig.add_trace(
+                    go.Box(
+                        x=[label_axis_1] * data.shape[0],
+                        y=data[:, i1, i2],
+                        name=label_axis_2,
+                        marker_color=color,
+                        boxmean=True,
+                        showlegend=(i1 == 0),  # Only show legend once per series
+                        legendgroup=label_axis_2,
+                    )
+                )
+
+        # If we want to plot a violin plot...
+        elif plot_type == "violin":
+            for i1, label_axis_1 in enumerate(labels_axis_1):  # For each distance bin (axis_1)...
+                fig.add_trace(
+                    go.Violin(
+                        x=[label_axis_1] * data.shape[0],
+                        y=data[:, i1, i2],
+                        name=label_axis_2,
+                        legendgroup=label_axis_2,
+                        scalegroup=label_axis_2,
+                        line_color=color,
+                        showlegend=(i1 == 0),  # Only show legend for first distance bin
+                        box_visible=False,
+                        meanline_visible=True,
+                    )
+                )
+
+    # Update layout for clarity.
+    fig.update_layout(
+        xaxis_title=axis_1_name,
+        yaxis_title=value_name,
+        legend_title=axis_2_name,
+    )
+    
     # Return the figure.
     return fig
 
