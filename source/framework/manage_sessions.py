@@ -186,7 +186,8 @@ def main():
             container_image_id = pa.get_frontend_image_id()
             archive_id = framework_utils.get_unique_id()
             app_session_id = st.session_state[ST_KEY_PREFIX_STARTUP + "app_session_id"]
-            archive_metadata = {"username": username, "user_group": user_group, "session_description": session_description, "current_git_commit": current_git_commit, "container_image_id": container_image_id, "archive_id": archive_id, "app_session_id": app_session_id}
+            archive_compatibility_id = pa.get_archive_compatibility_id(container_image_id)
+            archive_metadata = {"username": username, "user_group": user_group, "session_description": session_description, "current_git_commit": current_git_commit, "container_image_id": container_image_id, "archive_id": archive_id, "app_session_id": app_session_id, "archive_compatibility_id": archive_compatibility_id}
             write_dictionary_to_text_file(archive_metadata, "archive_metadata", framework_utils.session_dir())  # Writes archive_metadata.txt to the session directory.
             write_conda_environment("environment.yml", framework_utils.session_dir())  # Writes environment.yml to the session directory.
             save_session_state()  # Writes session_state.pkl, session_state.dill, and session_state_contents.txt to the session directory.

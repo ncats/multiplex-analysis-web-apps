@@ -234,8 +234,8 @@ def write_archive_database_data(row_tuple):
             with get_connection_pool(DB_URL_GROUP).connection() as conn:
                 with conn.cursor() as cur:
                     cur.execute(f"""
-                        INSERT INTO {APP_SHORTNAME}_schema.archives_table (creator, user_group, archive_description, current_git_commit, container_image_id, archive_id, app_session_id)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        INSERT INTO {APP_SHORTNAME}_schema.archives_table (creator, user_group, archive_description, current_git_commit, container_image_id, archive_id, app_session_id, archive_compatibility_id)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                     """, row_tuple)
             return True
         except Exception as e:
@@ -245,8 +245,8 @@ def write_archive_database_data(row_tuple):
         try:
             session = snowflake_connections.get_snowpark_session()
             session.sql(f"""
-                INSERT INTO {get_user_group(get_current_username())}_group_db.{APP_SHORTNAME}_schema.archives_table (creator, user_group, archive_description, current_git_commit, container_image_id, archive_id, app_session_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO {get_user_group(get_current_username())}_group_db.{APP_SHORTNAME}_schema.archives_table (creator, user_group, archive_description, current_git_commit, container_image_id, archive_id, app_session_id, archive_compatibility_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """, row_tuple).collect()
             return True
         except Exception as e:
@@ -1172,6 +1172,36 @@ def delete_objects(bucket_name: str, object_names: list[str], db_schema: str | N
         except Exception as e:
             st.error(f"Failed bulk delete in stage {db_schema}: {e}")
             return False
+        
+@st.cache_data()
+# From the image_metadata_table, get the archive_compatibility_id for a given container_image_id.
+def get_archive_compatibility_id(container_image_id):
+    if framework_utils.platform() == "local":
+        try:
+            with get_connection_pool(DB_URL_APP).connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(f"""
+                        SELECT archive_compatibility_id
+                        FROM general_schema.image_metadata_table
+                        WHERE image_id = %s
+                    """, (container_image_id,))
+                    result = cur.fetchone()
+            return result[0] if result else None
+        except Exception as e:
+            st.error(f"Failed to retrieve archive compatibility ID for image {container_image_id}: {e}")
+            return None
+    elif framework_utils.platform() == "snowflake":
+        try:
+            session = snowflake_connections.get_snowpark_session()
+            result = session.sql(f"""
+                SELECT archive_compatibility_id
+                FROM mawa_app_db.general_schema.image_metadata_table
+                WHERE image_id = ?
+            """, (container_image_id,)).collect()
+            return result[0]["ARCHIVE_COMPATIBILITY_ID"] if result else None
+        except Exception as e:
+            st.error(f"Failed to retrieve archive compatibility ID for image {container_image_id}: {e}")
+            return None
 
 
 #### 3. ORCHESTRATION FUNCTIONALITY ###############################################################
