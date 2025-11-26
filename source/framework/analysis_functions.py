@@ -1,6 +1,7 @@
 import time
 import math
 import os
+import fast_neighborhood_profiles.sample_analysis_2
 
 
 def run_analysis_job(function_name, inputs, job_dir):
@@ -8,6 +9,8 @@ def run_analysis_job(function_name, inputs, job_dir):
         outputs_dir = os.path.join(job_dir, "outputs")  # This demonstrates that for a potentially asynchronous job that generates files, you should place the results in /tmp/multiplex_analysis_web_apps/job_data/<JOB_ID>/outputs specifically so the results are stored together with the worker output results in memory.
         if function_name == "find_primes_up_to":
             function_to_run = find_primes_up_to
+        elif function_name == "my_sample_analysis":
+            function_to_run = fast_neighborhood_profiles.sample_analysis_2.run_analysis
         outputs = function_to_run(**inputs, results_topdir=outputs_dir)
         return outputs
     except Exception as e:

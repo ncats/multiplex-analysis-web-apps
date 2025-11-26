@@ -274,6 +274,7 @@ alter compute pool dmgr_robert_cheng_xs_compute_pool suspend;
 * At some point we want to implement multi-arch builds using `docker buildx`.
 * Asynchronous execution is not yet fully implemented. For guidance, see `generate_results.py`.
 * Per the comment in the last line of `deploy.sql`: That line is the one place (the argument of USER) that the real Snowflake username must be used. Other instances of "user_1" can be anything, as long as they have an entry in the user_groups table so we know which group they should be accessing. E.g., user_1_alpha should correspond to the group_alpha group and user_1_beta should correspond to the group_beta group in the user_groups table. Then this script will create e.g. (1) data_apps_user_1_alpha_role and assign it to user_1 and (2) data_apps_user_1_beta_role and assign it to user_1. Then, user_1 in Snowsight can select either role to access the app/data for either group.
+* See [this file](framework_explanation.md) for an explanation of how the framework works.
 
 ### Diagrams (as of 11/9/25)
 
