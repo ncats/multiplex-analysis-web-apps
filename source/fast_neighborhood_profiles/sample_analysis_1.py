@@ -1,5 +1,5 @@
 import streamlit as st
-import sample_analysis_module
+import fast_neighborhood_profiles.sample_analysis_module
 
 ST_KEY_PREFIX = "sample_analysis_1.py__"
 
@@ -14,7 +14,7 @@ def main():
     key = ST_KEY_PREFIX + "sample_analysis_results"
 
     if st.button('Run sample analysis'):
-        results = sample_analysis_module.run_analysis(param1, param2)
+        results = fast_neighborhood_profiles.sample_analysis_module.run_analysis(param1, param2)
         st.session_state[key] = results
 
 
