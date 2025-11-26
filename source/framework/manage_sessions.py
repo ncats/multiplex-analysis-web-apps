@@ -203,7 +203,7 @@ def main():
         pa.get_available_archives.clear()
 
     # Display all archives that are compatible with the current frontend image.
-    df = pa.get_available_archives(pa.get_archive_compatibility_id(container_image_id))
+    df = pa.get_available_archives(pa.get_archive_compatibility_id(pa.get_frontend_image_id()))
     key = ST_KEY_PREFIX + "archive_selection" + "__do_not_persist"
     if not df.is_empty():
         st.dataframe(df, on_select="rerun", selection_mode="single-row", key=key)
