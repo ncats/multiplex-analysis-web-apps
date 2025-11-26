@@ -30,10 +30,8 @@ def main():
     primes_upper_limit = st.number_input("Generate primes up to (inclusive):", min_value=2, key=key)
 
     # Run primes generation. This demonstrates the general, overall workflow for job submission.
-    # Replace something like:
-    #   if st.button("Run primes generation"):
-    #     find_primes_up_to(limit=primes_upper_limit, results_subdir=os.path.join("results", "primes"))
-    # with the following. Note you'll need to add the parameter results_topdir to the function definition and ensure it returns a dictionary of return values. (For this, it is a good idea to write a wrapper around the execution function.) If it writes files to disk, it should do so within the top directory identified by results_topdir. See analysis_functions.find_primes_up_to_limit() and the following block for a full example. Note it's best to wrap pure Python code, like the find_primes_up_to() function--not anything containing Streamlit calls.
+    # See framework_explanation.md for a complete example/explanation.
+    # Note you'll need to add the parameter results_topdir to the function definition and ensure it returns a dictionary of return values. (For this, it is a good idea to write a wrapper around the execution function.) If it writes files to disk, it should do so within the top directory identified by results_topdir. See analysis_functions.find_primes_up_to_limit() and the following block for a full example. Note it's best to wrap pure Python code, like the find_primes_up_to() function--not anything containing Streamlit calls.
     analysis_framework.job_submission(
         job_name="find_primes_up_to",
         inputs={"limit": primes_upper_limit, "results_subdir": os.path.join("results", "primes")},
