@@ -104,39 +104,44 @@ def main():
         if not set_cpu_pool_size:
             cpu_pool_size = None
 
+    #### ADDRESS THIS!!
+    # Prepare inputs for the analysis.
+    pldf_phenotyped = fnp_main.format_lazyframe(lf, sample_size=None, sample_seed=42)  # Not making these two parameters editable as haven't used for a while.
+
     # Allow the user to initiate the analysis.
     sumap_cell_file_format = "parquet"
     key = ST_KEY_PREFIX + "spatial_umap"
+    unique_labels = st.session_state[ST_KEY_PREFIX_PHENOTYPE + "unique_labels"]
+
+    inputs = dict(pldf=pldf_phenotyped, unique_labels=unique_labels, dist_bin_um_list=dist_bin_um_list, area_downsample=area_downsample, um_per_px=1, cpu_pool_size=cpu_pool_size, subdir="spatial_umap", counts_method="andrew", area_threshold=area_threshold, custom_areas=custom_areas, seed_for_train_test_split=seed_for_train_test_split, n=n, keep_images_with_too_little_data=keep_images_with_too_little_data, train_sample_frac=train_sample_frac, test_sample_frac=test_sample_frac, de_min_coords=de_min_coords, mp_start_method='forkserver')
+
     if st.button("Run spatial UMAP"):
-        with st.spinner("Running spatial UMAP..."):
 
-            # Prepare inputs for the analysis.
-            pldf_phenotyped = fnp_main.format_lazyframe(lf, sample_size=None, sample_seed=42)  # Not making these two parameters editable as haven't used for a while.
-            unique_labels = st.session_state[ST_KEY_PREFIX_PHENOTYPE + "unique_labels"]
-            topdir = framework_utils.session_dir()
-            subdir = os.path.join("output", "spatial_umap")
+        # Run the spatial UMAP analysis.
+        results = fnp_main.generate_umap(**inputs)
 
-            # Run the spatial UMAP analysis.
-            spatial_umap, _ = fnp_main.generate_umap(pldf_phenotyped, unique_labels, dist_bin_um_list=dist_bin_um_list, area_downsample=area_downsample, um_per_px=1, cpu_pool_size=cpu_pool_size, topdir=topdir, subdir=subdir, counts_method="andrew", area_threshold=area_threshold, custom_areas=custom_areas, seed_for_train_test_split=seed_for_train_test_split, n=n, keep_images_with_too_little_data=keep_images_with_too_little_data, train_sample_frac=train_sample_frac, test_sample_frac=test_sample_frac, de_min_coords=de_min_coords, mp_start_method='forkserver')
+        # Store the result in the session state.
+        st.session_state[key] = results
 
-            # Store the result in the session state.
-            st.session_state[key] = spatial_umap
-
-            # Convert some of the results to a lazyframe.
-            params = dict(handle="sumap_cells", file_format=sumap_cell_file_format)
-            lf = fnp_main.save_and_load_pandas_df_to_lf(spatial_umap.cells, **params)
-            st.session_state["LAZYFRAMES"]["sumap_cells"] = {
-                "lf": lf,
-                "function": fnp_main.save_and_load_pandas_df_to_lf,
-                "input_dataset": {"type": "pandas_df", "keys": (key, "cells")},
-                "params": params,
-                "extras": None,
-                }
-            
     # Ensure the cells lazyframe is in session state.
-    if "sumap_cells" not in st.session_state["LAZYFRAMES"]:
+    # if "sumap_cells" not in st.session_state["LAZYFRAMES"]:
+    if key not in st.session_state:
         st.info("Please press the button above to generate spatial UMAP results.")
         return
+    
+    spatial_umap = st.session_state[key]["spatial_umap"]
+        
+    #### ADDRESS THIS!!
+    # Convert some of the results to a lazyframe.
+    params = dict(handle="sumap_cells", file_format=sumap_cell_file_format)
+    lf = fnp_main.save_and_load_pandas_df_to_lf(spatial_umap.cells, **params)
+    st.session_state["LAZYFRAMES"]["sumap_cells"] = {
+        "lf": lf,
+        "function": fnp_main.save_and_load_pandas_df_to_lf,
+        "input_dataset": {"type": "pandas_df", "keys": (key, "cells")},
+        "params": params,
+        "extras": None,
+        }
         
     # Get a shortcut to the cells lazyframe.
     lf = st.session_state["LAZYFRAMES"]["sumap_cells"]["lf"]

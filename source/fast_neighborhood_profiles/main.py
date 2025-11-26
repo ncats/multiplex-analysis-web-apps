@@ -666,7 +666,7 @@ def plot_neighborhood_profile(data, plot_type, labels_axis_1, labels_axis_2, axi
     return fig, extra_return_info
 
 
-def generate_umap(pldf, unique_labels, dist_bin_um_list=[25, 50, 100, 150, 200], area_downsample=0.2, um_per_px=1, cpu_pool_size=None, topdir=".", subdir="results", counts_method="andrew", area_threshold=0.8, custom_areas=True, seed_for_train_test_split=54321, n=2500, keep_images_with_too_little_data=True, train_sample_frac=1.0, test_sample_frac=1.0, de_min_coords=True, mp_start_method=None):
+def generate_umap(pldf, unique_labels, dist_bin_um_list=[25, 50, 100, 150, 200], area_downsample=0.2, um_per_px=1, cpu_pool_size=None, results_topdir=".", subdir="results", counts_method="andrew", area_threshold=0.8, custom_areas=True, seed_for_train_test_split=54321, n=2500, keep_images_with_too_little_data=True, train_sample_frac=1.0, test_sample_frac=1.0, de_min_coords=True, mp_start_method=None):
     # Note that cpu_pool_size=None will default to the number of available CPUs.
 
     # Instantiate the spatial umap object.
@@ -699,7 +699,7 @@ def generate_umap(pldf, unique_labels, dist_bin_um_list=[25, 50, 100, 150, 200],
     spatial_umap.species = unique_labels
 
     # Ensure results directory exists.
-    os.makedirs(os.path.join(topdir, subdir), exist_ok=True)
+    os.makedirs(os.path.join(results_topdir, subdir), exist_ok=True)
 
     # Determine which counting method to use based on the input parameter. Note I have shown that the methods precisely agree.
     if counts_method == "andrew":
@@ -712,7 +712,7 @@ def generate_umap(pldf, unique_labels, dist_bin_um_list=[25, 50, 100, 150, 200],
     # Get the areas of cells and save to pickle file.
     if custom_areas:
         try:
-            spatial_umap.get_areas(area_threshold, pool_size=cpu_pool_size, save_file=os.path.join(topdir, subdir, f"areas.csv"), plots_directory=os.path.join(topdir, subdir))  # Sets spatial_umap.cells["area_filter"] and spatial_umap.areas.
+            spatial_umap.get_areas(area_threshold, pool_size=cpu_pool_size, save_file=os.path.join(results_topdir, subdir, f"areas.csv"), plots_directory=os.path.join(results_topdir, subdir))  # Sets spatial_umap.cells["area_filter"] and spatial_umap.areas.
         except Exception as e:
             print_flush(f"An error occurred while calculating custom areas, potentially in SpatialUMAP.FitEllipse.fit() in \"hull = ConvexHull(d[idx_fit])\": {e}")
             return spatial_umap, False
@@ -778,8 +778,8 @@ def generate_umap(pldf, unique_labels, dist_bin_um_list=[25, 50, 100, 150, 200],
     # # save spatial_umap object as pickle
     # pickle.dump(spatial_umap, open(data_dir + '/pkl/spatial_umap.pkl', 'wb'))
 
-    # Return the spatial UMAP object.
-    return spatial_umap, True
+    # Return the result as a dictionary.
+    return dict(spatial_umap=spatial_umap, complete_success=True)
 
 
 def generate_figures(spatial_umap):
