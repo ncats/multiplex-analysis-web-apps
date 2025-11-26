@@ -467,7 +467,7 @@ def get_jobs_table_data():
 
 
 @st.cache_data()
-def get_available_archives():
+def get_available_archives(archive_compatibility_id: str):
     if framework_utils.platform() == "local":
         try:
             with get_connection_pool(DB_URL_GROUP).connection() as conn:
@@ -475,8 +475,9 @@ def get_available_archives():
                     cur.execute(f"""
                         SELECT creator, creation_time, archive_description, archive_id, app_session_id
                         FROM {APP_SHORTNAME}_schema.archives_table
+                        WHERE archive_compatibility_id = %s
                         ORDER BY creation_time DESC
-                    """)
+                    """, (archive_compatibility_id,))
                     rows = cur.fetchall()
             df = pl.DataFrame(rows, schema=["Creator", "Creation time", "Archive description", "Archive ID", "App session ID"], strict=False, orient="row")
             return df
@@ -489,8 +490,9 @@ def get_available_archives():
             rows = session.sql(f"""
                 SELECT creator, creation_time, archive_description, archive_id, app_session_id
                 FROM {get_user_group(get_current_username())}_group_db.{APP_SHORTNAME}_schema.archives_table
+                WHERE archive_compatibility_id = ?
                 ORDER BY creation_time DESC
-            """).collect()
+            """, (archive_compatibility_id,)).collect()
             df = pl.DataFrame(rows, schema=["Creator", "Creation time", "Archive description", "Archive ID", "App session ID"], strict=False, orient="row")
             return df
         except Exception as e:
