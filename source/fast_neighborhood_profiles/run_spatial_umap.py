@@ -1,8 +1,7 @@
 # Import relevant libraries.
 import streamlit as st
 from fast_neighborhood_profiles import main as fnp_main
-import framework.utils as framework_utils
-import os
+import framework.analysis_framework as analysis_framework
 
 # Define constants.
 ST_KEY_PREFIX = "run_spatial_umap.py__"
@@ -110,18 +109,17 @@ def main():
 
     # Allow the user to initiate the analysis.
     sumap_cell_file_format = "parquet"
-    key = ST_KEY_PREFIX + "spatial_umap"
+    key = ST_KEY_PREFIX + "spatial_UMAP_results"
     unique_labels = st.session_state[ST_KEY_PREFIX_PHENOTYPE + "unique_labels"]
 
     inputs = dict(pldf=pldf_phenotyped, unique_labels=unique_labels, dist_bin_um_list=dist_bin_um_list, area_downsample=area_downsample, um_per_px=1, cpu_pool_size=cpu_pool_size, subdir="spatial_umap", counts_method="andrew", area_threshold=area_threshold, custom_areas=custom_areas, seed_for_train_test_split=seed_for_train_test_split, n=n, keep_images_with_too_little_data=keep_images_with_too_little_data, train_sample_frac=train_sample_frac, test_sample_frac=test_sample_frac, de_min_coords=de_min_coords, mp_start_method='forkserver')
 
-    if st.button("Run spatial UMAP"):
-
-        # Run the spatial UMAP analysis.
-        results = fnp_main.generate_umap(**inputs)
-
-        # Store the result in the session state.
-        st.session_state[key] = results
+    analysis_framework.job_submission(
+        job_name="spatial_umap",
+        inputs=inputs,
+        analysis_purpose="spatial UMAP",
+        st_key_prefix=ST_KEY_PREFIX,
+    )
 
     # Ensure the cells lazyframe is in session state.
     # if "sumap_cells" not in st.session_state["LAZYFRAMES"]:
@@ -157,6 +155,8 @@ def main():
         image_colname = "TMA_core_id"
         unique_image_ids = st.session_state[ST_KEY_PREFIX_PHENOTYPE + "unique_image_ids"]
         with st.container(horizontal=True, vertical_alignment="bottom"):
+            if ST_KEY_PREFIX + "selected_image_to_plot" in st.session_state and st.session_state[ST_KEY_PREFIX + "selected_image_to_plot"] not in unique_image_ids:
+                del st.session_state[ST_KEY_PREFIX + "selected_image_to_plot"]
             st.session_state.setdefault(ST_KEY_PREFIX + "selected_image_to_plot", unique_image_ids[0])
             selected_image_to_plot = st.selectbox("Select image to plot:", options=unique_image_ids, key=ST_KEY_PREFIX + "selected_image_to_plot")
             st.button("Previous", on_click=lambda: st.session_state.update({ST_KEY_PREFIX + "selected_image_to_plot": unique_image_ids[max(0, unique_image_ids.index(st.session_state[ST_KEY_PREFIX + "selected_image_to_plot"]) - 1)]}), disabled=(st.session_state[ST_KEY_PREFIX + "selected_image_to_plot"] == unique_image_ids[0]))

@@ -2,6 +2,7 @@ import time
 import math
 import os
 import fast_neighborhood_profiles.sample_analysis_module
+from fast_neighborhood_profiles import main as fnp_main
 
 
 def run_analysis_job(function_name, inputs, job_dir):
@@ -11,6 +12,8 @@ def run_analysis_job(function_name, inputs, job_dir):
             function_to_run = find_primes_up_to
         elif function_name == "my_sample_analysis":
             function_to_run = fast_neighborhood_profiles.sample_analysis_module.run_analysis
+        elif function_name == "spatial_umap":
+            function_to_run = fnp_main.generate_umap
         outputs = function_to_run(**inputs, results_topdir=outputs_dir)
         return outputs
     except Exception as e:

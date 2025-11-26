@@ -157,3 +157,5 @@ def run_analysis_job(function_name, inputs, job_dir):
         print(f"Error occurred while running analysis job {function_name}: {e}")
         return None
 ```
+
+Note also that the key must be the value of `analysis_purpose` with spaces replaced by underscores, and appended with `_results`, due to logic in `analysis_framework.job_submission()`.
