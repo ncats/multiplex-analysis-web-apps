@@ -105,7 +105,7 @@ def main():
     key = ST_KEY_PREFIX + "spatial_UMAP_results"
     unique_labels = st.session_state[ST_KEY_PREFIX_PHENOTYPE + "unique_labels"]
 
-    # Assemble the inputs to the spatial UMAP analysis.
+    # Assemble the inputs (less the polars dataframe, to be part of the job preprocessing) to the spatial UMAP analysis.
     inputs = dict(unique_labels=unique_labels, dist_bin_um_list=dist_bin_um_list, area_downsample=area_downsample, um_per_px=1, cpu_pool_size=cpu_pool_size, subdir="spatial_umap", counts_method="andrew", area_threshold=area_threshold, custom_areas=custom_areas, seed_for_train_test_split=seed_for_train_test_split, n=n, keep_images_with_too_little_data=keep_images_with_too_little_data, train_sample_frac=train_sample_frac, test_sample_frac=test_sample_frac, de_min_coords=de_min_coords, mp_start_method='forkserver')
 
     # Allow the user to run the spatial UMAP analysis asynchronously.
@@ -127,10 +127,9 @@ def main():
     
     # Get a shortcut to the spatial UMAP results.
     spatial_umap = st.session_state[key]["spatial_umap"]
-        
-    # Finalize the spatial UMAP analysis by creating an intermediate file and final lazyframe for the results. This stores the polars lazyframe in memory via the session state.
-    @st.cache_data()
-    def generate_sumap_cells_lazyframe():
+
+    # If the spatial UMAP job just completed, save the results to a lazyframe and store it in the session state.
+    if "JOB_JUST_COMPLETED" in st.session_state and st.session_state["JOB_JUST_COMPLETED"] == "spatial_umap":
         params = dict(handle="sumap_cells", file_format=sumap_cell_file_format)
         lf = fnp_main.save_and_load_pandas_df_to_lf(spatial_umap.cells, **params)
         st.session_state["LAZYFRAMES"]["sumap_cells"] = {
@@ -140,8 +139,7 @@ def main():
             "params": params,
             "extras": None,
             }
-    generate_sumap_cells_lazyframe()
-    st.button(":three: Re-finalize spatial UMAP analysis", help="Do this is the previous two of three total steps have changed.", on_click=generate_sumap_cells_lazyframe.clear)
+        del st.session_state["JOB_JUST_COMPLETED"]
 
     # Get a shortcut to the cells lazyframe.
     lf = st.session_state["LAZYFRAMES"]["sumap_cells"]["lf"]
