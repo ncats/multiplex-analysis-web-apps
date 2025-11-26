@@ -1,23 +1,20 @@
 import streamlit as st
+import sample_analysis_module
 
 ST_KEY_PREFIX = "sample_analysis_1.py__"
 
 
-def run_analysis(param1, param2, results_topdir=None):
-    x = param1 * 2
-    y = param2.upper()
-    return {"x": x, "y": y}
-
-
 def main():
     
-    param1 = st.number_input('Parameter 1', min_value=0, max_value=100, value=50)
-    param2 = st.text_input('Parameter 2', value='default text')
+    st.session_state.setdefault(ST_KEY_PREFIX + "parameter_1", 50)
+    param1 = st.number_input('Parameter 1', min_value=0, max_value=100, key=ST_KEY_PREFIX + "parameter_1")
+    st.session_state.setdefault(ST_KEY_PREFIX + "parameter_2", "default text")
+    param2 = st.text_input('Parameter 2', key=ST_KEY_PREFIX + "parameter_2")
 
     key = ST_KEY_PREFIX + "sample_analysis_results"
 
     if st.button('Run sample analysis'):
-        results = run_analysis(param1, param2)
+        results = sample_analysis_module.run_analysis(param1, param2)
         st.session_state[key] = results
 
 

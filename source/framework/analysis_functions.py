@@ -1,7 +1,7 @@
 import time
 import math
 import os
-import fast_neighborhood_profiles.sample_analysis_2
+import fast_neighborhood_profiles.sample_analysis_module
 
 
 def run_analysis_job(function_name, inputs, job_dir):
@@ -10,7 +10,7 @@ def run_analysis_job(function_name, inputs, job_dir):
         if function_name == "find_primes_up_to":
             function_to_run = find_primes_up_to
         elif function_name == "my_sample_analysis":
-            function_to_run = fast_neighborhood_profiles.sample_analysis_2.run_analysis
+            function_to_run = fast_neighborhood_profiles.sample_analysis_module.run_analysis
         outputs = function_to_run(**inputs, results_topdir=outputs_dir)
         return outputs
     except Exception as e:

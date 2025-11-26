@@ -43,23 +43,21 @@ Typical script (`sample_analysis_1.py`):
 
 ```python
 import streamlit as st
+import sample_analysis_module
 
 ST_KEY_PREFIX = "sample_analysis_1.py__"
 
-def run_analysis(param1, param2, results_topdir=None):
-    x = param1 * 2
-    y = param2.upper()
-    return {"x": x, "y": y}
-
 def main():
     
-    param1 = st.number_input('Parameter 1', min_value=0, max_value=100, value=50)
-    param2 = st.text_input('Parameter 2', value='default text')
+    st.session_state.setdefault(ST_KEY_PREFIX + "parameter_1", 50)
+    param1 = st.number_input('Parameter 1', min_value=0, max_value=100, key=ST_KEY_PREFIX + "parameter_1")
+    st.session_state.setdefault(ST_KEY_PREFIX + "parameter_2", "default text")
+    param2 = st.text_input('Parameter 2', key=ST_KEY_PREFIX + "parameter_2")
 
     key = ST_KEY_PREFIX + "sample_analysis_results"
 
     if st.button('Run sample analysis'):
-        results = run_analysis(param1, param2)
+        results = sample_analysis_module.run_analysis(param1, param2)
         st.session_state[key] = results
 
     if key not in st.session_state:
@@ -79,18 +77,16 @@ New script (`sample_analysis_2.py`):
 
 ```python
 import streamlit as st
+import sample_analysis_module
 
 ST_KEY_PREFIX = "sample_analysis_2.py__"
 
-def run_analysis(param1, param2, results_topdir=None):
-    x = param1 * 2
-    y = param2.upper()
-    return {"x": x, "y": y}
-
 def main():
     
-    param1 = st.number_input('Parameter 1', min_value=0, max_value=100, value=50)
-    param2 = st.text_input('Parameter 2', value='default text')
+    st.session_state.setdefault(ST_KEY_PREFIX + "parameter_1", 50)
+    param1 = st.number_input('Parameter 1', min_value=0, max_value=100, key=ST_KEY_PREFIX + "parameter_1")
+    st.session_state.setdefault(ST_KEY_PREFIX + "parameter_2", "default text")
+    param2 = st.text_input('Parameter 2', key=ST_KEY_PREFIX + "parameter_2")
 
     key = ST_KEY_PREFIX + "sample_analysis_results"
 
@@ -115,11 +111,20 @@ if __name__ == "__main__":
     main()
 ```
 
-In particular, the only change is to replace:
+where `sample_analysis_module.py` contains simply:
+
+```python
+def run_analysis(param1, param2, results_topdir=None):
+    x = param1 * 2
+    y = param2.upper()
+    return {"x": x, "y": y}
+```
+
+In particular, the only meaningful change in the Streamlit page is to replace:
 
 ```python
 if st.button('Run sample analysis'):
-    results = run_analysis(param1, param2)
+    results = sample_analysis_module.run_analysis(param1, param2)
     st.session_state[key] = results
 ```
 
@@ -133,4 +138,22 @@ analysis_framework.job_submission(
     analysis_purpose="sample analysis",
     st_key_prefix=ST_KEY_PREFIX,
 )
+```
+
+and to have the following in `analysis_functions.py`:
+
+```python
+import os
+import fast_neighborhood_profiles.sample_analysis_module
+
+def run_analysis_job(function_name, inputs, job_dir):
+    try:
+        outputs_dir = os.path.join(job_dir, "outputs")
+        if function_name == "my_sample_analysis":
+            function_to_run = fast_neighborhood_profiles.sample_analysis_module.run_analysis
+        outputs = function_to_run(**inputs, results_topdir=outputs_dir)
+        return outputs
+    except Exception as e:
+        print(f"Error occurred while running analysis job {function_name}: {e}")
+        return None
 ```
