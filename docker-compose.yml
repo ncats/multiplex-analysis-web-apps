@@ -73,7 +73,7 @@ services:
       dockerfile: docker_orchestrator/Dockerfile
     environment:
       # Worker image to launch (reuses frontend image for parity)
-      WORKER_IMAGE: frontend  ## ENSURE THIS MATCHES FRONTEND IMAGE NAME
+      WORKER_IMAGE: frontend:${DATE}-v${BUILD_VER}-${ENV_NAME}-env  ## ENSURE THIS MATCHES FRONTEND IMAGE NAME!!!!!!!
       WORKER_CPUS: ""  # Note some machines may not have 8 CPUs available so we need to change this; ensure this is changed elsewhere in code!
       WORKER_MEM: ""
       # Pass-through envs required by the worker
