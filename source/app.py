@@ -95,13 +95,10 @@ def main():
                 st.Page(phenotype.main, title="Phenotype", url_path='phenotype'),
                 st.Page(run_spatial_umap.main, title="Run spatial UMAP", url_path='run_spatial_umap'),
                 st.Page(study_results.main, title="Study results", url_path='study_results'),
-                st.Page(sample_analysis_1.main, title="Sample analysis 1", url_path='sample_analysis_1'),
-                st.Page(sample_analysis_2.main, title="Sample analysis 2", url_path='sample_analysis_2'),
-                ],
-            "Framework": [
-                st.Page(generate_results.main, title="Generate results", url_path='generate_results'),
+                # st.Page(sample_analysis_1.main, title="Sample analysis 1", url_path='sample_analysis_1'),
+                # st.Page(sample_analysis_2.main, title="Sample analysis 2", url_path='sample_analysis_2'),
                 st.Page(monitor_jobs.main, title="Monitor jobs", url_path='monitor_jobs'),
-                st.Page(inspect_database_tables.main, title="Inspect database tables", url_path='inspect_database_tables'),
+                # st.Page(generate_results.main, title="Generate results", url_path='generate_results'),
                 ],
             'Home 🏠':
                 [
@@ -154,6 +151,7 @@ def main():
                     st.Page(preprocessing.main, title="Preprocessing", url_path='preprocessing'),
                     st.Page(memory_analyzer.main, title="Memory Analyzer", url_path='memory_analyzer'),
                     st.Page(results_transfer.main, title="Results Transfer", url_path='results_transfer'),
+                    st.Page(inspect_database_tables.main, title="Inspect database tables", url_path='inspect_database_tables'),
                     # st.Page(forking_test.main, title="Forking Test", url_path='forking_test')
                 ],
         }
