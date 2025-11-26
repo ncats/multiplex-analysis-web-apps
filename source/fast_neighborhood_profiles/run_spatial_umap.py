@@ -22,9 +22,6 @@ def main():
         st.warning("Please perform phenotyping (at left).")
         return
 
-    # Get the main lazyframe from session state.
-    lf = st.session_state["LAZYFRAMES"]["marker_phenotyping"]["lf"]
-
     # In the first of two main columns...
     main_columns = st.columns(2)
     with main_columns[0]:
@@ -103,44 +100,53 @@ def main():
         if not set_cpu_pool_size:
             cpu_pool_size = None
 
-    #### ADDRESS THIS!!
-    # Prepare inputs for the analysis.
-    pldf_phenotyped = fnp_main.format_lazyframe(lf, sample_size=None, sample_seed=42)  # Not making these two parameters editable as haven't used for a while.
+    # Initialize the spatial UMAP analysis by generating an in-memory polars dataframe from the phenotyped lazyframe. This stores the polars dataframe in memory via Streamlit caching.
+    @st.cache_data()
+    def get_phenotyped_pldf_from_lf():
+        return fnp_main.format_lazyframe(st.session_state["LAZYFRAMES"]["marker_phenotyping"]["lf"], sample_size=None, sample_seed=42)  # Not making these two parameters editable as haven't used for a while.
+    pldf_phenotyped = get_phenotyped_pldf_from_lf()
+    st.button(":one: Re-initialize spatial UMAP analysis", help="E.g., if you changed the phenotyping on the previous page since the first time phenotyping was performed, you likely want to do this.", on_click=get_phenotyped_pldf_from_lf.clear)
 
-    # Allow the user to initiate the analysis.
+    # Get shortcuts to some variables.
     sumap_cell_file_format = "parquet"
     key = ST_KEY_PREFIX + "spatial_UMAP_results"
     unique_labels = st.session_state[ST_KEY_PREFIX_PHENOTYPE + "unique_labels"]
 
+    # Assemble the inputs to the spatial UMAP analysis.
     inputs = dict(pldf=pldf_phenotyped, unique_labels=unique_labels, dist_bin_um_list=dist_bin_um_list, area_downsample=area_downsample, um_per_px=1, cpu_pool_size=cpu_pool_size, subdir="spatial_umap", counts_method="andrew", area_threshold=area_threshold, custom_areas=custom_areas, seed_for_train_test_split=seed_for_train_test_split, n=n, keep_images_with_too_little_data=keep_images_with_too_little_data, train_sample_frac=train_sample_frac, test_sample_frac=test_sample_frac, de_min_coords=de_min_coords, mp_start_method='forkserver')
 
+    # Allow the user to run the spatial UMAP analysis asynchronously.
     analysis_framework.job_submission(
         job_name="spatial_umap",
         inputs=inputs,
         analysis_purpose="spatial UMAP",
         st_key_prefix=ST_KEY_PREFIX,
+        button_text_prefix=":two: "
     )
 
-    # Ensure the cells lazyframe is in session state.
-    # if "sumap_cells" not in st.session_state["LAZYFRAMES"]:
+    # Ensure the job results are available in the session state.
     if key not in st.session_state:
         st.info("Please press the button above to generate spatial UMAP results.")
         return
     
+    # Get a shortcut to the spatial UMAP results.
     spatial_umap = st.session_state[key]["spatial_umap"]
         
-    #### ADDRESS THIS!!
-    # Convert some of the results to a lazyframe.
-    params = dict(handle="sumap_cells", file_format=sumap_cell_file_format)
-    lf = fnp_main.save_and_load_pandas_df_to_lf(spatial_umap.cells, **params)
-    st.session_state["LAZYFRAMES"]["sumap_cells"] = {
-        "lf": lf,
-        "function": fnp_main.save_and_load_pandas_df_to_lf,
-        "input_dataset": {"type": "pandas_df", "keys": (key, "cells")},
-        "params": params,
-        "extras": None,
-        }
-        
+    # Finalize the spatial UMAP analysis by creating an intermediate file and final lazyframe for the results. This stores the polars lazyframe in memory via the session state.
+    @st.cache_data()
+    def generate_sumap_cells_lazyframe():
+        params = dict(handle="sumap_cells", file_format=sumap_cell_file_format)
+        lf = fnp_main.save_and_load_pandas_df_to_lf(spatial_umap.cells, **params)
+        st.session_state["LAZYFRAMES"]["sumap_cells"] = {
+            "lf": lf,
+            "function": fnp_main.save_and_load_pandas_df_to_lf,
+            "input_dataset": {"type": "pandas_df", "keys": (key, "spatial_umap", "cells")},
+            "params": params,
+            "extras": None,
+            }
+    generate_sumap_cells_lazyframe()
+    st.button(":three: Re-finalize spatial UMAP analysis", help="Do this is the previous two of three total steps have changed.", on_click=generate_sumap_cells_lazyframe.clear)
+
     # Get a shortcut to the cells lazyframe.
     lf = st.session_state["LAZYFRAMES"]["sumap_cells"]["lf"]
 

@@ -90,7 +90,7 @@ def load_session_state():
                     lf = st.session_state["LAZYFRAMES"][input_dataset["keys"][0]]["lf"]
                     result = function(lf, **params)
                 elif input_dataset["type"] == "pandas_df":
-                    pd_df = getattr(st.session_state[input_dataset["keys"][0]], input_dataset["keys"][1])
+                    pd_df = getattr(st.session_state[input_dataset["keys"][0]][input_dataset["keys"][1]], input_dataset["keys"][2])  # Modify in the future; this is really specific to the format of sumap.cells on the run_spatial_umap.py page.
                     result = function(pd_df, **params)
                 if isinstance(result, tuple):
                     st.session_state["LAZYFRAMES"][key]["lf"] = result[0]

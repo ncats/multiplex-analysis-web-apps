@@ -155,7 +155,7 @@ def run_analysis_job_wrapper(function_name, inputs, blocking=True, selected_comp
 
 
 # TODO: Add ability to save archive (with description) at the end; see functionality in manage_sessions.py.
-def job_submission(job_name, inputs, analysis_purpose, st_key_prefix):
+def job_submission(job_name, inputs, analysis_purpose, st_key_prefix, button_text_prefix=""):
 
     analysis_purpose_with_underscores = analysis_purpose.replace(" ", "_")
 
@@ -174,7 +174,7 @@ def job_submission(job_name, inputs, analysis_purpose, st_key_prefix):
         else:
             selected_compute_resource = None
 
-        if st.button(f"Run {analysis_purpose}", type=("primary" if do_async_analysis else "secondary")):
+        if st.button(f"{button_text_prefix}Run {analysis_purpose}", type=("primary" if do_async_analysis else "secondary")):
             job_id = run_analysis_job_wrapper(job_name, inputs, blocking=not do_async_analysis, selected_compute_resource=selected_compute_resource)
             st.session_state["JOB_PENDING"] = {"job_id": job_id, "key_for_results": st_key_prefix + analysis_purpose_with_underscores + "_results"}
             st.rerun()  # Remove to not mask any potential warnings/errors.
