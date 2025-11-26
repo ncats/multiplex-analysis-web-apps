@@ -14,7 +14,6 @@ import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected 
 import basic_phenotyper_lib as bpl  # Useful functions for phenotyping collections of cells
 from neighborhood_profiles import NeighborhoodProfiles, UMAPDensityProcessing
 import framework.utils as framework_utils
-import framework.analysis_framework as analysis_framework
 
 def get_spatialUMAP(spatial_umap, bc, umap_subset_per_fit, umap_subset_toggle, umap_subset_per):
     '''
@@ -56,6 +55,40 @@ def get_spatialUMAP(spatial_umap, bc, umap_subset_per_fit, umap_subset_toggle, u
     #     pickle.dump(spatial_umap, f)
 
     return spatial_umap
+
+def init_spatial_umap():
+    '''
+    Initalizing the spatial_umap object
+    '''
+
+    # Reset the settings required for Neighborhood Analysis
+    st.session_state = ndl.reset_neigh_profile_settings(st.session_state)
+
+    if not st.session_state['calc_unique_areas_toggle']:
+        area_filter = 0
+    else:
+        area_filter = st.session_state['area_filter_per']
+
+    st.session_state.bc.startTimer()
+    with st.spinner('Calculating Cell Counts and Areas', show_time=True):
+        st.session_state.spatial_umap = bpl.setup_Spatial_UMAP(df = st.session_state.df,
+                                                               marker_names = st.session_state.marker_multi_sel,
+                                                               pheno_order = st.session_state.phenoOrder,
+                                                               smallest_image_size = st.session_state.datafile_min_img_size)
+
+        st.session_state.spatial_umap = bpl.perform_density_calc(st.session_state.spatial_umap,
+                                                                 st.session_state.bc,
+                                                                 st.session_state.calc_unique_areas_toggle,
+                                                                 st.session_state.cpu_pool_size,
+                                                                 area_threshold = area_filter)
+
+        # Record time elapsed
+        st.session_state.bc.set_value_df('time_to_run_counts', st.session_state.bc.elapsedTime())
+
+        st.session_state.density_completed = True
+
+        # Save checkpoint for Neighborhood Profile structure
+        # save_neipro_struct()
 
 def apply_umap(umap_style):
     '''
@@ -624,39 +657,15 @@ def main():
             butt_cols = st.columns(2)
             with butt_cols[0]:
 
-                if st.session_state.phenotyping_completed:
-                    if st.button("Initialize Neighborhood Profiles"):
-                        st.session_state = ndl.reset_neigh_profile_settings(st.session_state)
-
-                    analysis_framework.job_submission(
-                        job_name="init_spatial_umap",
-                        inputs=dict(
-                            calc_unique_areas_toggle=st.session_state['calc_unique_areas_toggle'],
-                            area_filter_per=st.session_state['area_filter_per'] if 'area_filter_per' in st.session_state else None,
-                            df=st.session_state["df"],
-                            marker_multi_sel=st.session_state["marker_multi_sel"],
-                            phenoOrder=st.session_state["phenoOrder"],
-                            datafile_min_img_size=st.session_state["datafile_min_img_size"],
-                            cpu_pool_size=st.session_state["cpu_pool_size"],
-                        ),
-                        analysis_purpose="cell density analysis",
-                        st_key_prefix="",
-                    )
-                    # If the job has completed (session state key was set to the job results [outputs]), resume below this block.
-                    key = 'cell_density_analysis_results'
-                    if key not in st.session_state:
-                        st.warning("Cell density analysis results are not yet available.")
-                        return
-                    # Set shortcuts to the job results.
-                    st.session_state.spatial_umap = st.session_state[key]["spatial_umap"]
-                    st.session_state.density_completed = st.session_state[key]["density_completed"]
-
+                dens_butt  = st.button('Perform Cell Density Analysis')
                 umap_butt  = st.button('Perform UMAP Analysis')
                 clust_butt = st.button('Perform Clustering Analysis')
 
             # Button results and difference settings
             with butt_cols[1]:
                 if st.session_state.phenotyping_completed:
+                    if dens_butt:
+                        init_spatial_umap()
                     if not st.session_state.density_completed:
                         st.write(':x: Step 1: Perform Cell Density')
                     else:
