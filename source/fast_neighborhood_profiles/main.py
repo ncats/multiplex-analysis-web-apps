@@ -127,7 +127,7 @@ def format_lazyframe(lf, sample_size=None, sample_seed=42):
             .sort(by="TMA_core_id")
             )
         
-    return pldf
+    return dict(pldf=pldf)
 
 
 def save_and_load_pandas_df_to_lf(pd_df, handle, file_format):

@@ -100,20 +100,13 @@ def main():
         if not set_cpu_pool_size:
             cpu_pool_size = None
 
-    # Initialize the spatial UMAP analysis by generating an in-memory polars dataframe from the phenotyped lazyframe. This stores the polars dataframe in memory via Streamlit caching.
-    @st.cache_data()
-    def get_phenotyped_pldf_from_lf():
-        return fnp_main.format_lazyframe(st.session_state["LAZYFRAMES"]["marker_phenotyping"]["lf"], sample_size=None, sample_seed=42)  # Not making these two parameters editable as haven't used for a while.
-    pldf_phenotyped = get_phenotyped_pldf_from_lf()
-    st.button(":one: Re-initialize spatial UMAP analysis", help="E.g., if you changed the phenotyping on the previous page since the first time phenotyping was performed, you likely want to do this.", on_click=get_phenotyped_pldf_from_lf.clear)
-
     # Get shortcuts to some variables.
     sumap_cell_file_format = "parquet"
     key = ST_KEY_PREFIX + "spatial_UMAP_results"
     unique_labels = st.session_state[ST_KEY_PREFIX_PHENOTYPE + "unique_labels"]
 
     # Assemble the inputs to the spatial UMAP analysis.
-    inputs = dict(pldf=pldf_phenotyped, unique_labels=unique_labels, dist_bin_um_list=dist_bin_um_list, area_downsample=area_downsample, um_per_px=1, cpu_pool_size=cpu_pool_size, subdir="spatial_umap", counts_method="andrew", area_threshold=area_threshold, custom_areas=custom_areas, seed_for_train_test_split=seed_for_train_test_split, n=n, keep_images_with_too_little_data=keep_images_with_too_little_data, train_sample_frac=train_sample_frac, test_sample_frac=test_sample_frac, de_min_coords=de_min_coords, mp_start_method='forkserver')
+    inputs = dict(unique_labels=unique_labels, dist_bin_um_list=dist_bin_um_list, area_downsample=area_downsample, um_per_px=1, cpu_pool_size=cpu_pool_size, subdir="spatial_umap", counts_method="andrew", area_threshold=area_threshold, custom_areas=custom_areas, seed_for_train_test_split=seed_for_train_test_split, n=n, keep_images_with_too_little_data=keep_images_with_too_little_data, train_sample_frac=train_sample_frac, test_sample_frac=test_sample_frac, de_min_coords=de_min_coords, mp_start_method='forkserver')
 
     # Allow the user to run the spatial UMAP analysis asynchronously.
     analysis_framework.job_submission(
@@ -121,7 +114,10 @@ def main():
         inputs=inputs,
         analysis_purpose="spatial UMAP",
         st_key_prefix=ST_KEY_PREFIX,
-        button_text_prefix=":two: "
+        preprocess={
+            "function": fnp_main.format_lazyframe,
+            "args": dict(lf=st.session_state["LAZYFRAMES"]["marker_phenotyping"]["lf"], sample_size=None, sample_seed=42),
+        }
     )
 
     # Ensure the job results are available in the session state.
