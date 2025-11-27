@@ -20,3 +20,6 @@ up:
 
 build_up:
 	@ENV_NAME=$(ENV_NAME) ENV_PY_VER=$(ENV_PY_VER) DATE=$(DATE) BUILD_VER=$(BUILD_VER) docker compose up --build
+
+down:
+	@ENV_NAME=$(ENV_NAME) ENV_PY_VER=$(ENV_PY_VER) DATE=$(DATE) BUILD_VER=$(BUILD_VER) docker compose down
