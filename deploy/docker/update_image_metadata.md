@@ -62,6 +62,12 @@ whenever we push an image there, locally we want to do the analogous. However, s
     select * from general_schema.image_metadata_table;
     ```
 
+## How to update incrementally
+
+```make
+make insert_image_metadata ENV_NAME=leandro-robert ENV_PY_VER=3.12 DATE=2025-11-26 BUILD_VER=01
+```
+
 ## This was needed only once
 
 This is unneeded going forward, but is here for reference:
