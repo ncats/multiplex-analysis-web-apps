@@ -28,7 +28,7 @@ build_insert_up:
 	@echo "Building images..."
 	@ENV_NAME=$(ENV_NAME) ENV_PY_VER=$(ENV_PY_VER) DATE=$(DATE) BUILD_VER=$(BUILD_VER) docker compose build
 	@echo "Starting postgres..."
-	@ENV_NAME=$(ENV_NAME) ENV_PY_VER=$(ENV_PY_VER) DATE=$(DATE) BUILD_VER=$(BUILD_VER) docker compose up -d postgres
+	@ENV_NAME=$(ENV_NAME) ENV_PY_VER=$(ENV_PY_VER) DATE=$(DATE) BUILD_VER=$(BUILD_VER) docker compose up -d database
 	@sleep 3
 	@echo "Inserting metadata..."
 	@$(MAKE) insert_metadata ENV_NAME=$(ENV_NAME) DATE=$(DATE) BUILD_VER=$(BUILD_VER)
