@@ -130,7 +130,7 @@ def main():
 
     # If the spatial UMAP job just completed, save the results to a lazyframe and store it in the session state.
     if "JOB_JUST_COMPLETED" in st.session_state and st.session_state["JOB_JUST_COMPLETED"] == "spatial_umap":
-        params = dict(handle="sumap_cells", file_format=sumap_cell_file_format)
+        params = dict(handle="sumap_cells", file_format=sumap_cell_file_format, index_column_name="sumap_cell_index")
         lf = fnp_main.save_and_load_pandas_df_to_lf(spatial_umap.cells, **params)
         st.session_state["LAZYFRAMES"]["sumap_cells"] = {
             "lf": lf,
@@ -140,6 +140,12 @@ def main():
             "extras": None,
             }
         del st.session_state["JOB_JUST_COMPLETED"]
+
+    # Note that if I simply run this line, only then does sumap_cell_index column get recognized. Really strange:
+    # st.write(st.session_state["LAZYFRAMES"]["sumap_cells"]["lf"].collect_schema())
+    # Because that's true, let's force the index creation just to be safe.
+    if "sumap_cell_index" not in st.session_state["LAZYFRAMES"]["sumap_cells"]["lf"].collect_schema().names():
+        st.session_state["LAZYFRAMES"]["sumap_cells"]["lf"] = st.session_state["LAZYFRAMES"]["sumap_cells"]["lf"].with_row_index(name="sumap_cell_index")
 
     # Get a shortcut to the cells lazyframe.
     lf = st.session_state["LAZYFRAMES"]["sumap_cells"]["lf"]
@@ -162,7 +168,7 @@ def main():
             st.button("Previous", on_click=lambda: st.session_state.update({ST_KEY_PREFIX + "selected_image_to_plot": unique_image_ids[max(0, unique_image_ids.index(st.session_state[ST_KEY_PREFIX + "selected_image_to_plot"]) - 1)]}), disabled=(st.session_state[ST_KEY_PREFIX + "selected_image_to_plot"] == unique_image_ids[0]))
             st.button("Next", on_click=lambda: st.session_state.update({ST_KEY_PREFIX + "selected_image_to_plot": unique_image_ids[min(len(unique_image_ids) - 1, unique_image_ids.index(st.session_state[ST_KEY_PREFIX + "selected_image_to_plot"]) + 1)]}), disabled=(st.session_state[ST_KEY_PREFIX + "selected_image_to_plot"] == unique_image_ids[-1]))
         marker_size = st.slider("Marker size:", min_value=2, max_value=10, value=3)
-        st.plotly_chart(fnp_main.plot_image_from_frame(lf, image_colname=image_colname, selected_images=[selected_image_to_plot], marker_size=marker_size, xcol="Xcor", ycol="Ycor", color_col="area_filter", color_map=get_true_false_color_map()))
+        st.plotly_chart(fnp_main.plot_image_from_frame(lf, image_colname=image_colname, selected_images=[selected_image_to_plot], marker_size=marker_size, xcol="Xcor", ycol="Ycor", color_col="area_filter", color_map=get_true_false_color_map(), custom_columns=["input_index", "sumap_cell_index"]))
 
 
 # Run the main function if this script is executed.

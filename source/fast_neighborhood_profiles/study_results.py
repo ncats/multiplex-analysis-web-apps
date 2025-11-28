@@ -37,7 +37,14 @@ def main():
     lf = st.session_state["LAZYFRAMES"]["sumap_cells"]["lf"]
 
     # Add a row index to the lazyframe. These are indices *after* potentially dropping entire images. They are consistent with spatial_umap.cells and spatial_umap.density.
-    lf_indexed = lf.with_row_index(name="index")  
+    # Delete the assertion and all_equal check eventually after never running into an assertion error for a while.
+    lf_indexed = lf.with_row_index(name="index")
+    all_equal = (
+        lf_indexed
+        .select((pl.col("index") == pl.col("sumap_cell_index")).all().alias("all_equal"))
+        .collect()["all_equal"][0]
+    )
+    assert all_equal, "Row indices do not match!"
 
     # Grab values we'll need downstream.
     image_colname = "TMA_core_id"
@@ -45,7 +52,7 @@ def main():
     phenotype_color_map = st.session_state[ST_KEY_PREFIX_PHENOTYPE + "phenotype_color_map"]
     unique_labels = st.session_state[ST_KEY_PREFIX_PHENOTYPE + "unique_labels"]  # should be correct, i.e. spatial_umap.species, i.e. lf_phenotyped.select(pl.col("label").unique().sort()).collect().to_series().to_list()
     dist_bin_um_list = st.session_state[ST_KEY_PREFIX_SUMAP + "dist_bin_um_list"]  # should be correct
-    spatial_umap = st.session_state[ST_KEY_PREFIX_SUMAP + "spatial_umap"]
+    spatial_umap = st.session_state[ST_KEY_PREFIX_SUMAP + "spatial_UMAP_results"]["spatial_umap"]
     selected_indices_for_umap = []
     if ST_KEY_PREFIX + "selected_indices_for_umap" in st.session_state and st.session_state[ST_KEY_PREFIX + "selected_indices_for_umap"]:
         selected_indices_for_umap = st.session_state[ST_KEY_PREFIX + "selected_indices_for_umap"]
@@ -74,7 +81,7 @@ def main():
             st.button("Clear selection", on_click=lambda: st.session_state.update({ST_KEY_PREFIX + "selected_indices_for_real_space": []}), key=ST_KEY_PREFIX + "clear_umap_selection_button__do_not_persist")
 
         # Plot the UMAP with selectable points.
-        fig = fnp_main.plot_image_from_frame(lf_indexed, image_colname=image_colname, selected_images=selected_images_to_plot, marker_size=marker_size_umap, xcol="umap_1", ycol="umap_2", color_col="Lineage", custom_columns=["index"], color_map=phenotype_color_map, highlight_indices=selected_indices_for_umap)
+        fig = fnp_main.plot_image_from_frame(lf_indexed, image_colname=image_colname, selected_images=selected_images_to_plot, marker_size=marker_size_umap, xcol="umap_1", ycol="umap_2", color_col="Lineage", custom_columns=["index", "input_index"], color_map=phenotype_color_map, highlight_indices=selected_indices_for_umap)
         fig.update_layout(uirevision="static")  # this doesn't seem to be honored; investigate in the future
         st.plotly_chart(fig, on_select=partial(get_selected_indices, selected_handle="umap"), selection_mode=("points", "box", "lasso"), key=ST_KEY_PREFIX + "umap_plot__do_not_persist")
 
@@ -111,13 +118,28 @@ def main():
                 lf_indexed = lf_indexed.filter(pl.col("umap_test"))
 
             # Plot the real space with selectable points.
-            fig = fnp_main.plot_image_from_frame(lf_indexed, image_colname="TMA_core_id", xcol="Xcor", ycol="Ycor", color_col="Lineage", selected_images=[selected_image_to_plot], marker_size=marker_size_real_space, highlight_indices=selected_indices_for_real_space, custom_columns=["index"], color_map=phenotype_color_map)
+            fig = fnp_main.plot_image_from_frame(lf_indexed, image_colname="TMA_core_id", xcol="Xcor", ycol="Ycor", color_col="Lineage", selected_images=[selected_image_to_plot], marker_size=marker_size_real_space, highlight_indices=selected_indices_for_real_space, custom_columns=["index", "input_index"], color_map=phenotype_color_map)
             fig.update_layout(uirevision="static")  # this doesn't seem to be honored; investigate in the future
             st.plotly_chart(fig, on_select=partial(get_selected_indices, selected_handle="real_space"), selection_mode=("points", "box", "lasso"), key=ST_KEY_PREFIX + "real_space_plot__do_not_persist")
 
-            # Display a note about selecting points.
-            if not display_only_real_space_coords_with_umap_coords:
-                st.write("Keep in mind that not every point in real space was used for UMAP inference. So while selecting points in UMAP space will render the same number of selections in real space (over all the images), selecting points in real space will often render fewer selections in UMAP space. However, selecting points in real space still allows you to faithfully see their neighborhood profiles below.")
+    # Delete block below once I'm done sanity checks on study results spot checks.
+    st.write(lf_indexed.filter(pl.col("index").is_in([57574, 55794])).collect())
+    st.write(st.session_state["LAZYFRAMES"]["marker_phenotyping"]["lf"].head().collect())
+    st.write(st.session_state["LAZYFRAMES"]["marker_phenotyping"]["lf"].filter(pl.col("Centroid Y (µm)_(standardized)")==2420.8))
+    # st.write(st.session_state["LAZYFRAMES"])
+    lf_input = st.session_state["LAZYFRAMES"]["unified_input_file"]["lf"]
+    lf_phenotyped = st.session_state["LAZYFRAMES"]["marker_phenotyping"]["lf"]
+    lf_sumap = st.session_state["LAZYFRAMES"]["sumap_cells"]["lf"]
+    st.write(lf_input.select(pl.len()).collect(), lf_phenotyped.select(pl.len()).collect(), lf_sumap.select(pl.len()).collect())
+    st.write(lf_phenotyped.head().collect())
+    st.write(lf_sumap.head().collect())
+    st.write(lf_input.filter(pl.col("input_index") == 514451).collect())
+
+    with st.expander("Notes on point selection"):
+        # Display a note about selecting points.
+        if not display_only_real_space_coords_with_umap_coords:
+            st.write("Keep in mind that not every point in real space was used for UMAP inference. So while selecting points in UMAP space will render the same number of selections in real space (over all the images), selecting points in real space will often render fewer selections in UMAP space. However, selecting points in real space still allows you to faithfully see their neighborhood profiles below.")
+            st.write("Similarly, if you selected a cluster of points in UMAP space and zoom in on the corresponding points in real space, you will find that nearby points with a similar neighborhood may not be selected. This is again because not all points in real space were used for UMAP inference; the cluster you see in UMAP space does not include all points in real space with such neighborhood profiles.")
 
     # If there are selected points...
     if selected_indices_for_neighborhood_profile:

@@ -101,6 +101,7 @@ def load_session_state():
                 module_names.append(function.__module__)
             # Now reload all modules from old functions since dilling those old functions may have saved an old module and we probably want the current module loaded instead. Not doing this sometimes causes strange behavior where I need to make a trivial change to a file in order for Streamlit to hot reload it so we get the current module instead of the old one.
             for module_name in set(module_names):
+                print(f"Reloading module {module_name}...")
                 importlib.reload(importlib.import_module(module_name))
 
 

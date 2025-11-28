@@ -109,7 +109,7 @@ def format_lazyframe(lf, sample_size=None, sample_seed=42):
     lf = (
         lf
         .rename({"Image ID_(standardized)": "TMA_core_id", "Centroid X (µm)_(standardized)": "Xcor", "Centroid Y (µm)_(standardized)": "Ycor", "label": "Lineage"})
-        .select(pl.col(["TMA_core_id", "Xcor", "Ycor", "Lineage"]))
+        .select(pl.col(["TMA_core_id", "Xcor", "Ycor", "Lineage", "input_index"]))
         )
 
     # Load in cells and patient data. Sampling will aid in faster testing and development. The sorting after the sampling is crucial to ensure consistent ordering.
@@ -130,9 +130,12 @@ def format_lazyframe(lf, sample_size=None, sample_seed=42):
     return dict(pldf=pldf)
 
 
-def save_and_load_pandas_df_to_lf(pd_df, handle, file_format):
+def save_and_load_pandas_df_to_lf(pd_df, handle, file_format, index_column_name=None):
     save_pandas_df_to_file(pd_df, handle=handle, file_format=file_format, topdir=framework_utils.session_dir(), subdir="input")
-    return get_lf(handle, topdir=framework_utils.session_dir(), subdir="input", file_format=file_format)
+    lf = get_lf(handle, topdir=framework_utils.session_dir(), subdir="input", file_format=file_format)
+    if index_column_name is not None:
+        lf = lf.with_row_index(name=index_column_name)
+    return lf
 
 
 def get_true_false_color_map():
@@ -206,6 +209,9 @@ def load_unified_input_file_data(file_format, db_schema, bucket_name, object_fil
 
     # Store the local filepath relative to the session directory.
     local_filepath = filepath.removeprefix(framework_utils.session_dir() + os.sep)
+
+    # Set the index.
+    lf = lf.with_row_index(name="input_index")
 
     # Return the lazyframe and extras.
     return lf, {"local_filepath": local_filepath}
@@ -375,7 +381,7 @@ def plot_image_from_frame(
         
         # Determine if we should highlight.
         index_col = "index"
-        do_highlight = index_col in df.columns and index_col in custom_columns and len(highlight_indices) > 0
+        do_highlight = index_col in custom_columns and len(highlight_indices) > 0
         if do_highlight:
             mask_high = df[index_col].isin(highlight_indices)
             df_high = df[mask_high]
@@ -674,6 +680,16 @@ def generate_umap(pldf, unique_labels, dist_bin_um_list=[25, 50, 100, 150, 200],
 
     # Normalize coordinates to start at (0,0) for each image.
     if custom_areas and de_min_coords:
+
+        # Print the minima first.
+        min_coords_df = pldf.group_by("TMA_core_id").agg([
+            pl.min("Xcor").alias("min_Xcor"),
+            pl.min("Ycor").alias("min_Ycor"),
+        ])
+        print_flush("Minimum coordinates per TMA core:")
+        print_flush(min_coords_df)
+
+        # Perform normalization.
         pldf = pldf.with_columns([
             (pl.col("Xcor") - pl.min("Xcor").over("TMA_core_id")).alias("Xcor"),
             (pl.col("Ycor") - pl.min("Ycor").over("TMA_core_id")).alias("Ycor"),
