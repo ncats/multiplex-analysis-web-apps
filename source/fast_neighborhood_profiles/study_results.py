@@ -122,19 +122,6 @@ def main():
             fig.update_layout(uirevision="static")  # this doesn't seem to be honored; investigate in the future
             st.plotly_chart(fig, on_select=partial(get_selected_indices, selected_handle="real_space"), selection_mode=("points", "box", "lasso"), key=ST_KEY_PREFIX + "real_space_plot__do_not_persist")
 
-    # Delete block below once I'm done sanity checks on study results spot checks.
-    st.write(lf_indexed.filter(pl.col("index").is_in([57574, 55794])).collect())
-    st.write(st.session_state["LAZYFRAMES"]["marker_phenotyping"]["lf"].head().collect())
-    st.write(st.session_state["LAZYFRAMES"]["marker_phenotyping"]["lf"].filter(pl.col("Centroid Y (µm)_(standardized)")==2420.8))
-    # st.write(st.session_state["LAZYFRAMES"])
-    lf_input = st.session_state["LAZYFRAMES"]["unified_input_file"]["lf"]
-    lf_phenotyped = st.session_state["LAZYFRAMES"]["marker_phenotyping"]["lf"]
-    lf_sumap = st.session_state["LAZYFRAMES"]["sumap_cells"]["lf"]
-    st.write(lf_input.select(pl.len()).collect(), lf_phenotyped.select(pl.len()).collect(), lf_sumap.select(pl.len()).collect())
-    st.write(lf_phenotyped.head().collect())
-    st.write(lf_sumap.head().collect())
-    st.write(lf_input.filter(pl.col("input_index") == 514451).collect())
-
     with st.expander("Notes on point selection"):
         # Display a note about selecting points.
         if not display_only_real_space_coords_with_umap_coords:
