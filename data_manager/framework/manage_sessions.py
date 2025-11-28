@@ -203,6 +203,7 @@ def main():
         pa.get_available_archives.clear()
 
     # Display all archives that are compatible with the current frontend image.
+    st.write(f"Archives compatible with the current app version (format: `{pa.get_archive_compatibility_id(pa.get_frontend_image_id())}`):")
     df = pa.get_available_archives(pa.get_archive_compatibility_id(pa.get_frontend_image_id()))
     key = ST_KEY_PREFIX + "archive_selection" + "__do_not_persist"
     if not df.is_empty():
