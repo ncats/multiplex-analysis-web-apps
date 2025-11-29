@@ -41,16 +41,13 @@ def write_conda_environment(filename, directory):
 def save_session_state():
     try:
         session_state_directory = framework_utils.session_dir()
-        serializable_objects, unserializable_objects = framework_utils.serialize_dictionary_to_binary_files(st.session_state, "session_state", session_state_directory, ignore_do_not_persist_flag=False)
+        serializable_objects = framework_utils.serialize_dictionary_to_binary_files(st.session_state, "session_state", session_state_directory, ignore_do_not_persist_flag=False)
 
         # Write out what was serialized and how.
         info_file = os.path.join(session_state_directory, f'session_state_contents.txt')
         with open(info_file, 'w') as f:
             f.write("Serializable objects:\n")
             for key, value in serializable_objects.items():
-                f.write(f"{key}: {value}\n")
-            f.write("\nUnserializable objects:\n")
-            for key, value in unserializable_objects.items():
                 f.write(f"{key}: {value}\n")
 
         return True
