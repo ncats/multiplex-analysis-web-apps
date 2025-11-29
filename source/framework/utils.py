@@ -9,7 +9,6 @@ import os
 import zipfile
 import io
 from fast_neighborhood_profiles import SpatialUMAP
-import numpy as np
 import importlib
 import operator
 
@@ -76,23 +75,30 @@ def ensure_empty_directory(directory, create_if_missing=True):
 def serialize_dictionary_to_binary_files(dictionary, dict_name, directory, ignore_do_not_persist_flag=True):
     """Save the entire session state efficiently to the session directory"""
     try:
+        
+        save_dict = {}
         saved_objects_types = {}
 
         for key, value in dictionary.items():
             if ignore_do_not_persist_flag or (not key.endswith("__do_not_persist")):
                 if key == "LAZYFRAMES":
-                    for key in dictionary["LAZYFRAMES"]:
-                        del dictionary["LAZYFRAMES"][key]["lf"]
+                    val_copy = {lf_key: {k: v for k, v in lf_dict.items() if k != "lf"}
+                                for lf_key, lf_dict in value.items()}
                 elif key.endswith("__spatial_UMAP_results"):
-                    spatial_umap = dictionary[key]["spatial_umap"]
+                    spatial_umap = value["spatial_umap"]
                     building_blocks_keys = ["um_per_px", "dist_bin_um", "dist_bin_px", "area_downsample", "arcs_radii", "arcs_masks", "counts", "areas", "cells", "x", "img_ellipse", "w", "h", "res", "cell_positions", "cell_labels", "region_ids", "species", "density", "umap_fit", "umap_test"]
-                    building_blocks = {key: getattr(spatial_umap, key) for key in building_blocks_keys if hasattr(spatial_umap, key)}
-                    dictionary[key]["spatial_umap"] = building_blocks
-                saved_objects_types[key] = type(value).__name__
+                    building_blocks = {attr: getattr(spatial_umap, attr) for attr in building_blocks_keys if hasattr(spatial_umap, attr)}
+                    # Preserve other top-level keys without deepcopy
+                    val_copy = {k: v for k, v in value.items() if k != "spatial_umap"}
+                    val_copy["spatial_umap"] = building_blocks
+                else:
+                    val_copy = value
+                save_dict[key] = val_copy
+                saved_objects_types[key] = type(val_copy).__name__
 
         pkl_file = os.path.join(directory, f'{dict_name}.pkl')
         with open(pkl_file, 'wb') as f:
-            f.write(pickle.dumps(dictionary))
+            f.write(pickle.dumps(save_dict))
 
         return saved_objects_types
     except Exception as e:
@@ -136,7 +142,7 @@ def deserialize_binary_files_to_dictionary(dict_name, directory, dictionary=None
                         dictionary["LAZYFRAMES"][lf_key]["extras"] = None
             elif key.endswith("__spatial_UMAP_results"):
                 bb = dictionary[key]["spatial_umap"]
-                spatial_umap = SpatialUMAP.SpatialUMAP(dist_bin_um=np.array(bb["dist_bin_um_list"]), um_per_px=bb["um_per_px"], area_downsample=bb["area_downsample"])
+                spatial_umap = SpatialUMAP.SpatialUMAP(dist_bin_um=bb["dist_bin_um"], um_per_px=bb["um_per_px"], area_downsample=bb["area_downsample"])
                 for attr_key, attr_value in bb.items():
                     setattr(spatial_umap, attr_key, attr_value)
                 dictionary[key]["spatial_umap"] = spatial_umap
