@@ -673,7 +673,7 @@ def plot_neighborhood_profile(data, plot_type, labels_axis_1, labels_axis_2, axi
 
 
 # Wrapper to modify core function for compatibility with job input/output dictionary standards without the need for an intermediate polars dataframe.
-def generate_umap_wrapper(inputs):
+def generate_umap_wrapper(**inputs):
 
     # Modify inputs as needed (standard format, i.e., what's expected of a dictionary as in utils.deserialize_binary_files_to_dictionary() should come in).
     lf = inputs["LAZYFRAMES"]["marker_phenotyping"]["lf"]
