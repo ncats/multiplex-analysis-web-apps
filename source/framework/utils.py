@@ -5,10 +5,12 @@ import zoneinfo
 import pathlib
 import shutil
 import pickle
-import dill
 import os
 import zipfile
 import io
+from fast_neighborhood_profiles import SpatialUMAP
+import numpy as np
+
 
 ST_KEY_PREFIX_STARTUP = "startup.py__"
 APP_TITLE = os.getenv("APP_TITLE")
@@ -72,30 +74,25 @@ def ensure_empty_directory(directory, create_if_missing=True):
 def serialize_dictionary_to_binary_files(dictionary, dict_name, directory, ignore_do_not_persist_flag=True):
     """Save the entire session state efficiently to the session directory"""
     try:
-        serializable_dict = {}
-        serializable_objects = {}
-        unserializable_dict = {}
-        unserializable_objects = {}
+        saved_objects_types = {}
 
         for key, value in dictionary.items():
             if ignore_do_not_persist_flag or (not key.endswith("__do_not_persist")):
-                try:
-                    pickle.dumps(value)  # Test pickling
-                    serializable_dict[key] = value
-                    serializable_objects[key] = type(value).__name__
-                except (TypeError, AttributeError, pickle.PicklingError):
-                    unserializable_dict[key] = value
-                    unserializable_objects[key] = type(value).__name__
+                if key == "LAZYFRAMES":
+                    for key in dictionary["LAZYFRAMES"]:
+                        del dictionary["LAZYFRAMES"][key]["lf"]
+                elif key.endswith("__spatial_UMAP_results"):
+                    spatial_umap = dictionary[key]["spatial_umap"]
+                    building_blocks_keys = ["um_per_px", "dist_bin_um", "dist_bin_px", "area_downsample", "arcs_radii", "arcs_masks", "counts", "areas", "cells", "x", "img_ellipse", "w", "h", "res", "cell_positions", "cell_labels", "region_ids", "species", "density", "umap_fit", "umap_test"]
+                    building_blocks = {key: getattr(spatial_umap, key) for key in building_blocks_keys if hasattr(spatial_umap, key)}
+                    dictionary[key]["spatial_umap"] = building_blocks
+                saved_objects_types[key] = type(value).__name__
 
         pkl_file = os.path.join(directory, f'{dict_name}.pkl')
         with open(pkl_file, 'wb') as f:
-            f.write(pickle.dumps(serializable_dict))
+            f.write(pickle.dumps(dictionary))
 
-        dill_file = os.path.join(directory, f'{dict_name}.dill')
-        with open(dill_file, 'wb') as f:
-            f.write(dill.dumps(unserializable_dict))
-
-        return serializable_objects, unserializable_objects
+        return saved_objects_types
     except Exception as e:
         st.error(f"Failed to serialize dictionary {dict_name} to directory {directory}: {e}")
         return None
@@ -111,10 +108,33 @@ def deserialize_binary_files_to_dictionary(dict_name, directory, dictionary=None
             with open(pkl_file, 'rb') as f:
                 dictionary.update(pickle.loads(f.read()))
 
-        dill_file = os.path.join(directory, f'{dict_name}.dill')
-        if os.path.exists(dill_file):
-            with open(dill_file, 'rb') as f:
-                dictionary.update(dill.loads(f.read()))
+        #### (3) save text versions of lazyframe functions, (4) see if this will automatically load data for lazyframes so we don't need to copy the data anymore, (5) ensure all usage of dill is gone
+        for key in dictionary:
+            if key == "LAZYFRAMES":
+                for lf_key in dictionary["LAZYFRAMES"]:
+                    function = dictionary["LAZYFRAMES"][lf_key]["function"]
+                    input_dataset = dictionary["LAZYFRAMES"][lf_key]["input_dataset"]
+                    params = dictionary["LAZYFRAMES"][lf_key]["params"]
+                    if input_dataset is None:
+                        result = function(**params)
+                    elif input_dataset["type"] == "lf":
+                        lf = dictionary["LAZYFRAMES"][input_dataset["keys"][0]]["lf"]
+                        result = function(lf, **params)
+                    elif input_dataset["type"] == "pandas_df":
+                        pd_df = getattr(dictionary[input_dataset["keys"][0]][input_dataset["keys"][1]], input_dataset["keys"][2])  # Modify in the future; this is really specific to the format of sumap.cells on the run_spatial_umap.py page.
+                        result = function(pd_df, **params)
+                    if isinstance(result, tuple):
+                        dictionary["LAZYFRAMES"][lf_key]["lf"] = result[0]
+                        dictionary["LAZYFRAMES"][lf_key]["extras"] = result[1]
+                    else:
+                        dictionary["LAZYFRAMES"][lf_key]["lf"] = result
+                        dictionary["LAZYFRAMES"][lf_key]["extras"] = None
+            elif key.endswith("__spatial_UMAP_results"):
+                bb = dictionary[key]["spatial_umap"]
+                spatial_umap = SpatialUMAP.SpatialUMAP(dist_bin_um=np.array(bb["dist_bin_um_list"]), um_per_px=bb["um_per_px"], area_downsample=bb["area_downsample"])
+                for attr_key, attr_value in bb.items():
+                    setattr(spatial_umap, attr_key, attr_value)
+                dictionary[key]["spatial_umap"] = spatial_umap
 
         return dictionary
     except Exception as e:
