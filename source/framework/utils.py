@@ -10,6 +10,8 @@ import zipfile
 import io
 from fast_neighborhood_profiles import SpatialUMAP
 import numpy as np
+import importlib
+import operator
 
 
 ST_KEY_PREFIX_STARTUP = "startup.py__"
@@ -108,11 +110,15 @@ def deserialize_binary_files_to_dictionary(dict_name, directory, dictionary=None
             with open(pkl_file, 'rb') as f:
                 dictionary.update(pickle.loads(f.read()))
 
-        #### (3) save text versions of lazyframe functions, (4) see if this will automatically load data for lazyframes so we don't need to copy the data anymore, (5) ensure all usage of dill is gone
+        #### (4) see if this will automatically load data for lazyframes so we don't need to copy the data anymore (no maybe you need the whole session state?), (5) ensure all usage of dill is gone
         for key in dictionary:
             if key == "LAZYFRAMES":
                 for lf_key in dictionary["LAZYFRAMES"]:
-                    function = dictionary["LAZYFRAMES"][lf_key]["function"]
+
+                    function_metadata = dictionary["LAZYFRAMES"][lf_key]["function_metadata"]
+                    mod = importlib.import_module(function_metadata["module_name"])
+                    function = operator.attrgetter(function_metadata["qualpath"])(mod)
+
                     input_dataset = dictionary["LAZYFRAMES"][lf_key]["input_dataset"]
                     params = dictionary["LAZYFRAMES"][lf_key]["params"]
                     if input_dataset is None:

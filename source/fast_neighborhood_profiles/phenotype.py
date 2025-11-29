@@ -50,7 +50,7 @@ def main():
             lf_phenotyped = fnp_main.perform_marker_phenotyping_on_lazyframe(lf, **params)
             st.session_state["LAZYFRAMES"]["marker_phenotyping"] = {
                 "lf": lf_phenotyped,
-                "function": fnp_main.perform_marker_phenotyping_on_lazyframe,
+                "function_metadata": {"module_name": "fast_neighborhood_profiles.main", "qualpath": "perform_marker_phenotyping_on_lazyframe"},
                 "input_dataset": {"type": "lf", "keys": ("unified_input_file",)},
                 "params": params,
                 "extras": None,

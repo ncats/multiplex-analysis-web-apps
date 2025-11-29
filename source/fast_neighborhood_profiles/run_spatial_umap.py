@@ -134,7 +134,7 @@ def main():
         lf = fnp_main.save_and_load_pandas_df_to_lf(spatial_umap.cells, **params)
         st.session_state["LAZYFRAMES"]["sumap_cells"] = {
             "lf": lf,
-            "function": fnp_main.save_and_load_pandas_df_to_lf,
+            "function_metadata": {"module_name": "fast_neighborhood_profiles.main", "qualpath": "save_and_load_pandas_df_to_lf"},
             "input_dataset": {"type": "pandas_df", "keys": (key, "spatial_umap", "cells")},
             "params": params,
             "extras": None,

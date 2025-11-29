@@ -64,7 +64,7 @@ def main():
                     st.session_state["LAZYFRAMES"] = {}  # Clear existing lazyframes.
                     st.session_state["LAZYFRAMES"]["unified_input_file"] = {
                         "lf": lf,
-                        "function": fnp_main.load_unified_input_file_data,
+                        "function_metadata": {"module_name": "fast_neighborhood_profiles.main", "qualpath": "load_unified_input_file_data"},
                         "input_dataset": None,
                         "params": params,
                         "extras": extras,
