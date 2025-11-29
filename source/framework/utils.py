@@ -79,11 +79,18 @@ def serialize_dictionary_to_binary_files(dictionary, dict_name, directory, ignor
         save_dict = {}
         saved_objects_types = {}
 
+        def print_dict_keys(d, indent=2):
+            for k, v in d.items():
+                print(" " * indent + f"{k}: {type(v).__name__}", flush=True)
+                if isinstance(v, dict):
+                    print_dict_keys(v, indent + 2)
+        
         for key, value in dictionary.items():
             if ignore_do_not_persist_flag or (not key.endswith("__do_not_persist")):
                 print(f"Serializing key (before deconstruction): {key}, type: {type(value).__name__}", flush=True)
                 if isinstance(value, dict):
-                    print(f"  Keys in object: {list(value.keys())}", flush=True)
+                    # Go through each key and if the corresponding value is a dict, print its keys. Do this recursively until there are no more dicts.
+                    print_dict_keys(value)
                 if key == "LAZYFRAMES":
                     val_copy = {lf_key: {k: v for k, v in lf_dict.items() if k != "lf"}
                                 for lf_key, lf_dict in value.items()}
@@ -98,7 +105,7 @@ def serialize_dictionary_to_binary_files(dictionary, dict_name, directory, ignor
                     val_copy = value
                 print(f"Serializing key (after deconstruction): {key}, type: {type(val_copy).__name__}", flush=True)
                 if isinstance(val_copy, dict):
-                    print(f"  Keys in object: {list(val_copy.keys())}", flush=True)
+                    print_dict_keys(val_copy)
                 save_dict[key] = val_copy
                 saved_objects_types[key] = type(val_copy).__name__
 
