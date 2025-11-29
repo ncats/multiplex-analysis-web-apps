@@ -110,7 +110,6 @@ def deserialize_binary_files_to_dictionary(dict_name, directory, dictionary=None
             with open(pkl_file, 'rb') as f:
                 dictionary.update(pickle.loads(f.read()))
 
-        #### (4) see if this will automatically load data for lazyframes so we don't need to copy the data anymore (no maybe you need the whole session state?), (5) ensure all usage of dill is gone
         for key in dictionary:
             if key == "LAZYFRAMES":
                 for lf_key in dictionary["LAZYFRAMES"]:
@@ -144,7 +143,7 @@ def deserialize_binary_files_to_dictionary(dict_name, directory, dictionary=None
 
         return dictionary
     except Exception as e:
-        st.error(f"Failed to deserialize binary files {dict_name}.pkl/.dill to dictionary in directory {directory}: {e}")
+        st.error(f"Failed to deserialize binary file {dict_name}.pkl to dictionary in directory {directory}: {e}")
         return None
 
 

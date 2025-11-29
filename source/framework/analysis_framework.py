@@ -86,7 +86,8 @@ def delete_serialized_files(dict_name, directory):
         os.remove(pkl_file)
 
         dill_file = os.path.join(directory, f'{dict_name}.dill')
-        os.remove(dill_file)
+        if os.path.exists(dill_file):
+            os.remove(dill_file)
 
         return True
     except Exception as e:

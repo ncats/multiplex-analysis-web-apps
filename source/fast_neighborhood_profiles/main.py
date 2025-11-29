@@ -672,7 +672,160 @@ def plot_neighborhood_profile(data, plot_type, labels_axis_1, labels_axis_2, axi
     return fig, extra_return_info
 
 
-def generate_umap(pldf, unique_labels, dist_bin_um_list=[25, 50, 100, 150, 200], area_downsample=0.2, um_per_px=1, cpu_pool_size=None, results_topdir=".", subdir="results", counts_method="andrew", area_threshold=0.8, custom_areas=True, seed_for_train_test_split=54321, n=2500, keep_images_with_too_little_data=True, train_sample_frac=1.0, test_sample_frac=1.0, de_min_coords=True, mp_start_method=None):
+# Wrapper to modify core function for compatibility with job input/output dictionary standards without the need for an intermediate polars dataframe.
+def generate_umap_wrapper(inputs):
+
+    # Modify inputs as needed (standard format, i.e., what's expected of a dictionary as in utils.deserialize_binary_files_to_dictionary() should come in).
+    lf = inputs["LAZYFRAMES"]["marker_phenotyping"]["lf"]
+    lf = (
+        lf
+        .rename({"Image ID_(standardized)": "TMA_core_id", "Centroid X (µm)_(standardized)": "Xcor", "Centroid Y (µm)_(standardized)": "Ycor", "label": "Lineage"})
+        .select(pl.col(["TMA_core_id", "Xcor", "Ycor", "Lineage", "input_index"]))
+        .sort(by="TMA_core_id")
+        )
+    inputs["lf"] = lf
+    st_key_prefix = inputs["st_key_prefix"]
+    del inputs["LAZYFRAMES"]
+    del inputs["st_key_prefix"]
+
+    # Run the core function.
+    outputs = generate_umap_lf_input(**inputs)  # what comes out of this: dict(spatial_umap=spatial_umap, complete_success=True)
+
+    # Modify outputs as needed (standard format should go out). We must return a dictionary with a key that ends with __spatial_UMAP_results whose corresponding value is a dictionary with key "spatial_umap".
+    key = st_key_prefix + "__spatial_UMAP_results"
+    outputs = {key: {"spatial_umap": outputs["spatial_umap"]}}
+
+    # Return the properly formatted outputs.
+    return outputs
+
+
+# def generate_umap(pldf, unique_labels, dist_bin_um_list=[25, 50, 100, 150, 200], area_downsample=0.2, um_per_px=1, cpu_pool_size=None, results_topdir=".", subdir="results", counts_method="andrew", area_threshold=0.8, custom_areas=True, seed_for_train_test_split=54321, n=2500, keep_images_with_too_little_data=True, train_sample_frac=1.0, test_sample_frac=1.0, de_min_coords=True, mp_start_method=None):
+#     # Note that cpu_pool_size=None will default to the number of available CPUs.
+
+#     # Instantiate the spatial umap object.
+#     spatial_umap = SpatialUMAP.SpatialUMAP(dist_bin_um=np.array(dist_bin_um_list), um_per_px=um_per_px, area_downsample=area_downsample)
+
+#     # Normalize coordinates to start at (0,0) for each image.
+#     if custom_areas and de_min_coords:
+
+#         # Print the minima first.
+#         min_coords_df = pldf.group_by("TMA_core_id").agg([
+#             pl.min("Xcor").alias("min_Xcor"),
+#             pl.min("Ycor").alias("min_Ycor"),
+#         ])
+#         print_flush("Minimum coordinates per TMA core:")
+#         print_flush(min_coords_df)
+
+#         # Perform normalization.
+#         pldf = pldf.with_columns([
+#             (pl.col("Xcor") - pl.min("Xcor").over("TMA_core_id")).alias("Xcor"),
+#             (pl.col("Ycor") - pl.min("Ycor").over("TMA_core_id")).alias("Ycor"),
+#         ])
+
+#     # I don't want to, but convert to pandas for compatibility with SpatialUMAP class.
+#     spatial_umap.cells = pldf.to_pandas()
+
+#     # Set explicitly as numpy array the cell coordinates (x, y).
+#     spatial_umap.cell_positions = spatial_umap.cells[['Xcor', 'Ycor']].values
+
+#     # Set explicitly as one hot data frame the cell labels.
+#     spatial_umap.cell_labels = pd.get_dummies(spatial_umap.cells['Lineage'])
+
+#     # Set the region is to be analyzed (a TMA core is treated similar to a region of a interest).
+#     spatial_umap.region_ids = spatial_umap.cells.TMA_core_id.unique()
+
+#     # Clear metrics.
+#     spatial_umap.clear_counts()
+#     spatial_umap.clear_areas()
+
+#     # Save the unique labels/lineages/species. This is only used for Andrew's counting method.
+#     spatial_umap.species = unique_labels
+
+#     # Ensure results directory exists.
+#     os.makedirs(os.path.join(results_topdir, subdir), exist_ok=True)
+
+#     # Determine which counting method to use based on the input parameter. Note I have shown that the methods precisely agree.
+#     if counts_method == "andrew":
+#         print_flush("Using Andrew's counts method.")
+#         spatial_umap.get_counts_And(cpu_pool_size=cpu_pool_size, mp_start_method=mp_start_method)
+#     else:
+#         print_flush("Using Baras' counts method.")
+#         spatial_umap.get_counts(cpu_pool_size=cpu_pool_size)
+
+#     # Get the areas of cells and save to pickle file.
+#     if custom_areas:
+#         try:
+#             spatial_umap.get_areas(area_threshold, pool_size=cpu_pool_size, save_file=os.path.join(results_topdir, subdir, f"areas.csv"), plots_directory=os.path.join(results_topdir, subdir))  # Sets spatial_umap.cells["area_filter"] and spatial_umap.areas.
+#         except Exception as e:
+#             print_flush(f"An error occurred while calculating custom areas, potentially in SpatialUMAP.FitEllipse.fit() in \"hull = ConvexHull(d[idx_fit])\": {e}")
+#             return spatial_umap, False
+#     else:
+#         # Keep in mind areas in the Baras code seem to be in units of pixels squared.
+#         spatial_umap.cells["area_filter"] = True  # If not using custom areas, set all cells to pass the area filter.
+#         r0 = np.concatenate(([0], spatial_umap.dist_bin_px))
+#         # Note not including downsampling at all!
+#         spatial_umap.areas = (np.pi * (r0[1:] ** 2 - r0[:-1] ** 2)).reshape((1, len(dist_bin_um_list), 1))
+
+#     # calculate density base on counts of cells / area of each arc examine
+#     if custom_areas:
+#         spatial_umap.density = np.empty(spatial_umap.counts.shape)
+#         spatial_umap.cells['area_filter'] = ((spatial_umap.areas / spatial_umap.arcs_masks.sum(axis=(0, 1))[np.newaxis, ...]) > area_threshold).all(axis=1)
+#         spatial_umap.density[spatial_umap.cells['area_filter'].values] = spatial_umap.counts[spatial_umap.cells['area_filter'].values] / spatial_umap.areas[spatial_umap.cells['area_filter'].values][..., np.newaxis]
+#     else:
+#         spatial_umap.density = spatial_umap.counts / spatial_umap.areas  # We're not doing this yet (so units are currently in #/px), but we divide by square of um_per_px to get density in units of # per square micron.
+
+#     # Output the percentage of the dataset that has been filtered out due to area filtering.
+#     num_total_cells = spatial_umap.cells.shape[0]
+#     num_kept_cells = spatial_umap.cells["area_filter"].sum()
+#     print_flush(f"{100 * (1 - num_kept_cells / num_total_cells):.1f}% of the cells have been filtered out due to area filtering.")
+
+#     # Check for dropped images due to insufficient cells passing area filter.
+#     original_images = set(spatial_umap.region_ids)
+#     remaining_images = set(spatial_umap.cells[spatial_umap.cells["area_filter"]]["TMA_core_id"].unique())
+#     dropped_images = original_images - remaining_images
+#     if dropped_images:
+#         print_flush(f"WARNING:")
+#         print_flush(f"  The following images were dropped (i.e., missing scatter plots) due to no cells passing the area filter: {sorted(list(dropped_images))}.")
+#         print_flush(f"  These images remain: {sorted(list(remaining_images))}.")
+#         if remaining_images:
+#             print_flush(f"  Keep in mind that just because some images may not have been dropped, significant numbers of cells in those images may have been dropped.")
+#         else:
+#             print_flush(f"  Since no images remain after area filtering, we are aborting UMAP generation.")
+#             return spatial_umap, False
+#         remaining_loc = spatial_umap.cells["TMA_core_id"].isin(remaining_images)
+#         spatial_umap.cells = spatial_umap.cells[remaining_loc]
+#         spatial_umap.density = spatial_umap.density[remaining_loc.values]
+
+#     min_filtered_cells = get_min_positive_values(spatial_umap.cells, group_col="TMA_core_id", boolean_column="area_filter")  # this would be zero if we didn't do the filtering-out line above (spatial_umap.cells = ...)
+#     print_flush(f"Minimum number of cells passing area filter across all TMA cores: {min_filtered_cells}")
+
+#     # Set training and "test" cells for umap training and embedding, respectively. Baras's original code had a hard cutoff of n=2500 so images with fewer than 2*2500 non-filtered-out cells were discarded entirely. n = min(n, min_filtered_cells // 2) allows these images to remain in the analysis with smaller n.
+#     if keep_images_with_too_little_data:
+#         n = min(n, min_filtered_cells // 2)
+
+#     print_flush(f"Using n_train={int(train_sample_frac*n)} cells per image for UMAP training and n_test={int(test_sample_frac*n)} for testing.")
+#     spatial_umap.set_train_test(n=n, seed=seed_for_train_test_split, train_sample_frac=train_sample_frac, test_sample_frac=test_sample_frac)
+
+#     # Fit umap on training cells.
+#     spatial_umap.umap_fit = umap.UMAP().fit(spatial_umap.density[spatial_umap.cells['umap_train'].values].reshape((spatial_umap.cells['umap_train'].sum(), -1)))
+#     print_flush(spatial_umap.umap_fit.embedding_.shape)
+
+#     # Apply umap embedding on test cells.
+#     spatial_umap.umap_test = spatial_umap.umap_fit.transform(spatial_umap.density[spatial_umap.cells['umap_test'].values].reshape((spatial_umap.cells['umap_test'].sum(), -1)))
+#     print_flush(spatial_umap.umap_test.shape)
+
+#     # Save the UMAP coordinates back to the cells dataframe.
+#     spatial_umap.cells[["umap_1", "umap_2"]] = np.nan
+#     spatial_umap.cells.loc[spatial_umap.cells['umap_test'].values, ["umap_1", "umap_2"]] = spatial_umap.umap_test
+
+#     # # save spatial_umap object as pickle
+#     # pickle.dump(spatial_umap, open(data_dir + '/pkl/spatial_umap.pkl', 'wb'))
+
+#     # Return the result as a dictionary.
+#     return dict(spatial_umap=spatial_umap, complete_success=True)
+
+
+def generate_umap_lf_input(lf, unique_labels, dist_bin_um_list=[25, 50, 100, 150, 200], area_downsample=0.2, um_per_px=1, cpu_pool_size=None, results_topdir=".", subdir="results", counts_method="andrew", area_threshold=0.8, custom_areas=True, seed_for_train_test_split=54321, n=2500, keep_images_with_too_little_data=True, train_sample_frac=1.0, test_sample_frac=1.0, de_min_coords=True, mp_start_method=None):
     # Note that cpu_pool_size=None will default to the number of available CPUs.
 
     # Instantiate the spatial umap object.
@@ -682,21 +835,23 @@ def generate_umap(pldf, unique_labels, dist_bin_um_list=[25, 50, 100, 150, 200],
     if custom_areas and de_min_coords:
 
         # Print the minima first.
-        min_coords_df = pldf.group_by("TMA_core_id").agg([
+        min_coords_df = lf.group_by("TMA_core_id").agg([
             pl.min("Xcor").alias("min_Xcor"),
             pl.min("Ycor").alias("min_Ycor"),
-        ])
+        ]).collect()
         print_flush("Minimum coordinates per TMA core:")
         print_flush(min_coords_df)
 
         # Perform normalization.
-        pldf = pldf.with_columns([
+        lf = lf.with_columns([
             (pl.col("Xcor") - pl.min("Xcor").over("TMA_core_id")).alias("Xcor"),
             (pl.col("Ycor") - pl.min("Ycor").over("TMA_core_id")).alias("Ycor"),
         ])
 
+        #### Note I may need to collect_schema() here potentially to register new columns per my experience needing that with with_row_index(). ####
+
     # I don't want to, but convert to pandas for compatibility with SpatialUMAP class.
-    spatial_umap.cells = pldf.to_pandas()
+    spatial_umap.cells = lf.collect().to_pandas()
 
     # Set explicitly as numpy array the cell coordinates (x, y).
     spatial_umap.cell_positions = spatial_umap.cells[['Xcor', 'Ycor']].values

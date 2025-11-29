@@ -108,16 +108,19 @@ def main():
     # Assemble the inputs (less the polars dataframe, to be part of the job preprocessing) to the spatial UMAP analysis.
     inputs = dict(unique_labels=unique_labels, dist_bin_um_list=dist_bin_um_list, area_downsample=area_downsample, um_per_px=1, cpu_pool_size=cpu_pool_size, subdir="spatial_umap", counts_method="andrew", area_threshold=area_threshold, custom_areas=custom_areas, seed_for_train_test_split=seed_for_train_test_split, n=n, keep_images_with_too_little_data=keep_images_with_too_little_data, train_sample_frac=train_sample_frac, test_sample_frac=test_sample_frac, de_min_coords=de_min_coords, mp_start_method='forkserver')
 
+    inputs["LAZYFRAMES"] = st.session_state["LAZYFRAMES"]
+    inputs["st_key_prefix"] = ST_KEY_PREFIX
+
     # Allow the user to run the spatial UMAP analysis asynchronously.
     analysis_framework.job_submission(
         job_name="spatial_umap",
         inputs=inputs,
         analysis_purpose="spatial UMAP",
         st_key_prefix=ST_KEY_PREFIX,
-        preprocess={
-            "function": fnp_main.format_lazyframe,
-            "args": dict(lf=st.session_state["LAZYFRAMES"]["marker_phenotyping"]["lf"], sample_size=None, sample_seed=42),
-        }
+        # preprocess={
+        #     "function": fnp_main.format_lazyframe,
+        #     "args": dict(lf=st.session_state["LAZYFRAMES"]["marker_phenotyping"]["lf"], sample_size=None, sample_seed=42),
+        # }
     )
 
     # Ensure the job results are available in the session state.
@@ -141,11 +144,11 @@ def main():
             }
         del st.session_state["JOB_JUST_COMPLETED"]
 
-    # Note that if I simply run this line, only then does sumap_cell_index column get recognized. Really strange:
-    # st.write(st.session_state["LAZYFRAMES"]["sumap_cells"]["lf"].collect_schema())
-    # Because that's true, let's force the index creation just to be safe.
-    if "sumap_cell_index" not in st.session_state["LAZYFRAMES"]["sumap_cells"]["lf"].collect_schema().names():
-        st.session_state["LAZYFRAMES"]["sumap_cells"]["lf"] = st.session_state["LAZYFRAMES"]["sumap_cells"]["lf"].with_row_index(name="sumap_cell_index")
+    # # Note that if I simply run this line, only then does sumap_cell_index column get recognized. Really strange:
+    # # st.write(st.session_state["LAZYFRAMES"]["sumap_cells"]["lf"].collect_schema())
+    # # Because that's true, let's force the index creation just to be safe.
+    # if "sumap_cell_index" not in st.session_state["LAZYFRAMES"]["sumap_cells"]["lf"].collect_schema().names():
+    #     st.session_state["LAZYFRAMES"]["sumap_cells"]["lf"] = st.session_state["LAZYFRAMES"]["sumap_cells"]["lf"].with_row_index(name="sumap_cell_index")
 
     # Get a shortcut to the cells lazyframe.
     lf = st.session_state["LAZYFRAMES"]["sumap_cells"]["lf"]
