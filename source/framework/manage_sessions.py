@@ -193,7 +193,7 @@ def main():
             framework_utils.unzip_buffer_to_directory(zip_buffer, framework_utils.session_dir())
             load_session_state()
             os.makedirs(os.path.join(framework_utils.session_dir(), "input"), exist_ok=True)  # Ensure input directory exists since we deliberately exclude it when saving an archive.
-            st.rerun()  # Keeping this rerun because masking of errors here is less risky and it's really helpful to see the archive description just pop up when loading an archive.
+            # st.rerun()  # Keeping this rerun because masking of errors here is less risky and it's really helpful to see the archive description just pop up when loading an archive.
 
 
 if __name__ == "__main__":

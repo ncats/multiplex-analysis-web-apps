@@ -81,6 +81,7 @@ def serialize_dictionary_to_binary_files(dictionary, dict_name, directory, ignor
 
         for key, value in dictionary.items():
             if ignore_do_not_persist_flag or (not key.endswith("__do_not_persist")):
+                print(f"Serializing key (before deconstruction): {key}, type: {type(value).__name__}", flush=True)
                 if key == "LAZYFRAMES":
                     val_copy = {lf_key: {k: v for k, v in lf_dict.items() if k != "lf"}
                                 for lf_key, lf_dict in value.items()}
@@ -93,6 +94,7 @@ def serialize_dictionary_to_binary_files(dictionary, dict_name, directory, ignor
                     val_copy["spatial_umap"] = building_blocks
                 else:
                     val_copy = value
+                print(f"Serializing key (after deconstruction): {key}, type: {type(val_copy).__name__}", flush=True)
                 save_dict[key] = val_copy
                 saved_objects_types[key] = type(val_copy).__name__
 
