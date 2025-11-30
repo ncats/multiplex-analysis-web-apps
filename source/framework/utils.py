@@ -98,7 +98,7 @@ def serialize_dictionary_to_binary_files(dictionary, dict_name, directory, ignor
                     spatial_umap = value["spatial_umap"]
                     # building_blocks_keys = ["um_per_px", "dist_bin_um", "dist_bin_px", "area_downsample", "arcs_radii", "arcs_masks", "counts", "areas", "cells", "x", "img_ellipse", "w", "h", "res", "cell_positions", "cell_labels", "region_ids", "species", "density", "umap_fit", "umap_test"]
                     building_blocks_keys = ["um_per_px", "dist_bin_um", "dist_bin_px", "area_downsample", "arcs_radii", "arcs_masks", "counts", "areas", "cells", "x", "img_ellipse", "w", "h", "res", "cell_positions", "cell_labels", "region_ids", "species", "density", "umap_test"]  # removed "umap_fit" to see if that's the pickling culprit
-                    # save hyperparams instead?: params = umap_fit.get_params(deep=True). Note if we specifically set the seed then this should not return the random number generator which is likely the problem, i.e., as of now returning the hyperparams alone should still error out.
+                    # save hyperparams instead?: params = umap_fit.get_params(deep=True). Note if we specifically set the seed then this should not return the random number generator which is likely the problem, i.e., as of now returning the hyperparams alone should still error out. Yes that was the problem of the write, without umap_fit we get a successful save of the job output data.
                     building_blocks = {attr: getattr(spatial_umap, attr) for attr in building_blocks_keys if hasattr(spatial_umap, attr)}
                     # Preserve other top-level keys without deepcopy
                     val_copy = {k: v for k, v in value.items() if k != "spatial_umap"}
@@ -156,11 +156,18 @@ def deserialize_binary_files_to_dictionary(dict_name, directory, dictionary=None
                         dictionary["LAZYFRAMES"][lf_key]["lf"] = result
                         dictionary["LAZYFRAMES"][lf_key]["extras"] = None
             elif key.endswith("__spatial_UMAP_results"):
+                print("AAAAAAAAAAAAAAAAAAAAAA")
                 bb = dictionary[key]["spatial_umap"]
+                print("before reconstruction:")
+                print(dictionary[key]["spatial_umap"], flush=True)
                 spatial_umap = SpatialUMAP.SpatialUMAP(dist_bin_um=bb["dist_bin_um"], um_per_px=bb["um_per_px"], area_downsample=bb["area_downsample"])
                 for attr_key, attr_value in bb.items():
                     setattr(spatial_umap, attr_key, attr_value)
                 dictionary[key]["spatial_umap"] = spatial_umap
+                print("after reconstruction:")
+                print(dictionary[key]["spatial_umap"], flush=True)
+                print(dictionary[key]["spatial_umap"].area_downsample, flush=True)
+                print("BBBBBBBBBBBBBBBBBBBB")
 
         return dictionary
     except Exception as e:
