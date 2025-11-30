@@ -96,7 +96,9 @@ def serialize_dictionary_to_binary_files(dictionary, dict_name, directory, ignor
                                 for lf_key, lf_dict in value.items()}
                 elif key.endswith("__spatial_UMAP_results"):
                     spatial_umap = value["spatial_umap"]
-                    building_blocks_keys = ["um_per_px", "dist_bin_um", "dist_bin_px", "area_downsample", "arcs_radii", "arcs_masks", "counts", "areas", "cells", "x", "img_ellipse", "w", "h", "res", "cell_positions", "cell_labels", "region_ids", "species", "density", "umap_fit", "umap_test"]
+                    # building_blocks_keys = ["um_per_px", "dist_bin_um", "dist_bin_px", "area_downsample", "arcs_radii", "arcs_masks", "counts", "areas", "cells", "x", "img_ellipse", "w", "h", "res", "cell_positions", "cell_labels", "region_ids", "species", "density", "umap_fit", "umap_test"]
+                    building_blocks_keys = ["um_per_px", "dist_bin_um", "dist_bin_px", "area_downsample", "arcs_radii", "arcs_masks", "counts", "areas", "cells", "x", "img_ellipse", "w", "h", "res", "cell_positions", "cell_labels", "region_ids", "species", "density", "umap_test"]  # removed "umap_fit" to see if that's the pickling culprit
+                    # save hyperparams instead?: params = umap_fit.get_params(deep=True). Note if we specifically set the seed then this should not return the random number generator which is likely the problem, i.e., as of now returning the hyperparams alone should still error out.
                     building_blocks = {attr: getattr(spatial_umap, attr) for attr in building_blocks_keys if hasattr(spatial_umap, attr)}
                     # Preserve other top-level keys without deepcopy
                     val_copy = {k: v for k, v in value.items() if k != "spatial_umap"}
