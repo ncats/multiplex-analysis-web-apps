@@ -11,6 +11,7 @@ import io
 from fast_neighborhood_profiles import SpatialUMAP
 import importlib
 import operator
+import foundry_IO_lib
 
 
 ST_KEY_PREFIX_STARTUP = "startup.py__"
@@ -91,6 +92,11 @@ def deconstruct_object(identifier, value, value_type):
             # save hyperparams too?: params = umap_fit.get_params(deep=True). Note if we specifically set the seed then this should not return the random number generator which is likely the problem, i.e., as of now returning the hyperparams alone should still error out. Yes that was the problem of the write, without umap_fit we get a successful save of the job output data.
             components = {attr: getattr(spatial_umap, attr) for attr in component_keys if hasattr(spatial_umap, attr)}
             return {"object_type": "Deconstructed SpatialUMAP", "components": components}
+        elif value_type == "foundry_IO_lib":
+            fiol = value
+            component_keys = ["onNIDAP"]
+            components = {attr: getattr(fiol, attr) for attr in component_keys if hasattr(fiol, attr)}
+            return {"object_type": "Deconstructed foundry_IO_lib", "components": components}
         else:
             return value
     except Exception as e:
@@ -120,11 +126,16 @@ def reconstruct_object(value, value_type, orig_dict):
             return result  # Return the lazyframe.
         elif value_type == "SpatialUMAP":
             components = value["components"]
-
             spatial_umap = SpatialUMAP.SpatialUMAP(dist_bin_um=components["dist_bin_um"], um_per_px=components["um_per_px"], area_downsample=components["area_downsample"])
             for attr_key, attr_value in components.items():
                 setattr(spatial_umap, attr_key, attr_value)
             return spatial_umap  # Return the spatial UMAP object.
+        elif value_type == "foundry_IO_lib":
+            components = value["components"]
+            fiol = foundry_IO_lib.foundry_IO_lib()
+            for attr_key, attr_value in components.items():
+                setattr(fiol, attr_key, attr_value)
+            return fiol  # Return the foundry_IO_lib object.
         else:  # Functionality for this branch *should* be different than in deconstruct_object(). Overall, whether deconstructing or reconstructing, we should return a new object or the original one.
             raise ValueError(f"Unknown object type for reconstruction: {value_type}")
     except Exception as e:
