@@ -12,6 +12,7 @@ from fast_neighborhood_profiles import SpatialUMAP
 import importlib
 import operator
 import foundry_IO_lib
+import benchmark_collector
 
 
 ST_KEY_PREFIX_STARTUP = "startup.py__"
@@ -97,6 +98,11 @@ def deconstruct_object(identifier, value, value_type):
             component_keys = ["onNIDAP"]
             components = {attr: getattr(fiol, attr) for attr in component_keys if hasattr(fiol, attr)}
             return {"object_type": "Deconstructed foundry_IO_lib", "components": components}
+        elif value_type == "benchmark_collector":
+            bc = value
+            component_keys = ["benchmarkDF", "on_nidap", "benchmark_csv", "benchmark_project_path", "benchmark_dataset"]
+            components = {attr: getattr(bc, attr) for attr in component_keys if hasattr(bc, attr)}
+            return {"object_type": "Deconstructed benchmark_collector", "components": components}
         else:
             return value
     except Exception as e:
@@ -136,6 +142,15 @@ def reconstruct_object(value, value_type, orig_dict):
             for attr_key, attr_value in components.items():
                 setattr(fiol, attr_key, attr_value)
             return fiol  # Return the foundry_IO_lib object.
+        elif value_type == "benchmark_collector":
+            components = value["components"]
+            if "fiol" in orig_dict:
+                bc = benchmark_collector.benchmark_collector(orig_dict["fiol"])
+            else:
+                bc = benchmark_collector.benchmark_collector()
+            for attr_key, attr_value in components.items():
+                setattr(bc, attr_key, attr_value)
+            return bc  # Return the benchmark_collector object.
         else:  # Functionality for this branch *should* be different than in deconstruct_object(). Overall, whether deconstructing or reconstructing, we should return a new object or the original one.
             raise ValueError(f"Unknown object type for reconstruction: {value_type}")
     except Exception as e:
