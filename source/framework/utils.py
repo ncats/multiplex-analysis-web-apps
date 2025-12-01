@@ -155,7 +155,7 @@ def reconstruct_object(value, value_type, orig_dict):
         elif value_type == "benchmark_collector":
             multiprint("Reconstructing benchmark_collector object.", (print,))
             components = value["components"]
-            if "fiol" in orig_dict:
+            if "fiol" in orig_dict and not isinstance(orig_dict["fiol"], dict):
                 bc = benchmark_collector.benchmark_collector(orig_dict["fiol"])
             else:
                 bc = benchmark_collector.benchmark_collector()
