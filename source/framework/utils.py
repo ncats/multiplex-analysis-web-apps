@@ -283,7 +283,7 @@ def serialize_dictionary_to_binary_files(dictionary, dict_name, directory, ignor
         raise
 
 
-def deserialize_binary_files_to_dictionary(dict_name, directory, dictionary=None):
+def deserialize_binary_files_to_dictionary(dict_name, directory, dictionary=None, extra_dict_to_load=None):
     try:
         if dictionary is None:
             dictionary = {}
@@ -292,6 +292,10 @@ def deserialize_binary_files_to_dictionary(dict_name, directory, dictionary=None
         if os.path.exists(pkl_file):
             with open(pkl_file, 'rb') as f:
                 dictionary.update(pickle.loads(f.read()))
+
+        # Since old archives may store the old app session ID which were read in just above, but below the reconstruction may require the current app session ID, we update the dictionary so that reconstruction uses the current app session ID. Implementing this since benchmark collector uses session_dir() during its reconstruction which depends on the app session ID in the session state. Correspondingly commenting out this dictionary update in manage_sessions.load_session_state() since that's now done here.
+        if extra_dict_to_load:
+            dictionary.update(extra_dict_to_load)
 
         for key, value in dictionary.items():
             dictionary[key] = traverse_for_reconstruct([key], value, dictionary)
