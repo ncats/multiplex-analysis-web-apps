@@ -213,8 +213,8 @@ def load_unified_input_file_data(file_format, db_schema, bucket_name, object_fil
     # Set the index.
     lf = lf.with_row_index(name="input_index")
 
-    # Return the lazyframe and extras.
-    return lf, {"local_filepath": local_filepath}
+    # Return the lazyframe.
+    return lf
 
 
 def get_min_positive_values(pd_df, group_col="TMA_core_id", boolean_column="area_filter"):

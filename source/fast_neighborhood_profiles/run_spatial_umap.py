@@ -140,7 +140,6 @@ def main():
             "function_metadata": {"module_name": "fast_neighborhood_profiles.main", "qualpath": "save_and_load_pandas_df_to_lf"},
             "input_dataset": {"type": "pandas_df", "keys": (key, "spatial_umap", "cells")},
             "params": params,
-            "extras": None,
             }
         del st.session_state["JOB_JUST_COMPLETED"]
 

@@ -53,7 +53,6 @@ def main():
                 "function_metadata": {"module_name": "fast_neighborhood_profiles.main", "qualpath": "perform_marker_phenotyping_on_lazyframe"},
                 "input_dataset": {"type": "lf", "keys": ("unified_input_file",)},
                 "params": params,
-                "extras": None,
             }
             st.session_state[ST_KEY_PREFIX + "num_phenotyped_rows"] = lf_phenotyped.select(pl.len()).collect().item()
             st.session_state[ST_KEY_PREFIX + "unique_labels"] = lf_phenotyped.select(pl.col("label").unique().sort()).collect().to_series().to_list()

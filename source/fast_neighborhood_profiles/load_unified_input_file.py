@@ -60,14 +60,13 @@ def main():
                     bucket_name = get_location_settings()[upload_location]["bucket_name"]
                     params = dict(file_format=file_format, db_schema=db_schema, bucket_name=bucket_name, object_filename=object_filename)
                     with st.spinner("Loading file..."):
-                        lf, extras = fnp_main.load_unified_input_file_data(**params)
+                        lf = fnp_main.load_unified_input_file_data(**params)
                     st.session_state["LAZYFRAMES"] = {}  # Clear existing lazyframes.
                     st.session_state["LAZYFRAMES"]["unified_input_file"] = {
                         "lf": lf,
                         "function_metadata": {"module_name": "fast_neighborhood_profiles.main", "qualpath": "load_unified_input_file_data"},
                         "input_dataset": None,
                         "params": params,
-                        "extras": extras,
                     }
 
     # If there's lazyframe information in the session state...
@@ -80,7 +79,6 @@ def main():
     db_schema = st.session_state["LAZYFRAMES"]["unified_input_file"]["params"]["db_schema"]
     bucket_name = st.session_state["LAZYFRAMES"]["unified_input_file"]["params"]["bucket_name"]
     object_filename = st.session_state["LAZYFRAMES"]["unified_input_file"]["params"]["object_filename"]
-    filepath = os.path.join(framework_utils.session_dir(), st.session_state["LAZYFRAMES"]["unified_input_file"]["extras"]["local_filepath"])
 
     # Get the lazyframe from the session state now.
     lf = st.session_state["LAZYFRAMES"]["unified_input_file"]["lf"]
@@ -93,7 +91,6 @@ def main():
     :small_orange_diamond: database.schema: `{db_schema}`  
     :small_orange_diamond: Bucket name: `{bucket_name}`  
     :small_orange_diamond: Object filename: `{object_filename}`  
-    :small_orange_diamond: Filepath: `{filepath}`  
     :small_orange_diamond: Number of rows: `{lf.select(pl.len()).collect().item():_}`  
     :small_orange_diamond: Number of columns: `{len(lf.collect_schema())}`  
     '''
