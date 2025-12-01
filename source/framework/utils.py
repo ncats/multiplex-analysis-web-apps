@@ -85,24 +85,31 @@ def multiprint(message, functions):
 def deconstruct_object(identifier, value, value_type):
     try:
         if value_type == "LazyFrame":
+            multiprint("Deconstructing LazyFrame object.", (print))
             lf_key = identifier
             return {"object_type": "Deconstructed LazyFrame", "lf_key": lf_key}  # Assuming the key in the dictionary is the last element in the path.
         elif value_type == "SpatialUMAP":
+            multiprint("Deconstructing SpatialUMAP object.", (print))
             spatial_umap = value
             component_keys = ["um_per_px", "dist_bin_um", "dist_bin_px", "area_downsample", "arcs_radii", "arcs_masks", "counts", "areas", "cells", "x", "img_ellipse", "w", "h", "res", "cell_positions", "cell_labels", "region_ids", "species", "density", "umap_test"]  # removed "umap_fit" to see if that's the pickling culprit
             # save hyperparams too?: params = umap_fit.get_params(deep=True). Note if we specifically set the seed then this should not return the random number generator which is likely the problem, i.e., as of now returning the hyperparams alone should still error out. Yes that was the problem of the write, without umap_fit we get a successful save of the job output data.
             components = {attr: getattr(spatial_umap, attr) for attr in component_keys if hasattr(spatial_umap, attr)}
             return {"object_type": "Deconstructed SpatialUMAP", "components": components}
         elif value_type == "foundry_IO_lib":
+            multiprint("Deconstructing foundry_IO_lib object.", (print))
             fiol = value
             component_keys = ["onNIDAP"]
             components = {attr: getattr(fiol, attr) for attr in component_keys if hasattr(fiol, attr)}
             return {"object_type": "Deconstructed foundry_IO_lib", "components": components}
         elif value_type == "benchmark_collector":
+            multiprint("Deconstructing benchmark_collector object.", (print))
             bc = value
             component_keys = ["benchmarkDF", "on_nidap", "benchmark_csv", "benchmark_project_path", "benchmark_dataset"]
             components = {attr: getattr(bc, attr) for attr in component_keys if hasattr(bc, attr)}
             return {"object_type": "Deconstructed benchmark_collector", "components": components}
+        elif value_type == "Platform":
+            multiprint("Deconstructing Platform object. Nothing is actually being done since this will always get overwritten by the app that loads in the session state; see manage_sessions.load_session_state().", (print))
+            return {"object_type": "Deconstructed Platform"}
         else:
             return value
     except Exception as e:
@@ -113,6 +120,7 @@ def deconstruct_object(identifier, value, value_type):
 def reconstruct_object(value, value_type, orig_dict):
     try:
         if value_type == "LazyFrame":
+            multiprint("Reconstructing LazyFrame object.", (print))
             lf_key = value["lf_key"]
 
             function_metadata = orig_dict["LAZYFRAMES"][lf_key]["function_metadata"]
@@ -131,18 +139,21 @@ def reconstruct_object(value, value_type, orig_dict):
                 result = function(pd_df, **params)
             return result  # Return the lazyframe.
         elif value_type == "SpatialUMAP":
+            multiprint("Reconstructing SpatialUMAP object.", (print))
             components = value["components"]
             spatial_umap = SpatialUMAP.SpatialUMAP(dist_bin_um=components["dist_bin_um"], um_per_px=components["um_per_px"], area_downsample=components["area_downsample"])
             for attr_key, attr_value in components.items():
                 setattr(spatial_umap, attr_key, attr_value)
             return spatial_umap  # Return the spatial UMAP object.
         elif value_type == "foundry_IO_lib":
+            multiprint("Reconstructing foundry_IO_lib object.", (print))
             components = value["components"]
             fiol = foundry_IO_lib.foundry_IO_lib()
             for attr_key, attr_value in components.items():
                 setattr(fiol, attr_key, attr_value)
             return fiol  # Return the foundry_IO_lib object.
         elif value_type == "benchmark_collector":
+            multiprint("Reconstructing benchmark_collector object.", (print))
             components = value["components"]
             if "fiol" in orig_dict:
                 bc = benchmark_collector.benchmark_collector(orig_dict["fiol"])
@@ -151,6 +162,9 @@ def reconstruct_object(value, value_type, orig_dict):
             for attr_key, attr_value in components.items():
                 setattr(bc, attr_key, attr_value)
             return bc  # Return the benchmark_collector object.
+        elif value_type == "Platform":
+            multiprint("Reconstructing Platform object. Nothing is actually being done since this will always get overwritten by the app that loads in the session state; see manage_sessions.load_session_state().", (print))
+            return None
         else:  # Functionality for this branch *should* be different than in deconstruct_object(). Overall, whether deconstructing or reconstructing, we should return a new object or the original one.
             raise ValueError(f"Unknown object type for reconstruction: {value_type}")
     except Exception as e:
