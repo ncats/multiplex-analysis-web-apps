@@ -241,7 +241,7 @@ def subset_csv_to_file(csv_filename="mawa-unified_datafile-TLS_tissue_SF_-202511
         return filepath
     except Exception as e:
         print_flush(f"An error occurred in function {os.path.basename(__file__)}.{subset_csv_to_file.__name__}: {e}")
-        return ""
+        raise
 
 
 def save_pandas_df_to_file(pd_df, handle="two_images", topdir=".", file_format="parquet", subdir="datafiles"):
@@ -259,7 +259,7 @@ def save_pandas_df_to_file(pd_df, handle="two_images", topdir=".", file_format="
         return filepath
     except Exception as e:
         print_flush(f"An error occurred in function {os.path.basename(__file__)}.{save_pandas_df_to_file.__name__}: {e}")
-        return ""
+        raise
 
 
 def get_lf(handle, topdir=".", subdir="datafiles", file_format="parquet"):
@@ -275,13 +275,13 @@ def get_lf(handle, topdir=".", subdir="datafiles", file_format="parquet"):
             raise ValueError(f"Unsupported file format: {file_format}")
     except Exception as e:
         print_flush(f"An error occurred in function {os.path.basename(__file__)}.{get_lf.__name__}: {e}")
-        return None
+        raise
 
 
 def perform_marker_phenotyping_on_lazyframe(lf, marker_columns, colname_regex_to_replace=r"^Phenotype_\(standardized\)\s+"):
 
     try:
-    
+
         # Get all column names.
         all_cols = lf.collect_schema().names()
 
@@ -326,7 +326,7 @@ def perform_marker_phenotyping_on_lazyframe(lf, marker_columns, colname_regex_to
     
     except Exception as e:
         print_flush(f"An error occurred in function {os.path.basename(__file__)}.{perform_marker_phenotyping_on_lazyframe.__name__}: {e}")
-        return None
+        raise
 
 
 def plot_image_from_frame(
@@ -459,7 +459,7 @@ def plot_image_from_frame(
 
     except Exception as e:
         print_flush(f"An error occurred in function {os.path.basename(__file__) if '__file__' in globals() else '<interactive>'}.{plot_image_from_frame.__name__}: {e}")
-        return None
+        raise
 
 
 # Function to create a violin plot with distributions from a third axis.
@@ -758,7 +758,7 @@ def generate_umap_wrapper(**inputs):
 #             spatial_umap.get_areas(area_threshold, pool_size=cpu_pool_size, save_file=os.path.join(results_topdir, subdir, f"areas.csv"), plots_directory=os.path.join(results_topdir, subdir))  # Sets spatial_umap.cells["area_filter"] and spatial_umap.areas.
 #         except Exception as e:
 #             print_flush(f"An error occurred while calculating custom areas, potentially in SpatialUMAP.FitEllipse.fit() in \"hull = ConvexHull(d[idx_fit])\": {e}")
-#             return spatial_umap, False
+#             raise
 #     else:
 #         # Keep in mind areas in the Baras code seem to be in units of pixels squared.
 #         spatial_umap.cells["area_filter"] = True  # If not using custom areas, set all cells to pass the area filter.
@@ -886,7 +886,7 @@ def generate_umap_lf_input(lf, unique_labels, dist_bin_um_list=[25, 50, 100, 150
             spatial_umap.get_areas(area_threshold, pool_size=cpu_pool_size, save_file=os.path.join(results_topdir, subdir, f"areas.csv"), plots_directory=os.path.join(results_topdir, subdir))  # Sets spatial_umap.cells["area_filter"] and spatial_umap.areas.
         except Exception as e:
             print_flush(f"An error occurred while calculating custom areas, potentially in SpatialUMAP.FitEllipse.fit() in \"hull = ConvexHull(d[idx_fit])\": {e}")
-            return spatial_umap, False
+            raise
     else:
         # Keep in mind areas in the Baras code seem to be in units of pixels squared.
         spatial_umap.cells["area_filter"] = True  # If not using custom areas, set all cells to pass the area filter.

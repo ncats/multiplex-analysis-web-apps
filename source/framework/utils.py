@@ -86,8 +86,7 @@ def deconstruct_object(path, value, value_type):
     try:
         if value_type == "LazyFrame":
             multiprint("Deconstructing LazyFrame object.", (print,))
-            lf_key = path[-2]  # Assuming the LazyFrame is stored in a dictionary under LAZYFRAMES with its key.
-            return {"object_type": "Deconstructed LazyFrame", "lf_key": lf_key}
+            return {"object_type": "Deconstructed LazyFrame"}
         elif value_type == "SpatialUMAP":
             multiprint("Deconstructing SpatialUMAP object.", (print,))
             spatial_umap = value
@@ -117,27 +116,11 @@ def deconstruct_object(path, value, value_type):
         raise
 
 
-def reconstruct_object(value, value_type, orig_dict):
+def reconstruct_object(value, value_type):
     try:
         if value_type == "LazyFrame":
-            multiprint("Reconstructing LazyFrame object.", (print,))
-            lf_key = value["lf_key"]
-
-            function_metadata = orig_dict["LAZYFRAMES"][lf_key]["function_metadata"]
-            mod = importlib.import_module(function_metadata["module_name"])
-            function = operator.attrgetter(function_metadata["qualpath"])(mod)
-
-            input_dataset = orig_dict["LAZYFRAMES"][lf_key]["input_dataset"]
-            params = orig_dict["LAZYFRAMES"][lf_key]["params"]
-            if input_dataset is None:
-                result = function(**params)
-            elif input_dataset["type"] == "lf":
-                lf = orig_dict["LAZYFRAMES"][input_dataset["keys"][0]]["lf"]
-                result = function(lf, **params)
-            elif input_dataset["type"] == "pandas_df":
-                pd_df = getattr(orig_dict[input_dataset["keys"][0]][input_dataset["keys"][1]], input_dataset["keys"][2])  # Modify in the future; this is really specific to the format of sumap.cells on the run_spatial_umap.py page.
-                result = function(pd_df, **params)
-            return result  # Return the lazyframe.
+            multiprint("Skipping reconstruction of LazyFrame object in utils.reconstruct_object() since we do it afterward for all lazyframes at once in utils.deserialize_binary_files_to_dictionary().", (print,))
+            return value
         elif value_type == "SpatialUMAP":
             multiprint("Reconstructing SpatialUMAP object.", (print,))
             components = value["components"]
@@ -155,10 +138,11 @@ def reconstruct_object(value, value_type, orig_dict):
         elif value_type == "benchmark_collector":
             multiprint("Reconstructing benchmark_collector object.", (print,))
             components = value["components"]
-            if "fiol" in orig_dict and not isinstance(orig_dict["fiol"], dict):
-                bc = benchmark_collector.benchmark_collector(orig_dict["fiol"])
-            else:
-                bc = benchmark_collector.benchmark_collector()
+            # Maybe it's good principle to not have orig_dict in here at all because there's no telling when various needed pieces may be updated. If it's needed it could instead be a sign of a poorly designed class.
+            # if "fiol" in orig_dict and not isinstance(orig_dict["fiol"], dict):
+            #     bc = benchmark_collector.benchmark_collector(orig_dict["fiol"])
+            # else:
+            bc = benchmark_collector.benchmark_collector()
             for attr_key, attr_value in components.items():
                 setattr(bc, attr_key, attr_value)
             return bc  # Return the benchmark_collector object.
@@ -172,7 +156,7 @@ def reconstruct_object(value, value_type, orig_dict):
         raise
 
 
-def traverse_for_deconstruct(path, value, orig_dict, debug=False):
+def traverse_for_deconstruct(path, value, debug=False):
     """Recursively deconstruct objects, always building new containers."""
     try:
         key_str = ".".join(str(p) for p in path)
@@ -184,12 +168,12 @@ def traverse_for_deconstruct(path, value, orig_dict, debug=False):
             if isinstance(value, dict):
                 new_dict = {}
                 for sub_key, sub_value in value.items():
-                    new_dict[sub_key] = traverse_for_deconstruct(path + [sub_key], sub_value, orig_dict)
+                    new_dict[sub_key] = traverse_for_deconstruct(path + [sub_key], sub_value, debug=debug)
                 return new_dict
             elif isinstance(value, list):
-                return [traverse_for_deconstruct(path + [idx], sub_value, orig_dict) for idx, sub_value in enumerate(value)]
+                return [traverse_for_deconstruct(path + [idx], sub_value, debug=debug) for idx, sub_value in enumerate(value)]
             elif isinstance(value, tuple):
-                return tuple(traverse_for_deconstruct(path + [idx], sub_value, orig_dict) for idx, sub_value in enumerate(value))
+                return tuple(traverse_for_deconstruct(path + [idx], sub_value, debug=debug) for idx, sub_value in enumerate(value))
             else:
                 return deconstruct_object(path=path, value=value, value_type=value_type)
         except RecursionError as e:
@@ -200,7 +184,7 @@ def traverse_for_deconstruct(path, value, orig_dict, debug=False):
         raise
 
 
-def traverse_for_reconstruct(path, value, orig_dict, debug=False):
+def traverse_for_reconstruct(path, value, debug=False):
     try:
         key_str = ".".join(str(p) for p in path)
         value_type = type(value).__name__
@@ -213,7 +197,7 @@ def traverse_for_reconstruct(path, value, orig_dict, debug=False):
                 new_dict = None  # defer allocation
                 changed = False
                 for sub_key, sub_value in value.items():
-                    result = traverse_for_reconstruct(path + [sub_key], sub_value, orig_dict)
+                    result = traverse_for_reconstruct(path + [sub_key], sub_value, debug=debug)
                     if result is not sub_value and not changed:
                         # First change detected: materialize new_dict with prior unchanged items
                         new_dict = {k: (value[k] if k != sub_key else result)
@@ -228,7 +212,7 @@ def traverse_for_reconstruct(path, value, orig_dict, debug=False):
                 new_list = None
                 changed = False
                 for idx, sub_value in enumerate(value):
-                    result = traverse_for_reconstruct(path + [idx], sub_value, orig_dict)
+                    result = traverse_for_reconstruct(path + [idx], sub_value, debug=debug)
                     if result is not sub_value and not changed:
                         new_list = value[:]
                         new_list[idx] = result
@@ -243,7 +227,7 @@ def traverse_for_reconstruct(path, value, orig_dict, debug=False):
                 temp = None
                 changed = False
                 for idx, sub_value in enumerate(value):
-                    result = traverse_for_reconstruct(path + [idx], sub_value, orig_dict)
+                    result = traverse_for_reconstruct(path + [idx], sub_value, debug=debug)
                     if result is not sub_value and not changed:
                         temp = list(value)
                         temp[idx] = result
@@ -256,7 +240,7 @@ def traverse_for_reconstruct(path, value, orig_dict, debug=False):
             else:
                 if isinstance(value, dict) and ("object_type" in value and value["object_type"].startswith("Deconstructed ")):
                     value_type = value["object_type"].removeprefix("Deconstructed ")
-                    return reconstruct_object(value=value, value_type=value_type, orig_dict=orig_dict)
+                    return reconstruct_object(value=value, value_type=value_type)
                 return value
 
         except RecursionError as e:
@@ -273,7 +257,7 @@ def serialize_dictionary_to_binary_files(dictionary, dict_name, directory, ignor
         transformed_dict = {}
         for key, value in dictionary.items():
             if ignore_do_not_persist_flag or (not key.endswith("__do_not_persist")):
-                transformed_dict[key] = traverse_for_deconstruct([key], value, dictionary)
+                transformed_dict[key] = traverse_for_deconstruct([key], value)
 
         pkl_file = os.path.join(directory, f'{dict_name}.pkl')
         with open(pkl_file, 'wb') as f:
@@ -298,7 +282,55 @@ def deserialize_binary_files_to_dictionary(dict_name, directory, dictionary=None
             dictionary.update(extra_dict_to_load)
 
         for key, value in dictionary.items():
-            dictionary[key] = traverse_for_reconstruct([key], value, dictionary)
+            dictionary[key] = traverse_for_reconstruct([key], value)
+
+        # We should always ensure that reconstructing lazyframes is a fast process; no long computations should be done here! E.g., the spatial UMAP lazyframe should be quickly computed from the spatial_umap.cells dataframe already present in the dictionary. The calculation of spatial_umap.cells could be a long operation.
+        # Note also that lazyframe construction was assumed to depend on values in the session state (such as spatial_umap.cells) so rebuilding lazyframes after loading in the session state makes sense.
+        if "LAZYFRAMES" in dictionary:
+            # Build dependency order
+            lf_meta = dictionary["LAZYFRAMES"]
+            deps = {}
+            for k, v in lf_meta.items():
+                d = v.get("input_dataset")
+                if d and d.get("type") == "lf":
+                    deps[k] = {d["keys"][0]}
+                else:
+                    deps[k] = set()
+            
+            # Topological sort
+            visited = set()
+            order = []
+            def visit(n):
+                if n in visited:
+                    return
+                for prereq in deps.get(n, ()):
+                    if prereq in lf_meta:
+                        visit(prereq)
+                visited.add(n)
+                order.append(n)
+            
+            for lf_key in lf_meta.keys():
+                visit(lf_key)
+            
+            # Reconstruct in order
+            for lf_key in order:
+                multiprint(f"Reconstructing LazyFrame: {lf_key}.", (print,))
+                function_metadata = dictionary["LAZYFRAMES"][lf_key]["function_metadata"]
+                mod = importlib.import_module(function_metadata["module_name"])
+                function = operator.attrgetter(function_metadata["qualpath"])(mod)
+
+                input_dataset = dictionary["LAZYFRAMES"][lf_key]["input_dataset"]
+                params = dictionary["LAZYFRAMES"][lf_key]["params"]
+                if input_dataset is None:
+                    lf_out = function(**params)
+                elif input_dataset["type"] == "lf":
+                    lf = dictionary["LAZYFRAMES"][input_dataset["keys"][0]]["lf"]
+                    lf_out = function(lf, **params)
+                elif input_dataset["type"] == "pandas_df":
+                    pd_df = getattr(dictionary[input_dataset["keys"][0]][input_dataset["keys"][1]], input_dataset["keys"][2])  # Modify in the future; this is really specific to the format of sumap.cells on the run_spatial_umap.py page.
+                    lf_out = function(pd_df, **params)
+
+                dictionary["LAZYFRAMES"][lf_key]["lf"] = lf_out
 
         return dictionary
     except Exception as e:
