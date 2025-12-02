@@ -82,12 +82,12 @@ def multiprint(message, functions):
             function(message)
 
 
-def deconstruct_object(identifier, value, value_type):
+def deconstruct_object(path, value, value_type):
     try:
         if value_type == "LazyFrame":
             multiprint("Deconstructing LazyFrame object.", (print,))
-            lf_key = identifier
-            return {"object_type": "Deconstructed LazyFrame", "lf_key": lf_key}  # Assuming the key in the dictionary is the last element in the path.
+            lf_key = path[-2]  # Assuming the LazyFrame is stored in a dictionary under LAZYFRAMES with its key.
+            return {"object_type": "Deconstructed LazyFrame", "lf_key": lf_key}
         elif value_type == "SpatialUMAP":
             multiprint("Deconstructing SpatialUMAP object.", (print,))
             spatial_umap = value
@@ -113,7 +113,7 @@ def deconstruct_object(identifier, value, value_type):
         else:
             return value
     except Exception as e:
-        multiprint(f"Failed to deconstruct object {identifier} of type {value_type}: {e}", (print, st.error))
+        multiprint(f"Failed to deconstruct object in dictionary path {".".join(str(x) for x in path)} of type {value_type}: {e}", (print, st.error))
         raise
 
 
@@ -191,7 +191,7 @@ def traverse_for_deconstruct(path, value, orig_dict, debug=False):
             elif isinstance(value, tuple):
                 return tuple(traverse_for_deconstruct(path + [idx], sub_value, orig_dict) for idx, sub_value in enumerate(value))
             else:
-                return deconstruct_object(identifier=path[-1], value=value, value_type=value_type)
+                return deconstruct_object(path=path, value=value, value_type=value_type)
         except RecursionError as e:
             print(f"{key_str}: RecursionError encountered (possible cyclic reference): {e}", flush=True)
             return value
