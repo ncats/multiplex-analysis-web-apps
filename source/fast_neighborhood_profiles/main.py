@@ -684,16 +684,10 @@ def generate_umap_wrapper(**inputs):
         .sort(by="TMA_core_id")
         )
     inputs["lf"] = lf
-    st_key_prefix = inputs["st_key_prefix"]
     del inputs["LAZYFRAMES"]
-    del inputs["st_key_prefix"]
 
     # Run the core function.
     outputs = generate_umap_lf_input(**inputs)  # what comes out of this: dict(spatial_umap=spatial_umap, complete_success=True)
-
-    # Modify outputs as needed (standard format should go out). We must return a dictionary with a key that ends with __spatial_UMAP_results whose corresponding value is a dictionary with key "spatial_umap".
-    key = st_key_prefix + "__spatial_UMAP_results"
-    outputs = {key: {"spatial_umap": outputs["spatial_umap"]}}
 
     # Return the properly formatted outputs.
     return outputs
