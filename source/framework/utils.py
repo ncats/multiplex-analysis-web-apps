@@ -70,8 +70,8 @@ def ensure_empty_directory(directory, create_if_missing=True):
 
         return True
     except Exception as e:
-        st.error(f"Failed to ensure empty directory {directory}: {e}")
-        return False
+        multiprint(f"Failed to ensure empty directory {directory}: {e}", (print,))
+        raise
 
 
 def multiprint(message, functions):
@@ -112,7 +112,7 @@ def deconstruct_object(path, value, value_type):
         else:
             return value
     except Exception as e:
-        multiprint(f"Failed to deconstruct object in dictionary path {".".join(str(x) for x in path)} of type {value_type}: {e}", (print, st.error))
+        multiprint(f"Failed to deconstruct object in dictionary path {".".join(str(x) for x in path)} of type {value_type}: {e}", (print,))
         raise
 
 
@@ -152,7 +152,7 @@ def reconstruct_object(value, value_type):
         else:  # Functionality for this branch *should* be different than in deconstruct_object(). Overall, whether deconstructing or reconstructing, we should return a new object or the original one.
             raise ValueError(f"Unknown object type for reconstruction: {value_type}")
     except Exception as e:
-        multiprint(f"Failed to reconstruct object of type {value_type}: {e}", (print, st.error))
+        multiprint(f"Failed to reconstruct object of type {value_type}: {e}", (print,))
         raise
 
 
@@ -162,7 +162,7 @@ def traverse_for_deconstruct(path, value, debug=False):
         key_str = ".".join(str(p) for p in path)
         value_type = type(value).__name__
         if debug:
-            print(f"{key_str}: {value_type}", flush=True)
+            multiprint(f"{key_str}: {value_type}", (print,))
 
         try:
             if isinstance(value, dict):
@@ -177,10 +177,10 @@ def traverse_for_deconstruct(path, value, debug=False):
             else:
                 return deconstruct_object(path=path, value=value, value_type=value_type)
         except RecursionError as e:
-            print(f"{key_str}: RecursionError encountered (possible cyclic reference): {e}", flush=True)
+            multiprint(f"{key_str}: RecursionError encountered (possible cyclic reference): {e}", (print,))
             return value
     except Exception as e:
-        multiprint(f"Failed to traverse for deconstruction at {key_str}: {e}", (print, st.error))
+        multiprint(f"Failed to traverse for deconstruction at {key_str}: {e}", (print,))
         raise
 
 
@@ -189,7 +189,7 @@ def traverse_for_reconstruct(path, value, debug=False):
         key_str = ".".join(str(p) for p in path)
         value_type = type(value).__name__
         if debug:
-            print(f"{key_str}: {value_type}", flush=True)
+            multiprint(f"{key_str}: {value_type}", (print,))
 
         try:
             # Dict branch
@@ -244,10 +244,10 @@ def traverse_for_reconstruct(path, value, debug=False):
                 return value
 
         except RecursionError as e:
-            multiprint(f"{key_str}: RecursionError encountered (possible cyclic reference): {e}", (print, st.error))
-            raise
+            multiprint(f"{key_str}: RecursionError encountered (possible cyclic reference): {e}", (print,))
+            return value
     except Exception as e:
-        multiprint(f"Failed to traverse for reconstruction at {key_str}: {e}", (print, st.error))
+        multiprint(f"Failed to traverse for reconstruction at {key_str}: {e}", (print,))
         raise
 
 
@@ -263,7 +263,7 @@ def serialize_dictionary_to_binary_files(dictionary, dict_name, directory, ignor
         with open(pkl_file, 'wb') as f:
             f.write(pickle.dumps(transformed_dict))
     except Exception as e:
-        multiprint(f"Failed to serialize dictionary {dict_name} to directory {directory}: {e}", (print, st.error))
+        multiprint(f"Failed to serialize dictionary {dict_name} to directory {directory}: {e}", (print,))
         raise
 
 
@@ -338,7 +338,7 @@ def deserialize_binary_files_to_dictionary(dict_name, directory, dictionary=None
 
         return dictionary
     except Exception as e:
-        multiprint(f"Failed to deserialize binary file {dict_name}.pkl to dictionary in directory {directory}: {e}", (print, st.error))
+        multiprint(f"Failed to deserialize binary file {dict_name}.pkl to dictionary in directory {directory}: {e}", (print,))
         raise
 
 
@@ -376,13 +376,14 @@ def zip_directory_to_buffer(directory, compresslevel=6, ignore_subdirs=[]):
                     zip_file.write(file_path, rel)  # retains original mtime automatically
                     zip_file.getinfo(rel).external_attr = file_path.stat().st_mode << 16
                 except (OSError, IOError) as e:
-                    st.warning(f"Skipping file {file_path}: {e}")
+                    multiprint(f"Skipping file {file_path}: {e}", (print,))
+                    raise
 
         zip_buffer.seek(0)
         return zip_buffer
     except Exception as e:
-        st.error(f"Failed to zip directory {directory}: {e}")
-        return None
+        multiprint(f"Failed to zip directory {directory}: {e}", (print,))
+        raise
 
 
 def unzip_buffer_to_directory(zip_buffer, directory):
@@ -392,8 +393,8 @@ def unzip_buffer_to_directory(zip_buffer, directory):
                 zip_file.extractall(directory)
         return True
     except Exception as e:
-        st.error(f"Failed to unzip buffer to {directory}: {e}")
-        return False
+        multiprint(f"Failed to unzip buffer to {directory}: {e}", (print,))
+        raise
 
 
 @st.cache_data()

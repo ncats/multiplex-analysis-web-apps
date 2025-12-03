@@ -3,6 +3,7 @@ import math
 import os
 import fast_neighborhood_profiles.sample_analysis_module
 from fast_neighborhood_profiles import main as fnp_main
+import framework.utils as framework_utils
 
 
 def run_analysis_job(function_name, inputs, job_dir):
@@ -17,8 +18,8 @@ def run_analysis_job(function_name, inputs, job_dir):
         outputs = function_to_run(**inputs, results_topdir=outputs_dir)
         return outputs
     except Exception as e:
-        print(f"Error occurred while running analysis job {function_name}: {e}")
-        return None
+        framework_utils.multiprint(f"Error occurred while running analysis job {function_name}: {e}", (print,))
+        raise
 
 
 def find_primes_up_to(limit, results_subdir, results_topdir):

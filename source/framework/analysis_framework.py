@@ -31,8 +31,8 @@ def initialize_job(function_name):
             return None
         return job_id
     except Exception as e:
-        st.error(f"Error occurred while initializing job: {e}")
-        return None
+        framework_utils.multiprint(f"Error occurred while initializing job: {e}", (print,))
+        raise
 
 
 def save_job_input_data(job_id, inputs):
@@ -45,8 +45,8 @@ def save_job_input_data(job_id, inputs):
         pa.upload_zip_object_data(JOB_INPUTS_BUCKET_NAME, job_id, inputs_buffer)  # Write the zip buffer to object storage.
         return True
     except Exception as e:
-        st.error(f"Error occurred while saving job input data: {e}")
-        return False
+        framework_utils.multiprint(f"Error occurred while saving job input data: {e}", (print,))
+        raise
 
 
 def load_job_input_data(job_id, job_dir):
@@ -59,8 +59,8 @@ def load_job_input_data(job_id, job_dir):
         framework_utils.ensure_empty_directory(inputs_directory, create_if_missing=False)
         return inputs
     except Exception as e:
-        st.error(f"Error occurred while loading job input data: {e}")
-        return None
+        framework_utils.multiprint(f"Error occurred while loading job input data: {e}", (print,))
+        raise
 
 
 def save_job_output_data(job_id, outputs, job_dir):
@@ -76,8 +76,8 @@ def save_job_output_data(job_id, outputs, job_dir):
         else:
             return False
     except Exception as e:
-        st.error(f"Error occurred while saving job output data: {e}")
-        return None
+        framework_utils.multiprint(f"Error occurred while saving job output data: {e}", (print,))
+        raise
 
 
 def delete_serialized_files(dict_name, directory):
@@ -91,8 +91,8 @@ def delete_serialized_files(dict_name, directory):
 
         return True
     except Exception as e:
-        st.error(f"Failed to delete serialized files {dict_name}.pkl/.dill in directory {directory}: {e}")
-        return False
+        framework_utils.multiprint(f"Failed to delete serialized files {dict_name}.pkl/.dill in directory {directory}: {e}", (print,))
+        raise
 
 
 def load_job_output_data(job_id, outputs_directory):
@@ -117,8 +117,8 @@ def load_job_output_data(job_id, outputs_directory):
 
         return job_status, outputs
     except Exception as e:
-        st.error(f"Error occurred while loading job output data: {e}")
-        return None
+        framework_utils.multiprint(f"Error occurred while loading job output data: {e}", (print,))
+        raise
 
 
 def run_local_analysis(job_id):
@@ -136,10 +136,8 @@ def run_local_analysis(job_id):
         return True
     except Exception as e:
         # Since this function can run on a worker (without Streamlit), echo the error both to the terminal and to the screen (if present).
-        error_string = f"Error occurred while running local analysis for job {job_id}: {e}"
-        st.error(error_string)
-        print(error_string)
-        return False
+        framework_utils.multiprint(f"Error occurred while running local analysis for job {job_id}: {e}", (print,))
+        raise
 
 
 def run_analysis_job_wrapper(function_name, inputs, blocking=True, selected_compute_resource: str = None):
@@ -152,8 +150,8 @@ def run_analysis_job_wrapper(function_name, inputs, blocking=True, selected_comp
         pa.submit_job(job_id, blocking=blocking, selected_compute_resource=selected_compute_resource)
         return job_id
     except Exception as e:
-        st.error(f"Error occurred while running wrapper for analysis job {function_name}: {e}")
-        return None
+        framework_utils.multiprint(f"Error occurred while running wrapper for analysis job {function_name}: {e}", (print,))
+        raise
 
 
 # TODO: Add ability to save archive (with description) at the end; see functionality in manage_sessions.py.

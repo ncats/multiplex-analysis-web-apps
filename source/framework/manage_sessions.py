@@ -6,7 +6,6 @@ import pathlib
 import copy
 import framework.utils as framework_utils
 import framework.platform_abstraction as pa
-import importlib
 
 ST_KEY_PREFIX = "manage_sessions.py__"
 ST_KEY_PREFIX_STARTUP = "startup.py__"
@@ -21,8 +20,8 @@ def export_conda_environment():
         # Probably run this during startup and store the result (in a file) so no calls to subprocess are needed in the whole app.
         return subprocess.run(['micromamba', 'env', 'export'], capture_output=True, text=True, check=True).stdout
     except Exception as e:
-        st.error(f"Failed to export conda environment: {e}")
-        return None
+        framework_utils.multiprint(f"Failed to export conda environment: {e}", (print,))
+        raise
 
 
 def write_conda_environment(filename, directory):
@@ -34,8 +33,8 @@ def write_conda_environment(filename, directory):
             f.write(conda_env_content)
         return True
     except Exception as e:
-        st.error(f"Failed to write conda environment file {filename}: {e}")
-        return False
+        framework_utils.multiprint(f"Failed to write conda environment file {filename}: {e}", (print,))
+        raise
 
 
 def save_session_state():
@@ -44,7 +43,7 @@ def save_session_state():
         framework_utils.serialize_dictionary_to_binary_files(st.session_state, "session_state", session_state_directory, ignore_do_not_persist_flag=False)
         return True
     except Exception as e:
-        framework_utils.multiprint(f"Failed to save session state: {e}", (print, st.error))
+        framework_utils.multiprint(f"Failed to save session state: {e}", (print,))
         raise
 
 
@@ -69,7 +68,7 @@ def load_session_state():
 
         return True
     except Exception as e:
-        st.error(f"Failed to load session state: {e}")
+        framework_utils.multiprint(f"Failed to load session state: {e}", (print,))
         raise
 
 
@@ -93,8 +92,8 @@ def reset_session_state():
 
         return True
     except Exception as e:
-        st.error(f"Failed to reset session state: {e}")
-        return False
+        framework_utils.multiprint(f"Failed to reset session state: {e}", (print,))
+        raise
 
 
 @st.cache_data()
@@ -104,8 +103,8 @@ def get_current_git_commit():
         return subprocess.run(['git', '-c', 'safe.directory=/app', 'rev-parse', 'HEAD'], capture_output=True, text=True, check=True).stdout.strip()
         # return os.getenv('GIT_COMMIT')
     except Exception as e:
-        st.error(f"Failed to get current git commit: {e}")
-        return None
+        framework_utils.multiprint(f"Failed to get current git commit: {e}", (print,))
+        raise
 
 
 def write_dictionary_to_text_file(dictionary, dict_name, directory):
@@ -126,8 +125,8 @@ def write_dictionary_to_text_file(dictionary, dict_name, directory):
         return True
 
     except Exception as e:
-        st.error(f"Error writing dictionary {dict_name} to text file in directory {directory}: {e}")
-        return False
+        framework_utils.multiprint(f"Error writing dictionary {dict_name} to text file in directory {directory}: {e}", (print,))
+        raise
 
 
 def main():

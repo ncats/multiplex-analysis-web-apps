@@ -54,8 +54,8 @@ def get_connection_pool(db_url: str):
         atexit.register(lambda: pool.close())
         return pool
     except Exception as e:
-        st.error(f"Failed to create database pool: {e}")
-        return None
+        framework_utils.multiprint(f"Failed to create database pool: {e}", (print,))
+        raise
 
 
 # Create four tables for the app. Note it should be largely consistent with what's in 01_set_up_non_user_objects.sql for now, and later on we should probably have this function, if even still necessary, just run setup.sql so we don't have to maintain this logic in two places.
@@ -222,8 +222,8 @@ def set_up_postgresql():
                     """)
             return True
         except Exception as e:
-            st.error(f"Failed to set up databases: {e}")
-            return False
+            framework_utils.multiprint(f"Failed to set up databases: {e}", (print,))
+            raise
     elif framework_utils.platform() == "snowflake":
         pass
 
@@ -239,8 +239,8 @@ def write_archive_database_data(row_tuple):
                     """, row_tuple)
             return True
         except Exception as e:
-            st.error(f"Failed to write archive database data: {e}")
-            return False
+            framework_utils.multiprint(f"Failed to write archive database data: {e}", (print,))
+            raise
     elif framework_utils.platform() == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
@@ -250,8 +250,8 @@ def write_archive_database_data(row_tuple):
             """, row_tuple).collect()
             return True
         except Exception as e:
-            st.error(f"Failed to write archive database data: {e}")
-            return False
+            framework_utils.multiprint(f"Failed to write archive database data: {e}", (print,))
+            raise
 
 
 def log_app_session(row_tuple):
@@ -265,8 +265,8 @@ def log_app_session(row_tuple):
                     """, row_tuple)
             return True
         except Exception as e:
-            st.error(f"Failed to log app session: {e}")
-            return False
+            framework_utils.multiprint(f"Failed to log app session: {e}", (print,))
+            raise
     elif framework_utils.platform() == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
@@ -276,8 +276,8 @@ def log_app_session(row_tuple):
             """, row_tuple).collect()
             return True
         except Exception as e:
-            st.error(f"Failed to log app session: {e}")
-            return False
+            framework_utils.multiprint(f"Failed to log app session: {e}", (print,))
+            raise
 
 
 def set_app_session_shutdown_time(app_session_id):
@@ -292,8 +292,8 @@ def set_app_session_shutdown_time(app_session_id):
                     """, (framework_utils.get_timestamp(), app_session_id))
             return True
         except Exception as e:
-            st.error(f"Failed to set app session shutdown time: {e}")
-            return False
+            framework_utils.multiprint(f"Failed to set app session shutdown time: {e}", (print,))
+            raise
     elif framework_utils.platform() == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
@@ -304,8 +304,8 @@ def set_app_session_shutdown_time(app_session_id):
             """, (app_session_id,)).collect()
             return True
         except Exception as e:
-            st.error(f"Failed to set app session shutdown time: {e}")
-            return False
+            framework_utils.multiprint(f"Failed to set app session shutdown time: {e}", (print,))
+            raise
 
 
 @st.cache_data()
@@ -322,8 +322,8 @@ def get_user_group(username):
                     user_group = cur.fetchone()
             return user_group[0] if user_group else None
         except Exception as e:
-            st.error(f"Failed to retrieve user group: {e}")
-            return None
+            framework_utils.multiprint(f"Failed to retrieve user group: {e}", (print,))
+            raise
     elif framework_utils.platform() == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
@@ -334,8 +334,8 @@ def get_user_group(username):
             """, (username,)).collect()
             return result[0]["USER_GROUP"] if result else None
         except Exception as e:
-            st.error(f"Failed to retrieve user group: {e}")
-            return None
+            framework_utils.multiprint(f"Failed to retrieve user group: {e}", (print,))
+            raise
 
 
 @st.cache_data()
@@ -352,8 +352,8 @@ def get_user_groups_table_data():
             df = pl.DataFrame(rows, schema=["username", "user_group", "user_added_time", "who_added", "user_email"], strict=False, orient="row")
             return df
         except Exception as e:
-            st.error(f"Failed to retrieve user groups table data: {e}")
-            return None
+            framework_utils.multiprint(f"Failed to retrieve user groups table data: {e}", (print,))
+            raise
     elif framework_utils.platform() == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
@@ -364,8 +364,8 @@ def get_user_groups_table_data():
             df = pl.DataFrame(rows, schema=["username", "user_group", "user_added_time", "who_added", "user_email"], strict=False, orient="row")
             return df
         except Exception as e:
-            st.error(f"Failed to retrieve user groups table data: {e}")
-            return None
+            framework_utils.multiprint(f"Failed to retrieve user groups table data: {e}", (print,))
+            raise
 
 
 @st.cache_data()
@@ -383,8 +383,8 @@ def get_app_sessions_table_data():
             df = pl.DataFrame(rows, schema=["app_session_id", "username", "user_group", "startup_time", "explicit_shutdown_time", "container_image_id", "compute_resource"], strict=False, orient="row")
             return df
         except Exception as e:
-            st.error(f"Failed to retrieve app sessions table data: {e}")
-            return None
+            framework_utils.multiprint(f"Failed to retrieve app sessions table data: {e}", (print,))
+            raise
     elif framework_utils.platform() == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
@@ -396,8 +396,8 @@ def get_app_sessions_table_data():
             df = pl.DataFrame(rows, schema=["app_session_id", "username", "user_group", "startup_time", "explicit_shutdown_time", "container_image_id", "compute_resource"], strict=False, orient="row")
             return df
         except Exception as e:
-            st.error(f"Failed to retrieve app sessions table data: {e}")
-            return None
+            framework_utils.multiprint(f"Failed to retrieve app sessions table data: {e}", (print,))
+            raise
 
 
 @st.cache_data()
@@ -415,8 +415,8 @@ def get_archives_table_data():
             df = pl.DataFrame(rows, schema=["creator", "user_group", "archive_description", "current_git_commit", "container_image_id", "archive_id", "app_session_id", "creation_time", "archive_compatibility_id"], strict=False, orient="row")
             return df
         except Exception as e:
-            st.error(f"Failed to retrieve archives_table table data: {e}")
-            return None
+            framework_utils.multiprint(f"Failed to retrieve archives_table table data: {e}", (print,))
+            raise
     elif framework_utils.platform() == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
@@ -428,8 +428,8 @@ def get_archives_table_data():
             df = pl.DataFrame(rows, schema=["creator", "user_group", "archive_description", "current_git_commit", "container_image_id", "archive_id", "app_session_id", "creation_time", "archive_compatibility_id"], strict=False, orient="row")
             return df
         except Exception as e:
-            st.error(f"Failed to retrieve archives_table table data: {e}")
-            return None
+            framework_utils.multiprint(f"Failed to retrieve archives_table table data: {e}", (print,))
+            raise
 
 
 @st.cache_data()
@@ -448,8 +448,8 @@ def get_jobs_table_data():
             df = pl.DataFrame(rows, schema=["job_id", "job_name", "job_status", "submitter", "submitter_group", "app_session_id", "worker_image_id", "submission_time", "start_time", "completion_time", "failure_time", "compute_resource"], strict=False, orient="row")
             return df
         except Exception as e:
-            st.error(f"Failed to retrieve jobs_table table data: {e}")
-            return None
+            framework_utils.multiprint(f"Failed to retrieve jobs_table table data: {e}", (print,))
+            raise
     elif framework_utils.platform() == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
@@ -462,8 +462,8 @@ def get_jobs_table_data():
             df = pl.DataFrame(rows, schema=["job_id", "job_name", "job_status", "submitter", "submitter_group", "app_session_id", "worker_image_id", "submission_time", "start_time", "completion_time", "failure_time", "compute_resource"], strict=False, orient="row")
             return df
         except Exception as e:
-            st.error(f"Failed to retrieve jobs_table table data: {e}")
-            return None
+            framework_utils.multiprint(f"Failed to retrieve jobs_table table data: {e}", (print,))
+            raise
 
 
 @st.cache_data()
@@ -482,8 +482,8 @@ def get_available_archives(archive_compatibility_id: str):
             df = pl.DataFrame(rows, schema=["Creator", "Creation time", "Archive description", "Archive ID", "App session ID"], strict=False, orient="row")
             return df
         except Exception as e:
-            st.error(f"Failed to retrieve available archives_table: {e}")
-            return None
+            framework_utils.multiprint(f"Failed to retrieve available archives_table: {e}", (print,))
+            raise
     elif framework_utils.platform() == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
@@ -496,8 +496,8 @@ def get_available_archives(archive_compatibility_id: str):
             df = pl.DataFrame(rows, schema=["Creator", "Creation time", "Archive description", "Archive ID", "App session ID"], strict=False, orient="row")
             return df
         except Exception as e:
-            st.error(f"Failed to retrieve available archives_table: {e}")
-            return None
+            framework_utils.multiprint(f"Failed to retrieve available archives_table: {e}", (print,))
+            raise
 
 
 def log_job(row_tuple):
@@ -511,8 +511,8 @@ def log_job(row_tuple):
                     """, row_tuple)
             return True
         except Exception as e:
-            st.error(f"Failed to log job: {e}. It's possible that job with ID {row_tuple[0]} already exists (unique constraint violated), which would indicate a job ID generation bug.")
-            return False
+            framework_utils.multiprint(f"Failed to log job: {e}. It's possible that job with ID {row_tuple[0]} already exists (unique constraint violated), which would indicate a job ID generation bug.", (print,))
+            raise
     elif framework_utils.platform() == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
@@ -522,8 +522,8 @@ def log_job(row_tuple):
             """, row_tuple).collect()
             return True
         except Exception as e:
-            st.error(f"Failed to log job: {e}. It's possible that job with ID {row_tuple[0]} already exists (unique constraint violated), which would indicate a job ID generation bug.")
-            return False
+            framework_utils.multiprint(f"Failed to log job: {e}. It's possible that job with ID {row_tuple[0]} already exists (unique constraint violated), which would indicate a job ID generation bug.", (print,))
+            raise
 
 
 def update_job_status(job_id, new_status, time_column):
@@ -538,8 +538,8 @@ def update_job_status(job_id, new_status, time_column):
                     """, (new_status, framework_utils.get_timestamp(), job_id))
             return True
         except Exception as e:
-            st.error(f"Failed to update status of job {job_id} to {new_status} and update {time_column}: {e}")
-            return False
+            framework_utils.multiprint(f"Failed to update status of job {job_id} to {new_status} and update {time_column}: {e}", (print,))
+            raise
     elif framework_utils.platform() == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
@@ -550,8 +550,8 @@ def update_job_status(job_id, new_status, time_column):
             """, (new_status, job_id)).collect()
             return True
         except Exception as e:
-            st.error(f"Failed to update status of job {job_id} to {new_status} and update {time_column}: {e}")
-            return False
+            framework_utils.multiprint(f"Failed to update status of job {job_id} to {new_status} and update {time_column}: {e}", (print,))
+            raise
 
 
 def log_compute_resource_for_job(job_id: str, compute_resource: str):
@@ -567,8 +567,8 @@ def log_compute_resource_for_job(job_id: str, compute_resource: str):
             """, (compute_resource, job_id)).collect()
             return True
         except Exception as e:
-            st.error(f"Failed to set compute resource for job {job_id} to {compute_resource}: {e}")
-            return False
+            framework_utils.multiprint(f"Failed to set compute resource for job {job_id} to {compute_resource}: {e}", (print,))
+            raise
 
 
 def get_job_status(job_id):
@@ -584,8 +584,8 @@ def get_job_status(job_id):
                     job_status = cur.fetchone()
             return job_status[0] if job_status else None
         except Exception as e:
-            st.error(f"Failed to retrieve status of job {job_id}: {e}")
-            return None
+            framework_utils.multiprint(f"Failed to retrieve status of job {job_id}: {e}", (print,))
+            raise
     elif framework_utils.platform() == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
@@ -596,8 +596,8 @@ def get_job_status(job_id):
             """, (job_id,)).collect()
             return result[0]["JOB_STATUS"] if result else None
         except Exception as e:
-            st.error(f"Failed to retrieve status of job {job_id}: {e}")
-            return None
+            framework_utils.multiprint(f"Failed to retrieve status of job {job_id}: {e}", (print,))
+            raise
 
 
 @st.cache_data()
@@ -614,8 +614,8 @@ def get_job_function_name(job_id):
                     job_name = cur.fetchone()
             return job_name[0] if job_name else None
         except Exception as e:
-            st.error(f"Failed to retrieve function name of job {job_id}: {e}")
-            return None
+            framework_utils.multiprint(f"Failed to retrieve function name of job {job_id}: {e}", (print,))
+            raise
     elif framework_utils.platform() == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
@@ -626,8 +626,8 @@ def get_job_function_name(job_id):
             """, (job_id,)).collect()
             return result[0]["JOB_NAME"] if result else None
         except Exception as e:
-            st.error(f"Failed to retrieve function name of job {job_id}: {e}")
-            return None
+            framework_utils.multiprint(f"Failed to retrieve function name of job {job_id}: {e}", (print,))
+            raise
 
 
 def set_worker_image_id(job_id, worker_image_id):
@@ -642,8 +642,8 @@ def set_worker_image_id(job_id, worker_image_id):
                     """, (worker_image_id, job_id))
             return True
         except Exception as e:
-            st.error(f"Failed to set worker image ID for job {job_id} to {worker_image_id}: {e}")
-            return False
+            framework_utils.multiprint(f"Failed to set worker image ID for job {job_id} to {worker_image_id}: {e}", (print,))
+            raise
     elif framework_utils.platform() == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
@@ -654,8 +654,8 @@ def set_worker_image_id(job_id, worker_image_id):
             """, (worker_image_id, job_id)).collect()
             return True
         except Exception as e:
-            st.error(f"Failed to set worker image ID for job {job_id} to {worker_image_id}: {e}")
-            return False
+            framework_utils.multiprint(f"Failed to set worker image ID for job {job_id} to {worker_image_id}: {e}", (print,))
+            raise
 
 
 def record_explicit_shutdown_time(app_session_id):
@@ -670,8 +670,8 @@ def record_explicit_shutdown_time(app_session_id):
                     """, (framework_utils.get_timestamp(), app_session_id))
             return True
         except Exception as e:
-            st.error(f"Failed to record explicit shutdown time for app session {app_session_id}: {e}")
-            return False
+            framework_utils.multiprint(f"Failed to record explicit shutdown time for app session {app_session_id}: {e}", (print,))
+            raise
     elif framework_utils.platform() == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
@@ -682,8 +682,8 @@ def record_explicit_shutdown_time(app_session_id):
             """, (app_session_id,)).collect()
             return True
         except Exception as e:
-            st.error(f"Failed to record explicit shutdown time for app session {app_session_id}: {e}")
-            return False
+            framework_utils.multiprint(f"Failed to record explicit shutdown time for app session {app_session_id}: {e}", (print,))
+            raise
 
 
 #### 2. OBJECT STORAGE FUNCTIONALITY ##############################################################
@@ -710,8 +710,8 @@ def get_object_storage_client():
                 secure=False  # Set to True for HTTPS
             )
         except Exception as e:
-            st.error(f"Failed to create MinIO client: {e}")
-            return None
+            framework_utils.multiprint(f"Failed to create MinIO client: {e}", (print,))
+            raise
     elif framework_utils.platform() == "snowflake":
         pass
 
@@ -733,8 +733,8 @@ def set_up_minio():
                 client.make_bucket(OLD_ARCHIVES_BUCKET_NAME)
             return True
         except Exception as e:
-            st.error(f"Failed to set up object storage: {e}")
-            return False
+            framework_utils.multiprint(f"Failed to set up object storage: {e}", (print,))
+            raise
     elif framework_utils.platform() == "snowflake":
         pass
 
@@ -758,8 +758,8 @@ def upload_zip_object_data(bucket_name, zip_name, zip_buffer, db_schema: str = N
             )
             return True
         except Exception as e:
-            st.error(f"Failed to write {zip_name}.zip to bucket {bucket_name}: {e}")
-            return False
+            framework_utils.multiprint(f"Failed to write {zip_name}.zip to bucket {bucket_name}: {e}", (print,))
+            raise
     elif framework_utils.platform() == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
@@ -773,8 +773,8 @@ def upload_zip_object_data(bucket_name, zip_name, zip_buffer, db_schema: str = N
             )
             return results
         except Exception as e:
-            st.error(f"Failed to write {zip_name}.zip to bucket {bucket_name}: {e}")
-            return None
+            framework_utils.multiprint(f"Failed to write {zip_name}.zip to bucket {bucket_name}: {e}", (print,))
+            raise
 
 
 # This could potentially be a lot of data, so we don't want to cache it using st.cache_data().
@@ -790,10 +790,10 @@ def download_zip_object_data(bucket_name, zip_name, db_schema: str = None):
             response.close()
             return io.BytesIO(data)
         except Exception as e:
-            st.error(f"Failed to download object data: {e}")
+            framework_utils.multiprint(f"Failed to download object data: {e}", (print,))
             if response:
                 response.close()
-            return None
+            raise
     elif framework_utils.platform() == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
@@ -804,8 +804,8 @@ def download_zip_object_data(bucket_name, zip_name, db_schema: str = None):
             bytes_io.seek(0)
             return bytes_io
         except Exception as e:
-            st.error(f"Failed to download {zip_name}.zip from bucket {bucket_name}: {e}")
-            return None
+            framework_utils.multiprint(f"Failed to download {zip_name}.zip from bucket {bucket_name}: {e}", (print,))
+            raise
         
 
 def list_objects_in_bucket(bucket_name: str, db_schema: str = None):
@@ -816,8 +816,8 @@ def list_objects_in_bucket(bucket_name: str, db_schema: str = None):
             object_list = [obj.object_name for obj in objects]
             return object_list
         except Exception as e:
-            st.error(f"Failed to list objects in {bucket_name} bucket: {e}")
-            return None
+            framework_utils.multiprint(f"Failed to list objects in {bucket_name} bucket: {e}", (print,))
+            raise
     elif framework_utils.platform() == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
@@ -829,8 +829,8 @@ def list_objects_in_bucket(bucket_name: str, db_schema: str = None):
             object_list = [file.name.removeprefix(f"{bucket_name}_stage/") for file in files]
             return object_list
         except Exception as e:
-            st.error(f"Failed to list objects in {bucket_name} stage in database.schema {db_schema}: {e}")
-            return None
+            framework_utils.multiprint(f"Failed to list objects in {bucket_name} stage in database.schema {db_schema}: {e}", (print,))
+            raise
 
 
 def download_objects_parallel(
@@ -931,8 +931,8 @@ def download_objects_parallel(
                 return client.get_object(bucket_name, name)
             return _core_parallel_download(_get_stream)
         except Exception as e:
-            st.error(f"Failed to download objects from MinIO bucket: {e}")
-            return None
+            framework_utils.multiprint(f"Failed to download objects from MinIO bucket: {e}", (print,))
+            raise
     elif platform_value == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
@@ -945,8 +945,8 @@ def download_objects_parallel(
                 return session.file.get_stream(stage_location=stage_location)
             return _core_parallel_download(_get_stream)
         except Exception as e:
-            st.error(f"Failed to download objects from Snowflake stage: {e}")
-            return None
+            framework_utils.multiprint(f"Failed to download objects from Snowflake stage: {e}", (print,))
+            raise
 
 
 def upload_objects_parallel(
@@ -1104,8 +1104,8 @@ def upload_objects_parallel(
                 client.put_object(bucket_name=bucket_name, object_name=name, data=stream, length=size, content_type=content_type)
             return _core_parallel_upload(_exists_local, _upload_local)
         except Exception as e:
-            st.error(f"Failed to upload objects to MinIO: {e}")
-            return None
+            framework_utils.multiprint(f"Failed to upload objects to MinIO: {e}", (print,))
+            raise
     elif platform_value == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
@@ -1132,8 +1132,8 @@ def upload_objects_parallel(
                 )
             return _core_parallel_upload(_exists_snowflake, _upload_snowflake)
         except Exception as e:
-            st.error(f"Failed to upload objects to Snowflake stage: {e}")
-            return None
+            framework_utils.multiprint(f"Failed to upload objects to Snowflake stage: {e}", (print,))
+            raise
 
 
 def delete_objects(bucket_name: str, object_names: list[str], db_schema: str | None = None):
@@ -1152,8 +1152,8 @@ def delete_objects(bucket_name: str, object_names: list[str], db_schema: str | N
                 return False
             return True
         except Exception as e:
-            st.error(f"Failed bulk delete in bucket {bucket_name}: {e}")
-            return False
+            framework_utils.multiprint(f"Failed bulk delete in bucket {bucket_name}: {e}", (print,))
+            raise
     elif framework_utils.platform() == "snowflake":
         if db_schema is None:
             st.error("db_schema required for Snowflake delete.")
@@ -1172,8 +1172,8 @@ def delete_objects(bucket_name: str, object_names: list[str], db_schema: str | N
                 return False
             return True
         except Exception as e:
-            st.error(f"Failed bulk delete in stage {db_schema}: {e}")
-            return False
+            framework_utils.multiprint(f"Failed bulk delete in stage {db_schema}: {e}", (print,))
+            raise
         
 @st.cache_data()
 # From the image_metadata_table, get the archive_compatibility_id for a given container_image_id.
@@ -1190,8 +1190,8 @@ def get_archive_compatibility_id(container_image_id):
                     result = cur.fetchone()
             return result[0] if result else None
         except Exception as e:
-            st.error(f"Failed to retrieve archive compatibility ID for image {container_image_id}: {e}")
-            return None
+            framework_utils.multiprint(f"Failed to retrieve archive compatibility ID for image {container_image_id}: {e}", (print,))
+            raise
     elif framework_utils.platform() == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
@@ -1202,8 +1202,8 @@ def get_archive_compatibility_id(container_image_id):
             """, (container_image_id,)).collect()
             return result[0]["ARCHIVE_COMPATIBILITY_ID"] if result else None
         except Exception as e:
-            st.error(f"Failed to retrieve archive compatibility ID for image {container_image_id}: {e}")
-            return None
+            framework_utils.multiprint(f"Failed to retrieve archive compatibility ID for image {container_image_id}: {e}", (print,))
+            raise
 
 
 #### 3. ORCHESTRATION FUNCTIONALITY ###############################################################
@@ -1218,15 +1218,15 @@ def get_frontend_image_id():
             data = resp.json()
             return data.get("frontend_image_id")
         except Exception as e:
-            st.error(f"Could not retrieve frontend image id: {e}")
-            return None
+            framework_utils.multiprint(f"Could not retrieve frontend image id: {e}", (print,))
+            raise
     elif framework_utils.platform() == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
             return snowflake_orchestrator.frontend_id(username=get_current_username(), session=session, app_shortname=os.getenv("APP_SHORTNAME", "app_a"), group_name=get_user_group(get_current_username()), compute_resource=os.getenv("COMPUTE_RESOURCE", "<COMPUTE RESOURCE NOT SET IN ENV>"))
         except Exception as e:
-            st.error(f"Could not retrieve frontend image id: {e}")
-            return None
+            framework_utils.multiprint(f"Could not retrieve frontend image id: {e}", (print,))
+            raise
 
 
 def submit_job(job_id, blocking=True, selected_compute_resource: str = None):
@@ -1246,8 +1246,8 @@ def submit_job(job_id, blocking=True, selected_compute_resource: str = None):
                     set_worker_image_id(job_id, worker_image_id)
             return True
         except Exception as e:
-            st.error(f"Failed to submit job: {e}")
-            return False
+            framework_utils.multiprint(f"Failed to submit job: {e}", (print,))
+            raise
     elif framework_utils.platform() == "snowflake":
         try:
             update_job_status(job_id, "Submitted", "submission_time")
@@ -1265,8 +1265,8 @@ def submit_job(job_id, blocking=True, selected_compute_resource: str = None):
                     set_worker_image_id(job_id, worker_image_id)
             return True
         except Exception as e:
-            st.error(f"Failed to submit job: {e}")
-            return False
+            framework_utils.multiprint(f"Failed to submit job: {e}", (print,))
+            raise
 
 
 def shut_down_app():
@@ -1277,8 +1277,8 @@ def shut_down_app():
             st.success("Application is shutting down...")
             return True
         except Exception as e:
-            st.error(f"Failed to shut down app: {e}")
-            return False
+            framework_utils.multiprint(f"Failed to shut down app: {e}", (print,))
+            raise
     elif framework_utils.platform() == "snowflake":
         try:
             session = snowflake_connections.get_snowpark_session()
@@ -1286,8 +1286,8 @@ def shut_down_app():
             st.success("Application is shutting down...")
             return True
         except Exception as e:
-            st.error(f"Failed to shut down app: {e}")
-            return False
+            framework_utils.multiprint(f"Failed to shut down app: {e}", (print,))
+            raise
 
 
 #### 4. OTHER FUNCTIONALITY #######################################################################
@@ -1306,11 +1306,11 @@ def get_current_username():
                 return username
             return getpass.getuser()
         except Exception as e:
-            st.error(f"Failed to get current username: {e}")
-            return None
+            framework_utils.multiprint(f"Failed to get current username: {e}", (print,))
+            raise
     elif framework_utils.platform() == "snowflake":
         try:
             return os.getenv("SNOWFLAKE_USER")
         except Exception as e:
-            st.error(f"Failed to get current username: {e}")
-            return None
+            framework_utils.multiprint(f"Failed to get current username: {e}", (print,))
+            raise

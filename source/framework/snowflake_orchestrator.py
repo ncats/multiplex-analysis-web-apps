@@ -89,7 +89,7 @@ def submit_job(job_id: str, username: str, session: Session, selected_compute_re
         return worker_image_id
     except Exception as e:
         print(f"Error submitting job {job_id} for user {username}: {e}", flush=True)
-        return None
+        raise
 
 
 # On Snowflake, since there are no database, object storage, or container orchestration resources to clean up like there are locally with Docker, this means we simply kill the frontend.
@@ -105,8 +105,8 @@ def shutdown(username: str, session: Session, app_shortname: str, group_name: st
         session.sql(f"ALTER COMPUTE POOL {compute_pool_name} SUSPEND").collect()
         return True
     except Exception as e:
-        print(f"Error during shutdown: {e}")
-        return False
+        print(f"Error during shutdown: {e}", flush=True)
+        raise
 
 
 def frontend_id(username: str, session: Session, app_shortname: str, group_name: str, compute_resource: str):
@@ -116,5 +116,5 @@ def frontend_id(username: str, session: Session, app_shortname: str, group_name:
         frontend_image_id = session.sql(f"show service containers in service {service_name}").collect()[0]["image_digest"]
         return frontend_image_id
     except Exception as e:
-        print(f"Error retrieving frontend ID: {e}")
-        return None
+        print(f"Error retrieving frontend ID: {e}", flush=True)
+        raise
