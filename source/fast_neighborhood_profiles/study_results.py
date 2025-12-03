@@ -123,9 +123,9 @@ def main():
             fig.update_layout(uirevision="static")  # this doesn't seem to be honored; investigate in the future
             st.plotly_chart(fig, on_select=partial(get_selected_indices, selected_handle="real_space"), selection_mode=("points", "box", "lasso"), key=ST_KEY_PREFIX + "real_space_plot__do_not_persist")
 
-    with st.expander("Notes on point selection"):
-        # Display a note about selecting points.
-        if not display_only_real_space_coords_with_umap_coords:
+    # Display a note about selecting points.
+    if not display_only_real_space_coords_with_umap_coords:
+        with st.expander("Notes on point selection"):
             st.write("Keep in mind that not every point in real space was used for UMAP inference. So while selecting points in UMAP space will render the same number of selections in real space (over all the images), selecting points in real space will often render fewer selections in UMAP space. However, selecting points in real space still allows you to faithfully see their neighborhood profiles below.")
             st.write("Similarly, if you selected a cluster of points in UMAP space and zoom in on the corresponding points in real space, you will find that nearby points with a similar neighborhood may not be selected. This is again because not all points in real space were used for UMAP inference; the cluster you see in UMAP space does not include all points in real space with such neighborhood profiles.")
 
