@@ -96,6 +96,7 @@ def delete_serialized_files(dict_name, directory):
 
 
 def load_job_output_data(job_id, outputs_directory):
+    # Note that this outputs_directory is one level up from the outputs_directory used when saving the job output data, where instead it is further saved under an "outputs" directory.
     try:
         job_status = pa.get_job_status(job_id)
 

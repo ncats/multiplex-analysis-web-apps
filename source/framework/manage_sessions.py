@@ -73,7 +73,7 @@ def load_session_state():
         raise
 
 
-def reset_session_state(extra_keys_to_keep=[], delete_input_dir=True):
+def reset_session_state():
     """Load the session state from the session directory."""
     try:
         # Back up app session-specific (i.e., startup.py-defined) variables we ultimately don't want to overwrite.
@@ -81,12 +81,14 @@ def reset_session_state(extra_keys_to_keep=[], delete_input_dir=True):
 
         # Delete everything in the session state but the keys to keep.
         for key in list(st.session_state.keys()):
-            if (key not in keys_to_keep) and (key not in extra_keys_to_keep):
+            if key not in keys_to_keep:
                 del st.session_state[key]
 
+        # Andrew adding this on 12/3/25 to do the same as we do when we load an archive: delete everything from the session directory and ensure there's a blank input directory. E.g., without this, resetting the app wouldn't delete directories containing results from jobs such as "results" or "spatial_umap" directories.
+        framework_utils.ensure_empty_directory(framework_utils.session_dir())
+
         # Delete everything from the input and output directories.
-        if delete_input_dir:
-            framework_utils.ensure_empty_directory(os.path.join(framework_utils.session_dir(), "input"))
+        framework_utils.ensure_empty_directory(os.path.join(framework_utils.session_dir(), "input"))
         framework_utils.ensure_empty_directory(os.path.join(framework_utils.session_dir(), "output"))
 
         return True
@@ -184,7 +186,7 @@ def main():
             framework_utils.ensure_empty_directory(framework_utils.session_dir())
             framework_utils.unzip_buffer_to_directory(zip_buffer, framework_utils.session_dir())
             load_session_state()
-            os.makedirs(os.path.join(framework_utils.session_dir(), "input"), exist_ok=True)  # Ensure input directory exists since we deliberately exclude it when saving an archive.
+            framework_utils.ensure_empty_directory(os.path.join(framework_utils.session_dir(), "input"))  # Ensure input directory exists since we deliberately exclude it when saving an archive.
             # st.rerun()  # Keeping this rerun because masking of errors here is less risky and it's really helpful to see the archive description just pop up when loading an archive.
 
 

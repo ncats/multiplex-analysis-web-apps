@@ -10,6 +10,29 @@ import framework.utils as framework_utils
 import framework.manage_sessions as manage_sessions
 
 ST_KEY_PREFIX_APP = "app.py__"
+ST_KEY_PREFIX_STARTUP = "startup.py__"
+
+
+def reset_session_state(extra_keys_to_keep=[], delete_input_dir=True):
+    """Load the session state from the session directory."""
+    try:
+        # Back up app session-specific (i.e., startup.py-defined) variables we ultimately don't want to overwrite.
+        keys_to_keep = [ST_KEY_PREFIX_STARTUP + "app_session_id", "previous_page_name", "current_page_name", ST_KEY_PREFIX_APP + "app_initialized", "platform"]
+
+        # Delete everything in the session state but the keys to keep.
+        for key in list(st.session_state.keys()):
+            if (key not in keys_to_keep) and (key not in extra_keys_to_keep):
+                del st.session_state[key]
+
+        # Delete everything from the input and output directories.
+        if delete_input_dir:
+            framework_utils.ensure_empty_directory(os.path.join(framework_utils.session_dir(), "input"))
+        framework_utils.ensure_empty_directory(os.path.join(framework_utils.session_dir(), "output"))
+
+        return True
+    except Exception as e:
+        st.error(f"Failed to reset session state: {e}")
+        return False
 
 
 def clear_session_state():
@@ -21,7 +44,7 @@ def clear_session_state():
     for key in st.session_state.keys():
         if key.startswith(('unifier__', 'opener__')):
             keys_to_keep.append(key)
-    manage_sessions.reset_session_state(extra_keys_to_keep=keys_to_keep, delete_input_dir=False)
+    reset_session_state(extra_keys_to_keep=keys_to_keep, delete_input_dir=False)
     
 
 def load_input_dataset():
