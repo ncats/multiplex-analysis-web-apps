@@ -35,11 +35,10 @@ APP_SHORTNAME = os.getenv('APP_SHORTNAME')
 def get_connection_pool(db_url: str):
     """Return a psycopg v3 ConnectionPool for a given Postgres conninfo.
 
-    Notes (Nov 2025 best practice):
-    - psycopg_pool.ConnectionPool offers automatic recycling and safe usage from multiple threads.
-    - Use pool.connection() context manager for automatic return and rollback on exceptions.
-    - Explicit close() registered at exit for clean shutdown.
-    - We keep min_size=1/max_size=10 similar to previous configuration; tune as needed.
+    Notes:
+    - Keep Streamlit caching (one pool per db_url per process).
+    - Disable background worker threads to avoid Streamlit shutdown warnings.
+    - Do not register atexit handlers in a rerun-heavy Streamlit app.
     """
     if framework_utils.platform() != "local":
         return None  # Snowflake path does not use PostgreSQL.
@@ -49,9 +48,9 @@ def get_connection_pool(db_url: str):
             min_size=1,
             max_size=10,
             timeout=30,      # seconds to wait for a free connection (adjust if needed)
-            num_workers=3,   # async maintenance workers; small number for lightweight local usage
+            num_workers=0,  # remove scheduler threads to avoid Streamlit shutdown warnings
         )
-        atexit.register(lambda: pool.close())
+        # Removed: atexit.register(lambda: pool.close())
         return pool
     except Exception as e:
         framework_utils.multiprint(f"Failed to create database pool: {e}", (print,))
