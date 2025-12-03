@@ -1,7 +1,6 @@
 # Import relevant libraries.
 import streamlit as st
 import polars as pl
-import os
 import framework.utils as framework_utils
 from fast_neighborhood_profiles import main as fnp_main
 
@@ -60,7 +59,7 @@ def main():
                     bucket_name = get_location_settings()[upload_location]["bucket_name"]
                     params = dict(file_format=file_format, db_schema=db_schema, bucket_name=bucket_name, object_filename=object_filename)
                     with st.spinner("Loading file..."):
-                        lf = fnp_main.load_unified_input_file_data(**params)
+                        lf = fnp_main.load_unified_input_file_data(**params, topdir=framework_utils.session_dir())
                     st.session_state["LAZYFRAMES"] = {}  # Clear existing lazyframes.
                     st.session_state["LAZYFRAMES"]["unified_input_file"] = {
                         "lf": lf,

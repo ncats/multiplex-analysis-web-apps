@@ -267,7 +267,7 @@ def serialize_dictionary_to_binary_files(dictionary, dict_name, directory, ignor
         raise
 
 
-def deserialize_binary_files_to_dictionary(dict_name, directory, dictionary=None, extra_dict_to_load=None):
+def deserialize_binary_files_to_dictionary(dict_name, directory, dictionary=None, extra_dict_to_load=None, topdir_for_lazyframe_data=None):
     try:
         if dictionary is None:
             dictionary = {}
@@ -287,6 +287,10 @@ def deserialize_binary_files_to_dictionary(dict_name, directory, dictionary=None
         # We should always ensure that reconstructing lazyframes is a fast process; no long computations should be done here! E.g., the spatial UMAP lazyframe should be quickly computed from the spatial_umap.cells dataframe already present in the dictionary. The calculation of spatial_umap.cells could be a long operation.
         # Note also that lazyframe construction was assumed to depend on values in the session state (such as spatial_umap.cells) so rebuilding lazyframes after loading in the session state makes sense.
         if "LAZYFRAMES" in dictionary:
+
+            # Ensure the location for storing the files from which the lazyframes could read exists.
+            os.makedirs(os.path.join(topdir_for_lazyframe_data, "input"), exist_ok=True)
+
             # Build dependency order
             lf_meta = dictionary["LAZYFRAMES"]
             deps = {}
@@ -322,13 +326,13 @@ def deserialize_binary_files_to_dictionary(dict_name, directory, dictionary=None
                 input_dataset = dictionary["LAZYFRAMES"][lf_key]["input_dataset"]
                 params = dictionary["LAZYFRAMES"][lf_key]["params"]
                 if input_dataset is None:
-                    lf_out = function(**params)
+                    lf_out = function(**params, topdir=topdir_for_lazyframe_data)  # inject topdir_for_lazyframe_data here since there's no input so we must be downloading data (where we'll need to **store** hence the need) from which to create a lazyframe
                 elif input_dataset["type"] == "lf":
                     lf = dictionary["LAZYFRAMES"][input_dataset["keys"][0]]["lf"]
-                    lf_out = function(lf, **params)
+                    lf_out = function(lf, **params)  # no need to inject topdir_for_lazyframe_data here, for now, since we're likely just transforming an already existing lazyframe that should already be set up to correctly reference an on-disk file
                 elif input_dataset["type"] == "pandas_df":
                     pd_df = getattr(dictionary[input_dataset["keys"][0]][input_dataset["keys"][1]], input_dataset["keys"][2])  # Modify in the future; this is really specific to the format of sumap.cells on the run_spatial_umap.py page.
-                    lf_out = function(pd_df, **params)
+                    lf_out = function(pd_df, **params, topdir=topdir_for_lazyframe_data)  # inject topdir_for_lazyframe_data here since we're likely creating a file on disk (hence the need) from a pandas dataframe
 
                 dictionary["LAZYFRAMES"][lf_key]["lf"] = lf_out
 

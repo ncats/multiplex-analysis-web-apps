@@ -55,7 +55,7 @@ def load_job_input_data(job_id, job_dir):
         inputs_buffer = pa.download_zip_object_data(JOB_INPUTS_BUCKET_NAME, job_id)
         framework_utils.ensure_empty_directory(inputs_directory)
         framework_utils.unzip_buffer_to_directory(inputs_buffer, inputs_directory)
-        inputs = framework_utils.deserialize_binary_files_to_dictionary("inputs", inputs_directory)  # Loads inputs.pkl and inputs.dill from inputs_directory into an inputs dictionary.
+        inputs = framework_utils.deserialize_binary_files_to_dictionary("inputs", inputs_directory, topdir_for_lazyframe_data=job_dir)  # Loads inputs.pkl and inputs.dill from inputs_directory into an inputs dictionary.
         framework_utils.ensure_empty_directory(inputs_directory, create_if_missing=False)
         return inputs
     except Exception as e:

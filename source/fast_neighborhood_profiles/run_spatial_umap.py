@@ -2,6 +2,7 @@
 import streamlit as st
 from fast_neighborhood_profiles import main as fnp_main
 import framework.analysis_framework as analysis_framework
+import framework.utils as framework_utils
 
 # Define constants.
 ST_KEY_PREFIX = "run_spatial_umap.py__"
@@ -132,7 +133,7 @@ def main():
     # If the spatial UMAP job just completed, save the results to a lazyframe and store it in the session state.
     if "JOB_JUST_COMPLETED" in st.session_state and st.session_state["JOB_JUST_COMPLETED"] == "spatial_umap":
         params = dict(handle="sumap_cells", file_format=sumap_cell_file_format, index_column_name="sumap_cell_index")
-        lf = fnp_main.save_and_load_pandas_df_to_lf(spatial_umap.cells, **params)
+        lf = fnp_main.save_and_load_pandas_df_to_lf(spatial_umap.cells, **params, topdir=framework_utils.session_dir())
         st.session_state["LAZYFRAMES"]["sumap_cells"] = {
             "lf": lf,
             "function_metadata": {"module_name": "fast_neighborhood_profiles.main", "qualpath": "save_and_load_pandas_df_to_lf"},

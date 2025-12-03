@@ -130,9 +130,9 @@ def format_lazyframe(lf, sample_size=None, sample_seed=42):
     return dict(pldf=pldf)
 
 
-def save_and_load_pandas_df_to_lf(pd_df, handle, file_format, index_column_name=None):
-    save_pandas_df_to_file(pd_df, handle=handle, file_format=file_format, topdir=framework_utils.session_dir(), subdir="input")
-    lf = get_lf(handle, topdir=framework_utils.session_dir(), subdir="input", file_format=file_format)
+def save_and_load_pandas_df_to_lf(pd_df, handle, file_format, topdir, index_column_name=None):
+    save_pandas_df_to_file(pd_df, handle=handle, file_format=file_format, topdir=topdir, subdir="input")
+    lf = get_lf(handle, topdir=topdir, subdir="input", file_format=file_format)
     if index_column_name is not None:
         lf = lf.with_row_index(name=index_column_name)
     return lf
@@ -175,46 +175,52 @@ def get_objects_list(upload_location):
 
 
 # Load the lazyframe from the specified file using an intermediate file.
-def load_unified_input_file_data(file_format, db_schema, bucket_name, object_filename):
+def load_unified_input_file_data(file_format, db_schema, bucket_name, object_filename, topdir):
 
-    # Shortcuts, the first for generalizability.
-    full_filenames = [object_filename]
-    input_dir = os.path.join(framework_utils.session_dir(), "input")
+    try:
 
-    # Download the file from the server.
-    pa.download_objects_parallel(
-        object_names=full_filenames,
-        db_schema=db_schema,
-        bucket_name=bucket_name,
-        dest_dir=input_dir,
-    )
+        # Shortcuts, the first for generalizability.
+        full_filenames = [object_filename]
+        input_dir = os.path.join(topdir, "input")
 
-    # Unzip the downloaded file.
-    unzipped_paths = []
-    for full_filename in full_filenames:
-        with zipfile.ZipFile(os.path.join(input_dir, full_filename), 'r') as zip_ref:
-            zip_ref.extractall(input_dir)
-        base_name = full_filename.removesuffix(".zip")
-        os.remove(os.path.join(input_dir, full_filename))
-        unzipped_paths.append(os.path.join(input_dir, base_name))
+        # Download the file from the server.
+        pa.download_objects_parallel(
+            object_names=full_filenames,
+            db_schema=db_schema,
+            bucket_name=bucket_name,
+            dest_dir=input_dir,
+        )
 
-    # Generate an intermediate file from which to load the lazyframe.
-    for unzipped_path in unzipped_paths:
-        filename = os.path.basename(unzipped_path)
-        filepath = subset_csv_to_file(csv_filename=filename, handle="unified_input_file", topdir=framework_utils.session_dir(), subdir="input", file_format=file_format)
-        os.remove(unzipped_path)
+        # Unzip the downloaded file.
+        unzipped_paths = []
+        for full_filename in full_filenames:
+            with zipfile.ZipFile(os.path.join(input_dir, full_filename), 'r') as zip_ref:
+                zip_ref.extractall(input_dir)
+            base_name = full_filename.removesuffix(".zip")
+            os.remove(os.path.join(input_dir, full_filename))
+            unzipped_paths.append(os.path.join(input_dir, base_name))
 
-    # Load the lazyframe.
-    lf = get_lf("unified_input_file", topdir=framework_utils.session_dir(), subdir="input", file_format=file_format)
+        # Generate an intermediate file from which to load the lazyframe.
+        for unzipped_path in unzipped_paths:
+            filename = os.path.basename(unzipped_path)
+            filepath = subset_csv_to_file(csv_filename=filename, handle="unified_input_file", topdir=topdir, subdir="input", file_format=file_format)
+            os.remove(unzipped_path)
 
-    # Store the local filepath relative to the session directory.
-    local_filepath = filepath.removeprefix(framework_utils.session_dir() + os.sep)
+        # Load the lazyframe.
+        lf = get_lf("unified_input_file", topdir=topdir, subdir="input", file_format=file_format)
 
-    # Set the index.
-    lf = lf.with_row_index(name="input_index")
+        # Store the local filepath relative to the session directory.
+        local_filepath = filepath.removeprefix(topdir + os.sep)
 
-    # Return the lazyframe.
-    return lf
+        # Set the index.
+        lf = lf.with_row_index(name="input_index")
+
+        # Return the lazyframe.
+        return lf
+    
+    except Exception as e:
+        framework_utils.multiprint(f"Unable to load unified input file data (inputs: file_format={file_format}, db_schema={db_schema}, bucket_name={bucket_name}, object_filename={object_filename}): {e}", (print,))
+        raise
 
 
 def get_min_positive_values(pd_df, group_col="TMA_core_id", boolean_column="area_filter"):
@@ -863,7 +869,7 @@ def generate_umap_lf_input(lf, unique_labels, dist_bin_um_list=[25, 50, 100, 150
     # Save the unique labels/lineages/species. This is only used for Andrew's counting method.
     spatial_umap.species = unique_labels
 
-    # Ensure results directory exists.
+    # Ensure results directory exists. Probably only needed if doing custom areas.
     os.makedirs(os.path.join(results_topdir, subdir), exist_ok=True)
 
     # Determine which counting method to use based on the input parameter. Note I have shown that the methods precisely agree.

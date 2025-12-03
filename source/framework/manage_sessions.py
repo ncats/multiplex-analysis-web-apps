@@ -62,7 +62,7 @@ def load_session_state():
         for key in list(st.session_state.keys()):
             del st.session_state[key]
 
-        framework_utils.deserialize_binary_files_to_dictionary("session_state", session_dir, dictionary=st.session_state, extra_dict_to_load=startup_keys)
+        framework_utils.deserialize_binary_files_to_dictionary("session_state", session_dir, dictionary=st.session_state, extra_dict_to_load=startup_keys, topdir_for_lazyframe_data=session_dir)
 
         # # Restore the startup keys. Removing this for the time being since we load them in framework_utils.deserialize_binary_files_to_dictionary() above.
         # st.session_state.update(startup_keys)
