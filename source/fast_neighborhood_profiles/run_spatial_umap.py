@@ -141,12 +141,6 @@ def main():
             }
         del st.session_state["JOB_JUST_COMPLETED"]
 
-    # # Note that if I simply run this line, only then does sumap_cell_index column get recognized. Really strange:
-    # # st.write(st.session_state["LAZYFRAMES"]["sumap_cells"]["lf"].collect_schema())
-    # # Because that's true, let's force the index creation just to be safe.
-    # if "sumap_cell_index" not in st.session_state["LAZYFRAMES"]["sumap_cells"]["lf"].collect_schema().names():
-    #     st.session_state["LAZYFRAMES"]["sumap_cells"]["lf"] = st.session_state["LAZYFRAMES"]["sumap_cells"]["lf"].with_row_index(name="sumap_cell_index")
-
     # Get a shortcut to the cells lazyframe.
     lf = st.session_state["LAZYFRAMES"]["sumap_cells"]["lf"]
 

@@ -36,8 +36,9 @@ def main():
     # Get the main lazyframe from session state.
     lf = st.session_state["LAZYFRAMES"]["sumap_cells"]["lf"]
 
-    # Add a row index to the lazyframe. These are indices *after* potentially dropping entire images. They are consistent with spatial_umap.cells and spatial_umap.density.
+    # Add a row index to the lazyframe. These are indices *after* potentially dropping entire images in main.generate_umap_lf_input(). They are consistent with spatial_umap.cells and spatial_umap.density.
     # Delete the assertion and all_equal check eventually after never running into an assertion error for a while.
+    lf.collect_schema()  # For some reason, this line is required to recognize the previous .with_row_index() addition of "sumap_cell_index" in run_spatial_umap.py. In particular, it must be above the line below that adds another row index. Maybe the second .with_row_index() nullifies the first before the schema is collected? Seems buggy. Regardless, sometime soon we can migrate from "index" to sumap_cell_index and do away with the latter .with_row_index() immediately below altogether.
     lf_indexed = lf.with_row_index(name="index")
     all_equal = (
         lf_indexed
