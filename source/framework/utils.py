@@ -109,6 +109,12 @@ def deconstruct_object(path, value, value_type):
         elif value_type == "Platform":
             multiprint("Deconstructing Platform object. Nothing is actually being done since this will always get overwritten by the app that loads in the session state; see manage_sessions.load_session_state().", (print,))
             return {"object_type": "Deconstructed Platform"}
+        elif value_type == "Standardized":
+            multiprint("Deconstructing dataset_formats.Standardized object.", (print,))
+            standardized = value
+            component_keys = ["images_to_analyze", "phenotypes_to_analyze", "input_datafile", "sep", "data", "coord_units_in_microns", "min_coord_spacing_", "species_equivalents", "mapping_dict", "roi_width", "overlap", "phenotype_identification_tsv_file", "extra_cols_to_keep"]
+            components = {attr: getattr(standardized, attr) for attr in component_keys if hasattr(standardized, attr)}
+            return {"object_type": "Deconstructed Standardized", "components": components}
         else:
             return value
     except Exception as e:
