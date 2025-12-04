@@ -35,10 +35,9 @@ APP_SHORTNAME = os.getenv('APP_SHORTNAME')
 def get_connection_pool(db_url: str):
     """Return a psycopg v3 ConnectionPool for a given Postgres conninfo.
 
-    Notes:
-    - Keep Streamlit caching (one pool per db_url per process).
-    - Disable background worker threads to avoid Streamlit shutdown warnings.
-    - Do not register atexit handlers in a rerun-heavy Streamlit app.
+    - One cached pool per db_url.
+    - No atexit handlers (Streamlit rerun-heavy environment).
+    - Use a single worker to satisfy psycopg_pool requirement.
     """
     if framework_utils.platform() != "local":
         return None  # Snowflake path does not use PostgreSQL.
@@ -46,15 +45,32 @@ def get_connection_pool(db_url: str):
         pool = ConnectionPool(
             conninfo=db_url,
             min_size=1,
-            max_size=10,
-            timeout=30,      # seconds to wait for a free connection (adjust if needed)
-            num_workers=0,  # remove scheduler threads to avoid Streamlit shutdown warnings
+            max_size=5,
+            timeout=10,
+            num_workers=1,  # minimum allowed
         )
-        # Removed: atexit.register(lambda: pool.close())
         return pool
     except Exception as e:
         framework_utils.multiprint(f"Failed to create database pool: {e}", (print,))
         raise
+
+
+def _close_all_pools():
+    """Close all cached pools to stop scheduler threads cleanly on shutdown.
+
+    While this opens all four pools if they're not already opened, we always open them all anyway; see pa.set_up_postgresql() in startup.py.
+    """
+    if framework_utils.platform() != "local":
+        return
+    for db_url in (DB_URL_COMMON, DB_URL_GROUP, DB_URL_APP, DB_URL_DATA_MANAGER):
+        try:
+            if not db_url:
+                continue
+            pool = get_connection_pool(db_url)
+            if pool:
+                pool.close()
+        except Exception as e:
+            framework_utils.multiprint(f"Error closing pool for {db_url}: {e}", (print,))
 
 
 # Create four tables for the app. Note it should be largely consistent with what's in 01_set_up_non_user_objects.sql for now, and later on we should probably have this function, if even still necessary, just run setup.sql so we don't have to maintain this logic in two places.
@@ -1271,6 +1287,7 @@ def submit_job(job_id, blocking=True, selected_compute_resource: str = None):
 def shut_down_app():
     if framework_utils.platform() == "local":
         try:
+            _close_all_pools()  # ensure psycopg_pool threads stop cleanly
             resp = requests.post("http://docker_orchestrator:8080/shutdown", timeout=10)
             resp.raise_for_status()
             st.success("Application is shutting down...")
