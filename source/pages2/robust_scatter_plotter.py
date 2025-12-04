@@ -237,6 +237,10 @@ def draw_scatter_plot_with_options():
         st.session_state['rsp__show_scatter_plot'] = False
     if st.toggle('Show scatter plot', key='rsp__show_scatter_plot'):
 
+        # Make grid lines optional.
+        st.session_state.setdefault('rsp__show_grid_lines', True)
+        show_grid_lines = st.checkbox("Show grid lines", key='rsp__show_grid_lines')
+
         # Optionally set up another filter
         if add_another_filter:
             filter_loc = df[column_to_filter_by].isin(values_to_filter_by)
@@ -305,6 +309,10 @@ def draw_scatter_plot_with_options():
             height=800,  # Set the height of the figure
             width=800,  # Set the width of the figure
         )
+
+        # Optionally show the grid lines.
+        fig.update_xaxes(showgrid=show_grid_lines)
+        fig.update_yaxes(showgrid=show_grid_lines)
 
         # Plot the plotly chart in Streamlit
         st.plotly_chart(fig, use_container_width=True)
