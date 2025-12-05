@@ -119,7 +119,7 @@ def deconstruct_object(path, value, value_type):
         else:
             return value
     except Exception as e:
-        multiprint(f"Failed to deconstruct object in dictionary path {".".join(str(x) for x in path)} of type {value_type}: {e}", (print,))
+        multiprint(f"Failed to deconstruct object in dictionary path {'.'.join(str(x) for x in path)} of type {value_type}: {e}", (print,))
         raise
 
 
