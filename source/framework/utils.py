@@ -13,6 +13,7 @@ import importlib
 import operator
 import foundry_IO_lib
 import benchmark_collector
+import dataset_formats
 
 
 ST_KEY_PREFIX_STARTUP = "startup.py__"
@@ -155,6 +156,13 @@ def reconstruct_object(value, value_type):
         elif value_type == "Platform":
             multiprint("Reconstructing Platform object. Nothing is actually being done since this will always get overwritten by the app that loads in the session state; see manage_sessions.load_session_state().", (print,))
             return None
+        elif value_type == "Standardized":
+            multiprint("Reconstructing dataset_formats.Standardized object.", (print,))
+            components = value["components"]
+            standardized = dataset_formats.Standardized(datafile_path_or_df=components.data, coord_units_in_microns=components.coord_units_in_microns, images_to_analyze=components.images_to_analyze, phenotypes_to_analyze=components.phenotypes_to_analyze, min_coord_spacing=components.min_coord_spacing_, species_equivalents=components.species_equivalents, mapping_dict=components.mapping_dict, roi_width=components.roi_width, overlap=components.overlap, phenotype_identification_tsv_file=components.phenotype_identification_tsv_file, extra_cols_to_keep=components.extra_cols_to_keep)
+            for attr_key, attr_value in components.items():
+                setattr(standardized, attr_key, attr_value)
+            return standardized  # Return the Standardized object.
         else:  # Functionality for this branch *should* be different than in deconstruct_object(). Overall, whether deconstructing or reconstructing, we should return a new object or the original one.
             raise ValueError(f"Unknown object type for reconstruction: {value_type}")
     except Exception as e:

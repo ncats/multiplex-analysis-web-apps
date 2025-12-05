@@ -27,7 +27,7 @@ def main():
     with st.columns(2)[0]:
         upload_location = "Available input files"
         objects_list = get_objects_list(upload_location)
-        unified_datafile_mapping = {fullname.removeprefix("mawa-unified_datafile-").removesuffix(".csv.zip"): fullname for fullname in objects_list if fullname.startswith("mawa-unified_datafile-") and fullname.endswith(".csv.zip")}
+        unified_datafile_mapping = {fullname.removeprefix("mawa-unified_datafile-").removesuffix(".csv.zip").removesuffix(".csv.gz"): fullname for fullname in objects_list if fullname.startswith("mawa-unified_datafile-") and fullname.endswith((".csv.zip", ".csv.gz"))}
         objects_list = unified_datafile_mapping.keys()
         column_heading = "Unified input file"
         key = "current_contents_table__do_not_persist"
