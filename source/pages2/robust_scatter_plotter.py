@@ -153,9 +153,9 @@ def draw_scatter_plot_with_options():
         # Optionally navigate through the images using Previous and Next buttons
         cols = st.columns(2)
         with cols[0]:
-            st.button('Previous image', on_click=go_to_previous_image, args=(unique_images,), disabled=(image_to_view == unique_images[0]), use_container_width=True)
+            st.button('Previous image', on_click=go_to_previous_image, args=(unique_images,), disabled=(image_to_view == unique_images[0]), width="stretch")
         with cols[1]:
-            st.button('Next image', on_click=go_to_next_image, args=(unique_images, ), disabled=(image_to_view == unique_images[-1]), use_container_width=True)
+            st.button('Next image', on_click=go_to_next_image, args=(unique_images, ), disabled=(image_to_view == unique_images[-1]), width="stretch")
 
     # In the second column...
     with settings_columns_main[1]:
@@ -237,9 +237,30 @@ def draw_scatter_plot_with_options():
         st.session_state['rsp__show_scatter_plot'] = False
     if st.toggle('Show scatter plot', key='rsp__show_scatter_plot'):
 
-        # Make grid lines optional.
-        st.session_state.setdefault('rsp__show_grid_lines', True)
-        show_grid_lines = st.checkbox("Show grid lines", key='rsp__show_grid_lines')
+        more_options_columns = st.columns(2)
+        with more_options_columns[0]:
+
+            # Make grid lines optional.
+            st.session_state.setdefault('rsp__show_grid_lines', True)
+            show_grid_lines = st.checkbox("Show grid lines", key='rsp__show_grid_lines')
+
+            # Allow the user to set the marker size if not using coordinate mins and maxs, which don't use markers.
+            if not use_coordinate_mins_and_maxs:
+                st.session_state.setdefault('rsp__marker_size', 5)
+                marker_size = st.slider('Marker size:', min_value=1, max_value=50, step=1, key='rsp__marker_size')
+
+            # Allow the user to set export options.
+            st.session_state.setdefault('rsp__print_width_in', 7.0)
+            st.session_state.setdefault('rsp__print_height_in', 4.5)
+            st.session_state.setdefault('rsp__target_dpi', 600)
+            st.session_state.setdefault('rsp__figure_name', "figure")
+            figure_name = st.text_input('Figure name:', key='rsp__figure_name')
+
+        with more_options_columns[1]:
+            print_width_in = st.number_input('Print width (inches):', min_value=1.0, max_value=20.0, step=0.1, key='rsp__print_width_in')
+            print_height_in = st.number_input('Print height (inches):', min_value=1.0, max_value=20.0, step=0.1, key='rsp__print_height_in')
+            target_dpi = st.number_input('Target DPI:', min_value=72, max_value=1200, step=1, key='rsp__target_dpi')
+            final_figure_name = f"{figure_name}_{print_width_in}in_x_{print_height_in}in_{target_dpi}dpi"
 
         # Optionally set up another filter
         if add_another_filter:
@@ -276,7 +297,18 @@ def draw_scatter_plot_with_options():
 
                 # Works but doesn't scale the shapes
                 if not use_coordinate_mins_and_maxs:
-                    fig.add_trace(go.Scattergl(x=df_group['Cell X Position'], y=df_group['Cell Y Position'], mode='markers', name=value_str_cleaned, marker_color=color_dict[value_to_plot], hovertemplate=df_group['hover_label']))
+                    fig.add_trace(go.Scattergl(
+                        x=df_group['Cell X Position'], 
+                        y=df_group['Cell Y Position'], 
+                        mode='markers', 
+                        name=value_str_cleaned, 
+                        marker=dict(
+                            color=color_dict[value_to_plot],
+                            size=marker_size,
+                            opacity=opacity
+                        ),
+                        hovertemplate=df_group['hover_label']
+                    ))
 
                 # Works really well
                 else:
@@ -314,8 +346,23 @@ def draw_scatter_plot_with_options():
         fig.update_xaxes(showgrid=show_grid_lines)
         fig.update_yaxes(showgrid=show_grid_lines)
 
+        # Derived pixel size for export
+        export_width_px = int(print_width_in * target_dpi)   # e.g., 7.0 * 600 = 4200 px
+        export_height_px = int(print_height_in * target_dpi) # e.g., 4.5 * 600 = 2700 px
+
+        # ---- Configure the built-in "Download as PNG" button ----
+        config = {
+            "toImageButtonOptions": {
+                "format": "png",
+                "filename": final_figure_name,
+                "height": export_height_px,
+                "width": export_width_px,
+                "scale": 1,  # keep 1 since width/height already encode 600 DPI
+            },
+        }
+
         # Plot the plotly chart in Streamlit
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, config=config)
 
         # Optionally display the value counts and percentages for the selected image and column.
         if 'rsp__show_value_counts_and_percentages_selected_image' not in st.session_state:
@@ -373,7 +420,7 @@ def main():
                 percent_match_holder.append((image_loc & match_loc).sum() / image_loc.sum() * 100)
             df_boxplot = pd.DataFrame({'Image': unique_images, 'Percent': percent_match_holder, 'Trace': trace_value_holder})
             fig = px.box(df_boxplot, x='Trace', y='Percent', title=f'Box and whisker plot for {box_and_whisker_plot_value}', points='all')
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig)
             with st.expander('Data in table form:'):
                 st.dataframe(df_boxplot)
 
