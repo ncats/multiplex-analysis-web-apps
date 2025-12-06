@@ -155,7 +155,7 @@ class DataframeEditor:
         df_name = self.df_name
         return reconstruct_edited_dataframe(st.session_state[df_name], st.session_state[df_name + '_changes_dict'])
 
-    def dataframe_editor(self, current_page_key='current_page_name', previous_page_key='previous_page_name', dynamic_rows=True, reset_data_editor_button=True, reset_data_editor_button_text='Reset data editor', on_change=None, hide_index=None, column_config=None, debug=False):
+    def dataframe_editor(self, current_page_key='current_page_name', previous_page_key='previous_page_name', dynamic_rows=True, reset_data_editor_button=True, reset_data_editor_button_text='Reset data editor', on_change=None, hide_index=None, column_config=None, debug=False, disabled=False):
         '''
         Function to perform all data editor functionalities for a dataframe that users should be able to manipulate
         '''
@@ -176,7 +176,7 @@ class DataframeEditor:
             self.update_editor_contents(new_df_contents=self.reconstruct_edited_dataframe(), reset_key=False)
 
         # Output a data editor for a dataframe of interest
-        st.data_editor(st.session_state[df_name], key=key_for_data_editor_widget, on_change=save_data_editor_changes, args=(df_name + '_changes_dict', key_for_data_editor_widget, on_change), num_rows=('dynamic' if dynamic_rows else 'fixed'), hide_index=hide_index, column_config=column_config)
+        st.data_editor(st.session_state[df_name], key=key_for_data_editor_widget, on_change=save_data_editor_changes, args=(df_name + '_changes_dict', key_for_data_editor_widget, on_change), num_rows=('dynamic' if dynamic_rows else 'fixed'), hide_index=hide_index, column_config=column_config, disabled=disabled)
 
         # Debugging information
         if debug:

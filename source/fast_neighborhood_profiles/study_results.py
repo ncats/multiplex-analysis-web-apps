@@ -3,6 +3,8 @@ import streamlit as st
 from fast_neighborhood_profiles import main as fnp_main
 import polars as pl
 from functools import partial
+import streamlit_dataframe_editor as sde
+import pandas as pd
 
 # Define session state key prefixes.
 ST_KEY_PREFIX = "study_results.py__"
@@ -149,6 +151,35 @@ def main():
         st.plotly_chart(fig)
         if extra_return_info:
             st.write(extra_return_info)
+
+        # Allow user to pick color of selected cells for downstream plotting.
+        key = ST_KEY_PREFIX + "selected_color"
+        st.session_state.setdefault(key, "#FF0000")
+        selected_color = st.color_picker("Select color for downstream plotting of selected cells (can edit later)", key=key)
+
+        # Allow user to choose a label for the selected cells for downstream plotting.
+        key = ST_KEY_PREFIX + "selected_label"
+        st.session_state.setdefault(key, "")
+        selected_label = st.text_input("Enter label for downstream plotting of selected cells (can edit later)", key=key)
+
+        # Ensure the selections dataframe is already defined since we're about to update it.
+        key = ST_KEY_PREFIX + "de_selections"
+        if key not in st.session_state:
+            st.session_state[key] = sde.DataframeEditor(df_name=ST_KEY_PREFIX + "df_selections", default_df_contents=pd.DataFrame(columns=["label", "number_of_cells", "input_indices", "color"]))
+
+        # Allow user to add the selected cells to a selections dataframe.
+        if st.button("Add selected cells to selections table"):
+            df = st.session_state[ST_KEY_PREFIX + "de_selections"].reconstruct_edited_dataframe()
+            new_row = {
+                "label": selected_label if selected_label else f"Selection {len(df) + 1}",
+                "number_of_cells": len(selected_indices_for_neighborhood_profile),
+                "input_indices": set(lf.join(pl.LazyFrame({"sumap_cell_index": selected_indices_for_neighborhood_profile}), on="sumap_cell_index", how="inner").select(pl.col("input_index")).collect().to_series().to_list()),
+                "color": selected_color,
+            }
+            df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+            st.session_state[ST_KEY_PREFIX + "de_selections"].update_editor_contents(new_df_contents=df)
+
+    st.session_state[key].dataframe_editor(reset_data_editor_button_text='Reset selections', disabled=["number_of_cells", "input_indices"])
 
 
 # Run the main function if this script is executed.
