@@ -852,8 +852,8 @@ def download_objects_parallel(
     bucket_name: str,
     object_names: list[str],
     dest_dir: str,
-    db_schema: str | None = None,
-    max_workers: int | None = None,
+    db_schema=None,
+    max_workers=None,
     chunk_size: int = 1024 * 1024,
     gunzip_if_gz: bool = True,
 ):
@@ -967,10 +967,10 @@ def download_objects_parallel(
 def upload_objects_parallel(
     bucket_name: str,
     file_paths: list,  # Iterable of filesystem path strings and/or Streamlit UploadedFile objects.
-    db_schema: str | None = None,
+    db_schema=None,
     gzip_if_possible: bool = False,
     overwrite: bool = False,
-    max_workers: int | None = None,
+    max_workers=None,
     chunk_size: int = 1024 * 1024,
 ):
     """Upload path strings or Streamlit UploadedFile objects to object storage for the active platform.
@@ -1151,7 +1151,7 @@ def upload_objects_parallel(
             raise
 
 
-def delete_objects(bucket_name: str, object_names: list[str], db_schema: str | None = None):
+def delete_objects(bucket_name: str, object_names: list[str], db_schema=None):
     results = {}
     if framework_utils.platform() == "local":
         try:
