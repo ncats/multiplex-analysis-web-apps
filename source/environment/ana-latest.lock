@@ -449,7 +449,9 @@ https://conda.anaconda.org/conda-forge/linux-64/statsmodels-0.14.5-py39h7c0b2d6_
 https://conda.anaconda.org/conda-forge/noarch/plotnine-0.13.6-pyhd8ed1ab_1.conda#87246d64098c97a7516400c87f9da413
 https://conda.anaconda.org/conda-forge/linux-64/polars-1.27.1-py39h2a4a510_3.conda#fba08963eaa1f954480045d033d1221e
 https://conda.anaconda.org/conda-forge/noarch/pooch-1.8.2-pyhd8ed1ab_3.conda#d2bbbd293097e664ffb01fc4cdaf5729
-https://conda.anaconda.org/conda-forge/linux-64/psycopg2-2.9.10-py39h2bc273e_1.conda#b231bdbe0ed5fef869b8ac7ab9f5117a
+https://conda.anaconda.org/conda-forge/linux-64/psycopg-c-3.2.9-py39hbe6f950_0.conda#b75ab30624a60c6845b6aa2e6af25ea4
+https://conda.anaconda.org/conda-forge/noarch/psycopg-3.2.9-pyhd5ab78c_0.conda#117e290f458e3cd700bc6b8b7452ec76
+https://conda.anaconda.org/conda-forge/noarch/psycopg-pool-3.2.6-pyhd8ed1ab_0.conda#03c5fc1b4fb6ca3745e28f36bec562a2
 https://conda.anaconda.org/conda-forge/noarch/pybind11-global-3.0.1-pyhc7ab6ef_0.conda#fe10b422ce8b5af5dab3740e4084c3f9
 https://conda.anaconda.org/conda-forge/noarch/pybind11-3.0.1-pyh7a1b43c_0.conda#70ece62498c769280f791e836ac53fff
 https://conda.anaconda.org/conda-forge/noarch/pygments-2.19.2-pyhd8ed1ab_0.conda#6b6ece66ebcae2d5f326c77ef2c5a066
