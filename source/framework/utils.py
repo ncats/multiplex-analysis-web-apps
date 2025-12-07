@@ -14,6 +14,7 @@ import operator
 import foundry_IO_lib
 import benchmark_collector
 import dataset_formats
+import streamlit_dataframe_editor as sde
 
 
 ST_KEY_PREFIX_STARTUP = "startup.py__"
@@ -116,6 +117,13 @@ def deconstruct_object(path, value, value_type):
             component_keys = ["images_to_analyze", "phenotypes_to_analyze", "input_datafile", "sep", "data", "coord_units_in_microns", "min_coord_spacing_", "species_equivalents", "mapping_dict", "roi_width", "overlap", "phenotype_identification_tsv_file", "extra_cols_to_keep"]
             components = {attr: getattr(standardized, attr) for attr in component_keys if hasattr(standardized, attr)}
             return {"object_type": "Deconstructed Standardized", "components": components}
+        elif value_type == "DataframeEditor":
+            multiprint("Deconstructing DataframeEditor object.", (print,))
+            de = value
+            component_keys = ["df_name", "default_df_contents"]
+            components = {attr: getattr(de, attr) for attr in component_keys if hasattr(de, attr)}
+            components["reconstructed_contents"] = de.reconstruct_edited_dataframe()
+            return {"object_type": "Deconstructed DataframeEditor", "components": components}
         else:
             return value
     except Exception as e:
@@ -163,6 +171,15 @@ def reconstruct_object(value, value_type):
             for attr_key, attr_value in components.items():
                 setattr(standardized, attr_key, attr_value)
             return standardized  # Return the Standardized object.
+        elif value_type == "DataframeEditor":
+            multiprint("Reconstructing DataframeEditor object.", (print,))
+            components = value["components"]
+            de = sde.DataframeEditor(df_name=components["df_name"], default_df_contents=components["default_df_contents"])
+            for attr_key, attr_value in components.items():
+                if attr_key != "reconstructed_contents":
+                    setattr(de, attr_key, attr_value)
+            de.update_editor_contents(new_df_contents=components["reconstructed_contents"])
+            return de  # Return the DataframeEditor object.
         else:  # Functionality for this branch *should* be different than in deconstruct_object(). Overall, whether deconstructing or reconstructing, we should return a new object or the original one.
             raise ValueError(f"Unknown object type for reconstruction: {value_type}")
     except Exception as e:
