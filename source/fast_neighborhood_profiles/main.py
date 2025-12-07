@@ -17,6 +17,38 @@ import scipy.spatial
 import plotly.colors
 
 
+def add_new_label_column(lf, updates_pd, updates_index_column="sumap_cell_indices", main_index_column="sumap_cell_index", updates_label_column="label", new_label_column="neighborhood_type", keep="last", missing_label_value="Other"):
+    # 0) Ensure join key dtype in lf is Int64 (only if needed).
+    lf_schema = lf.collect_schema()
+    if lf_schema[main_index_column] != pl.Int64:
+        lf = lf.with_columns(pl.col(main_index_column).cast(pl.Int64))
+ 
+    # 1) Convert pandas to Polars and explode to make a (index -> label) mapping.
+    lf_updates = pl.from_pandas(updates_pd).lazy()
+    mapping_lf = (
+        lf_updates
+        .explode(updates_index_column)                      # each index becomes a row
+        .rename({updates_index_column: main_index_column}) # align column name
+        .select(
+            pl.col(main_index_column).cast(pl.Int64),
+            pl.col(updates_label_column).cast(pl.Categorical).alias(new_label_column),
+        )
+        .unique(subset=[main_index_column], keep=keep)  # resolve duplicates if an index appears in multiple labels
+    )
+
+    # 2) Left-join onto main LazyFrame.
+    lf2 = (
+        lf.join(mapping_lf, on=main_index_column, how="left")
+        .with_columns(
+            pl.coalesce([pl.col(new_label_column), pl.lit(missing_label_value)])
+                .alias(new_label_column)
+        )
+    )
+
+    # 3) Return updated LazyFrame.
+    return lf2
+
+
 def fast_neighbors_counts_for_block2(df_image, image_name, coord_column_names, phenotypes, radii, phenotype_column_name, max_chunk_size_in_mb=200):
     # A block can be an image, ROI, etc. It's the entity over which it makes sense to calculate the neighbors of centers. Here, we're assuming it's an image, but in the SIT for e.g., we generally want it to refer to a ROI.
 

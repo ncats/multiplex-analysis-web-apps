@@ -198,6 +198,15 @@ def main():
     with selections_table_columns[1]:
         st.dataframe(st.session_state[ST_KEY_PREFIX + "de_selections"].reconstruct_edited_dataframe(), on_select=activate_selection_group, key=ST_KEY_PREFIX + "selections_table__do_not_persist", selection_mode="single-row")
 
+    key = ST_KEY_PREFIX + "keep_strategy"
+    st.session_state.setdefault(key, "any")
+    keep_strategy = st.radio("Select keep strategy for resolving multiple labels for a given cell when registering neighborhood types:", options=['first', 'last', 'any', 'none'], key=key, help='"none" drops duplicates; "any" is non-deterministic but fast.', horizontal=True)
+    
+    with st.button("Register selected neighborhood types"):
+        df = st.session_state[ST_KEY_PREFIX + "de_selections"].reconstruct_edited_dataframe()
+        params = dict(updates_pd=df, keep=keep_strategy)
+        fnp_main.add_new_label_column(lf=lf, **params)
+
 
 # Run the main function if this script is executed.
 if __name__ == "__main__":
