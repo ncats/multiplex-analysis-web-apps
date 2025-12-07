@@ -171,7 +171,7 @@ def main():
 
         # Allow user to pick color of selected cells for downstream plotting.
         key = ST_KEY_PREFIX + "selected_color"
-        st.session_state.setdefault(key, "#FF0000")
+        st.session_state.setdefault(key, "#FF0000")  # FF0000 is red
         selected_color = st.color_picker("Select color for downstream plotting of selected cells (can edit later)", key=key)
 
         # Ensure the selections dataframe is already defined since we're about to update it.
@@ -192,20 +192,33 @@ def main():
             st.session_state[ST_KEY_PREFIX + "de_selections"].update_editor_contents(new_df_contents=df)
 
     # Plot the editable and selectable tables side-by-side.
+    st.write("Select a row in the neighborhood types table below to highlight the corresponding cells in the UMAP, real space, and neighborhood profile plots above.")
     selections_table_columns = st.columns(2)
     with selections_table_columns[0]:
         st.session_state[key].dataframe_editor(reset_data_editor_button_text='Reset selections', disabled=["number_of_cells", "sumap_cell_indices"])
     with selections_table_columns[1]:
         st.dataframe(st.session_state[ST_KEY_PREFIX + "de_selections"].reconstruct_edited_dataframe(), on_select=activate_selection_group, key=ST_KEY_PREFIX + "selections_table__do_not_persist", selection_mode="single-row")
 
+    # Add option for user to modify how to keep duplicate cell assignments when registering neighborhood types.
     key = ST_KEY_PREFIX + "keep_strategy"
     st.session_state.setdefault(key, "any")
     keep_strategy = st.radio("Select keep strategy for resolving multiple labels for a given cell when registering neighborhood types:", options=['first', 'last', 'any', 'none'], key=key, help='"none" drops duplicates; "any" is non-deterministic but fast.', horizontal=True)
     
+    # Allow user to register the selected neighborhood types.
     with st.button("Register selected neighborhood types"):
+        missing_label_value = "Other"
         df = st.session_state[ST_KEY_PREFIX + "de_selections"].reconstruct_edited_dataframe()
-        params = dict(updates_pd=df, keep=keep_strategy)
-        fnp_main.add_new_label_column(lf=lf, **params)
+        params = dict(updates_pd=df, keep=keep_strategy, missing_label_value=missing_label_value)
+        lf_neighborhoods = fnp_main.add_new_label_column(lf=lf, **params)
+        st.session_state["LAZYFRAMES"]["neighborhood_types"] = {
+            "lf": lf_neighborhoods,
+            "function_metadata": {"module_name": "fast_neighborhood_profiles.main", "qualpath": "add_new_label_column"},
+            "input_dataset": {"type": "lf", "keys": ("sumap_cells",)},
+            "params": params,
+        }
+        color_map = dict(zip(df["label"], df["color"]))
+        color_map[missing_label_value] = "#808080"
+        st.session_state[ST_KEY_PREFIX + "neighborhood_types_color_map"] = color_map
 
 
 # Run the main function if this script is executed.
