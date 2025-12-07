@@ -12,7 +12,19 @@ ST_KEY_PREFIX_PHENOTYPE = "phenotype.py__"
 ST_KEY_PREFIX_SUMAP = "run_spatial_umap.py__"
 
 
-# Obtain the main indices from a selection on one of the scatter plots.
+# Activate highlights on all three plots.
+def activate_selection_group():
+    selections_table = st.session_state[ST_KEY_PREFIX + "selections_table__do_not_persist"]
+    rows = selections_table["selection"]["rows"]
+    if rows:
+        df = st.session_state[ST_KEY_PREFIX + "de_selections"].reconstruct_edited_dataframe()
+        sumap_cell_indices = df.iloc[rows]["sumap_cell_indices"]  # sumap_cell_indices for the selected selection group.
+        st.session_state[ST_KEY_PREFIX + "selected_indices_for_umap"] = sumap_cell_indices
+        st.session_state[ST_KEY_PREFIX + "selected_indices_for_real_space"] = sumap_cell_indices
+        st.session_state[ST_KEY_PREFIX + "selected_indices_for_neighborhood_profile"] = sumap_cell_indices
+
+
+# Obtain the main indices from a selection on one of the scatter plots. Activate just the "other" plot and the neighborhood profile plot.
 def get_selected_indices(selected_handle):
     both_handles = {"umap", "real_space"}
     other_handle = (both_handles - {selected_handle}).pop()
@@ -165,7 +177,7 @@ def main():
         # Ensure the selections dataframe is already defined since we're about to update it.
         key = ST_KEY_PREFIX + "de_selections"
         if key not in st.session_state:
-            st.session_state[key] = sde.DataframeEditor(df_name=ST_KEY_PREFIX + "df_selections", default_df_contents=pd.DataFrame(columns=["label", "number_of_cells", "input_indices", "color"]))
+            st.session_state[key] = sde.DataframeEditor(df_name=ST_KEY_PREFIX + "df_selections", default_df_contents=pd.DataFrame(columns=["label", "number_of_cells", "sumap_cell_indices", "color"]))
 
         # Allow user to add the selected cells to a selections dataframe.
         if st.button("Add selected cells to selections table"):
@@ -173,13 +185,18 @@ def main():
             new_row = {
                 "label": selected_label if selected_label else f"Selection {len(df) + 1}",
                 "number_of_cells": len(selected_indices_for_neighborhood_profile),
-                "input_indices": set(lf.join(pl.LazyFrame({"sumap_cell_index": selected_indices_for_neighborhood_profile}), on="sumap_cell_index", how="inner").select(pl.col("input_index")).collect().to_series().to_list()),
+                "sumap_cell_indices": selected_indices_for_neighborhood_profile,  # This is the most efficient way to get the input indices: set(lf.join(pl.LazyFrame({"sumap_cell_index": selected_indices_for_neighborhood_profile}), on="sumap_cell_index", how="inner").select(pl.col("input_index")).collect().to_series().to_list()),
                 "color": selected_color,
             }
             df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
             st.session_state[ST_KEY_PREFIX + "de_selections"].update_editor_contents(new_df_contents=df)
 
-    st.session_state[key].dataframe_editor(reset_data_editor_button_text='Reset selections', disabled=["number_of_cells", "input_indices"])
+    # Plot the editable and selectable tables side-by-side.
+    selections_table_columns = st.columns(2)
+    with selections_table_columns[0]:
+        st.session_state[key].dataframe_editor(reset_data_editor_button_text='Reset selections', disabled=["number_of_cells", "sumap_cell_indices"])
+    with selections_table_columns[1]:
+        st.dataframe(st.session_state[ST_KEY_PREFIX + "de_selections"].reconstruct_edited_dataframe(), on_select=activate_selection_group, key=ST_KEY_PREFIX + "selections_table__do_not_persist", selection_mode="single-row")
 
 
 # Run the main function if this script is executed.
