@@ -164,15 +164,15 @@ def main():
         if extra_return_info:
             st.write(extra_return_info)
 
-        # Allow user to pick color of selected cells for downstream plotting.
-        key = ST_KEY_PREFIX + "selected_color"
-        st.session_state.setdefault(key, "#FF0000")
-        selected_color = st.color_picker("Select color for downstream plotting of selected cells (can edit later)", key=key)
-
         # Allow user to choose a label for the selected cells for downstream plotting.
         key = ST_KEY_PREFIX + "selected_label"
         st.session_state.setdefault(key, "")
         selected_label = st.text_input("Enter label for downstream plotting of selected cells (can edit later)", key=key)
+
+        # Allow user to pick color of selected cells for downstream plotting.
+        key = ST_KEY_PREFIX + "selected_color"
+        st.session_state.setdefault(key, "#FF0000")
+        selected_color = st.color_picker("Select color for downstream plotting of selected cells (can edit later)", key=key)
 
         # Ensure the selections dataframe is already defined since we're about to update it.
         key = ST_KEY_PREFIX + "de_selections"
