@@ -360,6 +360,7 @@ def plot_image_from_frame(
     ymax_col="YMax",
     frame_with_faithful_columns=None,
     common_index="input_index",
+    missing_label_value = "Other",
 ):
     try:
 
@@ -433,6 +434,8 @@ def plot_image_from_frame(
             color_map = {label: colors[i % len(colors)] for i, label in enumerate(unique_labels)}
         else:
             unique_labels = color_map.keys()
+        if missing_label_value in unique_labels:
+            unique_labels = [missing_label_value] + [label for label in unique_labels if label != missing_label_value]
 
         # Determine effective marker sizes.
         effective_default_size = default_marker_size if default_marker_size is not None else (marker_size if marker_size is not None else 5)

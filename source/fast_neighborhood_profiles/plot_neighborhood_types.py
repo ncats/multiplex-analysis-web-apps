@@ -22,7 +22,7 @@ def get_neighborhood_type(selected_handle):
         selected_neighborhood_types = lf.filter(pl.col("sumap_cell_index").is_in(indices)).select(pl.col("neighborhood_type").unique()).collect().to_series().to_list()
         if len(selected_neighborhood_types) == 1:
             df = st.session_state[ST_KEY_PREFIX_ASSIGN + "df_reconstructed_selections"]
-            st.session_state[ST_KEY_PREFIX + "selected_indices_for_neighborhood_profile"] = df.loc[df["label"] == selected_neighborhood_types[0], "sumap_cell_indices"]
+            st.session_state[ST_KEY_PREFIX + "selected_indices_for_neighborhood_profile"] = df.loc[df["label"] == selected_neighborhood_types[0], "sumap_cell_indices"].values[0]
 
 
 # Main function.
