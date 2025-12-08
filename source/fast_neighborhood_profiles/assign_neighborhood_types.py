@@ -7,7 +7,7 @@ import streamlit_dataframe_editor as sde
 import pandas as pd
 
 # Define session state key prefixes.
-ST_KEY_PREFIX = "study_results.py__"
+ST_KEY_PREFIX = "assign_neighborhood_types.py__"
 ST_KEY_PREFIX_PHENOTYPE = "phenotype.py__"
 ST_KEY_PREFIX_SUMAP = "run_spatial_umap.py__"
 
@@ -218,7 +218,9 @@ def main():
         }
         color_map = dict(zip(df["label"], df["color"]))
         color_map[missing_label_value] = "#808080"
-        st.session_state[ST_KEY_PREFIX + "neighborhood_types_color_map"] = color_map
+        st.session_state[ST_KEY_PREFIX + "neighborhood_type_color_map"] = color_map
+        st.session_state[ST_KEY_PREFIX + "unique_neighborhood_types"] = list(set(df["label"].to_list() + [missing_label_value]))
+        st.session_state[ST_KEY_PREFIX + "df_reconstructed_selections"] = df
 
 
 # Run the main function if this script is executed.

@@ -24,26 +24,23 @@ def main():
     main_columns = st.columns([1/3, 2/3], border=1)
     with main_columns[0]:
 
-        # Optionally add a suffix to exclude when detecting marker columns.
-        key = ST_KEY_PREFIX + "exclusion_suffix"
-        st.session_state.setdefault(key, "")
-        exclusion_suffix = st.text_input("Exclusion suffix for marker columns:", key=key)
-
         # Button to get the marker columns.
-        key = ST_KEY_PREFIX + "marker_columns"
-        if st.button("Get marker columns"):
-            st.session_state[key] = fnp_main.get_marker_columns(lf, exclusion_suffix=exclusion_suffix)
+        if st.button("Get marker column options"):
+            st.session_state[ST_KEY_PREFIX + "marker_columns_options"] = fnp_main.get_marker_columns(lf)
+            del st.session_state[ST_KEY_PREFIX + "marker_columns"]
 
         # Ensure the marker columns are in session state.
-        if key not in st.session_state:
-            st.info("Please press the button above to obtain the marker columns.")
+        if ST_KEY_PREFIX + "marker_columns_options" not in st.session_state:
+            st.info("Please press the button above to obtain the marker column options.")
             return
         
-        # Display the marker columns.
-        marker_columns = st.session_state[key]
-        st.write(f"Found {len(marker_columns)} marker columns:")
-        st.write(marker_columns)
+        # Get a shortcut to the marker column options.
+        marker_column_options = st.session_state[ST_KEY_PREFIX + "marker_columns_options"]
 
+        # Allow the user to select the marker columns they want to use.
+        st.session_state.setdefault(ST_KEY_PREFIX + "marker_columns", marker_column_options)
+        marker_columns = st.multiselect("Select marker columns to use for phenotyping:", options=marker_column_options, key=ST_KEY_PREFIX + "marker_columns")
+        
         # Allow the user to perform phenotyping.
         if st.button("Perform marker phenotyping"):
             params = {"marker_columns": marker_columns}

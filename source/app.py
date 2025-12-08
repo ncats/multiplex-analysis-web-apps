@@ -40,10 +40,11 @@ import nidap_dashboard_lib as ndl   # Useful functions for dashboards connected 
 from fast_neighborhood_profiles import load_unified_input_file
 from fast_neighborhood_profiles import phenotype
 from fast_neighborhood_profiles import run_spatial_umap
-from fast_neighborhood_profiles import study_results
+from fast_neighborhood_profiles import assign_neighborhood_types
 from fast_neighborhood_profiles import sample_analysis_1
 from fast_neighborhood_profiles import sample_analysis_2
 from pathlib import Path
+from fast_neighborhood_profiles import plot_neighborhood_types
 
 ST_KEY_PREFIX = "app.py__"
 ST_KEY_PREFIX_STARTUP = "startup.py__"
@@ -94,14 +95,15 @@ def main():
                 st.Page(load_unified_input_file.main, title="Load unified input file", url_path='load_unified_input_file'),
                 st.Page(phenotype.main, title="Phenotype", url_path='phenotype'),
                 st.Page(run_spatial_umap.main, title="Run spatial UMAP", url_path='run_spatial_umap'),
-                st.Page(study_results.main, title="Study results", url_path='study_results'),
-                # st.Page(sample_analysis_1.main, title="Sample analysis 1", url_path='sample_analysis_1'),
-                # st.Page(sample_analysis_2.main, title="Sample analysis 2", url_path='sample_analysis_2'),
+                st.Page(assign_neighborhood_types.main, title="Assign neighborhood types", url_path='assign_neighborhood_types'),
+                st.Page(plot_neighborhood_types.main, title="Plot neighborhood types", url_path='plot_neighborhood_types'),
                 st.Page(monitor_jobs.main, title="Monitor jobs", url_path='monitor_jobs'),
-                # st.Page(generate_results.main, title="Generate results", url_path='generate_results'),
                 ],
             'Home 🏠':
                 [
+                    st.Page(sample_analysis_1.main, title="Sample analysis 1", url_path='sample_analysis_1'),
+                    st.Page(sample_analysis_2.main, title="Sample analysis 2", url_path='sample_analysis_2'),
+                    st.Page(generate_results.main, title="Generate results", url_path='generate_results'),
                     st.Page(welcome_page, title="Welcome", url_path='home')
                 ],
             'File Handling 🗄️':

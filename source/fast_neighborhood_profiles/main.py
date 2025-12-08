@@ -353,12 +353,42 @@ def plot_image_from_frame(
     highlight_marker_line_color: str = "black",
     highlight_marker_alpha: float = 1.0,
     highlight_show_legend: bool = False,
+    plot_faithful_object_sizes: bool = False,
+    xmin_col="XMin",
+    xmax_col="XMax",
+    ymin_col="YMin",
+    ymax_col="YMax",
+    frame_with_faithful_columns=None,
+    common_index="input_index",
 ):
     try:
 
+        if plot_faithful_object_sizes:
+            if isinstance(frame_with_faithful_columns, (pl.LazyFrame, pl.DataFrame)):
+                columns = frame_with_faithful_columns.collect_schema().names()
+            elif isinstance(frame_with_faithful_columns, pd.DataFrame):
+                columns = frame_with_faithful_columns.columns
+            else:
+                raise ValueError("Faithful columns frame must be a Polars LazyFrame, Polars DataFrame, or Pandas DataFrame.")
+            faithful_columns = [col for col in [xmin_col, xmax_col, ymin_col, ymax_col] if col in columns]
+            if len(faithful_columns) < 4:
+                plot_faithful_object_sizes = False
+                faithful_columns = []
+                framework_utils.multiprint(f"Warning: Not all faithful object size columns found in the frame that's thought to contain them. Disabling faithful object size plotting.", (print,))
+        else:
+            faithful_columns = []
+
+        if plot_faithful_object_sizes:
+            if isinstance(frame_with_faithful_columns, (pl.LazyFrame, pl.DataFrame)):
+                frame = frame.join(frame_with_faithful_columns.select(pl.col([common_index] + faithful_columns)), on=common_index, how="left")
+            elif isinstance(frame_with_faithful_columns, pd.DataFrame):
+                frame = frame.merge(frame_with_faithful_columns[[common_index] + faithful_columns], on=common_index, how="left")
+            else:
+                raise ValueError("Faithful columns frame must be a Polars LazyFrame, Polars DataFrame, or Pandas DataFrame.")
+
         # Efficiently convert the input frame to a pandas DataFrame with necessary filtering.
         # If there is slowness, we can try keeping as a Polars DataFrame and using Plotly's ability to plot from Polars DataFrames directly, proceeding with polars dataframes in all operations below.
-        cols_to_keep = [color_col, image_colname, xcol, ycol] + custom_columns
+        cols_to_keep = [color_col, image_colname, xcol, ycol] + custom_columns + faithful_columns
         if isinstance(frame, pl.LazyFrame):
             base = frame.filter(pl.col(xcol).is_not_null() & pl.col(ycol).is_not_null())
             if selected_images:
@@ -414,20 +444,35 @@ def plot_image_from_frame(
             label_mask = df_other[color_col] == label
             if label_mask.any():
                 label_data = df_other[label_mask]
-                fig.add_trace(go.Scattergl(
-                    x=label_data[xcol],
-                    y=label_data[ycol],
-                    mode="markers",
-                    name=label,
-                    marker=dict(
-                        size=effective_default_size,
-                        color=color_map[label],
-                        line=dict(color=default_marker_line_color, width=1),
-                    ),
-                    opacity=default_marker_alpha,
-                    customdata=label_data.values,
-                    hovertemplate=hover_template,
-                ))
+                if not plot_faithful_object_sizes:
+                    fig.add_trace(go.Scattergl(
+                        x=label_data[xcol],
+                        y=label_data[ycol],
+                        mode="markers",
+                        name=label,
+                        marker=dict(
+                            size=effective_default_size,
+                            color=color_map[label],
+                            line=dict(color=default_marker_line_color, width=1),
+                        ),
+                        opacity=default_marker_alpha,
+                        customdata=label_data.values,
+                        hovertemplate=hover_template,
+                    ))
+                else:
+                    fig.add_trace(go.Bar(
+                        x=((label_data[xmin_col] + label_data[xmax_col]) / 2),
+                        y=label_data[ymax_col] - label_data[ymin_col],
+                        width=label_data[xmax_col] - label_data[xmin_col],
+                        base=label_data[ymin_col],
+                        name=label,
+                        marker=dict(
+                            color=color_map[label],
+                            opacity=default_marker_alpha,
+                        ),
+                        customdata=label_data.values,
+                        hovertemplate=hover_template,
+                    ))
 
         # Add highlighted traces if applicable.
         if do_highlight and df_high is not None and not df_high.empty:
@@ -435,21 +480,37 @@ def plot_image_from_frame(
                 label_mask = df_high[color_col] == label
                 if label_mask.any():
                     label_data = df_high[label_mask]
-                    fig.add_trace(go.Scattergl(
-                        x=label_data[xcol],
-                        y=label_data[ycol],
-                        mode="markers",
-                        name=label,
-                        showlegend=highlight_show_legend,
-                        marker=dict(
-                            size=effective_highlight_size,
-                            color=color_map[label],
-                            line=dict(color=highlight_marker_line_color, width=1),
-                        ),
-                        opacity=highlight_marker_alpha,
-                        customdata=label_data.values,
-                        hovertemplate=hover_template,
-                    ))
+                    if not plot_faithful_object_sizes:
+                        fig.add_trace(go.Scattergl(
+                            x=label_data[xcol],
+                            y=label_data[ycol],
+                            mode="markers",
+                            name=label,
+                            showlegend=highlight_show_legend,
+                            marker=dict(
+                                size=effective_highlight_size,
+                                color=color_map[label],
+                                line=dict(color=highlight_marker_line_color, width=1),
+                            ),
+                            opacity=highlight_marker_alpha,
+                            customdata=label_data.values,
+                            hovertemplate=hover_template,
+                        ))
+                    else:
+                        fig.add_trace(go.Bar(
+                            x=((label_data[xmin_col] + label_data[xmax_col]) / 2),
+                            y=label_data[ymax_col] - label_data[ymin_col],
+                            width=label_data[xmax_col] - label_data[xmin_col],
+                            base=label_data[ymin_col],
+                            name=label,
+                            showlegend=highlight_show_legend,
+                            marker=dict(
+                                color=color_map[label],
+                                opacity=highlight_marker_alpha,
+                            ),
+                            customdata=label_data.values,
+                            hovertemplate=hover_template,
+                        ))
 
         # Update layout.
         fig.update_yaxes(scaleanchor="x", scaleratio=1)
