@@ -26,8 +26,9 @@ def main():
 
         # Button to get the marker columns.
         if st.button("Get marker column options"):
-            st.session_state[ST_KEY_PREFIX + "marker_columns_options"] = fnp_main.get_marker_columns(lf)
-            del st.session_state[ST_KEY_PREFIX + "marker_columns"]
+            st.session_state[ST_KEY_PREFIX + "marker_columns_options"] = [x.removeprefix("Phenotype_(standardized) ") for x in fnp_main.get_marker_columns(lf)]
+            if ST_KEY_PREFIX + "marker_columns" in st.session_state:
+                del st.session_state[ST_KEY_PREFIX + "marker_columns"]
 
         # Ensure the marker columns are in session state.
         if ST_KEY_PREFIX + "marker_columns_options" not in st.session_state:
@@ -43,7 +44,7 @@ def main():
         
         # Allow the user to perform phenotyping.
         if st.button("Perform marker phenotyping"):
-            params = {"marker_columns": marker_columns}
+            params = {"marker_columns": ["Phenotype_(standardized) " + x for x in marker_columns]}
             lf_phenotyped = fnp_main.perform_marker_phenotyping_on_lazyframe(lf, **params)
             st.session_state["LAZYFRAMES"]["marker_phenotyping"] = {
                 "lf": lf_phenotyped,

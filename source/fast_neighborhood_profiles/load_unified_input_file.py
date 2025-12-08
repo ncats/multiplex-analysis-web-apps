@@ -52,7 +52,7 @@ def main():
                 intermediate_file_format = st.selectbox("Select intermediate file format:", options=available_file_formats, index=available_file_formats.index("parquet (recommended)"))
 
                 # Load the lazyframe from the selected row.
-                if st.button(f":caution: Load unified input file", help="We recommend that you press the \"🧹 Reset app\" button on the left sidebar before loading a new file in order to start cleanly. If so, and if it's important, please back up the app session first at the \"Manage sessions\" page at left."):
+                if st.button(f":warning: Load unified input file", help="We recommend that you press the \"🧹 Reset app\" button on the left sidebar before loading a new file in order to start cleanly. If so, and if it's important, please back up the app session first at the \"Manage sessions\" page at left."):
                     object_filename = unified_datafile_mapping[selected_filenames[0]]
                     file_format = "parquet" if intermediate_file_format == "parquet (recommended)" else intermediate_file_format
                     db_schema = get_location_settings()[upload_location]["db_schema"]

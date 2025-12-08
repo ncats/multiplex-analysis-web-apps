@@ -5,6 +5,7 @@ import polars as pl
 from functools import partial
 import streamlit_dataframe_editor as sde
 import pandas as pd
+import framework.utils as framework_utils
 
 # Define session state key prefixes.
 ST_KEY_PREFIX = "assign_neighborhood_types.py__"
@@ -17,8 +18,11 @@ def activate_selection_group():
     selections_table = st.session_state[ST_KEY_PREFIX + "selections_table__do_not_persist"]
     rows = selections_table["selection"]["rows"]
     if rows:
+        if len(rows) > 1:
+            framework_utils.multiprint("Somehow multiple rows are selected, which is unexpected.", (print, st.warning))
+            return
         df = st.session_state[ST_KEY_PREFIX + "de_selections"].reconstruct_edited_dataframe()
-        sumap_cell_indices = df.iloc[rows]["sumap_cell_indices"]  # sumap_cell_indices for the selected selection group.
+        sumap_cell_indices = df.iloc[rows[0]]["sumap_cell_indices"]  # sumap_cell_indices for the selected selection group.
         st.session_state[ST_KEY_PREFIX + "selected_indices_for_umap"] = sumap_cell_indices
         st.session_state[ST_KEY_PREFIX + "selected_indices_for_real_space"] = sumap_cell_indices
         st.session_state[ST_KEY_PREFIX + "selected_indices_for_neighborhood_profile"] = sumap_cell_indices
@@ -77,6 +81,9 @@ def main():
     selected_indices_for_neighborhood_profile = []
     if ST_KEY_PREFIX + "selected_indices_for_neighborhood_profile" in st.session_state and st.session_state[ST_KEY_PREFIX + "selected_indices_for_neighborhood_profile"]:
         selected_indices_for_neighborhood_profile = st.session_state[ST_KEY_PREFIX + "selected_indices_for_neighborhood_profile"]
+    key = ST_KEY_PREFIX + "de_selections"
+    if key not in st.session_state:
+        st.session_state[key] = sde.DataframeEditor(df_name=ST_KEY_PREFIX + "df_selections", default_df_contents=pd.DataFrame(columns=["label", "number_of_cells", "sumap_cell_indices", "color"]))
 
     # In the first of two columns...
     main_columns = st.columns(2)
@@ -174,11 +181,6 @@ def main():
         st.session_state.setdefault(key, "#FF0000")  # FF0000 is red
         selected_color = st.color_picker("Select color for downstream plotting of selected cells (can edit later)", key=key)
 
-        # Ensure the selections dataframe is already defined since we're about to update it.
-        key = ST_KEY_PREFIX + "de_selections"
-        if key not in st.session_state:
-            st.session_state[key] = sde.DataframeEditor(df_name=ST_KEY_PREFIX + "df_selections", default_df_contents=pd.DataFrame(columns=["label", "number_of_cells", "sumap_cell_indices", "color"]))
-
         # Allow user to add the selected cells to a selections dataframe.
         if st.button("Add selected cells to selections table"):
             df = st.session_state[ST_KEY_PREFIX + "de_selections"].reconstruct_edited_dataframe()
@@ -195,7 +197,7 @@ def main():
     st.write("Select a row in the neighborhood types table below to highlight the corresponding cells in the UMAP, real space, and neighborhood profile plots above.")
     selections_table_columns = st.columns(2)
     with selections_table_columns[0]:
-        st.session_state[key].dataframe_editor(reset_data_editor_button_text='Reset selections', disabled=["number_of_cells", "sumap_cell_indices"])
+        st.session_state[ST_KEY_PREFIX + "de_selections"].dataframe_editor(reset_data_editor_button_text='Reset selections', disabled=["number_of_cells", "sumap_cell_indices"])
     with selections_table_columns[1]:
         st.dataframe(st.session_state[ST_KEY_PREFIX + "de_selections"].reconstruct_edited_dataframe(), on_select=activate_selection_group, key=ST_KEY_PREFIX + "selections_table__do_not_persist", selection_mode="single-row")
 
@@ -205,7 +207,7 @@ def main():
     keep_strategy = st.radio("Select keep strategy for resolving multiple labels for a given cell when registering neighborhood types:", options=['first', 'last', 'any', 'none'], key=key, help='"none" drops duplicates; "any" is non-deterministic but fast.', horizontal=True)
     
     # Allow user to register the selected neighborhood types.
-    with st.button("Register selected neighborhood types"):
+    if st.button("Register selected neighborhood types"):
         missing_label_value = "Other"
         df = st.session_state[ST_KEY_PREFIX + "de_selections"].reconstruct_edited_dataframe()
         params = dict(updates_pd=df, keep=keep_strategy, missing_label_value=missing_label_value)
