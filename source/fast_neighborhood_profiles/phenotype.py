@@ -65,7 +65,13 @@ def main():
         with species_tab:
             
             if st.button("Detect species in dataset"):
-                pass
+
+                st.write(lf.select(pl.col(marker_columns).sum()))
+
+                # lf.with_columns(
+                #     pl.concat_str([pl.col(col).cast(pl.Utf8) for col in marker_columns], separator="")
+                #     .alias("binary_string")
+                # )
 
             st.write("Edit species names:")
 
