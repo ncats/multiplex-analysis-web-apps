@@ -3,6 +3,8 @@ import streamlit as st
 from fast_neighborhood_profiles import main as fnp_main
 import framework.analysis_framework as analysis_framework
 import framework.utils as framework_utils
+import streamlit_dataframe_editor as sde
+import pandas as pd
 
 # Define constants.
 ST_KEY_PREFIX = "run_spatial_umap.py__"
@@ -39,11 +41,15 @@ def main():
         st.session_state.setdefault(key, True)
         de_min_coords = st.checkbox("Shift each image's coordinates to origin (highly recommended!)", key=key, help="Giraldo et. al. did not do this, but we highly recommend this for stability of the algorithm and minimal dropped cells/images.")
 
-        # Set (in the future) distance bins.
+        # Set distance bins.
+        key = ST_KEY_PREFIX + "de_dist_bin_um"
+        if key not in st.session_state:
+            st.session_state[key] = sde.DataframeEditor(df_name=ST_KEY_PREFIX + "df_dist_bin_um", default_df_contents=pd.DataFrame({"dist_bin_um": [25, 50, 100, 150, 200]}))
+        st.write("Distance bins (µm):")
+        st.session_state[ST_KEY_PREFIX + "de_dist_bin_um"].dataframe_editor(reset_data_editor_button_text='Reset bins to defaults')
         key = ST_KEY_PREFIX + "dist_bin_um_list"
-        st.session_state.setdefault(key, [25, 50, 100, 150, 200])
+        st.session_state[key] = st.session_state[ST_KEY_PREFIX + "de_dist_bin_um"].reconstruct_edited_dataframe()["dist_bin_um"].to_list()
         dist_bin_um_list = st.session_state[key]
-        st.write(f"Distance bins (µm) (not editable *yet*!): `{dist_bin_um_list}`")
 
         # Set whether to use custom areas.
         key = ST_KEY_PREFIX + "custom_areas"
