@@ -41,27 +41,40 @@ def main():
         # Allow the user to select the marker columns they want to use.
         st.session_state.setdefault(ST_KEY_PREFIX + "marker_columns", marker_column_options)
         marker_columns = st.multiselect("Select marker columns to use for phenotyping:", options=marker_column_options, key=ST_KEY_PREFIX + "marker_columns")
-        
-        # Allow the user to perform phenotyping.
-        if st.button("Perform marker phenotyping"):
-            params = {"marker_columns": ["Phenotype_(standardized) " + x for x in marker_columns]}
-            lf_phenotyped = fnp_main.perform_marker_phenotyping_on_lazyframe(lf, **params)
-            st.session_state["LAZYFRAMES"]["marker_phenotyping"] = {
-                "lf": lf_phenotyped,
-                "function_metadata": {"module_name": "fast_neighborhood_profiles.main", "qualpath": "perform_marker_phenotyping_on_lazyframe"},
-                "input_dataset": {"type": "lf", "keys": ("unified_input_file",)},
-                "params": params,
-            }
-            st.session_state[ST_KEY_PREFIX + "num_phenotyped_rows"] = lf_phenotyped.select(pl.len()).collect().item()
-            st.session_state[ST_KEY_PREFIX + "unique_labels"] = lf_phenotyped.select(pl.col("label").unique().sort()).collect().to_series().to_list()
-            st.session_state[ST_KEY_PREFIX + "unique_image_ids"] = lf_phenotyped.select(pl.col("Image ID_(standardized)").unique().sort()).collect().to_series().to_list()
-            colors = px.colors.qualitative.Plotly
-            st.session_state[ST_KEY_PREFIX + "phenotype_color_map"] = {label: colors[i % len(colors)] for i, label in enumerate(st.session_state[ST_KEY_PREFIX + "unique_labels"])}
 
+        marker_tab, species_tab = st.tabs(["Marker phenotyping", "Species phenotyping"])
+
+        with marker_tab:
+        
+            # Allow the user to perform phenotyping.
+            if st.button("Perform marker phenotyping"):
+                params = {"marker_columns": ["Phenotype_(standardized) " + x for x in marker_columns]}
+                lf_phenotyped = fnp_main.perform_marker_phenotyping_on_lazyframe(lf, **params)
+                st.session_state["LAZYFRAMES"]["marker_phenotyping"] = {
+                    "lf": lf_phenotyped,
+                    "function_metadata": {"module_name": "fast_neighborhood_profiles.main", "qualpath": "perform_marker_phenotyping_on_lazyframe"},
+                    "input_dataset": {"type": "lf", "keys": ("unified_input_file",)},
+                    "params": params,
+                }
+                st.session_state[ST_KEY_PREFIX + "num_phenotyped_rows"] = lf_phenotyped.select(pl.len()).collect().item()
+                st.session_state[ST_KEY_PREFIX + "unique_labels"] = lf_phenotyped.select(pl.col("label").unique().sort()).collect().to_series().to_list()
+                st.session_state[ST_KEY_PREFIX + "unique_image_ids"] = lf_phenotyped.select(pl.col("Image ID_(standardized)").unique().sort()).collect().to_series().to_list()
+                colors = px.colors.qualitative.Plotly
+                st.session_state[ST_KEY_PREFIX + "phenotype_color_map"] = {label: colors[i % len(colors)] for i, label in enumerate(st.session_state[ST_KEY_PREFIX + "unique_labels"])}
+
+        with species_tab:
+            
+            if st.button("Detect species in dataset"):
+                pass
+
+            st.write("Edit species names:")
+
+            if st.button("Perform species phenotyping"):
+                pass
 
         # Ensure the phenotyped lazyframe is in session state.
         if "marker_phenotyping" not in st.session_state["LAZYFRAMES"]:
-            st.info("Please press the button above to perform marker phenotyping.")
+            st.info("Please perform phenotyping above.")
             return
         
         # Display the number of rows in the phenotyped lazyframe.
