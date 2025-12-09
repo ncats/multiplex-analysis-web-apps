@@ -41,6 +41,7 @@ def main():
         # Allow the user to select the marker columns they want to use.
         st.session_state.setdefault(ST_KEY_PREFIX + "marker_columns", marker_column_options)
         marker_columns = st.multiselect("Select marker columns to use for phenotyping:", options=marker_column_options, key=ST_KEY_PREFIX + "marker_columns")
+        marker_columns = ["Phenotype_(standardized) " + x for x in marker_columns]
 
         marker_tab, species_tab = st.tabs(["Marker phenotyping", "Species phenotyping"])
 
@@ -48,7 +49,7 @@ def main():
         
             # Allow the user to perform phenotyping.
             if st.button("Perform marker phenotyping"):
-                params = {"marker_columns": ["Phenotype_(standardized) " + x for x in marker_columns]}
+                params = {"marker_columns": marker_columns}
                 lf_phenotyped = fnp_main.perform_marker_phenotyping_on_lazyframe(lf, **params)
                 st.session_state["LAZYFRAMES"]["marker_phenotyping"] = {
                     "lf": lf_phenotyped,
@@ -66,7 +67,27 @@ def main():
             
             if st.button("Detect species in dataset"):
 
-                st.write(lf.select(pl.col(marker_columns).sum()))
+                df = lf.select(pl.col(marker_columns).sum()).collect().transpose(include_header=True).sort("column_0", descending=True)
+                st.write(df)
+                st.write(df.select(pl.col("column")).to_series().to_list())
+
+                ordered_marker_column_list = lf.select(pl.col(marker_columns).sum()).collect().melt(variable_name="column", value_name="sum").sort("sum", descending=True).select("column").to_series().to_list()
+                st.write("Ordered marker columns:", ordered_marker_column_list)
+
+
+                lf = lf.with_columns(
+                    marker_string = pl.concat_str(
+                        [
+                            pl.when(pl.col(c).cast(pl.Int8).fill_null(0) == 1)
+                            .then(pl.lit(f"{c}+"))
+                            .otherwise(None)
+                            for c in ordered_marker_column_list
+                        ],
+                        separator=" ",
+                        ignore_nulls=True
+                    )
+                )
+
 
                 # lf.with_columns(
                 #     pl.concat_str([pl.col(col).cast(pl.Utf8) for col in marker_columns], separator="")
