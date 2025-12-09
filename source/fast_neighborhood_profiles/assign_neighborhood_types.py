@@ -84,6 +84,7 @@ def main():
     key = ST_KEY_PREFIX + "de_selections"
     if key not in st.session_state:
         st.session_state[key] = sde.DataframeEditor(df_name=ST_KEY_PREFIX + "df_selections", default_df_contents=pd.DataFrame(columns=["label", "number_of_cells", "sumap_cell_indices", "color"]))
+    missing_label_value = "Other"
 
     # In the first of two columns...
     main_columns = st.columns(2)
@@ -208,7 +209,6 @@ def main():
     
     # Allow user to register the selected neighborhood types.
     if st.button("Register selected neighborhood types"):
-        missing_label_value = "Other"
         df = st.session_state[ST_KEY_PREFIX + "de_selections"].reconstruct_edited_dataframe()
         params = dict(updates_pd=df, keep=keep_strategy, missing_label_value=missing_label_value)
         lf_neighborhoods = fnp_main.add_new_label_column(lf=lf, **params)
