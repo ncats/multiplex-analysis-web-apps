@@ -17,6 +17,96 @@ import scipy.spatial
 import plotly.colors
 
 
+def perform_species_phenotyping_on_lazyframe(lf, marker_columns_with_prefix, df_species_assignments):
+
+    # For parity with perform_marker_phenotyping_on_lazyframe(), calculate marker_columns, don't send it in.
+    marker_columns = [x.removeprefix("Phenotype_(standardized) ") for x in marker_columns_with_prefix]
+
+    # Add the species column to the main lazyframe.
+    lf = obtain_species_column_from_markers_columns(lf, marker_columns_with_prefix, marker_columns)
+
+    # Create a polars dataframe out of the needed columns of the assignments table, renaming to the final "label" column.
+    assignments_pl = (
+        pl.from_pandas(df_species_assignments)
+        .select(["Species", "Edited name"])
+        .rename({"Edited name": "label"})  # final column name in main LF
+        .lazy()
+    )
+
+    # Assign the names to the species and drop rows that don't have mappings.
+    lf = lf.join(assignments_pl, on="Species", how="inner")
+
+    # Return the phenotyped lazyframe.
+    return lf
+
+
+def create_species_assignments_table(lf):
+    '''
+    There is no "collect" in this function and is extremely fast.
+    '''
+
+    # Get the species counts.
+    lf_species_counts = lf.group_by("Species").agg(pl.count().alias("Count in dataset")).sort("Count in dataset", descending=True)
+
+    # Create a column that we'll edit, and reorder the columns.
+    lf_species_counts = lf_species_counts.with_columns(pl.col("Species").alias("Edited name")).select(pl.col(["Species", "Edited name", "Count in dataset"]))
+
+    # Return the assignments lazyframe.
+    return lf_species_counts
+
+
+def obtain_species_column_from_markers_columns(lf, marker_columns_with_prefix, marker_columns):
+
+    # Keep only rows that have at least one 1 in marker_columns.
+    any_one = pl.any_horizontal([(pl.col(c) == 1) for c in marker_columns_with_prefix])
+    lf = lf.filter(any_one)
+
+    # We need to map to the short column names below, but sometimes the "to" column name already exists in the dataset (due to how the user might generate the unified datafile). So we first rename only those columns that need renaming, and we assume if they already have the name without the prefix, then it's a duplicate of the prefixed column.
+    lf_columns = lf.collect_schema().names()
+    column_mapping = {x: y for x, y in zip(marker_columns_with_prefix, marker_columns) if y not in lf_columns}
+
+    # Create a "Species" column that concatenates all marker column names with a 1 in the row.
+    lf = lf.rename(column_mapping).with_columns(
+        Species = pl.concat_str(
+            [
+                pl.when(pl.col(c).cast(pl.Int8).fill_null(0) == 1)
+                .then(pl.lit(f"{c}+"))
+                .otherwise(None)
+                for c in marker_columns
+            ],
+            separator=" ",
+            ignore_nulls=True
+        )
+    )
+
+    # Return the modified lazyframe.
+    return lf
+
+
+def get_phenotyped_metadata(lf_phenotyped):
+
+    # Obtain the resulting labels in decreasing frequency order.
+    ordered_labels = (
+        lf_phenotyped
+        .group_by("label")
+        .agg(pl.count().alias("freq"))
+        .sort(["freq", "label"], descending=[True, False])
+        .select("label")
+        .collect()
+        .to_series()
+        .to_list()
+    )
+
+    colors = px.colors.qualitative.Plotly
+
+    return {
+        "num_phenotyped_rows": lf_phenotyped.select(pl.len()).collect().item(),
+        "unique_labels": ordered_labels,
+        "unique_image_ids": lf_phenotyped.select(pl.col("Image ID_(standardized)").unique().sort()).collect().to_series().to_list(),
+        "phenotype_color_map": {label: colors[i % len(colors)] for i, label in enumerate(ordered_labels)},
+    }
+
+
 def add_new_label_column(lf, updates_pd, updates_index_column="sumap_cell_indices", main_index_column="sumap_cell_index", updates_label_column="label", new_label_column="neighborhood_type", keep="last", missing_label_value="Other"):
     # 0) Ensure join key dtype in lf is Int64 (only if needed).
     lf_schema = lf.collect_schema()
@@ -149,12 +239,14 @@ def get_true_false_color_map():
 
 
 # Get the marker column names from the lazyframe.
-def get_marker_columns(lf, exclusion_suffix=""):
+def get_marker_columns(lf, prefix="Phenotype_(standardized) ", exclusion_suffix=""):
     if exclusion_suffix:
-        marker_columns = [column for column in lf.collect_schema().names() if column.startswith("Phenotype_(standardized) ") and not column.endswith(exclusion_suffix)]
+        marker_columns = [column for column in lf.collect_schema().names() if column.startswith(prefix) and not column.endswith(exclusion_suffix)]
     else:
-        marker_columns = [column for column in lf.collect_schema().names() if column.startswith("Phenotype_(standardized) ")]
-    return sorted(marker_columns)
+        marker_columns = [column for column in lf.collect_schema().names() if column.startswith(prefix)]
+    marker_columns_ordered = lf.select(pl.col(marker_columns).sum()).collect().melt(variable_name="column", value_name="sum").sort("sum", descending=True).select("column").to_series().to_list()
+    marker_columns_ordered_no_prefix = [x.removeprefix(prefix) for x in marker_columns_ordered]
+    return marker_columns_ordered_no_prefix, marker_columns_ordered
 
 
 def get_location_settings():
@@ -284,25 +376,25 @@ def get_lf(handle, topdir=".", subdir="datafiles", file_format="parquet"):
         raise
 
 
-def perform_marker_phenotyping_on_lazyframe(lf, marker_columns, colname_regex_to_replace=r"^Phenotype_\(standardized\)\s+"):
+def perform_marker_phenotyping_on_lazyframe(lf, marker_columns_with_prefix, colname_regex_to_replace=r"^Phenotype_\(standardized\)\s+"):
 
     try:
+
+        # Keep only rows that have at least one 1 in marker_columns.
+        any_one = pl.any_horizontal([(pl.col(c) == 1) for c in marker_columns_with_prefix])
+        lf = lf.filter(any_one)
 
         # Get all column names.
         all_cols = lf.collect_schema().names()
 
-        # Keep only rows that have at least one 1 in marker_columns.
-        any_one = pl.any_horizontal([(pl.col(c) == 1) for c in marker_columns])
-        lf_filtered = lf.filter(any_one)
-
         # Get ID columns (all columns that are not marker columns).
-        id_cols = [c for c in all_cols if c not in marker_columns]
+        id_cols = [c for c in all_cols if c not in marker_columns_with_prefix]
 
-        # Expand rows: For each row in lf_filtered, create one row per marker column that has a 1.
+        # Expand rows: For each row in lf, create one row per marker column that has a 1.
         marker_phenotyped_lf = (
-            lf_filtered.unpivot(
+            lf.unpivot(
                 index=id_cols,
-                on=marker_columns,
+                on=marker_columns_with_prefix,
                 variable_name="label_full",
                 value_name="value"
             )
@@ -318,7 +410,7 @@ def perform_marker_phenotyping_on_lazyframe(lf, marker_columns, colname_regex_to
         # Validate: Expanded row count must equal total number of 1s across marker columns in original lazyframe.
         total_marker_ones = (
             lf
-            .select(pl.sum_horizontal(pl.col(marker_columns)).sum().alias("total_marker_ones"))
+            .select(pl.sum_horizontal(pl.col(marker_columns_with_prefix)).sum().alias("total_marker_ones"))
             .collect()["total_marker_ones"][0]
         )
         expanded_count = marker_phenotyped_lf.select(pl.len()).collect()["len"][0]
@@ -638,7 +730,7 @@ def plot_neighborhood_profile(data, plot_type, labels_axis_1, labels_axis_2, axi
 def generate_umap_wrapper(**inputs):
 
     # Modify inputs as needed (standard format, i.e., what's expected of a dictionary as in utils.deserialize_binary_files_to_dictionary() should come in).
-    lf = inputs["LAZYFRAMES"]["marker_phenotyping"]["lf"]
+    lf = inputs["LAZYFRAMES"]["phenotyped"]["lf"]
     lf = (
         lf
         .rename({"Image ID_(standardized)": "TMA_core_id", "Centroid X (µm)_(standardized)": "Xcor", "Centroid Y (µm)_(standardized)": "Ycor", "label": "Lineage"})

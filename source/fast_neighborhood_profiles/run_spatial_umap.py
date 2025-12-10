@@ -21,7 +21,7 @@ def get_true_false_color_map():
 def main():
 
     # Ensure the phenotyped lazyframe is ready for usage.
-    if not ("LAZYFRAMES" in st.session_state and "marker_phenotyping" in st.session_state["LAZYFRAMES"]):
+    if not ("LAZYFRAMES" in st.session_state and "phenotyped" in st.session_state["LAZYFRAMES"]):
         st.warning("Please perform phenotyping (at left).")
         return
 
@@ -114,7 +114,7 @@ def main():
 
     # Assemble the inputs (less the polars dataframe, to be part of the job preprocessing) to the spatial UMAP analysis.
     # We need all lazyframes so we can rebuild what we need inside the job worker, and we will parse down from that, once we've regenerated what's needed, inside the spatial UMAP wrapper. Then we'll input only what we need (the single input lazyframe, plus parameters) into the core spatial UMAP function.
-    lazyframes = {k: st.session_state["LAZYFRAMES"][k] for k in ["unified_input_file", "marker_phenotyping"] if k in st.session_state["LAZYFRAMES"]}
+    lazyframes = {k: st.session_state["LAZYFRAMES"][k] for k in ["unified_input_file", "phenotyped"] if k in st.session_state["LAZYFRAMES"]}
     inputs = dict(LAZYFRAMES=lazyframes, unique_labels=unique_labels, dist_bin_um_list=dist_bin_um_list, area_downsample=area_downsample, um_per_px=1, cpu_pool_size=cpu_pool_size, subdir="spatial_umap", counts_method="andrew", area_threshold=area_threshold, custom_areas=custom_areas, seed_for_train_test_split=seed_for_train_test_split, n=n, keep_images_with_too_little_data=keep_images_with_too_little_data, train_sample_frac=train_sample_frac, test_sample_frac=test_sample_frac, de_min_coords=de_min_coords, mp_start_method='forkserver')
 
     # Allow the user to run the spatial UMAP analysis asynchronously.
@@ -125,7 +125,7 @@ def main():
         st_key_prefix=ST_KEY_PREFIX,
         # preprocess={
         #     "function": fnp_main.format_lazyframe,
-        #     "args": dict(lf=st.session_state["LAZYFRAMES"]["marker_phenotyping"]["lf"], sample_size=None, sample_seed=42),
+        #     "args": dict(lf=st.session_state["LAZYFRAMES"]["phenotyped"]["lf"], sample_size=None, sample_seed=42),
         # }
     )
 
@@ -169,7 +169,7 @@ def main():
             selected_image_to_plot = st.selectbox("Select image to plot:", options=unique_image_ids, key=ST_KEY_PREFIX + "selected_image_to_plot")
             st.button("Previous", on_click=lambda: st.session_state.update({ST_KEY_PREFIX + "selected_image_to_plot": unique_image_ids[max(0, unique_image_ids.index(st.session_state[ST_KEY_PREFIX + "selected_image_to_plot"]) - 1)]}), disabled=(st.session_state[ST_KEY_PREFIX + "selected_image_to_plot"] == unique_image_ids[0]))
             st.button("Next", on_click=lambda: st.session_state.update({ST_KEY_PREFIX + "selected_image_to_plot": unique_image_ids[min(len(unique_image_ids) - 1, unique_image_ids.index(st.session_state[ST_KEY_PREFIX + "selected_image_to_plot"]) + 1)]}), disabled=(st.session_state[ST_KEY_PREFIX + "selected_image_to_plot"] == unique_image_ids[-1]))
-        marker_size = st.slider("Marker size:", min_value=2, max_value=10, value=3)
+        marker_size = st.slider("Marker size:", min_value=2, max_value=10, value=5)
         st.plotly_chart(fnp_main.plot_image_from_frame(lf, image_colname=image_colname, selected_images=[selected_image_to_plot], marker_size=marker_size, xcol="Xcor", ycol="Ycor", color_col="area_filter", color_map=get_true_false_color_map(), custom_columns=["input_index", "sumap_cell_index"]))
 
 

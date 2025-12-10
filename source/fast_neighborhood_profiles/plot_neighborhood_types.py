@@ -58,7 +58,7 @@ def main():
         selected_images_to_plot = st.multiselect("Select images whose UMAP to plot:", options=unique_image_ids, key=ST_KEY_PREFIX + "selected_images_to_plot")
 
         # Allow the user to select marker size.
-        st.session_state.setdefault(ST_KEY_PREFIX + "marker_size_umap", 3)
+        st.session_state.setdefault(ST_KEY_PREFIX + "marker_size_umap", 5)
         marker_size_umap = st.slider("Marker size:", min_value=2, max_value=10, key=ST_KEY_PREFIX + "marker_size_umap")
 
         # Allow the user to select whether to color by phenotype or neighborhood types.
@@ -104,7 +104,7 @@ def main():
             plot_faithful_object_sizes = st.checkbox("Plot faithful object sizes (if available)", key=ST_KEY_PREFIX + "plot_faithful_object_sizes")
 
             # Allow the user to select marker size.
-            st.session_state.setdefault(ST_KEY_PREFIX + "marker_size_real_space", 3)
+            st.session_state.setdefault(ST_KEY_PREFIX + "marker_size_real_space", 5)
             marker_size_real_space = st.slider("Marker size:", min_value=2, max_value=10, key=ST_KEY_PREFIX + "marker_size_real_space", disabled=plot_faithful_object_sizes)
 
             # Plot the real space with selectable points.

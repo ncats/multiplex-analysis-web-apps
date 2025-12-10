@@ -95,7 +95,7 @@ def main():
         selected_images_to_plot = st.multiselect("Select images whose UMAP to plot:", options=unique_image_ids, key=ST_KEY_PREFIX + "selected_images_to_plot")
 
         # Allow the user to select marker size.
-        st.session_state.setdefault(ST_KEY_PREFIX + "marker_size_umap", 3)
+        st.session_state.setdefault(ST_KEY_PREFIX + "marker_size_umap", 5)
         marker_size_umap = st.slider("Marker size:", min_value=2, max_value=10, key=ST_KEY_PREFIX + "marker_size_umap")
 
         # Write the number of selected points in the UMAP. Remember it says _for_real_space even though the selection is done on the UMAP because it's the selection of points on the UMAP that will be highlighted *for* the real space plot.
@@ -126,7 +126,7 @@ def main():
                 st.button("Next", on_click=lambda: st.session_state.update({ST_KEY_PREFIX + "selected_image_to_plot": selected_images_to_plot[min(len(selected_images_to_plot) - 1, selected_images_to_plot.index(st.session_state[ST_KEY_PREFIX + "selected_image_to_plot"]) + 1)]}), disabled=(st.session_state[ST_KEY_PREFIX + "selected_image_to_plot"] == selected_images_to_plot[-1]))
 
             # Allow the user to select marker size.
-            st.session_state.setdefault(ST_KEY_PREFIX + "marker_size_real_space", 3)
+            st.session_state.setdefault(ST_KEY_PREFIX + "marker_size_real_space", 5)
             marker_size_real_space = st.slider("Marker size:", min_value=2, max_value=10, key=ST_KEY_PREFIX + "marker_size_real_space")
 
             # Write the number of selected points in real space. Remember it says _for_umap even though the selection is done on real space because it's the selection of points in real space that will be highlighted *for* the UMAP plot.
