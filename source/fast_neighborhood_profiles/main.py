@@ -286,11 +286,21 @@ def load_unified_input_file_data(file_format, db_schema, bucket_name, object_fil
         # Unzip the downloaded file.
         unzipped_paths = []
         for full_filename in full_filenames:
-            with zipfile.ZipFile(os.path.join(input_dir, full_filename), 'r') as zip_ref:
-                zip_ref.extractall(input_dir)
-            base_name = full_filename.removesuffix(".zip")
-            os.remove(os.path.join(input_dir, full_filename))
-            unzipped_paths.append(os.path.join(input_dir, base_name))
+            local_path = os.path.join(input_dir, full_filename)
+            lower = full_filename.lower()
+            if lower.endswith(".zip"):
+                with zipfile.ZipFile(local_path, 'r') as zip_ref:
+                    zip_ref.extractall(input_dir)
+                base_name = full_filename.removesuffix(".zip")
+                os.remove(local_path)
+                unzipped_paths.append(os.path.join(input_dir, base_name))
+            elif lower.endswith(".gz"):
+                # Already gunzipped by download_objects_parallel -> use basename without .gz
+                base_name = full_filename.removesuffix(".gz")
+                unzipped_paths.append(os.path.join(input_dir, base_name))
+            else:
+                # Not compressed; use as-is
+                unzipped_paths.append(local_path)
 
         # Generate an intermediate file from which to load the lazyframe.
         for unzipped_path in unzipped_paths:
