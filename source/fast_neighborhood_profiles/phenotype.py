@@ -226,10 +226,16 @@ def main():
         value_counts_columns = st.columns(2)
         with value_counts_columns[0]:
             st.subheader("Full dataset counts")
-            st.write(lf_phenotyped.group_by("label").agg(pl.count().alias("Count in dataset")).sort("Count in dataset", descending=True))
+            @st.cache_data()
+            def full_dataset_counts():
+                return lf_phenotyped.group_by("label").agg(pl.count().alias("Count in dataset")).sort("Count in dataset", descending=True)
+            st.write(full_dataset_counts())
         with value_counts_columns[1]:
             st.subheader("Selected image counts")
-            st.write(lf_phenotyped.filter(pl.col(image_colname) == selected_image_to_plot).group_by("label").agg(pl.count().alias(f"Count in {selected_image_to_plot}")).sort(f"Count in {selected_image_to_plot}", descending=True))
+            @st.cache_data()
+            def image_counts(selected_image_to_plot):
+                return lf_phenotyped.filter(pl.col(image_colname) == selected_image_to_plot).group_by("label").agg(pl.count().alias(f"Count in {selected_image_to_plot}")).sort(f"Count in {selected_image_to_plot}", descending=True)
+            st.write(image_counts(selected_image_to_plot))
 
 
 # Run the main function if this script is executed.
