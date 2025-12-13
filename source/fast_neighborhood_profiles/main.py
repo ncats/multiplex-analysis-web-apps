@@ -139,7 +139,9 @@ def add_new_label_column(lf, updates_pd, updates_index_column="sumap_cell_indice
     return lf2
 
 
-def fast_neighbors_counts_for_block2(df_image, image_name, coord_column_names, phenotypes, radii, phenotype_column_name, max_chunk_size_in_mb=200):
+def fast_neighbors_counts_for_block2(df_image, image_name, coord_column_names, phenotypes, radii, phenotype_column_name, max_chunk_size_in_mb=200, data_struct="numpy", kdtree_str="kdtree", num_rows_per_chunk_neighb=100_000, chunk_neighbor_trees=False):
+    # Haven't checked neighbor chunking accuracy, though it's probably fine. But check before ever using it in production.
+
     # A block can be an image, ROI, etc. It's the entity over which it makes sense to calculate the neighbors of centers. Here, we're assuming it's an image, but in the SIT for e.g., we generally want it to refer to a ROI.
 
     # max_chunk_size_in_mb=200, for a 100K-cell dataset, will yield about 250-row chunks, which will yield about 400 chunks i.e. center KDTrees
@@ -148,11 +150,19 @@ def fast_neighbors_counts_for_block2(df_image, image_name, coord_column_names, p
     # max_chunk_size_in_mb=2000, for a 100K-cell dataset, will yield about 2600-row chunks, which will yield about 40 chunks i.e. center KDTrees
     # max_chunk_size_in_mb=5000, for a 100K-cell dataset, will yield about 6600-row chunks, which will yield about 15 chunks i.e. center KDTrees
 
+    if kdtree_str == "kdtree":
+        kdtree_func = scipy.spatial.KDTree
+    elif kdtree_str == "ckdtree":
+        kdtree_func = scipy.spatial.cKDTree
+
     # Print the image name
-    print(f'Calculating neighbor counts for image {image_name} ({len(df_image)} cells) using the new kdtree method...', flush=True)
+    print(f'Calculating neighbor counts for image {image_name} ({len(df_image)} cells) using the kdtree method {kdtree_str} with a chunk size of {max_chunk_size_in_mb}MB and data structure type {data_struct}...', flush=True)
 
     # Record the start time
-    start_time = time.time()
+    # start_time = time.time()
+    start_time = time()
+    elapsed_time_dataframe = 0
+    elapsed_time_kdtree = 0
 
     # Store some properties of the input dataframe
     df_image_index = df_image.index
@@ -160,76 +170,175 @@ def fast_neighbors_counts_for_block2(df_image, image_name, coord_column_names, p
 
     # Get the number of rows per chunk based on the maximum chunk size in MB and assuming every cell will be counted as a neighbor around every center (i.e., use upper limits)
     largest_sublist_size_in_mb = num_cells * 8  / 1024 ** 2  # 8 bytes per int64 --> units = mb / row
-    num_rows_per_chunk = int(max_chunk_size_in_mb / largest_sublist_size_in_mb)
+    num_rows_per_chunk = max(1, int(max_chunk_size_in_mb / largest_sublist_size_in_mb))
 
     # Get the corresponding integer indices to index things like the input image dataframe
-    start_indices = np.arange(0, num_cells, num_rows_per_chunk)
+    start_indices = np.arange(0, num_cells, num_rows_per_chunk, dtype=np.int64)
     stop_indices = start_indices + num_rows_per_chunk
 
     # Initialize a list to hold the dataframes of neighbor counts for each radius (not each radius range)
-    df_counts_holder = [pd.DataFrame(0, index=phenotypes, columns=df_image_index) for _ in radii]
+    time_before = time()
+    if data_struct == "pandas":
+        df_counts_holder = [pd.DataFrame(0, index=phenotypes, columns=df_image_index) for _ in radii]
+    elif data_struct == "numpy":
+        df_counts_holder = [np.zeros((len(phenotypes), len(df_image_index)), dtype=np.int32) for _ in radii]
+    elapsed_time_dataframe += time() - time_before
 
+    print(f"data struct: {elapsed_time_dataframe:.2f} seconds, kdtree: {elapsed_time_kdtree:.2f} seconds", flush=True)
     print(f"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA {image_name}", flush=True)
+    elapsed_time_dataframe = 0
+    elapsed_time_kdtree = 0
+
+    # Convert dataframe columns to numpy arrays for faster access if using numpy data structure.
+    if data_struct == "numpy":
+        nd_phenotype = df_image[phenotype_column_name].to_numpy()
+        nd_coords = df_image[coord_column_names].to_numpy(dtype=np.float64)
 
     # Pre-calculate the neighbor tree for each phenotype
     neighbor_trees = []
     for neighbor_phenotype in phenotypes:
 
         # Get the boolean series identifying the current neighbor phenotype
-        ser_curr_neighbor_phenotype = df_image[phenotype_column_name] == neighbor_phenotype
+        time_before = time()
+        if data_struct == "pandas":
+            ser_curr_neighbor_phenotype = df_image[phenotype_column_name] == neighbor_phenotype
+        elif data_struct == "numpy":
+            ser_curr_neighbor_phenotype = nd_phenotype == neighbor_phenotype
+            if chunk_neighbor_trees:
+                nd_curr_neighbor_phenotype = np.where(ser_curr_neighbor_phenotype)[0]
+                num_cells_curr_phenotype = len(nd_curr_neighbor_phenotype)
+                start_indices_neighb = np.arange(0, num_cells_curr_phenotype, num_rows_per_chunk_neighb, dtype=np.int64)
+                stop_indices_neighb = start_indices_neighb + num_rows_per_chunk_neighb
+        elapsed_time_dataframe += time() - time_before
 
         # Construct the KDTree for the current phenotype in the entire current image. This represents the neighbors
-        neighbor_trees.append(scipy.spatial.KDTree(df_image.loc[ser_curr_neighbor_phenotype, coord_column_names]))
+        time_before = time()
+        if data_struct == "pandas":
+            neighbor_trees.append(kdtree_func(df_image.loc[ser_curr_neighbor_phenotype, coord_column_names]))
+        elif data_struct == "numpy":
+            if not chunk_neighbor_trees:
+                neighbor_trees.append(kdtree_func(nd_coords[ser_curr_neighbor_phenotype, :]))
+            else:
+                neighbor_trees_curr_phenotype = []
+                for start_index_neighb, stop_index_neighb in zip(start_indices_neighb, np.minimum(stop_indices_neighb, num_cells_curr_phenotype)):
+                    neighbor_trees_curr_phenotype.append(kdtree_func(nd_coords[nd_curr_neighbor_phenotype[start_index_neighb:stop_index_neighb], :]))
+                neighbor_trees.append(neighbor_trees_curr_phenotype)
+        elapsed_time_kdtree += time() - time_before
 
+    print(f"data struct: {elapsed_time_dataframe:.2f} seconds, kdtree: {elapsed_time_kdtree:.2f} seconds", flush=True)
     print(f"BBBBBBBBBBBBBBBBBBBBBBBBBBBBBB {image_name}", flush=True)
+    elapsed_time_dataframe = 0
+    elapsed_time_kdtree = 0
     
     # For each chunk of centers...
-    for start_index, stop_index in zip(start_indices, stop_indices):
+    for start_index, stop_index in zip(start_indices, np.minimum(stop_indices, num_cells)):
 
         # Construct the KDTree for the current chunk. This represents the centers
-        center_tree = scipy.spatial.KDTree(df_image.loc[df_image_index[start_index:stop_index], coord_column_names])
+        time_before = time()
+        if data_struct == "pandas":
+            center_tree = kdtree_func(df_image.loc[df_image_index[start_index:stop_index], coord_column_names])
+        elif data_struct == "numpy":
+            center_tree = kdtree_func(nd_coords[start_index:stop_index, :])
+        elapsed_time_kdtree += time() - time_before
 
-        # For each neighbor tree...
-        for ineighbor_phenotype, curr_neighbor_tree in enumerate(neighbor_trees):
+        # For each radius, which should be monotonically increasing and start with 0...
+        for iradius, radius in enumerate(radii):
 
-            # For each radius, which should be monotonically increasing and start with 0...
-            for iradius, radius in enumerate(radii):
+            # For each neighbor tree...
+            for ineighbor_phenotype, curr_neighbor_tree in enumerate(neighbor_trees):
 
                 # Get the list of lists containing the indices of the neighbors for each center
-                neighbors_for_radius = center_tree.query_ball_tree(curr_neighbor_tree, radius)
+                time_before = time()
+                if data_struct == "pandas":
+                    neighbors_for_radius = center_tree.query_ball_tree(curr_neighbor_tree, radius)
+                elif data_struct == "numpy":
+                    if not chunk_neighbor_trees:
+                        neighbors_for_radius = center_tree.query_ball_tree(curr_neighbor_tree, radius)
+                    else:
+                        neighbors_for_radius = []
+                        for neighbor_tree_chunk in curr_neighbor_tree:
+                            neighbors_for_radius.append(center_tree.query_ball_tree(neighbor_tree_chunk, radius))
+                elapsed_time_kdtree += time() - time_before
 
                 # In the correct dataframe (corresponding to the current radius), set the counts of neighbors (of the current phenotype) for each center
-                df_counts_holder[iradius].iloc[ineighbor_phenotype, start_index:stop_index] = [len(neighbors_for_center) for neighbors_for_center in neighbors_for_radius]
+                time_before = time()
+                if data_struct == "pandas":
+                    df_counts_holder[iradius].iloc[ineighbor_phenotype, start_index:stop_index] = [len(neighbors_for_center) for neighbors_for_center in neighbors_for_radius]
+                elif data_struct == "numpy":
+                    if not chunk_neighbor_trees:
+                        df_counts_holder[iradius][ineighbor_phenotype, start_index:stop_index] = np.fromiter(map(len, neighbors_for_radius), dtype=np.int32)
+                    else:
+                        counts_per_center = np.zeros(stop_index - start_index, dtype=np.int32)
+                        for neighbors_for_radius_chunk in neighbors_for_radius:
+                            counts_per_center += np.fromiter(map(len, neighbors_for_radius_chunk), dtype=np.int32)
+                        df_counts_holder[iradius][ineighbor_phenotype, start_index:stop_index] = counts_per_center
+                elapsed_time_dataframe += time() - time_before
 
+    print(f"data struct: {elapsed_time_dataframe:.2f} seconds, kdtree: {elapsed_time_kdtree:.2f} seconds", flush=True)
     print(f"CCCCCCCCCCCCCCCCCCCCCCCCCCCCCC {image_name}", flush=True)
+    elapsed_time_dataframe = 0
+    elapsed_time_kdtree = 0
     
     # For each annulus, i.e., each radius range...
     df_counts_holder_annulus = []
+    if data_struct == "numpy":
+        df_counts_annulus_column_holder = []  # "column" not "index" since we transpose
     for iradius in range(len(radii) - 1):
 
         # Get the counts of neighbors in the current annulus
+        time_before = time()
         df_counts_curr_annulus = df_counts_holder[iradius + 1] - df_counts_holder[iradius]
+        elapsed_time_dataframe += time() - time_before
 
         # Rename the index to reflect the current radius range
         radius_range_str = f'({radii[iradius]}, {radii[iradius + 1]}]'
-        df_counts_curr_annulus.index = [f'{phenotype} in {radius_range_str}' for phenotype in phenotypes]
+        time_before = time()
+        if data_struct == "pandas":
+            df_counts_curr_annulus.index = [f'{phenotype} in {radius_range_str}' for phenotype in phenotypes]
+        elif data_struct == "numpy":
+            df_counts_annulus_column_holder.append([f'{phenotype} in {radius_range_str}' for phenotype in phenotypes])
+        elapsed_time_dataframe += time() - time_before
 
         # Add a transpose of this (so centers are in rows and phenotypes/radii are in columns) to the running list of annulus dataframes
+        time_before = time()
         df_counts_holder_annulus.append(df_counts_curr_annulus.T)
+        elapsed_time_dataframe += time() - time_before
 
+    print(f"data struct: {elapsed_time_dataframe:.2f} seconds, kdtree: {elapsed_time_kdtree:.2f} seconds", flush=True)
     print(f"DDDDDDDDDDDDDDDDDDDDDDDDDDDDDD {image_name}", flush=True)
+    elapsed_time_dataframe = 0
+    elapsed_time_kdtree = 0
     
     # Concatenate the annulus dataframes to get the final dataframe of neighbor counts for the current image
-    df_curr_counts = pd.concat(df_counts_holder_annulus, axis='columns')
+    time_before = time()
+    if data_struct == "pandas":
+        df_curr_counts = pd.concat(df_counts_holder_annulus, axis='columns')
+    elif data_struct == "numpy":
+        df_curr_counts = np.concatenate(df_counts_holder_annulus, axis=1, dtype=np.int32)
+    elapsed_time_dataframe += time() - time_before
 
     # Convert the dataframe to a more efficient dtype (from int64)
-    df_curr_counts = df_curr_counts.astype(np.int32)
+    time_before = time()
+    if data_struct == "pandas":
+        df_curr_counts = df_curr_counts.astype(np.int32)
+    elif data_struct == "numpy":
+        df_curr_counts = pd.DataFrame(df_curr_counts, index=df_image_index, columns=[col for sublist in df_counts_annulus_column_holder for col in sublist])
+    elapsed_time_dataframe += time() - time_before
 
+    print(f"data struct: {elapsed_time_dataframe:.2f} seconds, kdtree: {elapsed_time_kdtree:.2f} seconds", flush=True)
+    
     # Print the time taken to calculate the neighbor counts for the current image
-    print(f'  ...finished calculating neighbor counts for image {image_name} ({len(df_image)} cells) in {time.time() - start_time:.2f} seconds', flush=True)
+    # print(f'  ...finished calculating neighbor counts for image {image_name} ({len(df_image)} cells) in {time.time() - start_time:.2f} seconds', flush=True)
+    print(f'  ...finished calculating neighbor counts for image {image_name} ({len(df_image)} cells) in {time() - start_time:.2f} seconds', flush=True)
 
     # Return the final dataframe of neighbor counts for the current image
     return df_curr_counts
+
+
+def test_kdtree_accepts_empty_input():
+    import numpy as np
+    empty = np.empty((0, 2), dtype=float)
+    scipy.spatial.KDTree(empty)  # should succeed; if it raises, you’ll know at test time
 
 
 def save_and_load_pandas_df_to_lf(pd_df, handle, file_format, topdir, index_column_name=None):
