@@ -15,7 +15,7 @@ import fast_neighborhood_profiles.main as fnp_main
 
 
 import scipy.spatial
-def fast_neighbors_counts_for_block2(df_image, image_name, coord_column_names, phenotypes, radii, phenotype_column_name, max_chunk_size_in_mb=200, data_struct="pandas", kdtree_str="kdtree", num_rows_per_chunk_neighb=100_000, chunk_neighbor_trees=False):
+def fast_neighbors_counts_for_block2(df_image, image_name, coord_column_names, phenotypes, radii, phenotype_column_name, max_chunk_size_in_mb=200, data_struct="numpy", kdtree_str="kdtree", num_rows_per_chunk_neighb=100_000, chunk_neighbor_trees=False):
     # A block can be an image, ROI, etc. It's the entity over which it makes sense to calculate the neighbors of centers. Here, we're assuming it's an image, but in the SIT for e.g., we generally want it to refer to a ROI.
 
     # max_chunk_size_in_mb=200, for a 100K-cell dataset, will yield about 250-row chunks, which will yield about 400 chunks i.e. center KDTrees
@@ -422,7 +422,7 @@ class SpatialUMAP:
                     radii,
                     phenotype_column_name,
                     200,
-                    "pandas",
+                    "numpy",
                     "kdtree",
                     100_000,
                     False,
