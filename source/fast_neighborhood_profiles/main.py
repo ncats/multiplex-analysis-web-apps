@@ -453,17 +453,17 @@ def subset_csv_to_file(csv_filename="mawa-unified_datafile-TLS_tissue_SF_-202511
         filepath = os.path.join(topdir, subdir, handle + "." + file_format)
         lf = pl.scan_csv(csv_filepath)
         if file_format == "parquet":
-            write_method = "write_parquet"
+            sink_method = "sink_parquet"
         elif file_format == "arrow":
-            write_method = "write_ipc"
+            sink_method = "sink_ipc"
         elif file_format == "csv":
-            write_method = "write_csv"
+            sink_method = "sink_csv"
         else:
             raise ValueError(f"Unsupported file format: {file_format}")
         if do_filtering:
-            getattr(lf.filter(pl.col(filter_column).is_in(filter_values)).collect(engine="streaming"), write_method)(filepath)
+            getattr(lf.filter(pl.col(filter_column).is_in(filter_values)), sink_method)(filepath, engine="streaming")
         else:
-            getattr(lf.collect(engine="streaming"), write_method)(filepath)
+            getattr(lf, sink_method)(filepath, engine="streaming")
         return filepath
     except Exception as e:
         framework_utils.multiprint(f"An error occurred while subsetting a CSV to a file: {e}", (print,))
@@ -473,13 +473,12 @@ def subset_csv_to_file(csv_filename="mawa-unified_datafile-TLS_tissue_SF_-202511
 def save_pandas_df_to_file(pd_df, handle="two_images", topdir=".", file_format="parquet", subdir="datafiles"):
     try:    
         filepath = os.path.join(topdir, subdir, handle + "." + file_format)
-        pl_df = pl.from_pandas(pd_df)
-        if file_format == "parquet":
-            pl_df.write_parquet(filepath)
+        if file_format == "parquet":  # can potentially write instead to filepath + ".tmp" and subsequently use polars to sink_parquet for better compression via e.g. pl.scan_parquet(filepath + ".tmp").sink_parquet(filepath) with a subsequent os.remove(filepath + ".tmp")
+            pd_df.to_parquet(filepath, index=False)
         elif file_format == "arrow":
-            pl_df.write_ipc(filepath)
+            pl.from_pandas(pd_df).write_ipc(filepath)
         elif file_format == "csv":
-            pl_df.write_csv(filepath)
+            pd_df.to_csv(filepath, index=False)
         else:
             raise ValueError(f"Unsupported file format: {file_format}")
         return filepath
