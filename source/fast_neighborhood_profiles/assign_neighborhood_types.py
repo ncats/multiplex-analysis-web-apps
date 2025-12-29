@@ -61,7 +61,7 @@ def main():
     all_equal = (
         lf_indexed
         .select((pl.col("index") == pl.col("sumap_cell_index")).all().alias("all_equal"))
-        .collect()["all_equal"][0]
+        .collect(engine="streaming")["all_equal"][0]
     )
     assert all_equal, "Row indices do not match!"
 

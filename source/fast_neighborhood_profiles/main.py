@@ -92,7 +92,7 @@ def get_phenotyped_metadata(lf_phenotyped):
         .agg(pl.count().alias("freq"))
         .sort(["freq", "label"], descending=[True, False])
         .select("label")
-        .collect()
+        .collect(engine="streaming")
         .to_series()
         .to_list()
     )
@@ -100,9 +100,9 @@ def get_phenotyped_metadata(lf_phenotyped):
     colors = px.colors.qualitative.Plotly
 
     return {
-        "num_phenotyped_rows": lf_phenotyped.select(pl.len()).collect().item(),
+        "num_phenotyped_rows": lf_phenotyped.select(pl.len()).collect(engine="streaming").item(),
         "unique_labels": ordered_labels,
-        "unique_image_ids": lf_phenotyped.select(pl.col("Image ID_(standardized)").unique().sort()).collect().to_series().to_list(),
+        "unique_image_ids": lf_phenotyped.select(pl.col("Image ID_(standardized)").unique().sort()).collect(engine="streaming").to_series().to_list(),
         "phenotype_color_map": {label: colors[i % len(colors)] for i, label in enumerate(ordered_labels)},
     }
 
@@ -335,6 +335,7 @@ def fast_neighbors_counts_for_block2(df_image, image_name, coord_column_names, p
     return df_curr_counts
 
 
+# Not currently used.
 def test_kdtree_accepts_empty_input():
     import numpy as np
     empty = np.empty((0, 2), dtype=float)
@@ -361,7 +362,7 @@ def get_marker_columns(lf, prefix="Phenotype_(standardized) ", exclusion_suffix=
         marker_columns = [column for column in lf.collect_schema().names() if column.startswith(prefix) and not column.endswith(exclusion_suffix)]
     else:
         marker_columns = [column for column in lf.collect_schema().names() if column.startswith(prefix)]
-    marker_columns_ordered = lf.select(pl.col(marker_columns).sum()).collect().melt(variable_name="column", value_name="sum").sort("sum", descending=True).select("column").to_series().to_list()
+    marker_columns_ordered = lf.select(pl.col(marker_columns).sum()).collect(engine="streaming").melt(variable_name="column", value_name="sum").sort("sum", descending=True).select("column").to_series().to_list()
     marker_columns_ordered_no_prefix = [x.removeprefix(prefix) for x in marker_columns_ordered]
     return marker_columns_ordered_no_prefix, marker_columns_ordered
 
@@ -460,9 +461,9 @@ def subset_csv_to_file(csv_filename="mawa-unified_datafile-TLS_tissue_SF_-202511
         else:
             raise ValueError(f"Unsupported file format: {file_format}")
         if do_filtering:
-            getattr(lf.filter(pl.col(filter_column).is_in(filter_values)).collect(), write_method)(filepath)
+            getattr(lf.filter(pl.col(filter_column).is_in(filter_values)).collect(engine="streaming"), write_method)(filepath)
         else:
-            getattr(lf.collect(), write_method)(filepath)
+            getattr(lf.collect(engine="streaming"), write_method)(filepath)
         return filepath
     except Exception as e:
         framework_utils.multiprint(f"An error occurred while subsetting a CSV to a file: {e}", (print,))
@@ -538,9 +539,9 @@ def perform_marker_phenotyping_on_lazyframe(lf, marker_columns_with_prefix, coln
         total_marker_ones = (
             lf
             .select(pl.sum_horizontal(pl.col(marker_columns_with_prefix)).sum().alias("total_marker_ones"))
-            .collect()["total_marker_ones"][0]
+            .collect(engine="streaming")["total_marker_ones"][0]
         )
-        expanded_count = marker_phenotyped_lf.select(pl.len()).collect()["len"][0]
+        expanded_count = marker_phenotyped_lf.select(pl.len()).collect(engine="streaming")["len"][0]
 
         # Ensure they match.
         assert expanded_count == total_marker_ones, f"Mismatch: num_final_rows={expanded_count}, num_original_ones={total_marker_ones}"
@@ -613,7 +614,7 @@ def plot_image_from_frame(
             base = frame.filter(pl.col(xcol).is_not_null() & pl.col(ycol).is_not_null())
             if selected_images:
                 base = base.filter(pl.col(image_colname).is_in(selected_images))
-            df = base.select(cols_to_keep).collect().to_pandas()
+            df = base.select(cols_to_keep).collect(engine="streaming").to_pandas()
         elif isinstance(frame, pl.DataFrame):
             base = frame.filter(pl.col(xcol).is_not_null() & pl.col(ycol).is_not_null())
             if selected_images:
@@ -887,7 +888,7 @@ def generate_umap_lf_input(lf, unique_labels, dist_bin_um_list=[25, 50, 100, 150
         min_coords_df = lf.group_by("TMA_core_id").agg([
             pl.min("Xcor").alias("min_Xcor"),
             pl.min("Ycor").alias("min_Ycor"),
-        ]).collect()
+        ]).collect(engine="streaming")
         framework_utils.multiprint("Minimum coordinates per TMA core:", (print,))
         framework_utils.multiprint(min_coords_df, (print,))
 
@@ -900,7 +901,7 @@ def generate_umap_lf_input(lf, unique_labels, dist_bin_um_list=[25, 50, 100, 150
         #### Note I may need to collect_schema() here potentially to register new columns per my experience needing that with with_row_index(). ####
 
     # I don't want to, but convert to pandas for compatibility with SpatialUMAP class.
-    spatial_umap.cells = lf.collect().to_pandas()
+    spatial_umap.cells = lf.collect(engine="streaming").to_pandas()
 
     # Set explicitly as numpy array the cell coordinates (x, y).
     spatial_umap.cell_positions = spatial_umap.cells[['Xcor', 'Ycor']].values

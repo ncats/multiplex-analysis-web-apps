@@ -90,13 +90,13 @@ def main():
     :small_orange_diamond: database.schema: `{db_schema}`  
     :small_orange_diamond: Bucket name: `{bucket_name}`  
     :small_orange_diamond: Object filename: `{object_filename}`  
-    :small_orange_diamond: Number of rows: `{lf.select(pl.len()).collect().item():_}`  
+    :small_orange_diamond: Number of rows: `{lf.select(pl.len()).collect(engine="streaming").item():_}`  
     :small_orange_diamond: Number of columns: `{len(lf.collect_schema())}`  
     '''
     st.markdown(information)
 
     # Show a sample of 100 rows from the lazyframe.
-    st.write(lf.collect().sample(100).sort(pl.col("Image ID_(standardized)")))
+    st.write(lf.collect(engine="streaming").sample(100).sort(pl.col("Image ID_(standardized)")))
     st.button("Resample dataset")
 
 
