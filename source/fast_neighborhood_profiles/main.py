@@ -613,17 +613,25 @@ def plot_image_from_frame(
             base = frame.filter(pl.col(xcol).is_not_null() & pl.col(ycol).is_not_null())
             if selected_images:
                 base = base.filter(pl.col(image_colname).is_in(selected_images))
-            df = base.select(cols_to_keep).collect(engine="streaming").to_pandas()
+            df = base.select(pl.col(cols_to_keep)).with_columns([
+                pl.col(xcol).cast(pl.Float32),
+                pl.col(ycol).cast(pl.Float32),
+            ]).collect(engine="streaming").to_pandas()
         elif isinstance(frame, pl.DataFrame):
             base = frame.filter(pl.col(xcol).is_not_null() & pl.col(ycol).is_not_null())
             if selected_images:
                 base = base.filter(pl.col(image_colname).is_in(selected_images))
-            df = base.select(cols_to_keep).to_pandas()
+            df = base.select(pl.col(cols_to_keep)).with_columns([
+                pl.col(xcol).cast(pl.Float32),
+                pl.col(ycol).cast(pl.Float32),
+            ]).to_pandas()
         elif isinstance(frame, pd.DataFrame):
             mask = frame[xcol].notna() & frame[ycol].notna()
             if selected_images:
                 mask &= frame[image_colname].isin(selected_images)
-            df = frame.loc[mask, cols_to_keep]
+            df = frame.loc[mask, cols_to_keep].copy()
+            df[xcol] = df[xcol].astype(np.float32)
+            df[ycol] = df[ycol].astype(np.float32)
         else:
             raise ValueError("Input frame must be a Polars LazyFrame, Polars DataFrame, or Pandas DataFrame.")
 
