@@ -160,7 +160,7 @@ def fast_neighbors_counts_for_block2(df_image, image_name, coord_column_names, p
 
     # Record the start time
     # start_time = time.time()
-    start_time = time()
+    start_time = time.time()
     elapsed_time_dataframe = 0
     elapsed_time_kdtree = 0
 
@@ -177,12 +177,12 @@ def fast_neighbors_counts_for_block2(df_image, image_name, coord_column_names, p
     stop_indices = start_indices + num_rows_per_chunk
 
     # Initialize a list to hold the dataframes of neighbor counts for each radius (not each radius range)
-    time_before = time()
+    time_before = time.time()
     if data_struct == "pandas":
         df_counts_holder = [pd.DataFrame(0, index=phenotypes, columns=df_image_index) for _ in radii]
     elif data_struct == "numpy":
         df_counts_holder = [np.zeros((len(phenotypes), len(df_image_index)), dtype=np.int32) for _ in radii]
-    elapsed_time_dataframe += time() - time_before
+    elapsed_time_dataframe += time.time() - time_before
 
     print(f"data struct: {elapsed_time_dataframe:.2f} seconds, kdtree: {elapsed_time_kdtree:.2f} seconds", flush=True)
     print(f"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA {image_name}", flush=True)
@@ -199,7 +199,7 @@ def fast_neighbors_counts_for_block2(df_image, image_name, coord_column_names, p
     for neighbor_phenotype in phenotypes:
 
         # Get the boolean series identifying the current neighbor phenotype
-        time_before = time()
+        time_before = time.time()
         if data_struct == "pandas":
             ser_curr_neighbor_phenotype = df_image[phenotype_column_name] == neighbor_phenotype
         elif data_struct == "numpy":
@@ -209,10 +209,10 @@ def fast_neighbors_counts_for_block2(df_image, image_name, coord_column_names, p
                 num_cells_curr_phenotype = len(nd_curr_neighbor_phenotype)
                 start_indices_neighb = np.arange(0, num_cells_curr_phenotype, num_rows_per_chunk_neighb, dtype=np.int64)
                 stop_indices_neighb = start_indices_neighb + num_rows_per_chunk_neighb
-        elapsed_time_dataframe += time() - time_before
+        elapsed_time_dataframe += time.time() - time_before
 
         # Construct the KDTree for the current phenotype in the entire current image. This represents the neighbors
-        time_before = time()
+        time_before = time.time()
         if data_struct == "pandas":
             neighbor_trees.append(kdtree_func(df_image.loc[ser_curr_neighbor_phenotype, coord_column_names]))
         elif data_struct == "numpy":
@@ -223,7 +223,7 @@ def fast_neighbors_counts_for_block2(df_image, image_name, coord_column_names, p
                 for start_index_neighb, stop_index_neighb in zip(start_indices_neighb, np.minimum(stop_indices_neighb, num_cells_curr_phenotype)):
                     neighbor_trees_curr_phenotype.append(kdtree_func(nd_coords[nd_curr_neighbor_phenotype[start_index_neighb:stop_index_neighb], :]))
                 neighbor_trees.append(neighbor_trees_curr_phenotype)
-        elapsed_time_kdtree += time() - time_before
+        elapsed_time_kdtree += time.time() - time_before
 
     print(f"data struct: {elapsed_time_dataframe:.2f} seconds, kdtree: {elapsed_time_kdtree:.2f} seconds", flush=True)
     print(f"BBBBBBBBBBBBBBBBBBBBBBBBBBBBBB {image_name}", flush=True)
@@ -234,12 +234,12 @@ def fast_neighbors_counts_for_block2(df_image, image_name, coord_column_names, p
     for start_index, stop_index in zip(start_indices, np.minimum(stop_indices, num_cells)):
 
         # Construct the KDTree for the current chunk. This represents the centers
-        time_before = time()
+        time_before = time.time()
         if data_struct == "pandas":
             center_tree = kdtree_func(df_image.loc[df_image_index[start_index:stop_index], coord_column_names])
         elif data_struct == "numpy":
             center_tree = kdtree_func(nd_coords[start_index:stop_index, :])
-        elapsed_time_kdtree += time() - time_before
+        elapsed_time_kdtree += time.time() - time_before
 
         # For each radius, which should be monotonically increasing and start with 0...
         for iradius, radius in enumerate(radii):
@@ -248,7 +248,7 @@ def fast_neighbors_counts_for_block2(df_image, image_name, coord_column_names, p
             for ineighbor_phenotype, curr_neighbor_tree in enumerate(neighbor_trees):
 
                 # Get the list of lists containing the indices of the neighbors for each center
-                time_before = time()
+                time_before = time.time()
                 if data_struct == "pandas":
                     neighbors_for_radius = center_tree.query_ball_tree(curr_neighbor_tree, radius)
                 elif data_struct == "numpy":
@@ -258,10 +258,10 @@ def fast_neighbors_counts_for_block2(df_image, image_name, coord_column_names, p
                         neighbors_for_radius = []
                         for neighbor_tree_chunk in curr_neighbor_tree:
                             neighbors_for_radius.append(center_tree.query_ball_tree(neighbor_tree_chunk, radius))
-                elapsed_time_kdtree += time() - time_before
+                elapsed_time_kdtree += time.time() - time_before
 
                 # In the correct dataframe (corresponding to the current radius), set the counts of neighbors (of the current phenotype) for each center
-                time_before = time()
+                time_before = time.time()
                 if data_struct == "pandas":
                     df_counts_holder[iradius].iloc[ineighbor_phenotype, start_index:stop_index] = [len(neighbors_for_center) for neighbors_for_center in neighbors_for_radius]
                 elif data_struct == "numpy":
@@ -272,7 +272,7 @@ def fast_neighbors_counts_for_block2(df_image, image_name, coord_column_names, p
                         for neighbors_for_radius_chunk in neighbors_for_radius:
                             counts_per_center += np.fromiter(map(len, neighbors_for_radius_chunk), dtype=np.int32)
                         df_counts_holder[iradius][ineighbor_phenotype, start_index:stop_index] = counts_per_center
-                elapsed_time_dataframe += time() - time_before
+                elapsed_time_dataframe += time.time() - time_before
 
     print(f"data struct: {elapsed_time_dataframe:.2f} seconds, kdtree: {elapsed_time_kdtree:.2f} seconds", flush=True)
     print(f"CCCCCCCCCCCCCCCCCCCCCCCCCCCCCC {image_name}", flush=True)
@@ -286,23 +286,23 @@ def fast_neighbors_counts_for_block2(df_image, image_name, coord_column_names, p
     for iradius in range(len(radii) - 1):
 
         # Get the counts of neighbors in the current annulus
-        time_before = time()
+        time_before = time.time()
         df_counts_curr_annulus = df_counts_holder[iradius + 1] - df_counts_holder[iradius]
-        elapsed_time_dataframe += time() - time_before
+        elapsed_time_dataframe += time.time() - time_before
 
         # Rename the index to reflect the current radius range
         radius_range_str = f'({radii[iradius]}, {radii[iradius + 1]}]'
-        time_before = time()
+        time_before = time.time()
         if data_struct == "pandas":
             df_counts_curr_annulus.index = [f'{phenotype} in {radius_range_str}' for phenotype in phenotypes]
         elif data_struct == "numpy":
             df_counts_annulus_column_holder.append([f'{phenotype} in {radius_range_str}' for phenotype in phenotypes])
-        elapsed_time_dataframe += time() - time_before
+        elapsed_time_dataframe += time.time() - time_before
 
         # Add a transpose of this (so centers are in rows and phenotypes/radii are in columns) to the running list of annulus dataframes
-        time_before = time()
+        time_before = time.time()
         df_counts_holder_annulus.append(df_counts_curr_annulus.T)
-        elapsed_time_dataframe += time() - time_before
+        elapsed_time_dataframe += time.time() - time_before
 
     print(f"data struct: {elapsed_time_dataframe:.2f} seconds, kdtree: {elapsed_time_kdtree:.2f} seconds", flush=True)
     print(f"DDDDDDDDDDDDDDDDDDDDDDDDDDDDDD {image_name}", flush=True)
@@ -310,26 +310,26 @@ def fast_neighbors_counts_for_block2(df_image, image_name, coord_column_names, p
     elapsed_time_kdtree = 0
     
     # Concatenate the annulus dataframes to get the final dataframe of neighbor counts for the current image
-    time_before = time()
+    time_before = time.time()
     if data_struct == "pandas":
         df_curr_counts = pd.concat(df_counts_holder_annulus, axis='columns')
     elif data_struct == "numpy":
         df_curr_counts = np.concatenate(df_counts_holder_annulus, axis=1, dtype=np.int32)
-    elapsed_time_dataframe += time() - time_before
+    elapsed_time_dataframe += time.time() - time_before
 
     # Convert the dataframe to a more efficient dtype (from int64)
-    time_before = time()
+    time_before = time.time()
     if data_struct == "pandas":
         df_curr_counts = df_curr_counts.astype(np.int32)
     elif data_struct == "numpy":
         df_curr_counts = pd.DataFrame(df_curr_counts, index=df_image_index, columns=[col for sublist in df_counts_annulus_column_holder for col in sublist])
-    elapsed_time_dataframe += time() - time_before
+    elapsed_time_dataframe += time.time() - time_before
 
     print(f"data struct: {elapsed_time_dataframe:.2f} seconds, kdtree: {elapsed_time_kdtree:.2f} seconds", flush=True)
     
     # Print the time taken to calculate the neighbor counts for the current image
     # print(f'  ...finished calculating neighbor counts for image {image_name} ({len(df_image)} cells) in {time.time() - start_time:.2f} seconds', flush=True)
-    print(f'  ...finished calculating neighbor counts for image {image_name} ({len(df_image)} cells) in {time() - start_time:.2f} seconds', flush=True)
+    print(f'  ...finished calculating neighbor counts for image {image_name} ({len(df_image)} cells) in {time.time() - start_time:.2f} seconds', flush=True)
 
     # Return the final dataframe of neighbor counts for the current image
     return df_curr_counts
