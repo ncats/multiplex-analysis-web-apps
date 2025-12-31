@@ -45,6 +45,7 @@ from fast_neighborhood_profiles import sample_analysis_1
 from fast_neighborhood_profiles import sample_analysis_2
 from pathlib import Path
 from fast_neighborhood_profiles import plot_neighborhood_types
+from fast_neighborhood_profiles import delete_cells
 
 ST_KEY_PREFIX = "app.py__"
 ST_KEY_PREFIX_STARTUP = "startup.py__"
@@ -94,6 +95,7 @@ def main():
                 st.Page(manage_sessions.main, title="Manage sessions", url_path='manage_sessions'),
                 st.Page(load_unified_input_file.main, title="Load unified input file", url_path='load_unified_input_file'),
                 st.Page(phenotype.main, title="Phenotype", url_path='phenotype'),
+                st.Page(delete_cells.main, title="Delete cells", url_path='delete_cells'),
                 st.Page(run_spatial_umap.main, title="Run spatial UMAP", url_path='run_spatial_umap'),
                 st.Page(assign_neighborhood_types.main, title="Assign neighborhood types", url_path='assign_neighborhood_types'),
                 st.Page(plot_neighborhood_types.main, title="Plot neighborhood types", url_path='plot_neighborhood_types'),

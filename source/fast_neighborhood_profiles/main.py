@@ -17,354 +17,7 @@ import scipy.spatial
 import plotly.colors
 
 
-def perform_species_phenotyping_on_lazyframe(lf, marker_columns_with_prefix, df_species_assignments):
-
-    # For parity with perform_marker_phenotyping_on_lazyframe(), calculate marker_columns, don't send it in.
-    marker_columns = [x.removeprefix("Phenotype_(standardized) ") for x in marker_columns_with_prefix]
-
-    # Add the species column to the main lazyframe.
-    lf = obtain_species_column_from_markers_columns(lf, marker_columns_with_prefix, marker_columns)
-
-    # Create a polars dataframe out of the needed columns of the assignments table, renaming to the final "label" column.
-    assignments_pl = (
-        pl.from_pandas(df_species_assignments)
-        .select(["Species", "Edited name"])
-        .rename({"Edited name": "label"})  # final column name in main LF
-        .lazy()
-    )
-
-    # Assign the names to the species and drop rows that don't have mappings.
-    lf = lf.join(assignments_pl, on="Species", how="inner")
-
-    # Return the phenotyped lazyframe.
-    return lf
-
-
-def create_species_assignments_table(lf):
-    '''
-    There is no "collect" in this function and is extremely fast.
-    '''
-
-    # Get the species counts.
-    lf_species_counts = lf.group_by("Species").agg(pl.count().alias("Count in dataset")).sort("Count in dataset", descending=True)
-
-    # Create a column that we'll edit, and reorder the columns.
-    lf_species_counts = lf_species_counts.with_columns(pl.col("Species").alias("Edited name")).select(pl.col(["Species", "Edited name", "Count in dataset"]))
-
-    # Return the assignments lazyframe.
-    return lf_species_counts
-
-
-def obtain_species_column_from_markers_columns(lf, marker_columns_with_prefix, marker_columns):
-
-    # Keep only rows that have at least one 1 in marker_columns.
-    any_one = pl.any_horizontal([(pl.col(c) == 1) for c in marker_columns_with_prefix])
-    lf = lf.filter(any_one)
-
-    # We need to map to the short column names below, but sometimes the "to" column name already exists in the dataset (due to how the user might generate the unified datafile). So we first rename only those columns that need renaming, and we assume if they already have the name without the prefix, then it's a duplicate of the prefixed column.
-    lf_columns = lf.collect_schema().names()
-    column_mapping = {x: y for x, y in zip(marker_columns_with_prefix, marker_columns) if y not in lf_columns}
-
-    # Create a "Species" column that concatenates all marker column names with a 1 in the row.
-    lf = lf.rename(column_mapping).with_columns(
-        Species = pl.concat_str(
-            [
-                pl.when(pl.col(c).cast(pl.Int8).fill_null(0) == 1)
-                .then(pl.lit(f"{c}+"))
-                .otherwise(None)
-                for c in marker_columns
-            ],
-            separator=" ",
-            ignore_nulls=True
-        )
-    )
-
-    # Return the modified lazyframe.
-    return lf
-
-
-def get_phenotyped_metadata(lf_phenotyped):
-
-    # Obtain the resulting labels in decreasing frequency order.
-    ordered_labels = (
-        lf_phenotyped
-        .group_by("label")
-        .agg(pl.count().alias("freq"))
-        .sort(["freq", "label"], descending=[True, False])
-        .select("label")
-        .collect(engine="streaming")
-        .to_series()
-        .to_list()
-    )
-
-    colors = px.colors.qualitative.Plotly
-
-    return {
-        "num_phenotyped_rows": lf_phenotyped.select(pl.len()).collect(engine="streaming").item(),
-        "unique_labels": ordered_labels,
-        "unique_image_ids": lf_phenotyped.select(pl.col("Image ID_(standardized)").unique().sort()).collect(engine="streaming").to_series().to_list(),
-        "phenotype_color_map": {label: colors[i % len(colors)] for i, label in enumerate(ordered_labels)},
-    }
-
-
-def add_new_label_column(lf, updates_pd, updates_index_column="sumap_cell_indices", main_index_column="sumap_cell_index", updates_label_column="label", new_label_column="neighborhood_type", keep="last", missing_label_value="Other"):
-    # 0) Ensure join key dtype in lf is Int64 (only if needed).
-    lf_schema = lf.collect_schema()
-    if lf_schema[main_index_column] != pl.Int64:
-        lf = lf.with_columns(pl.col(main_index_column).cast(pl.Int64))
- 
-    # 1) Convert pandas to Polars and explode to make a (index -> label) mapping.
-    lf_updates = pl.from_pandas(updates_pd).lazy()
-    mapping_lf = (
-        lf_updates
-        .explode(updates_index_column)                      # each index becomes a row
-        .rename({updates_index_column: main_index_column}) # align column name
-        .select(
-            pl.col(main_index_column).cast(pl.Int64),
-            pl.col(updates_label_column).cast(pl.Categorical).alias(new_label_column),
-        )
-        .unique(subset=[main_index_column], keep=keep)  # resolve duplicates if an index appears in multiple labels
-    )
-
-    # 2) Left-join onto main LazyFrame.
-    lf2 = (
-        lf.join(mapping_lf, on=main_index_column, how="left")
-        .with_columns(
-            pl.coalesce([pl.col(new_label_column), pl.lit(missing_label_value)])
-                .alias(new_label_column)
-        )
-    )
-
-    # 3) Return updated LazyFrame.
-    return lf2
-
-
-def fast_neighbors_counts_for_block2(df_image, image_name, coord_column_names, phenotypes, radii, phenotype_column_name, max_chunk_size_in_mb=200, data_struct="numpy", kdtree_str="kdtree", num_rows_per_chunk_neighb=100_000, chunk_neighbor_trees=False):
-    # Haven't checked neighbor chunking accuracy, though it's probably fine. But check before ever using it in production.
-
-    # A block can be an image, ROI, etc. It's the entity over which it makes sense to calculate the neighbors of centers. Here, we're assuming it's an image, but in the SIT for e.g., we generally want it to refer to a ROI.
-
-    # max_chunk_size_in_mb=200, for a 100K-cell dataset, will yield about 250-row chunks, which will yield about 400 chunks i.e. center KDTrees
-    # max_chunk_size_in_mb=500, for a 100K-cell dataset, will yield about 650-row chunks, which will yield about 150 chunks i.e. center KDTrees
-    # max_chunk_size_in_mb=1000, for a 100K-cell dataset, will yield about 1300-row chunks, which will yield about 80 chunks i.e. center KDTrees
-    # max_chunk_size_in_mb=2000, for a 100K-cell dataset, will yield about 2600-row chunks, which will yield about 40 chunks i.e. center KDTrees
-    # max_chunk_size_in_mb=5000, for a 100K-cell dataset, will yield about 6600-row chunks, which will yield about 15 chunks i.e. center KDTrees
-
-    if kdtree_str == "kdtree":
-        kdtree_func = scipy.spatial.KDTree
-    elif kdtree_str == "ckdtree":
-        kdtree_func = scipy.spatial.cKDTree
-
-    # Print the image name
-    print(f'Calculating neighbor counts for image {image_name} ({len(df_image)} cells) using the kdtree method {kdtree_str} with a chunk size of {max_chunk_size_in_mb}MB and data structure type {data_struct}...', flush=True)
-
-    # Record the start time
-    # start_time = time.time()
-    start_time = time.time()
-    elapsed_time_dataframe = 0
-    elapsed_time_kdtree = 0
-
-    # Store some properties of the input dataframe
-    df_image_index = df_image.index
-    num_cells = len(df_image)
-
-    # Get the number of rows per chunk based on the maximum chunk size in MB and assuming every cell will be counted as a neighbor around every center (i.e., use upper limits)
-    largest_sublist_size_in_mb = num_cells * 8  / 1024 ** 2  # 8 bytes per int64 --> units = mb / row
-    num_rows_per_chunk = max(1, int(max_chunk_size_in_mb / largest_sublist_size_in_mb))
-
-    # Get the corresponding integer indices to index things like the input image dataframe
-    start_indices = np.arange(0, num_cells, num_rows_per_chunk, dtype=np.int64)
-    stop_indices = start_indices + num_rows_per_chunk
-
-    # Initialize a list to hold the dataframes of neighbor counts for each radius (not each radius range)
-    time_before = time.time()
-    if data_struct == "pandas":
-        df_counts_holder = [pd.DataFrame(0, index=phenotypes, columns=df_image_index) for _ in radii]
-    elif data_struct == "numpy":
-        df_counts_holder = [np.zeros((len(phenotypes), len(df_image_index)), dtype=np.int32) for _ in radii]
-    elapsed_time_dataframe += time.time() - time_before
-
-    print(f"data struct: {elapsed_time_dataframe:.2f} seconds, kdtree: {elapsed_time_kdtree:.2f} seconds", flush=True)
-    print(f"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA {image_name}", flush=True)
-    elapsed_time_dataframe = 0
-    elapsed_time_kdtree = 0
-
-    # Convert dataframe columns to numpy arrays for faster access if using numpy data structure.
-    if data_struct == "numpy":
-        nd_phenotype = df_image[phenotype_column_name].to_numpy()
-        nd_coords = df_image[coord_column_names].to_numpy(dtype=np.float64)
-
-    # Pre-calculate the neighbor tree for each phenotype
-    neighbor_trees = []
-    for neighbor_phenotype in phenotypes:
-
-        # Get the boolean series identifying the current neighbor phenotype
-        time_before = time.time()
-        if data_struct == "pandas":
-            ser_curr_neighbor_phenotype = df_image[phenotype_column_name] == neighbor_phenotype
-        elif data_struct == "numpy":
-            ser_curr_neighbor_phenotype = nd_phenotype == neighbor_phenotype
-            if chunk_neighbor_trees:
-                nd_curr_neighbor_phenotype = np.where(ser_curr_neighbor_phenotype)[0]
-                num_cells_curr_phenotype = len(nd_curr_neighbor_phenotype)
-                start_indices_neighb = np.arange(0, num_cells_curr_phenotype, num_rows_per_chunk_neighb, dtype=np.int64)
-                stop_indices_neighb = start_indices_neighb + num_rows_per_chunk_neighb
-        elapsed_time_dataframe += time.time() - time_before
-
-        # Construct the KDTree for the current phenotype in the entire current image. This represents the neighbors
-        time_before = time.time()
-        if data_struct == "pandas":
-            neighbor_trees.append(kdtree_func(df_image.loc[ser_curr_neighbor_phenotype, coord_column_names]))
-        elif data_struct == "numpy":
-            if not chunk_neighbor_trees:
-                neighbor_trees.append(kdtree_func(nd_coords[ser_curr_neighbor_phenotype, :]))
-            else:
-                neighbor_trees_curr_phenotype = []
-                for start_index_neighb, stop_index_neighb in zip(start_indices_neighb, np.minimum(stop_indices_neighb, num_cells_curr_phenotype)):
-                    neighbor_trees_curr_phenotype.append(kdtree_func(nd_coords[nd_curr_neighbor_phenotype[start_index_neighb:stop_index_neighb], :]))
-                neighbor_trees.append(neighbor_trees_curr_phenotype)
-        elapsed_time_kdtree += time.time() - time_before
-
-    print(f"data struct: {elapsed_time_dataframe:.2f} seconds, kdtree: {elapsed_time_kdtree:.2f} seconds", flush=True)
-    print(f"BBBBBBBBBBBBBBBBBBBBBBBBBBBBBB {image_name}", flush=True)
-    elapsed_time_dataframe = 0
-    elapsed_time_kdtree = 0
-    
-    # For each chunk of centers...
-    for start_index, stop_index in zip(start_indices, np.minimum(stop_indices, num_cells)):
-
-        # Construct the KDTree for the current chunk. This represents the centers
-        time_before = time.time()
-        if data_struct == "pandas":
-            center_tree = kdtree_func(df_image.loc[df_image_index[start_index:stop_index], coord_column_names])
-        elif data_struct == "numpy":
-            center_tree = kdtree_func(nd_coords[start_index:stop_index, :])
-        elapsed_time_kdtree += time.time() - time_before
-
-        # For each radius, which should be monotonically increasing and start with 0...
-        for iradius, radius in enumerate(radii):
-
-            # For each neighbor tree...
-            for ineighbor_phenotype, curr_neighbor_tree in enumerate(neighbor_trees):
-
-                # Get the list of lists containing the indices of the neighbors for each center
-                time_before = time.time()
-                if data_struct == "pandas":
-                    neighbors_for_radius = center_tree.query_ball_tree(curr_neighbor_tree, radius)
-                elif data_struct == "numpy":
-                    if not chunk_neighbor_trees:
-                        neighbors_for_radius = center_tree.query_ball_tree(curr_neighbor_tree, radius)
-                    else:
-                        neighbors_for_radius = []
-                        for neighbor_tree_chunk in curr_neighbor_tree:
-                            neighbors_for_radius.append(center_tree.query_ball_tree(neighbor_tree_chunk, radius))
-                elapsed_time_kdtree += time.time() - time_before
-
-                # In the correct dataframe (corresponding to the current radius), set the counts of neighbors (of the current phenotype) for each center
-                time_before = time.time()
-                if data_struct == "pandas":
-                    df_counts_holder[iradius].iloc[ineighbor_phenotype, start_index:stop_index] = [len(neighbors_for_center) for neighbors_for_center in neighbors_for_radius]
-                elif data_struct == "numpy":
-                    if not chunk_neighbor_trees:
-                        df_counts_holder[iradius][ineighbor_phenotype, start_index:stop_index] = np.fromiter(map(len, neighbors_for_radius), dtype=np.int32)
-                    else:
-                        counts_per_center = np.zeros(stop_index - start_index, dtype=np.int32)
-                        for neighbors_for_radius_chunk in neighbors_for_radius:
-                            counts_per_center += np.fromiter(map(len, neighbors_for_radius_chunk), dtype=np.int32)
-                        df_counts_holder[iradius][ineighbor_phenotype, start_index:stop_index] = counts_per_center
-                elapsed_time_dataframe += time.time() - time_before
-
-    print(f"data struct: {elapsed_time_dataframe:.2f} seconds, kdtree: {elapsed_time_kdtree:.2f} seconds", flush=True)
-    print(f"CCCCCCCCCCCCCCCCCCCCCCCCCCCCCC {image_name}", flush=True)
-    elapsed_time_dataframe = 0
-    elapsed_time_kdtree = 0
-    
-    # For each annulus, i.e., each radius range...
-    df_counts_holder_annulus = []
-    if data_struct == "numpy":
-        df_counts_annulus_column_holder = []  # "column" not "index" since we transpose
-    for iradius in range(len(radii) - 1):
-
-        # Get the counts of neighbors in the current annulus
-        time_before = time.time()
-        df_counts_curr_annulus = df_counts_holder[iradius + 1] - df_counts_holder[iradius]
-        elapsed_time_dataframe += time.time() - time_before
-
-        # Rename the index to reflect the current radius range
-        radius_range_str = f'({radii[iradius]}, {radii[iradius + 1]}]'
-        time_before = time.time()
-        if data_struct == "pandas":
-            df_counts_curr_annulus.index = [f'{phenotype} in {radius_range_str}' for phenotype in phenotypes]
-        elif data_struct == "numpy":
-            df_counts_annulus_column_holder.append([f'{phenotype} in {radius_range_str}' for phenotype in phenotypes])
-        elapsed_time_dataframe += time.time() - time_before
-
-        # Add a transpose of this (so centers are in rows and phenotypes/radii are in columns) to the running list of annulus dataframes
-        time_before = time.time()
-        df_counts_holder_annulus.append(df_counts_curr_annulus.T)
-        elapsed_time_dataframe += time.time() - time_before
-
-    print(f"data struct: {elapsed_time_dataframe:.2f} seconds, kdtree: {elapsed_time_kdtree:.2f} seconds", flush=True)
-    print(f"DDDDDDDDDDDDDDDDDDDDDDDDDDDDDD {image_name}", flush=True)
-    elapsed_time_dataframe = 0
-    elapsed_time_kdtree = 0
-    
-    # Concatenate the annulus dataframes to get the final dataframe of neighbor counts for the current image
-    time_before = time.time()
-    if data_struct == "pandas":
-        df_curr_counts = pd.concat(df_counts_holder_annulus, axis='columns')
-    elif data_struct == "numpy":
-        df_curr_counts = np.concatenate(df_counts_holder_annulus, axis=1, dtype=np.int32)
-    elapsed_time_dataframe += time.time() - time_before
-
-    # Convert the dataframe to a more efficient dtype (from int64)
-    time_before = time.time()
-    if data_struct == "pandas":
-        df_curr_counts = df_curr_counts.astype(np.int32)
-    elif data_struct == "numpy":
-        df_curr_counts = pd.DataFrame(df_curr_counts, index=df_image_index, columns=[col for sublist in df_counts_annulus_column_holder for col in sublist])
-    elapsed_time_dataframe += time.time() - time_before
-
-    print(f"data struct: {elapsed_time_dataframe:.2f} seconds, kdtree: {elapsed_time_kdtree:.2f} seconds", flush=True)
-    
-    # Print the time taken to calculate the neighbor counts for the current image
-    # print(f'  ...finished calculating neighbor counts for image {image_name} ({len(df_image)} cells) in {time.time() - start_time:.2f} seconds', flush=True)
-    print(f'  ...finished calculating neighbor counts for image {image_name} ({len(df_image)} cells) in {time.time() - start_time:.2f} seconds', flush=True)
-
-    # Return the final dataframe of neighbor counts for the current image
-    return df_curr_counts
-
-
-# Not currently used.
-def test_kdtree_accepts_empty_input():
-    import numpy as np
-    empty = np.empty((0, 2), dtype=float)
-    scipy.spatial.KDTree(empty)  # should succeed; if it raises, you’ll know at test time
-
-
-def save_and_load_pandas_df_to_lf(pd_df, handle, file_format, topdir, index_column_name=None):
-    save_pandas_df_to_file(pd_df, handle=handle, file_format=file_format, topdir=topdir, subdir="input")
-    lf = get_lf(handle, topdir=topdir, subdir="input", file_format=file_format)
-    if index_column_name is not None:
-        lf = lf.with_row_index(name=index_column_name)
-    return lf
-
-
-def get_true_false_color_map():
-    colors = px.colors.qualitative.Plotly
-    color_map = {label: colors[i % len(colors)] for i, label in enumerate((True, False))}
-    return color_map
-
-
-# Get the marker column names from the lazyframe.
-def get_marker_columns(lf, prefix="Phenotype_(standardized) ", exclusion_suffix=""):
-    if exclusion_suffix:
-        marker_columns = [column for column in lf.collect_schema().names() if column.startswith(prefix) and not column.endswith(exclusion_suffix)]
-    else:
-        marker_columns = [column for column in lf.collect_schema().names() if column.startswith(prefix)]
-    marker_columns_ordered = lf.select(pl.col(marker_columns).sum()).collect(engine="streaming").melt(variable_name="column", value_name="sum").sort("sum", descending=True).select("column").to_series().to_list()
-    marker_columns_ordered_no_prefix = [x.removeprefix(prefix) for x in marker_columns_ordered]
-    return marker_columns_ordered_no_prefix, marker_columns_ordered
+#### 1. First in load_unified_input_file.py ###############################################################
 
 
 def get_location_settings():
@@ -382,6 +35,45 @@ def get_objects_list(upload_location):
         bucket_name=get_location_settings()[upload_location]["bucket_name"],
     )
     return objects_list
+
+
+def _subset_csv_to_file(csv_filename="mawa-unified_datafile-TLS_tissue_SF_-20251112_130129_EST.csv", handle="two_images", do_filtering=False, filter_column="Image ID_(standardized)", filter_values=["MS_01__cele_1400w", "MS_02__cele_1400w"], topdir=".", subdir="datafiles", file_format="parquet"):
+    try:    
+        csv_filepath = os.path.join(topdir, subdir, csv_filename)
+        filepath = os.path.join(topdir, subdir, handle + "." + file_format)
+        lf = pl.scan_csv(csv_filepath)
+        if file_format == "parquet":
+            sink_method = "sink_parquet"
+        elif file_format == "arrow":
+            sink_method = "sink_ipc"
+        elif file_format == "csv":
+            sink_method = "sink_csv"
+        else:
+            raise ValueError(f"Unsupported file format: {file_format}")
+        if do_filtering:
+            getattr(lf.filter(pl.col(filter_column).is_in(filter_values)), sink_method)(filepath, engine="streaming")
+        else:
+            getattr(lf, sink_method)(filepath, engine="streaming")
+        return filepath
+    except Exception as e:
+        framework_utils.multiprint(f"An error occurred while subsetting a CSV to a file: {e}", (print,))
+        raise
+
+
+def _get_lf(handle, topdir=".", subdir="datafiles", file_format="parquet"):
+    try:    
+        filepath = os.path.join(topdir, subdir, handle + "." + file_format)
+        if file_format == "parquet":
+            return pl.scan_parquet(filepath)
+        elif file_format == "arrow":
+            return pl.scan_ipc(filepath)
+        elif file_format == "csv":
+            return pl.scan_csv(filepath)
+        else:
+            raise ValueError(f"Unsupported file format: {file_format}")
+    except Exception as e:
+        framework_utils.multiprint(f"An error occurred while getting a lazyframe: {e}", (print,))
+        raise
 
 
 # Load the lazyframe from the specified file using an intermediate file.
@@ -423,11 +115,11 @@ def load_unified_input_file_data(file_format, db_schema, bucket_name, object_fil
         # Generate an intermediate file from which to load the lazyframe.
         for unzipped_path in unzipped_paths:
             filename = os.path.basename(unzipped_path)
-            filepath = subset_csv_to_file(csv_filename=filename, handle="unified_input_file", topdir=topdir, subdir="input", file_format=file_format)
+            filepath = _subset_csv_to_file(csv_filename=filename, handle="unified_input_file", topdir=topdir, subdir="input", file_format=file_format)
             os.remove(unzipped_path)
 
         # Load the lazyframe.
-        lf = get_lf("unified_input_file", topdir=topdir, subdir="input", file_format=file_format)
+        lf = _get_lf("unified_input_file", topdir=topdir, subdir="input", file_format=file_format)
 
         # Store the local filepath relative to the session directory.
         local_filepath = filepath.removeprefix(topdir + os.sep)
@@ -443,64 +135,42 @@ def load_unified_input_file_data(file_format, db_schema, bucket_name, object_fil
         raise
 
 
-def get_min_positive_values(pd_df, group_col="TMA_core_id", boolean_column="area_filter"):
-    return pd_df.groupby(group_col)[boolean_column].sum().min()
+#### 2. First in phenotype.py ###############################################################
 
 
-def subset_csv_to_file(csv_filename="mawa-unified_datafile-TLS_tissue_SF_-20251112_130129_EST.csv", handle="two_images", do_filtering=False, filter_column="Image ID_(standardized)", filter_values=["MS_01__cele_1400w", "MS_02__cele_1400w"], topdir=".", subdir="datafiles", file_format="parquet"):
-    try:    
-        csv_filepath = os.path.join(topdir, subdir, csv_filename)
-        filepath = os.path.join(topdir, subdir, handle + "." + file_format)
-        lf = pl.scan_csv(csv_filepath)
-        if file_format == "parquet":
-            sink_method = "sink_parquet"
-        elif file_format == "arrow":
-            sink_method = "sink_ipc"
-        elif file_format == "csv":
-            sink_method = "sink_csv"
-        else:
-            raise ValueError(f"Unsupported file format: {file_format}")
-        if do_filtering:
-            getattr(lf.filter(pl.col(filter_column).is_in(filter_values)), sink_method)(filepath, engine="streaming")
-        else:
-            getattr(lf, sink_method)(filepath, engine="streaming")
-        return filepath
-    except Exception as e:
-        framework_utils.multiprint(f"An error occurred while subsetting a CSV to a file: {e}", (print,))
-        raise
+# Get the marker column names from the lazyframe.
+def get_marker_columns(lf, prefix="Phenotype_(standardized) ", exclusion_suffix=""):
+    if exclusion_suffix:
+        marker_columns = [column for column in lf.collect_schema().names() if column.startswith(prefix) and not column.endswith(exclusion_suffix)]
+    else:
+        marker_columns = [column for column in lf.collect_schema().names() if column.startswith(prefix)]
+    marker_columns_ordered = lf.select(pl.col(marker_columns).sum()).collect(engine="streaming").melt(variable_name="column", value_name="sum").sort("sum", descending=True).select("column").to_series().to_list()
+    marker_columns_ordered_no_prefix = [x.removeprefix(prefix) for x in marker_columns_ordered]
+    return marker_columns_ordered_no_prefix, marker_columns_ordered
 
 
-def save_pandas_df_to_file(pd_df, handle="two_images", topdir=".", file_format="parquet", subdir="datafiles"):
-    try:    
-        filepath = os.path.join(topdir, subdir, handle + "." + file_format)
-        if file_format == "parquet":  # can potentially write instead to filepath + ".tmp" and subsequently use polars to sink_parquet for better compression via e.g. pl.scan_parquet(filepath + ".tmp").sink_parquet(filepath) with a subsequent os.remove(filepath + ".tmp")
-            pd_df.to_parquet(filepath, index=False)
-        elif file_format == "arrow":
-            pl.from_pandas(pd_df).write_ipc(filepath)
-        elif file_format == "csv":
-            pd_df.to_csv(filepath, index=False)
-        else:
-            raise ValueError(f"Unsupported file format: {file_format}")
-        return filepath
-    except Exception as e:
-        framework_utils.multiprint(f"An error occurred while saving a pandas DataFrame to a file: {e}", (print,))
-        raise
+def get_phenotyped_metadata(lf_phenotyped):
 
+    # Obtain the resulting labels in decreasing frequency order.
+    ordered_labels = (
+        lf_phenotyped
+        .group_by("label")
+        .agg(pl.count().alias("freq"))
+        .sort(["freq", "label"], descending=[True, False])
+        .select("label")
+        .collect(engine="streaming")
+        .to_series()
+        .to_list()
+    )
 
-def get_lf(handle, topdir=".", subdir="datafiles", file_format="parquet"):
-    try:    
-        filepath = os.path.join(topdir, subdir, handle + "." + file_format)
-        if file_format == "parquet":
-            return pl.scan_parquet(filepath)
-        elif file_format == "arrow":
-            return pl.scan_ipc(filepath)
-        elif file_format == "csv":
-            return pl.scan_csv(filepath)
-        else:
-            raise ValueError(f"Unsupported file format: {file_format}")
-    except Exception as e:
-        framework_utils.multiprint(f"An error occurred while getting a lazyframe: {e}", (print,))
-        raise
+    colors = px.colors.qualitative.Plotly
+
+    return {
+        "num_phenotyped_rows": lf_phenotyped.select(pl.len()).collect(engine="streaming").item(),
+        "unique_labels": ordered_labels,
+        "unique_image_ids": lf_phenotyped.select(pl.col("Image ID_(standardized)").unique().sort()).collect(engine="streaming").to_series().to_list(),
+        "phenotype_color_map": {label: colors[i % len(colors)] for i, label in enumerate(ordered_labels)},
+    }
 
 
 def perform_marker_phenotyping_on_lazyframe(lf, marker_columns_with_prefix, colname_regex_to_replace=r"^Phenotype_\(standardized\)\s+"):
@@ -552,6 +222,72 @@ def perform_marker_phenotyping_on_lazyframe(lf, marker_columns_with_prefix, coln
     except Exception as e:
         framework_utils.multiprint(f"An error occurred while performing marker phenotyping on a lazyframe: {e}", (print,))
         raise
+
+
+def obtain_species_column_from_markers_columns(lf, marker_columns_with_prefix, marker_columns):
+
+    # Keep only rows that have at least one 1 in marker_columns.
+    any_one = pl.any_horizontal([(pl.col(c) == 1) for c in marker_columns_with_prefix])
+    lf = lf.filter(any_one)
+
+    # We need to map to the short column names below, but sometimes the "to" column name already exists in the dataset (due to how the user might generate the unified datafile). So we first rename only those columns that need renaming, and we assume if they already have the name without the prefix, then it's a duplicate of the prefixed column.
+    lf_columns = lf.collect_schema().names()
+    column_mapping = {x: y for x, y in zip(marker_columns_with_prefix, marker_columns) if y not in lf_columns}
+
+    # Create a "Species" column that concatenates all marker column names with a 1 in the row.
+    lf = lf.rename(column_mapping).with_columns(
+        Species = pl.concat_str(
+            [
+                pl.when(pl.col(c).cast(pl.Int8).fill_null(0) == 1)
+                .then(pl.lit(f"{c}+"))
+                .otherwise(None)
+                for c in marker_columns
+            ],
+            separator=" ",
+            ignore_nulls=True
+        )
+    )
+
+    # Return the modified lazyframe.
+    return lf
+
+
+def create_species_assignments_table(lf):
+    '''
+    There is no "collect" in this function and is extremely fast.
+    '''
+
+    # Get the species counts.
+    lf_species_counts = lf.group_by("Species").agg(pl.count().alias("Count in dataset")).sort("Count in dataset", descending=True)
+
+    # Create a column that we'll edit, and reorder the columns.
+    lf_species_counts = lf_species_counts.with_columns(pl.col("Species").alias("Edited name")).select(pl.col(["Species", "Edited name", "Count in dataset"]))
+
+    # Return the assignments lazyframe.
+    return lf_species_counts
+
+
+def perform_species_phenotyping_on_lazyframe(lf, marker_columns_with_prefix, df_species_assignments):
+
+    # For parity with perform_marker_phenotyping_on_lazyframe(), calculate marker_columns, don't send it in.
+    marker_columns = [x.removeprefix("Phenotype_(standardized) ") for x in marker_columns_with_prefix]
+
+    # Add the species column to the main lazyframe.
+    lf = obtain_species_column_from_markers_columns(lf, marker_columns_with_prefix, marker_columns)
+
+    # Create a polars dataframe out of the needed columns of the assignments table, renaming to the final "label" column.
+    assignments_pl = (
+        pl.from_pandas(df_species_assignments)
+        .select(["Species", "Edited name"])
+        .rename({"Edited name": "label"})  # final column name in main LF
+        .lazy()
+    )
+
+    # Assign the names to the species and drop rows that don't have mappings.
+    lf = lf.join(assignments_pl, on="Species", how="inner")
+
+    # Return the phenotyped lazyframe.
+    return lf
 
 
 def plot_image_from_frame(
@@ -759,106 +495,10 @@ def plot_image_from_frame(
         raise
 
 
-def plot_neighborhood_profile(data, plot_type, labels_axis_1, labels_axis_2, axis_1_name="Distance bin (µm)", axis_2_name="Phenotype", value_name="Density", color_map=None):
-    # Note the axes here refer to the axes of data, not the plot axes.
-    # data shape: (axis_0, axis_1, axis_2) where axis_0 is the distribution dimension (e.g., cells), axis_1 is the distance bin, and axis_2 is the phenotype.
-    
-    # Define color map if not provided.
-    if not color_map:
-        colors = px.colors.qualitative.Plotly
-        unique_labels = sorted(labels_axis_2)
-        color_map = {label: colors[i % len(colors)] for i, label in enumerate(unique_labels)}
-    
-    # Create the figure.
-    fig = go.Figure()
-    
-    # For each phenotype, i.e., series (axis_2)...
-    for i2, label_axis_2 in enumerate(labels_axis_2):
+#### 3. First in delete_cells.py (none yet) ########################################################
 
-        # Get the current color for the series.
-        color = color_map[label_axis_2]
-        
-        # If we want to plot a line plot with shaded area...
-        extra_return_info = ""
-        if plot_type == "line":
 
-            # Store the quantiles for the 16-84% IQR shading.
-            quantiles = np.quantile(data[:, :, i2], [0.16, 0.50, 0.84], axis=0)
-
-            # Get the current color in RGB format.
-            rgb = plotly.colors.hex_to_rgb(color)
-
-            # Shaded area between min/max quantiles.
-            fig.add_trace(
-                go.Scatter(
-                    x=list(labels_axis_1) + list(labels_axis_1)[::-1],
-                    y=list(quantiles[2, :]) + list(quantiles[0, :])[::-1],
-                    fill='toself',
-                    fillcolor=f'rgba({rgb[0]}, {rgb[1]}, {rgb[2]}, 0.15)',  # lighter shade
-                    line=dict(color='rgba(255,255,255,0)'),
-                    hoverinfo="skip",
-                    showlegend=False,
-                    name=label_axis_2,
-                    legendgroup=label_axis_2,
-                )
-            )
-
-            # Median line.
-            fig.add_trace(
-                go.Scatter(
-                    x=labels_axis_1,
-                    y=quantiles[1, :],
-                    mode='lines+markers',
-                    name=label_axis_2,
-                    line=dict(color=color, width=2),
-                    legendgroup=label_axis_2,
-                )
-            )
-
-            # Extra return information.
-            extra_return_info = "*Median with 16-84% IQR shaded area."
-
-        # If we want to plot a box plot...
-        elif plot_type == 'box':
-            for i1, label_axis_1 in enumerate(labels_axis_1):  # For each distance bin (axis_1)...
-                fig.add_trace(
-                    go.Box(
-                        x=[label_axis_1] * data.shape[0],
-                        y=data[:, i1, i2],
-                        name=label_axis_2,
-                        marker_color=color,
-                        boxmean=True,
-                        showlegend=(i1 == 0),  # Only show legend once per series
-                        legendgroup=label_axis_2,
-                    )
-                )
-
-        # If we want to plot a violin plot...
-        elif plot_type == "violin":
-            for i1, label_axis_1 in enumerate(labels_axis_1):  # For each distance bin (axis_1)...
-                fig.add_trace(
-                    go.Violin(
-                        x=[label_axis_1] * data.shape[0],
-                        y=data[:, i1, i2],
-                        name=label_axis_2,
-                        legendgroup=label_axis_2,
-                        scalegroup=label_axis_2,
-                        line_color=color,
-                        showlegend=(i1 == 0),  # Only show legend for first distance bin
-                        box_visible=False,
-                        meanline_visible=True,
-                    )
-                )
-
-    # Update layout for clarity.
-    fig.update_layout(
-        xaxis_title=axis_1_name,
-        yaxis_title=value_name,
-        legend_title=axis_2_name,
-    )
-    
-    # Return the figure.
-    return fig, extra_return_info
+#### 4. First in run_spatial_umap.py ###############################################################
 
 
 # Wrapper to modify core function for compatibility with job input/output dictionary standards without the need for an intermediate polars dataframe.
@@ -876,13 +516,17 @@ def generate_umap_wrapper(**inputs):
     del inputs["LAZYFRAMES"]
 
     # Run the core function.
-    outputs = generate_umap_lf_input(**inputs)  # what comes out of this: dict(spatial_umap=spatial_umap, complete_success=True)
+    outputs = _generate_umap_lf_input(**inputs)  # what comes out of this: dict(spatial_umap=spatial_umap, complete_success=True)
 
     # Return the properly formatted outputs.
     return outputs
 
 
-def generate_umap_lf_input(lf, unique_labels, dist_bin_um_list=[25, 50, 100, 150, 200], area_downsample=0.2, um_per_px=1, cpu_pool_size=None, results_topdir=".", subdir="results", counts_method="andrew", area_threshold=0.8, custom_areas=True, seed_for_train_test_split=54321, n=2500, keep_images_with_too_little_data=True, train_sample_frac=1.0, test_sample_frac=1.0, de_min_coords=True, mp_start_method=None):
+def _get_min_positive_values(pd_df, group_col="TMA_core_id", boolean_column="area_filter"):
+    return pd_df.groupby(group_col)[boolean_column].sum().min()
+
+
+def _generate_umap_lf_input(lf, unique_labels, dist_bin_um_list=[25, 50, 100, 150, 200], area_downsample=0.2, um_per_px=1, cpu_pool_size=None, results_topdir=".", subdir="results", counts_method="andrew", area_threshold=0.8, custom_areas=True, seed_for_train_test_split=54321, n=2500, keep_images_with_too_little_data=True, train_sample_frac=1.0, test_sample_frac=1.0, de_min_coords=True, mp_start_method=None):
     # Note that cpu_pool_size=None will default to the number of available CPUs.
 
     # Instantiate the spatial umap object.
@@ -981,7 +625,7 @@ def generate_umap_lf_input(lf, unique_labels, dist_bin_um_list=[25, 50, 100, 150
         spatial_umap.cells = spatial_umap.cells[remaining_loc]
         spatial_umap.density = spatial_umap.density[remaining_loc.values]
 
-    min_filtered_cells = get_min_positive_values(spatial_umap.cells, group_col="TMA_core_id", boolean_column="area_filter")  # this would be zero if we didn't do the filtering-out line above (spatial_umap.cells = ...)
+    min_filtered_cells = _get_min_positive_values(spatial_umap.cells, group_col="TMA_core_id", boolean_column="area_filter")  # this would be zero if we didn't do the filtering-out line above (spatial_umap.cells = ...)
     framework_utils.multiprint(f"Minimum number of cells passing area filter across all TMA cores: {min_filtered_cells}", (print,))
     # Set training and "test" cells for umap training and embedding, respectively. Baras's original code had a hard cutoff of n=2500 so images with fewer than 2*2500 non-filtered-out cells were discarded entirely. n = min(n, min_filtered_cells // 2) allows these images to remain in the analysis with smaller n.
     if keep_images_with_too_little_data:
@@ -1009,6 +653,7 @@ def generate_umap_lf_input(lf, unique_labels, dist_bin_um_list=[25, 50, 100, 150
     return dict(spatial_umap=spatial_umap, complete_success=True)
 
 
+# Not currently used.
 def generate_figures(spatial_umap):
 
     # # load spatial_umap object
@@ -1151,3 +796,372 @@ def generate_figures(spatial_umap):
     #     PlottingTools.plot_2d_density(d_idx_B, bins=[xx, yy], n_pad=30, ax=ax[1, i + 1], circle_type='bg', cmap=cmap_viridis)
     #     d_diff = d_idx_A - d_idx_B
     #     PlottingTools.plot_2d_density(d_diff, bins=[xx, yy], n_pad=30, ax=ax[2, i + 1], circle_type='arch', cmap=cmap_bwr)
+
+
+def fast_neighbors_counts_for_block2(df_image, image_name, coord_column_names, phenotypes, radii, phenotype_column_name, max_chunk_size_in_mb=200, data_struct="numpy", kdtree_str="kdtree", num_rows_per_chunk_neighb=100_000, chunk_neighbor_trees=False):
+    # Haven't checked neighbor chunking accuracy, though it's probably fine. But check before ever using it in production.
+
+    # A block can be an image, ROI, etc. It's the entity over which it makes sense to calculate the neighbors of centers. Here, we're assuming it's an image, but in the SIT for e.g., we generally want it to refer to a ROI.
+
+    # max_chunk_size_in_mb=200, for a 100K-cell dataset, will yield about 250-row chunks, which will yield about 400 chunks i.e. center KDTrees
+    # max_chunk_size_in_mb=500, for a 100K-cell dataset, will yield about 650-row chunks, which will yield about 150 chunks i.e. center KDTrees
+    # max_chunk_size_in_mb=1000, for a 100K-cell dataset, will yield about 1300-row chunks, which will yield about 80 chunks i.e. center KDTrees
+    # max_chunk_size_in_mb=2000, for a 100K-cell dataset, will yield about 2600-row chunks, which will yield about 40 chunks i.e. center KDTrees
+    # max_chunk_size_in_mb=5000, for a 100K-cell dataset, will yield about 6600-row chunks, which will yield about 15 chunks i.e. center KDTrees
+
+    if kdtree_str == "kdtree":
+        kdtree_func = scipy.spatial.KDTree
+    elif kdtree_str == "ckdtree":
+        kdtree_func = scipy.spatial.cKDTree
+
+    # Print the image name
+    print(f'Calculating neighbor counts for image {image_name} ({len(df_image)} cells) using the kdtree method {kdtree_str} with a chunk size of {max_chunk_size_in_mb}MB and data structure type {data_struct}...', flush=True)
+
+    # Record the start time
+    # start_time = time.time()
+    start_time = time.time()
+    elapsed_time_dataframe = 0
+    elapsed_time_kdtree = 0
+
+    # Store some properties of the input dataframe
+    df_image_index = df_image.index
+    num_cells = len(df_image)
+
+    # Get the number of rows per chunk based on the maximum chunk size in MB and assuming every cell will be counted as a neighbor around every center (i.e., use upper limits)
+    largest_sublist_size_in_mb = num_cells * 8  / 1024 ** 2  # 8 bytes per int64 --> units = mb / row
+    num_rows_per_chunk = max(1, int(max_chunk_size_in_mb / largest_sublist_size_in_mb))
+
+    # Get the corresponding integer indices to index things like the input image dataframe
+    start_indices = np.arange(0, num_cells, num_rows_per_chunk, dtype=np.int64)
+    stop_indices = start_indices + num_rows_per_chunk
+
+    # Initialize a list to hold the dataframes of neighbor counts for each radius (not each radius range)
+    time_before = time.time()
+    if data_struct == "pandas":
+        df_counts_holder = [pd.DataFrame(0, index=phenotypes, columns=df_image_index) for _ in radii]
+    elif data_struct == "numpy":
+        df_counts_holder = [np.zeros((len(phenotypes), len(df_image_index)), dtype=np.int32) for _ in radii]
+    elapsed_time_dataframe += time.time() - time_before
+
+    print(f"data struct: {elapsed_time_dataframe:.2f} seconds, kdtree: {elapsed_time_kdtree:.2f} seconds", flush=True)
+    elapsed_time_dataframe = 0
+    elapsed_time_kdtree = 0
+
+    # Convert dataframe columns to numpy arrays for faster access if using numpy data structure.
+    if data_struct == "numpy":
+        nd_phenotype = df_image[phenotype_column_name].to_numpy()
+        nd_coords = df_image[coord_column_names].to_numpy(dtype=np.float64)
+
+    # Pre-calculate the neighbor tree for each phenotype
+    neighbor_trees = []
+    for neighbor_phenotype in phenotypes:
+
+        # Get the boolean series identifying the current neighbor phenotype
+        time_before = time.time()
+        if data_struct == "pandas":
+            ser_curr_neighbor_phenotype = df_image[phenotype_column_name] == neighbor_phenotype
+        elif data_struct == "numpy":
+            ser_curr_neighbor_phenotype = nd_phenotype == neighbor_phenotype
+            if chunk_neighbor_trees:
+                nd_curr_neighbor_phenotype = np.where(ser_curr_neighbor_phenotype)[0]
+                num_cells_curr_phenotype = len(nd_curr_neighbor_phenotype)
+                start_indices_neighb = np.arange(0, num_cells_curr_phenotype, num_rows_per_chunk_neighb, dtype=np.int64)
+                stop_indices_neighb = start_indices_neighb + num_rows_per_chunk_neighb
+        elapsed_time_dataframe += time.time() - time_before
+
+        # Construct the KDTree for the current phenotype in the entire current image. This represents the neighbors
+        time_before = time.time()
+        if data_struct == "pandas":
+            neighbor_trees.append(kdtree_func(df_image.loc[ser_curr_neighbor_phenotype, coord_column_names]))
+        elif data_struct == "numpy":
+            if not chunk_neighbor_trees:
+                neighbor_trees.append(kdtree_func(nd_coords[ser_curr_neighbor_phenotype, :]))
+            else:
+                neighbor_trees_curr_phenotype = []
+                for start_index_neighb, stop_index_neighb in zip(start_indices_neighb, np.minimum(stop_indices_neighb, num_cells_curr_phenotype)):
+                    neighbor_trees_curr_phenotype.append(kdtree_func(nd_coords[nd_curr_neighbor_phenotype[start_index_neighb:stop_index_neighb], :]))
+                neighbor_trees.append(neighbor_trees_curr_phenotype)
+        elapsed_time_kdtree += time.time() - time_before
+
+    print(f"data struct: {elapsed_time_dataframe:.2f} seconds, kdtree: {elapsed_time_kdtree:.2f} seconds", flush=True)
+    elapsed_time_dataframe = 0
+    elapsed_time_kdtree = 0
+    
+    # For each chunk of centers...
+    for start_index, stop_index in zip(start_indices, np.minimum(stop_indices, num_cells)):
+
+        # Construct the KDTree for the current chunk. This represents the centers
+        time_before = time.time()
+        if data_struct == "pandas":
+            center_tree = kdtree_func(df_image.loc[df_image_index[start_index:stop_index], coord_column_names])
+        elif data_struct == "numpy":
+            center_tree = kdtree_func(nd_coords[start_index:stop_index, :])
+        elapsed_time_kdtree += time.time() - time_before
+
+        # For each radius, which should be monotonically increasing and start with 0...
+        for iradius, radius in enumerate(radii):
+
+            # For each neighbor tree...
+            for ineighbor_phenotype, curr_neighbor_tree in enumerate(neighbor_trees):
+
+                # Get the list of lists containing the indices of the neighbors for each center
+                time_before = time.time()
+                if data_struct == "pandas":
+                    neighbors_for_radius = center_tree.query_ball_tree(curr_neighbor_tree, radius)
+                elif data_struct == "numpy":
+                    if not chunk_neighbor_trees:
+                        neighbors_for_radius = center_tree.query_ball_tree(curr_neighbor_tree, radius)
+                    else:
+                        neighbors_for_radius = []
+                        for neighbor_tree_chunk in curr_neighbor_tree:
+                            neighbors_for_radius.append(center_tree.query_ball_tree(neighbor_tree_chunk, radius))
+                elapsed_time_kdtree += time.time() - time_before
+
+                # In the correct dataframe (corresponding to the current radius), set the counts of neighbors (of the current phenotype) for each center
+                time_before = time.time()
+                if data_struct == "pandas":
+                    df_counts_holder[iradius].iloc[ineighbor_phenotype, start_index:stop_index] = [len(neighbors_for_center) for neighbors_for_center in neighbors_for_radius]
+                elif data_struct == "numpy":
+                    if not chunk_neighbor_trees:
+                        df_counts_holder[iradius][ineighbor_phenotype, start_index:stop_index] = np.fromiter(map(len, neighbors_for_radius), dtype=np.int32)
+                    else:
+                        counts_per_center = np.zeros(stop_index - start_index, dtype=np.int32)
+                        for neighbors_for_radius_chunk in neighbors_for_radius:
+                            counts_per_center += np.fromiter(map(len, neighbors_for_radius_chunk), dtype=np.int32)
+                        df_counts_holder[iradius][ineighbor_phenotype, start_index:stop_index] = counts_per_center
+                elapsed_time_dataframe += time.time() - time_before
+
+    print(f"data struct: {elapsed_time_dataframe:.2f} seconds, kdtree: {elapsed_time_kdtree:.2f} seconds", flush=True)
+    elapsed_time_dataframe = 0
+    elapsed_time_kdtree = 0
+    
+    # For each annulus, i.e., each radius range...
+    df_counts_holder_annulus = []
+    if data_struct == "numpy":
+        df_counts_annulus_column_holder = []  # "column" not "index" since we transpose
+    for iradius in range(len(radii) - 1):
+
+        # Get the counts of neighbors in the current annulus
+        time_before = time.time()
+        df_counts_curr_annulus = df_counts_holder[iradius + 1] - df_counts_holder[iradius]
+        elapsed_time_dataframe += time.time() - time_before
+
+        # Rename the index to reflect the current radius range
+        radius_range_str = f'({radii[iradius]}, {radii[iradius + 1]}]'
+        time_before = time.time()
+        if data_struct == "pandas":
+            df_counts_curr_annulus.index = [f'{phenotype} in {radius_range_str}' for phenotype in phenotypes]
+        elif data_struct == "numpy":
+            df_counts_annulus_column_holder.append([f'{phenotype} in {radius_range_str}' for phenotype in phenotypes])
+        elapsed_time_dataframe += time.time() - time_before
+
+        # Add a transpose of this (so centers are in rows and phenotypes/radii are in columns) to the running list of annulus dataframes
+        time_before = time.time()
+        df_counts_holder_annulus.append(df_counts_curr_annulus.T)
+        elapsed_time_dataframe += time.time() - time_before
+
+    print(f"data struct: {elapsed_time_dataframe:.2f} seconds, kdtree: {elapsed_time_kdtree:.2f} seconds", flush=True)
+    elapsed_time_dataframe = 0
+    elapsed_time_kdtree = 0
+    
+    # Concatenate the annulus dataframes to get the final dataframe of neighbor counts for the current image
+    time_before = time.time()
+    if data_struct == "pandas":
+        df_curr_counts = pd.concat(df_counts_holder_annulus, axis='columns')
+    elif data_struct == "numpy":
+        df_curr_counts = np.concatenate(df_counts_holder_annulus, axis=1, dtype=np.int32)
+    elapsed_time_dataframe += time.time() - time_before
+
+    # Convert the dataframe to a more efficient dtype (from int64)
+    time_before = time.time()
+    if data_struct == "pandas":
+        df_curr_counts = df_curr_counts.astype(np.int32)
+    elif data_struct == "numpy":
+        df_curr_counts = pd.DataFrame(df_curr_counts, index=df_image_index, columns=[col for sublist in df_counts_annulus_column_holder for col in sublist])
+    elapsed_time_dataframe += time.time() - time_before
+
+    print(f"data struct: {elapsed_time_dataframe:.2f} seconds, kdtree: {elapsed_time_kdtree:.2f} seconds", flush=True)
+    
+    # Print the time taken to calculate the neighbor counts for the current image
+    print(f'  ...finished calculating neighbor counts for image {image_name} ({len(df_image)} cells) in {time.time() - start_time:.2f} seconds', flush=True)
+
+    # Return the final dataframe of neighbor counts for the current image
+    return df_curr_counts
+
+
+# # Not currently used.
+# def test_kdtree_accepts_empty_input():
+#     import numpy as np
+#     empty = np.empty((0, 2), dtype=float)
+#     scipy.spatial.KDTree(empty)  # should succeed; if it raises, you’ll know at test time
+
+
+def _save_pandas_df_to_file(pd_df, handle="two_images", topdir=".", file_format="parquet", subdir="datafiles"):
+    try:    
+        filepath = os.path.join(topdir, subdir, handle + "." + file_format)
+        if file_format == "parquet":  # can potentially write instead to filepath + ".tmp" and subsequently use polars to sink_parquet for better compression via e.g. pl.scan_parquet(filepath + ".tmp").sink_parquet(filepath) with a subsequent os.remove(filepath + ".tmp")
+            pd_df.to_parquet(filepath, index=False)
+        elif file_format == "arrow":
+            pl.from_pandas(pd_df).write_ipc(filepath)
+        elif file_format == "csv":
+            pd_df.to_csv(filepath, index=False)
+        else:
+            raise ValueError(f"Unsupported file format: {file_format}")
+        return filepath
+    except Exception as e:
+        framework_utils.multiprint(f"An error occurred while saving a pandas DataFrame to a file: {e}", (print,))
+        raise
+
+
+def save_and_load_pandas_df_to_lf(pd_df, handle, file_format, topdir, index_column_name=None):
+    _save_pandas_df_to_file(pd_df, handle=handle, file_format=file_format, topdir=topdir, subdir="input")
+    lf = _get_lf(handle, topdir=topdir, subdir="input", file_format=file_format)
+    if index_column_name is not None:
+        lf = lf.with_row_index(name=index_column_name)
+    return lf
+
+
+def get_true_false_color_map():
+    colors = px.colors.qualitative.Plotly
+    color_map = {label: colors[i % len(colors)] for i, label in enumerate((True, False))}
+    return color_map
+
+
+#### 5. First in assign_neighborhood_types.py ###############################################################
+
+
+def plot_neighborhood_profile(data, plot_type, labels_axis_1, labels_axis_2, axis_1_name="Distance bin (µm)", axis_2_name="Phenotype", value_name="Density", color_map=None):
+    # Note the axes here refer to the axes of data, not the plot axes.
+    # data shape: (axis_0, axis_1, axis_2) where axis_0 is the distribution dimension (e.g., cells), axis_1 is the distance bin, and axis_2 is the phenotype.
+    
+    # Define color map if not provided.
+    if not color_map:
+        colors = px.colors.qualitative.Plotly
+        unique_labels = sorted(labels_axis_2)
+        color_map = {label: colors[i % len(colors)] for i, label in enumerate(unique_labels)}
+    
+    # Create the figure.
+    fig = go.Figure()
+    
+    # For each phenotype, i.e., series (axis_2)...
+    for i2, label_axis_2 in enumerate(labels_axis_2):
+
+        # Get the current color for the series.
+        color = color_map[label_axis_2]
+        
+        # If we want to plot a line plot with shaded area...
+        extra_return_info = ""
+        if plot_type == "line":
+
+            # Store the quantiles for the 16-84% IQR shading.
+            quantiles = np.quantile(data[:, :, i2], [0.16, 0.50, 0.84], axis=0)
+
+            # Get the current color in RGB format.
+            rgb = plotly.colors.hex_to_rgb(color)
+
+            # Shaded area between min/max quantiles.
+            fig.add_trace(
+                go.Scatter(
+                    x=list(labels_axis_1) + list(labels_axis_1)[::-1],
+                    y=list(quantiles[2, :]) + list(quantiles[0, :])[::-1],
+                    fill='toself',
+                    fillcolor=f'rgba({rgb[0]}, {rgb[1]}, {rgb[2]}, 0.15)',  # lighter shade
+                    line=dict(color='rgba(255,255,255,0)'),
+                    hoverinfo="skip",
+                    showlegend=False,
+                    name=label_axis_2,
+                    legendgroup=label_axis_2,
+                )
+            )
+
+            # Median line.
+            fig.add_trace(
+                go.Scatter(
+                    x=labels_axis_1,
+                    y=quantiles[1, :],
+                    mode='lines+markers',
+                    name=label_axis_2,
+                    line=dict(color=color, width=2),
+                    legendgroup=label_axis_2,
+                )
+            )
+
+            # Extra return information.
+            extra_return_info = "*Median with 16-84% IQR shaded area."
+
+        # If we want to plot a box plot...
+        elif plot_type == 'box':
+            for i1, label_axis_1 in enumerate(labels_axis_1):  # For each distance bin (axis_1)...
+                fig.add_trace(
+                    go.Box(
+                        x=[label_axis_1] * data.shape[0],
+                        y=data[:, i1, i2],
+                        name=label_axis_2,
+                        marker_color=color,
+                        boxmean=True,
+                        showlegend=(i1 == 0),  # Only show legend once per series
+                        legendgroup=label_axis_2,
+                    )
+                )
+
+        # If we want to plot a violin plot...
+        elif plot_type == "violin":
+            for i1, label_axis_1 in enumerate(labels_axis_1):  # For each distance bin (axis_1)...
+                fig.add_trace(
+                    go.Violin(
+                        x=[label_axis_1] * data.shape[0],
+                        y=data[:, i1, i2],
+                        name=label_axis_2,
+                        legendgroup=label_axis_2,
+                        scalegroup=label_axis_2,
+                        line_color=color,
+                        showlegend=(i1 == 0),  # Only show legend for first distance bin
+                        box_visible=False,
+                        meanline_visible=True,
+                    )
+                )
+
+    # Update layout for clarity.
+    fig.update_layout(
+        xaxis_title=axis_1_name,
+        yaxis_title=value_name,
+        legend_title=axis_2_name,
+    )
+    
+    # Return the figure.
+    return fig, extra_return_info
+
+
+def add_new_label_column(lf, updates_pd, updates_index_column="sumap_cell_indices", main_index_column="sumap_cell_index", updates_label_column="label", new_label_column="neighborhood_type", keep="last", missing_label_value="Other"):
+    # 0) Ensure join key dtype in lf is Int64 (only if needed).
+    lf_schema = lf.collect_schema()
+    if lf_schema[main_index_column] != pl.Int64:
+        lf = lf.with_columns(pl.col(main_index_column).cast(pl.Int64))
+ 
+    # 1) Convert pandas to Polars and explode to make a (index -> label) mapping.
+    lf_updates = pl.from_pandas(updates_pd).lazy()
+    mapping_lf = (
+        lf_updates
+        .explode(updates_index_column)                      # each index becomes a row
+        .rename({updates_index_column: main_index_column}) # align column name
+        .select(
+            pl.col(main_index_column).cast(pl.Int64),
+            pl.col(updates_label_column).cast(pl.Categorical).alias(new_label_column),
+        )
+        .unique(subset=[main_index_column], keep=keep)  # resolve duplicates if an index appears in multiple labels
+    )
+
+    # 2) Left-join onto main LazyFrame.
+    lf2 = (
+        lf.join(mapping_lf, on=main_index_column, how="left")
+        .with_columns(
+            pl.coalesce([pl.col(new_label_column), pl.lit(missing_label_value)])
+                .alias(new_label_column)
+        )
+    )
+
+    # 3) Return updated LazyFrame.
+    return lf2
+
+
+#### 6. First in plot_neighborhood_types.py (none yet) ########################################################
