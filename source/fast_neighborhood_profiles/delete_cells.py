@@ -30,7 +30,7 @@ def get_selected_indices():
     selection = st.session_state[ST_KEY_PREFIX + f"scatter_plot__do_not_persist"]
     if "selection" in selection and "points" in selection["selection"] and selection["selection"]["points"]:
         points_list = selection["selection"]["points"]
-        indices = [point["customdata"][4] for point in points_list]  # Note this means that if the "index" column is added to the plot data when calling main.plot_image_from_frame(), it must be the very first custom_column, i.e., at position 4 (0-based indexing).
+        indices = [point["customdata"][4] for point in points_list]  # Note this means that if the "input_index" column is added to the plot data when calling main.plot_image_from_frame(), it must be the very first custom_column, i.e., at position 4 (0-based indexing) since there are four required columns in front of it.
         st.session_state[ST_KEY_PREFIX + "selected_indices"] = indices
     else:
         st.session_state[ST_KEY_PREFIX + "selected_indices"] = []
@@ -85,7 +85,7 @@ def main():
         st.button("Clear selection", on_click=lambda: st.session_state.update({ST_KEY_PREFIX + "selected_indices": []}), key=ST_KEY_PREFIX + "clear_selection_button__do_not_persist")
 
     # Plot the real space with selectable points.
-    fig = fnp_main.plot_image_from_frame(lf, image_colname=image_colname, xcol=xcol, ycol=ycol, color_col=color_col, selected_images=[selected_image_to_plot], marker_size=marker_size, custom_columns=["input_index"], color_map=st.session_state[ST_KEY_PREFIX_PHENOTYPE + "phenotype_color_map"], highlight_indices=selected_indices)
+    fig = fnp_main.plot_image_from_frame(lf, image_colname=image_colname, xcol=xcol, ycol=ycol, color_col=color_col, selected_images=[selected_image_to_plot], marker_size=marker_size, custom_columns=["input_index"], color_map=st.session_state[ST_KEY_PREFIX_PHENOTYPE + "phenotype_color_map"], highlight_indices=selected_indices)  # this highlight_indices=selected_indices might be a bit weird
     fig.update_layout(uirevision="static")  # this doesn't seem to be honored; investigate in the future... actually, maybe it is?
     st.plotly_chart(fig, on_select=get_selected_indices, selection_mode=("points", "box", "lasso"), key=ST_KEY_PREFIX + "scatter_plot__do_not_persist")
 

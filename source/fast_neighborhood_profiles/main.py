@@ -996,10 +996,17 @@ def fast_neighbors_counts_for_block2(df_image, image_name, coord_column_names, p
 #     scipy.spatial.KDTree(empty)  # should succeed; if it raises, you’ll know at test time
 
 
-def _save_pandas_df_to_file(pd_df, handle="two_images", topdir=".", file_format="parquet", subdir="datafiles"):
-    try:    
+def _save_pandas_df_to_file(pd_df, handle="two_images", topdir=".", file_format="parquet", subdir="datafiles", index_column_name="index"):
+    try:
         filepath = os.path.join(topdir, subdir, handle + "." + file_format)
-        if file_format == "parquet":  # can potentially write instead to filepath + ".tmp" and subsequently use polars to sink_parquet for better compression via e.g. pl.scan_parquet(filepath + ".tmp").sink_parquet(filepath) with a subsequent os.remove(filepath + ".tmp")
+
+        if index_column_name in pd_df.columns:
+            raise ValueError(f"The specified index_column_name '{index_column_name}' is already a column in the DataFrame. Please choose a different name.")
+
+        # Materialize index into a real column before writing the Pandas dataframe.
+        pd_df.insert(0, index_column_name, range(len(pd_df)))
+
+        if file_format == "parquet":
             pd_df.to_parquet(filepath, index=False)
         elif file_format == "arrow":
             pl.from_pandas(pd_df).write_ipc(filepath)
@@ -1013,11 +1020,9 @@ def _save_pandas_df_to_file(pd_df, handle="two_images", topdir=".", file_format=
         raise
 
 
-def save_and_load_pandas_df_to_lf(pd_df, handle, file_format, topdir, index_column_name=None):
-    _save_pandas_df_to_file(pd_df, handle=handle, file_format=file_format, topdir=topdir, subdir="input")
+def save_and_load_pandas_df_to_lf(pd_df, handle, file_format, topdir, index_column_name="index"):
+    _save_pandas_df_to_file(pd_df, handle=handle, file_format=file_format, topdir=topdir, subdir="input", index_column_name=index_column_name)
     lf = _get_lf(handle, topdir=topdir, subdir="input", file_format=file_format)
-    if index_column_name is not None:
-        lf = lf.with_row_index(name=index_column_name)
     return lf
 
 

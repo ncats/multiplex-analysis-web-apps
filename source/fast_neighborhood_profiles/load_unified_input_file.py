@@ -47,14 +47,10 @@ def main():
                 # Get a list of the selected shortnames (short versions of the filenames).
                 selected_filenames = df[rows][column_heading].to_list()
 
-                # Allow the user to select the intermediate file format.
-                available_file_formats = ["parquet (recommended)", "arrow", "csv"]
-                intermediate_file_format = st.selectbox("Select intermediate file format:", options=available_file_formats, index=available_file_formats.index("parquet (recommended)"))
-
                 # Load the lazyframe from the selected row.
                 if st.button(f":warning: Load unified input file", help="We recommend that you press the \"🧹 Reset app\" button on the left sidebar before loading a new file in order to start cleanly. If so, and if it's important, please back up the app session first at the \"Manage sessions\" page at left."):
                     object_filename = unified_datafile_mapping[selected_filenames[0]]
-                    file_format = "parquet" if intermediate_file_format == "parquet (recommended)" else intermediate_file_format
+                    file_format = "parquet"
                     db_schema = get_location_settings()[upload_location]["db_schema"]
                     bucket_name = get_location_settings()[upload_location]["bucket_name"]
                     params = dict(file_format=file_format, db_schema=db_schema, bucket_name=bucket_name, object_filename=object_filename)
