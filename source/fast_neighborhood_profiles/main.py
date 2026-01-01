@@ -43,17 +43,17 @@ def _subset_csv_to_file(csv_filename="mawa-unified_datafile-TLS_tissue_SF_-20251
         filepath = os.path.join(topdir, subdir, handle + "." + file_format)
         lf = pl.scan_csv(csv_filepath)
         if file_format == "parquet":
-            sink_method = "sink_parquet"
+            write_method = "write_parquet"
         elif file_format == "arrow":
-            sink_method = "sink_ipc"
+            write_method = "write_ipc"
         elif file_format == "csv":
-            sink_method = "sink_csv"
+            write_method = "write_csv"
         else:
             raise ValueError(f"Unsupported file format: {file_format}")
         if do_filtering:
-            getattr(lf.filter(pl.col(filter_column).is_in(filter_values)), sink_method)(filepath, engine="streaming")
+            getattr(lf.filter(pl.col(filter_column).is_in(filter_values)).with_row_index(name="input_index").collect(engine="in-memory"), write_method)(filepath)  # Must specifically be in-memory to get a repeatable index that's consistent with the file's actual rows!
         else:
-            getattr(lf, sink_method)(filepath, engine="streaming")
+            getattr(lf.with_row_index(name="input_index").collect(engine="in-memory"), write_method)(filepath)  # Must specifically be in-memory to get a repeatable index that's consistent with the file's actual rows!
         return filepath
     except Exception as e:
         framework_utils.multiprint(f"An error occurred while subsetting a CSV to a file: {e}", (print,))
@@ -115,17 +115,14 @@ def load_unified_input_file_data(file_format, db_schema, bucket_name, object_fil
         # Generate an intermediate file from which to load the lazyframe.
         for unzipped_path in unzipped_paths:
             filename = os.path.basename(unzipped_path)
-            filepath = _subset_csv_to_file(csv_filename=filename, handle="unified_input_file", topdir=topdir, subdir="input", file_format=file_format)
+            _subset_csv_to_file(csv_filename=filename, handle="unified_input_file", topdir=topdir, subdir="input", file_format=file_format)
             os.remove(unzipped_path)
 
         # Load the lazyframe.
         lf = _get_lf("unified_input_file", topdir=topdir, subdir="input", file_format=file_format)
 
-        # Store the local filepath relative to the session directory.
-        local_filepath = filepath.removeprefix(topdir + os.sep)
-
-        # Set the index.
-        lf = lf.with_row_index(name="input_index")
+        # # Store the local filepath relative to the session directory.
+        # local_filepath = filepath.removeprefix(topdir + os.sep)
 
         # Return the lazyframe.
         return lf
@@ -139,11 +136,8 @@ def load_unified_input_file_data(file_format, db_schema, bucket_name, object_fil
 
 
 # Get the marker column names from the lazyframe.
-def get_marker_columns(lf, prefix="Phenotype_(standardized) ", exclusion_suffix=""):
-    if exclusion_suffix:
-        marker_columns = [column for column in lf.collect_schema().names() if column.startswith(prefix) and not column.endswith(exclusion_suffix)]
-    else:
-        marker_columns = [column for column in lf.collect_schema().names() if column.startswith(prefix)]
+def get_marker_columns(lf, prefix="Phenotype_(standardized) "):
+    marker_columns = [column for column in lf.collect_schema().names() if column.startswith(prefix)]
     marker_columns_ordered = lf.select(pl.col(marker_columns).sum()).collect(engine="streaming").melt(variable_name="column", value_name="sum").sort("sum", descending=True).select("column").to_series().to_list()
     marker_columns_ordered_no_prefix = [x.removeprefix(prefix) for x in marker_columns_ordered]
     return marker_columns_ordered_no_prefix, marker_columns_ordered
@@ -300,6 +294,7 @@ def plot_image_from_frame(
     color_col="label",
     color_map=None,
     custom_columns=[],
+    highlight_index_col="sumap_cell_index",
     highlight_indices=(),
     default_marker_size=None,
     default_marker_line_color: str = "rgba(0,0,0,0.3)",
@@ -380,10 +375,9 @@ def plot_image_from_frame(
         "".join([f'<br><b>{custom_column}</b>: %{{customdata[{4 + i}]}}' for i, custom_column in enumerate(custom_columns)])
         
         # Determine if we should highlight.
-        index_col = "index"
-        do_highlight = index_col in custom_columns and len(highlight_indices) > 0
+        do_highlight = highlight_index_col in custom_columns and len(highlight_indices) > 0
         if do_highlight:
-            mask_high = df[index_col].isin(highlight_indices)
+            mask_high = df[highlight_index_col].isin(highlight_indices)
             df_high = df[mask_high]
             df_other = df[~mask_high]
         else:

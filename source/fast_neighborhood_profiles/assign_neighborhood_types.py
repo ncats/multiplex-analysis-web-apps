@@ -35,9 +35,9 @@ def get_selected_indices(selected_handle):
     selection = st.session_state[ST_KEY_PREFIX + f"{selected_handle}_plot__do_not_persist"]
     if "selection" in selection and "points" in selection["selection"] and selection["selection"]["points"]:
         points_list = selection["selection"]["points"]
-        indices = [point["customdata"][4] for point in points_list]  # Note this means that if the "index" column is added to the plot data when calling main.plot_image_from_frame(), it must be the very first custom_column, i.e., at position 4 (0-based indexing).
-        st.session_state[ST_KEY_PREFIX + "selected_indices_for_" + other_handle] = indices
-        st.session_state[ST_KEY_PREFIX + "selected_indices_for_neighborhood_profile"] = indices
+        sumap_cell_indices = [point["customdata"][4] for point in points_list]  # Note this means that if the "sumap_cell_index" column is added to the plot data when calling main.plot_image_from_frame(), it must be the very first custom_column, i.e., at position 4 (0-based indexing).
+        st.session_state[ST_KEY_PREFIX + "selected_indices_for_" + other_handle] = sumap_cell_indices
+        st.session_state[ST_KEY_PREFIX + "selected_indices_for_neighborhood_profile"] = sumap_cell_indices
     else:
         st.session_state[ST_KEY_PREFIX + "selected_indices_for_" + other_handle] = []
         st.session_state[ST_KEY_PREFIX + "selected_indices_for_neighborhood_profile"] = []
@@ -53,17 +53,6 @@ def main():
 
     # Get the main lazyframe from session state.
     lf = st.session_state["LAZYFRAMES"]["sumap_cells"]["lf"]
-
-    # Add a row index to the lazyframe. These are indices *after* potentially dropping entire images in main.generate_umap_lf_input(). They are consistent with spatial_umap.cells and spatial_umap.density.
-    # Delete the assertion and all_equal check eventually after never running into an assertion error for a while.
-    lf.collect_schema()  # For some reason, this line is required to recognize the previous .with_row_index() addition of "sumap_cell_index" in run_spatial_umap.py. In particular, it must be above the line below that adds another row index. Maybe the second .with_row_index() nullifies the first before the schema is collected? Seems buggy. Regardless, sometime soon we can migrate from "index" to sumap_cell_index and do away with the latter .with_row_index() immediately below altogether.
-    lf_indexed = lf.with_row_index(name="index")
-    all_equal = (
-        lf_indexed
-        .select((pl.col("index") == pl.col("sumap_cell_index")).all().alias("all_equal"))
-        .collect(engine="streaming")["all_equal"][0]
-    )
-    assert all_equal, "Row indices do not match!"
 
     # Grab values we'll need downstream.
     image_colname = "TMA_core_id"
@@ -104,7 +93,7 @@ def main():
             st.button("Clear selection", on_click=lambda: st.session_state.update({ST_KEY_PREFIX + "selected_indices_for_real_space": []}), key=ST_KEY_PREFIX + "clear_umap_selection_button__do_not_persist")
 
         # Plot the UMAP with selectable points.
-        fig = fnp_main.plot_image_from_frame(lf_indexed, image_colname=image_colname, selected_images=selected_images_to_plot, marker_size=marker_size_umap, xcol="umap_1", ycol="umap_2", color_col="Lineage", custom_columns=["index", "input_index"], color_map=phenotype_color_map, highlight_indices=selected_indices_for_umap)
+        fig = fnp_main.plot_image_from_frame(lf, image_colname=image_colname, selected_images=selected_images_to_plot, marker_size=marker_size_umap, xcol="umap_1", ycol="umap_2", color_col="Lineage", custom_columns=["sumap_cell_index", "input_index"], color_map=phenotype_color_map, highlight_index_col="sumap_cell_index", highlight_indices=selected_indices_for_umap)
         fig.update_layout(uirevision="static")  # this doesn't seem to be honored; investigate in the future
         st.plotly_chart(fig, on_select=partial(get_selected_indices, selected_handle="umap"), selection_mode=("points", "box", "lasso"), key=ST_KEY_PREFIX + "umap_plot__do_not_persist")
 
@@ -138,10 +127,12 @@ def main():
             st.session_state.setdefault(ST_KEY_PREFIX + "display_only_real_space_coords_with_umap_coords", False)
             display_only_real_space_coords_with_umap_coords = st.checkbox("Display only real space coords with UMAP coords", key=ST_KEY_PREFIX + "display_only_real_space_coords_with_umap_coords")
             if display_only_real_space_coords_with_umap_coords:
-                lf_indexed = lf_indexed.filter(pl.col("umap_test"))
+                lf_to_plot = lf.filter(pl.col("umap_test"))
+            else:
+                lf_to_plot = lf
 
             # Plot the real space with selectable points.
-            fig = fnp_main.plot_image_from_frame(lf_indexed, image_colname="TMA_core_id", xcol="Xcor", ycol="Ycor", color_col="Lineage", selected_images=[selected_image_to_plot], marker_size=marker_size_real_space, highlight_indices=selected_indices_for_real_space, custom_columns=["index", "input_index"], color_map=phenotype_color_map)
+            fig = fnp_main.plot_image_from_frame(lf_to_plot, image_colname="TMA_core_id", xcol="Xcor", ycol="Ycor", color_col="Lineage", selected_images=[selected_image_to_plot], marker_size=marker_size_real_space, highlight_index_col="sumap_cell_index", highlight_indices=selected_indices_for_real_space, custom_columns=["sumap_cell_index", "input_index"], color_map=phenotype_color_map)
             fig.update_layout(uirevision="static")  # this doesn't seem to be honored; investigate in the future
             st.plotly_chart(fig, on_select=partial(get_selected_indices, selected_handle="real_space"), selection_mode=("points", "box", "lasso"), key=ST_KEY_PREFIX + "real_space_plot__do_not_persist")
 

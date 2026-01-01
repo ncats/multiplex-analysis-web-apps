@@ -139,7 +139,7 @@ def main():
 
     # If the spatial UMAP job just completed, save the results to a lazyframe and store it in the session state.
     if "JOB_JUST_COMPLETED" in st.session_state and st.session_state["JOB_JUST_COMPLETED"] == "spatial_umap":
-        params = dict(handle="sumap_cells", file_format=sumap_cell_file_format, index_column_name="sumap_cell_index")
+        params = dict(handle="sumap_cells", file_format=sumap_cell_file_format, index_column_name="sumap_cell_index")  # These (sumap_cell_index) are indices *after* potentially dropping entire images in main.generate_umap_lf_input(). They are consistent with spatial_umap.cells and spatial_umap.density.
         lf = fnp_main.save_and_load_pandas_df_to_lf(spatial_umap.cells, **params, topdir=framework_utils.session_dir())
         st.session_state["LAZYFRAMES"]["sumap_cells"] = {
             "lf": lf,

@@ -18,8 +18,8 @@ def get_neighborhood_type(selected_handle, missing_label_value):
     st.session_state[ST_KEY_PREFIX + "selected_indices_for_neighborhood_profile"] = []
     if "selection" in selection and "points" in selection["selection"] and selection["selection"]["points"]:
         points_list = selection["selection"]["points"]
-        indices = [point["customdata"][4] for point in points_list]  # Note this means that if the "index" column is added to the plot data when calling main.plot_image_from_frame(), it must be the very first custom_column, i.e., at position 4 (0-based indexing).
-        selected_neighborhood_types = lf.filter(pl.col("sumap_cell_index").is_in(indices)).select(pl.col("neighborhood_type").unique()).collect(engine="streaming").to_series().to_list()
+        sumap_cell_indices = [point["customdata"][4] for point in points_list]  # Note this means that if the "sumap_cell_index" column is added to the plot data when calling main.plot_image_from_frame(), it must be the very first custom_column, i.e., at position 4 (0-based indexing).
+        selected_neighborhood_types = lf.filter(pl.col("sumap_cell_index").is_in(sumap_cell_indices)).select(pl.col("neighborhood_type").unique()).collect(engine="streaming").to_series().to_list()
         if len(selected_neighborhood_types) == 1 and selected_neighborhood_types[0] != missing_label_value:
             df = st.session_state[ST_KEY_PREFIX_ASSIGN + "df_reconstructed_selections"]
             st.session_state[ST_KEY_PREFIX + "selected_indices_for_neighborhood_profile"] = df.loc[df["label"] == selected_neighborhood_types[0], "sumap_cell_indices"].values[0]
