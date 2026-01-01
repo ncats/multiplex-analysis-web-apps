@@ -59,7 +59,7 @@ def main():
     if key not in st.session_state:
         st.session_state[key] = sde.DataframeEditor(df_name=ST_KEY_PREFIX + "df_selections", default_df_contents=pd.DataFrame(columns=["label", "number_of_cells", "input_indices", "color"]))
 
-    # st.write(lf.head().collect(engine="streaming"))
+    st.write(lf.head().collect(engine="streaming"))
 
     with st.container(horizontal=True, vertical_alignment="bottom"):
 

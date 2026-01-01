@@ -150,9 +150,9 @@ def get_phenotyped_metadata(lf_phenotyped):
         lf_phenotyped
         .group_by("label")
         .agg(pl.count().alias("freq"))
+        .collect(engine="streaming")
         .sort(["freq", "label"], descending=[True, False])
         .select("label")
-        .collect(engine="streaming")
         .to_series()
         .to_list()
     )
@@ -162,7 +162,7 @@ def get_phenotyped_metadata(lf_phenotyped):
     return {
         "num_phenotyped_rows": lf_phenotyped.select(pl.len()).collect(engine="streaming").item(),
         "unique_labels": ordered_labels,
-        "unique_image_ids": lf_phenotyped.select(pl.col("Image ID_(standardized)").unique().sort()).collect(engine="streaming").to_series().to_list(),
+        "unique_image_ids": lf_phenotyped.select(pl.col("Image ID_(standardized)").unique()).collect(engine="streaming").sort(pl.col("Image ID_(standardized)")).to_series().to_list(),
         "phenotype_color_map": {label: colors[i % len(colors)] for i, label in enumerate(ordered_labels)},
     }
 
