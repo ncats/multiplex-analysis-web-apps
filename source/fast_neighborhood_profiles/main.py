@@ -332,8 +332,9 @@ def plot_image_from_frame(
 
         if plot_faithful_object_sizes:
             if isinstance(frame_with_faithful_columns, (pl.LazyFrame, pl.DataFrame)):
-                frame = frame.join(frame_with_faithful_columns.select(pl.col([common_index] + faithful_columns)), on=common_index, how="left")
+                frame = frame.join(frame_with_faithful_columns.select(pl.col([common_index] + faithful_columns)).unique(subset=[common_index], keep="first"), on=common_index, how="left")
             elif isinstance(frame_with_faithful_columns, pd.DataFrame):
+                framework_utils.multiprint("NOTE: WE MAY WANT TO ENFORCE DEDUPLICATION OF THE RHS AS WE DO FOR POLARS ABOVE; NOT DOING THAT FOR PANDAS HERE YET!", (print,))
                 frame = frame.merge(frame_with_faithful_columns[[common_index] + faithful_columns], on=common_index, how="left")
             else:
                 raise ValueError("Faithful columns frame must be a Polars LazyFrame, Polars DataFrame, or Pandas DataFrame.")

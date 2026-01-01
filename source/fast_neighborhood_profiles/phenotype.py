@@ -206,7 +206,7 @@ def main():
             st.button("Previous", on_click=lambda: st.session_state.update({ST_KEY_PREFIX + "selected_image_to_plot": unique_image_ids[max(0, unique_image_ids.index(st.session_state[ST_KEY_PREFIX + "selected_image_to_plot"]) - 1)]}), disabled=(st.session_state[ST_KEY_PREFIX + "selected_image_to_plot"] == unique_image_ids[0]))
             st.button("Next", on_click=lambda: st.session_state.update({ST_KEY_PREFIX + "selected_image_to_plot": unique_image_ids[min(len(unique_image_ids) - 1, unique_image_ids.index(st.session_state[ST_KEY_PREFIX + "selected_image_to_plot"]) + 1)]}), disabled=(st.session_state[ST_KEY_PREFIX + "selected_image_to_plot"] == unique_image_ids[-1]))
 
-        fig = fnp_main.plot_image_from_frame(lf_phenotyped, image_colname=image_colname, selected_images=[selected_image_to_plot], marker_size=marker_size, color_map=st.session_state[ST_KEY_PREFIX + "phenotype_color_map"], custom_columns=["input_index"], plot_faithful_object_sizes=use_coordinate_mins_and_maxs, frame_with_faithful_columns=lf_phenotyped, sort_index_col="input_index")
+        fig = fnp_main.plot_image_from_frame(lf_phenotyped, image_colname=image_colname, selected_images=[selected_image_to_plot], marker_size=marker_size, color_map=st.session_state[ST_KEY_PREFIX + "phenotype_color_map"], custom_columns=["input_index"], plot_faithful_object_sizes=use_coordinate_mins_and_maxs, frame_with_faithful_columns=st.session_state["LAZYFRAMES"]["unified_input_file"]["lf"], sort_index_col="input_index")
 
         # Optionally show the grid lines.
         fig.update_xaxes(showgrid=show_grid_lines)
