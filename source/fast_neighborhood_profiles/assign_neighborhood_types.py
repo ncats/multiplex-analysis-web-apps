@@ -93,7 +93,7 @@ def main():
             st.button("Clear selection", on_click=lambda: st.session_state.update({ST_KEY_PREFIX + "selected_indices_for_real_space": []}), key=ST_KEY_PREFIX + "clear_umap_selection_button__do_not_persist")
 
         # Plot the UMAP with selectable points.
-        fig = fnp_main.plot_image_from_frame(lf, image_colname=image_colname, selected_images=selected_images_to_plot, marker_size=marker_size_umap, xcol="umap_1", ycol="umap_2", color_col="Lineage", custom_columns=["sumap_cell_index", "input_index"], color_map=phenotype_color_map, highlight_index_col="sumap_cell_index", highlight_indices=selected_indices_for_umap)
+        fig = fnp_main.plot_image_from_frame(lf, image_colname=image_colname, selected_images=selected_images_to_plot, marker_size=marker_size_umap, xcol="umap_1", ycol="umap_2", color_col="Lineage", custom_columns=["sumap_cell_index", "input_index"], color_map=phenotype_color_map, highlight_index_col="sumap_cell_index", highlight_indices=selected_indices_for_umap, sort_index_col="input_index")
         fig.update_layout(uirevision="static")  # this doesn't seem to be honored; investigate in the future
         st.plotly_chart(fig, on_select=partial(get_selected_indices, selected_handle="umap"), selection_mode=("points", "box", "lasso"), key=ST_KEY_PREFIX + "umap_plot__do_not_persist")
 
@@ -132,7 +132,7 @@ def main():
                 lf_to_plot = lf
 
             # Plot the real space with selectable points.
-            fig = fnp_main.plot_image_from_frame(lf_to_plot, image_colname="TMA_core_id", xcol="Xcor", ycol="Ycor", color_col="Lineage", selected_images=[selected_image_to_plot], marker_size=marker_size_real_space, highlight_index_col="sumap_cell_index", highlight_indices=selected_indices_for_real_space, custom_columns=["sumap_cell_index", "input_index"], color_map=phenotype_color_map)
+            fig = fnp_main.plot_image_from_frame(lf_to_plot, image_colname="TMA_core_id", xcol="Xcor", ycol="Ycor", color_col="Lineage", selected_images=[selected_image_to_plot], marker_size=marker_size_real_space, highlight_index_col="sumap_cell_index", highlight_indices=selected_indices_for_real_space, custom_columns=["sumap_cell_index", "input_index"], color_map=phenotype_color_map, sort_index_col="input_index")
             fig.update_layout(uirevision="static")  # this doesn't seem to be honored; investigate in the future
             st.plotly_chart(fig, on_select=partial(get_selected_indices, selected_handle="real_space"), selection_mode=("points", "box", "lasso"), key=ST_KEY_PREFIX + "real_space_plot__do_not_persist")
 

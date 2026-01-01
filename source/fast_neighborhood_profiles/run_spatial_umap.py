@@ -170,7 +170,7 @@ def main():
             st.button("Previous", on_click=lambda: st.session_state.update({ST_KEY_PREFIX + "selected_image_to_plot": unique_image_ids[max(0, unique_image_ids.index(st.session_state[ST_KEY_PREFIX + "selected_image_to_plot"]) - 1)]}), disabled=(st.session_state[ST_KEY_PREFIX + "selected_image_to_plot"] == unique_image_ids[0]))
             st.button("Next", on_click=lambda: st.session_state.update({ST_KEY_PREFIX + "selected_image_to_plot": unique_image_ids[min(len(unique_image_ids) - 1, unique_image_ids.index(st.session_state[ST_KEY_PREFIX + "selected_image_to_plot"]) + 1)]}), disabled=(st.session_state[ST_KEY_PREFIX + "selected_image_to_plot"] == unique_image_ids[-1]))
         marker_size = st.slider("Marker size:", min_value=2, max_value=10, value=5)
-        st.plotly_chart(fnp_main.plot_image_from_frame(lf, image_colname=image_colname, selected_images=[selected_image_to_plot], marker_size=marker_size, xcol="Xcor", ycol="Ycor", color_col="area_filter", color_map=get_true_false_color_map(), custom_columns=["input_index", "sumap_cell_index"]))
+        st.plotly_chart(fnp_main.plot_image_from_frame(lf, image_colname=image_colname, selected_images=[selected_image_to_plot], marker_size=marker_size, xcol="Xcor", ycol="Ycor", color_col="area_filter", color_map=get_true_false_color_map(), custom_columns=["input_index", "sumap_cell_index"], sort_index_col="input_index"))
 
 
 # Run the main function if this script is executed.

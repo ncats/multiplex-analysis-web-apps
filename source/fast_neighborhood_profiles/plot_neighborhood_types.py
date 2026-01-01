@@ -68,7 +68,7 @@ def main():
         # Plot the UMAP with selectable points.
         color_col_mapping = {"Phenotype": "Lineage", "Neighborhood type": "neighborhood_type"}
         color_map_mapping = {"Phenotype": phenotype_color_map, "Neighborhood type": neighborhood_type_color_map}
-        fig = fnp_main.plot_image_from_frame(lf, image_colname=image_colname, selected_images=selected_images_to_plot, marker_size=marker_size_umap, xcol="umap_1", ycol="umap_2", color_col=color_col_mapping[umap_color_by], custom_columns=["sumap_cell_index", "input_index"], color_map=color_map_mapping[umap_color_by])
+        fig = fnp_main.plot_image_from_frame(lf, image_colname=image_colname, selected_images=selected_images_to_plot, marker_size=marker_size_umap, xcol="umap_1", ycol="umap_2", color_col=color_col_mapping[umap_color_by], custom_columns=["sumap_cell_index", "input_index"], color_map=color_map_mapping[umap_color_by], sort_index_col="input_index")
         fig.update_layout(uirevision="static")  # this doesn't seem to be honored; investigate in the future
         st.plotly_chart(fig, on_select=partial(get_neighborhood_type, selected_handle="umap", missing_label_value=missing_label_value), selection_mode=("points"), key=ST_KEY_PREFIX + "umap_plot__do_not_persist")
 
@@ -111,7 +111,7 @@ def main():
             color_col_mapping = {"Phenotype": "Lineage", "Neighborhood type": "neighborhood_type"}
             color_map_mapping = {"Phenotype": phenotype_color_map, "Neighborhood type": neighborhood_type_color_map}
             frame_with_faithful_columns = st.session_state["LAZYFRAMES"]["unified_input_file"]["lf"] if plot_faithful_object_sizes else None
-            fig = fnp_main.plot_image_from_frame(lf, image_colname="TMA_core_id", xcol="Xcor", ycol="Ycor", color_col=color_col_mapping[real_space_color_by], selected_images=[selected_image_to_plot], marker_size=marker_size_real_space, custom_columns=["sumap_cell_index", "input_index"], color_map=color_map_mapping[real_space_color_by], plot_faithful_object_sizes=plot_faithful_object_sizes, frame_with_faithful_columns=frame_with_faithful_columns)
+            fig = fnp_main.plot_image_from_frame(lf, image_colname="TMA_core_id", xcol="Xcor", ycol="Ycor", color_col=color_col_mapping[real_space_color_by], selected_images=[selected_image_to_plot], marker_size=marker_size_real_space, custom_columns=["sumap_cell_index", "input_index"], color_map=color_map_mapping[real_space_color_by], plot_faithful_object_sizes=plot_faithful_object_sizes, frame_with_faithful_columns=frame_with_faithful_columns, sort_index_col="input_index")
             fig.update_layout(uirevision="static")  # this doesn't seem to be honored; investigate in the future
             st.plotly_chart(fig, on_select=partial(get_neighborhood_type, selected_handle="real_space", missing_label_value=missing_label_value), selection_mode="points", key=ST_KEY_PREFIX + "real_space_plot__do_not_persist")
 

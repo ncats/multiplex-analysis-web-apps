@@ -311,6 +311,7 @@ def plot_image_from_frame(
     frame_with_faithful_columns=None,
     common_index="input_index",
     missing_label_value = "Other",
+    sort_index_col="",  # If the figure keeps redrawing, it's almost certainly because the streaming engine causes row shuffles so it appears to plotly/etc. that the figure is always changing. E.g., this happens with species phenotyping (not marker phenotyping). So to solve that, we should input a sort_index_col that will sort the dataframe to a consistent order before plotting.
 ):
     try:
 
@@ -344,10 +345,14 @@ def plot_image_from_frame(
             base = frame.filter(pl.col(xcol).is_not_null() & pl.col(ycol).is_not_null())
             if selected_images:
                 base = base.filter(pl.col(image_colname).is_in(selected_images))
-            df = base.select(pl.col(cols_to_keep)).with_columns([
+            pl_df = base.select(pl.col(cols_to_keep)).with_columns([
                 pl.col(xcol).cast(pl.Float32),
                 pl.col(ycol).cast(pl.Float32),
-            ]).collect(engine="streaming").to_pandas()
+            ]).collect(engine="streaming")
+            if sort_index_col and sort_index_col in cols_to_keep:
+                df = pl_df.sort(pl.col(sort_index_col)).to_pandas()
+            else:
+                df = pl_df.to_pandas()
         elif isinstance(frame, pl.DataFrame):
             base = frame.filter(pl.col(xcol).is_not_null() & pl.col(ycol).is_not_null())
             if selected_images:
