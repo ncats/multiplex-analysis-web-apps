@@ -236,14 +236,14 @@ def main():
             @st.cache_data(show_spinner="Computing full dataset counts...", show_time=True)
             def full_dataset_counts(phenotyping_random_str):
                 framework_utils.multiprint(f"Computing full dataset counts for phenotyping random str: {phenotyping_random_str}", (print,))
-                return lf_phenotyped.group_by("label").agg(pl.count().alias("Count in dataset")).collect(engine="streaming").sort("Count in dataset", descending=True)
+                return lf_phenotyped.group_by("label").agg(pl.count().alias("Count in dataset")).sort("Count in dataset", descending=True).collect(engine="streaming")
             st.write(full_dataset_counts(st.session_state[ST_KEY_PREFIX + "phenotyping_random_str"]))
         with value_counts_columns[1]:
             st.subheader("Selected image counts")
             @st.cache_data(show_spinner="Computing image counts...", show_time=True)
             def image_counts(selected_image_to_plot, phenotyping_random_str):
                 framework_utils.multiprint(f"Computing image counts for image {selected_image_to_plot} and phenotyping random str: {phenotyping_random_str}", (print,))
-                return lf_phenotyped.filter(pl.col(image_colname) == selected_image_to_plot).group_by("label").agg(pl.count().alias(f"Count in {selected_image_to_plot}")).collect(engine="streaming").sort(f"Count in {selected_image_to_plot}", descending=True)
+                return lf_phenotyped.filter(pl.col(image_colname) == selected_image_to_plot).group_by("label").agg(pl.count().alias(f"Count in {selected_image_to_plot}")).sort(f"Count in {selected_image_to_plot}", descending=True).collect(engine="streaming")
             st.write(image_counts(selected_image_to_plot, st.session_state[ST_KEY_PREFIX + "phenotyping_random_str"]))
 
 

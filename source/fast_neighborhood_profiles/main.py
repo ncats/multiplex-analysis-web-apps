@@ -138,7 +138,7 @@ def load_unified_input_file_data(file_format, db_schema, bucket_name, object_fil
 # Get the marker column names from the lazyframe.
 def get_marker_columns(lf, prefix="Phenotype_(standardized) "):
     marker_columns = [column for column in lf.collect_schema().names() if column.startswith(prefix)]
-    marker_columns_ordered = lf.select(pl.col(marker_columns).sum()).collect(engine="streaming").melt(variable_name="column", value_name="sum").sort("sum", descending=True).select("column").to_series().to_list()
+    marker_columns_ordered = lf.select(pl.col(marker_columns).sum()).melt(variable_name="column", value_name="sum").sort("sum", descending=True).select("column").collect(engine="streaming").to_series().to_list()
     marker_columns_ordered_no_prefix = [x.removeprefix(prefix) for x in marker_columns_ordered]
     return marker_columns_ordered_no_prefix, marker_columns_ordered
 
@@ -150,9 +150,9 @@ def get_phenotyped_metadata(lf_phenotyped):
         lf_phenotyped
         .group_by("label")
         .agg(pl.count().alias("freq"))
-        .collect(engine="streaming")
         .sort(["freq", "label"], descending=[True, False])
         .select("label")
+        .collect(engine="streaming")
         .to_series()
         .to_list()
     )
@@ -162,7 +162,7 @@ def get_phenotyped_metadata(lf_phenotyped):
     return {
         "num_phenotyped_rows": lf_phenotyped.select(pl.len()).collect(engine="streaming").item(),
         "unique_labels": ordered_labels,
-        "unique_image_ids": lf_phenotyped.select(pl.col("Image ID_(standardized)").unique()).collect(engine="streaming").sort(pl.col("Image ID_(standardized)")).to_series().to_list(),
+        "unique_image_ids": lf_phenotyped.select(pl.col("Image ID_(standardized)").unique().sort()).collect(engine="streaming").to_series().to_list(),
         "phenotype_color_map": {label: colors[i % len(colors)] for i, label in enumerate(ordered_labels)},
     }
 
@@ -346,14 +346,14 @@ def plot_image_from_frame(
             base = frame.filter(pl.col(xcol).is_not_null() & pl.col(ycol).is_not_null())
             if selected_images:
                 base = base.filter(pl.col(image_colname).is_in(selected_images))
-            pl_df = base.select(pl.col(cols_to_keep)).with_columns([
+            lf = base.select(pl.col(cols_to_keep)).with_columns([
                 pl.col(xcol).cast(pl.Float32),
                 pl.col(ycol).cast(pl.Float32),
-            ]).collect(engine="streaming")
+            ])
             if sort_index_col and sort_index_col in cols_to_keep:
-                df = pl_df.sort(pl.col(sort_index_col)).to_pandas()
+                df = lf.sort(pl.col(sort_index_col)).collect(engine="streaming").to_pandas()
             else:
-                df = pl_df.to_pandas()
+                df = lf.collect(engine="streaming").to_pandas()
         elif isinstance(frame, pl.DataFrame):
             base = frame.filter(pl.col(xcol).is_not_null() & pl.col(ycol).is_not_null())
             if selected_images:
