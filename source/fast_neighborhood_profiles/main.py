@@ -1001,7 +1001,8 @@ def _save_pandas_df_to_file(pd_df, handle="two_images", topdir=".", file_format=
         filepath = os.path.join(topdir, subdir, handle + "." + file_format)
 
         if index_column_name in pd_df.columns:
-            raise ValueError(f"The specified index_column_name '{index_column_name}' is already a column in the DataFrame. Please choose a different name.")
+            framework_utils.multiprint(f"{index_column_name} is already a column in the Pandas DataFrame. This is fine since we want to rebuild objects as much from scratch as possible. Deleting and recreating this column now.", (print,))
+            del pd_df[index_column_name]
 
         # Materialize index into a real column before writing the Pandas dataframe.
         pd_df.insert(0, index_column_name, range(len(pd_df)))
