@@ -144,7 +144,7 @@ def main():
             "params": params,
             }
         del st.session_state["JOB_JUST_COMPLETED"]
-        clear_data_in_memory(st_key_prefixes=["assign_neighborhood_types.py__", "plot_neighborhood_types.py__"])
+        fnp_main.clear_data_in_memory(st_key_prefixes=["assign_neighborhood_types.py__", "plot_neighborhood_types.py__"])
 
     # Get a shortcut to the cells lazyframe.
     lf = st.session_state["LAZYFRAMES"]["sumap_cells"]["lf"]

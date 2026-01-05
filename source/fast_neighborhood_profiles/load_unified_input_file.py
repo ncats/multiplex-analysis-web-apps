@@ -63,7 +63,7 @@ def main():
                         "input_dataset": None,
                         "params": params,
                     }
-                    clear_data_in_memory(st_key_prefixes=["phenotype.py__", "delete_cells.py__", "run_spatial_umap.py__", "assign_neighborhood_types.py__", "plot_neighborhood_types.py__"], function_caches=[sample_lf])
+                    fnp_main.clear_data_in_memory(st_key_prefixes=["phenotype.py__", "delete_cells.py__", "run_spatial_umap.py__", "assign_neighborhood_types.py__", "plot_neighborhood_types.py__"], function_caches=[sample_lf])
 
     # If there's lazyframe information in the session state...
     if not ("LAZYFRAMES" in st.session_state and "unified_input_file" in st.session_state["LAZYFRAMES"]):

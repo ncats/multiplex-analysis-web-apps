@@ -1172,3 +1172,29 @@ def add_new_label_column(lf, updates_pd, updates_index_column="sumap_cell_indice
 
 
 #### 6. First in plot_neighborhood_types.py (none yet) ########################################################
+
+
+#### X. Streamlit-specific functions ########################################################
+
+
+# clear_data_in_memory(st_key_prefixes=["phenotype.py__", "delete_cells.py__", "run_spatial_umap.py__", "assign_neighborhood_types.py__", "plot_neighborhood_types.py__"], function_caches=[sample_lf])
+# clear_data_in_memory(st_key_prefixes=["delete_cells.py__", "run_spatial_umap.py__", "assign_neighborhood_types.py__", "plot_neighborhood_types.py__"], individual_keys={ST_KEY_PREFIX: ["full_dataset_counts", "selected_image_counts"]})
+def clear_data_in_memory(session_state, st_key_prefixes=[], function_caches=[], individual_keys={}):
+
+    # Clear by key prefixes.
+    for key_prefix in st_key_prefixes:
+        keys_to_delete = [key for key in session_state.keys() if key.startswith(key_prefix)]
+        for key in keys_to_delete:
+            del session_state[key]
+
+    # Clear function caches.
+    for func in function_caches:
+        func.clear()
+
+    # Clear individual keys.
+    for key_prefix, keys in individual_keys.items():
+        for key in keys:
+            full_key = f"{key_prefix}{key}"
+            if full_key in session_state:
+                del session_state[full_key]
+    

@@ -39,7 +39,7 @@ def marker_phenotyping(lf, marker_columns_with_prefix):
         st.session_state[ST_KEY_PREFIX + "phenotyping_method"] = metadata["phenotyping_method"]
 
         # Synchronize with the call below in species_phenotyping().
-        clear_data_in_memory(st_key_prefixes=["delete_cells.py__", "run_spatial_umap.py__", "assign_neighborhood_types.py__", "plot_neighborhood_types.py__"], individual_keys={ST_KEY_PREFIX: ["full_dataset_counts", "selected_image_counts"]})
+        fnp_main.clear_data_in_memory(st_key_prefixes=["delete_cells.py__", "run_spatial_umap.py__", "assign_neighborhood_types.py__", "plot_neighborhood_types.py__"], individual_keys={ST_KEY_PREFIX: ["full_dataset_counts", "selected_image_counts"]})
 
 
 # GUI interface for species phenotyping.
@@ -96,7 +96,7 @@ def species_phenotyping(lf, marker_columns_with_prefix):
         st.session_state[ST_KEY_PREFIX + "phenotyping_method"] = metadata["phenotyping_method"]
 
         # Synchronize with the call above in marker_phenotyping().
-        clear_data_in_memory(st_key_prefixes=["delete_cells.py__", "run_spatial_umap.py__", "assign_neighborhood_types.py__", "plot_neighborhood_types.py__"], individual_keys={ST_KEY_PREFIX: ["full_dataset_counts", "selected_image_counts"]})
+        fnp_main.clear_data_in_memory(st_key_prefixes=["delete_cells.py__", "run_spatial_umap.py__", "assign_neighborhood_types.py__", "plot_neighborhood_types.py__"], individual_keys={ST_KEY_PREFIX: ["full_dataset_counts", "selected_image_counts"]})
 
 
 # Define the main function.
