@@ -182,4 +182,4 @@ def job_submission(job_name, inputs, analysis_purpose, st_key_prefix, preprocess
                 inputs = {**inputs, **result_dict}
             job_id = run_analysis_job_wrapper(job_name, inputs, blocking=not do_async_analysis, selected_compute_resource=selected_compute_resource)
             st.session_state["JOB_PENDING"] = {"job_id": job_id, "key_for_results": st_key_prefix + analysis_purpose_with_underscores + "_results", "job_name": job_name}
-            # st.rerun()  # Remove to not mask any potential warnings/errors.
+            st.rerun()  # Comment out to not mask any potential warnings/errors.
