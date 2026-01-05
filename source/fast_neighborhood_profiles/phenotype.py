@@ -35,9 +35,6 @@ def marker_phenotyping(lf, marker_columns_with_prefix):
         st.session_state[ST_KEY_PREFIX + "unique_image_ids"] = metadata["unique_image_ids"]
         st.session_state[ST_KEY_PREFIX + "phenotype_color_map"] = metadata["phenotype_color_map"]
 
-        # Store a random string in the session state to indicate that phenotyping has been performed.
-        st.session_state[ST_KEY_PREFIX + "phenotyping_random_str"] = framework_utils.get_unique_id()
-
 
 # GUI interface for species phenotyping.
 def species_phenotyping(lf, marker_columns_with_prefix):
@@ -90,9 +87,6 @@ def species_phenotyping(lf, marker_columns_with_prefix):
         st.session_state[ST_KEY_PREFIX + "unique_labels"] = metadata["unique_labels"]
         st.session_state[ST_KEY_PREFIX + "unique_image_ids"] = metadata["unique_image_ids"]
         st.session_state[ST_KEY_PREFIX + "phenotype_color_map"] = metadata["phenotype_color_map"]
-
-        # Store a random string in the session state to indicate that phenotyping has been performed.
-        st.session_state[ST_KEY_PREFIX + "phenotyping_random_str"] = framework_utils.get_unique_id()
 
 
 # Define the main function.
@@ -230,18 +224,21 @@ def main():
         value_counts_columns = st.columns(2)
         with value_counts_columns[0]:
             st.subheader("Full dataset counts")
-            @st.cache_data(show_spinner="Computing full dataset counts...", show_time=True)
-            def full_dataset_counts(phenotyping_random_str):
-                framework_utils.multiprint(f"Computing full dataset counts for phenotyping random str: {phenotyping_random_str}", (print,))
-                return lf_phenotyped.group_by("label").agg(pl.count().alias("Count in dataset")).sort("Count in dataset", descending=True).collect(engine="streaming")
-            st.write(full_dataset_counts(st.session_state[ST_KEY_PREFIX + "phenotyping_random_str"]))
+            key = ST_KEY_PREFIX + "full_dataset_counts"
+            if key not in st.session_state:
+                framework_utils.multiprint(f"Computing full dataset counts.", (print,))
+                st.session_state[key] = lf_phenotyped.group_by("label").agg(pl.count().alias("Count in dataset")).sort("Count in dataset", descending=True).collect(engine="streaming")
+            st.write(f"Total count: {st.session_state[key]['Count in dataset'].sum():_}")
+            st.write(st.session_state[key])
         with value_counts_columns[1]:
             st.subheader("Selected image counts")
-            @st.cache_data(show_spinner="Computing image counts...", show_time=True)
-            def image_counts(selected_image_to_plot, phenotyping_random_str):
-                framework_utils.multiprint(f"Computing image counts for image {selected_image_to_plot} and phenotyping random str: {phenotyping_random_str}", (print,))
-                return lf_phenotyped.filter(pl.col(image_colname) == selected_image_to_plot).group_by("label").agg(pl.count().alias(f"Count in {selected_image_to_plot}")).sort(f"Count in {selected_image_to_plot}", descending=True).collect(engine="streaming")
-            st.write(image_counts(selected_image_to_plot, st.session_state[ST_KEY_PREFIX + "phenotyping_random_str"]))
+            key = ST_KEY_PREFIX + "selected_image_counts"
+            st.session_state.setdefault(key, {})
+            if selected_image_to_plot not in st.session_state[key]:
+                framework_utils.multiprint(f"Computing image counts for image {selected_image_to_plot}.", (print,))
+                st.session_state[key][selected_image_to_plot] = lf_phenotyped.filter(pl.col(image_colname) == selected_image_to_plot).group_by("label").agg(pl.count().alias(f"Count in {selected_image_to_plot}")).sort(f"Count in {selected_image_to_plot}", descending=True).collect(engine="streaming")
+            st.write(f"Total count: {st.session_state[key][selected_image_to_plot][f'Count in {selected_image_to_plot}'].sum():_}")
+            st.write(st.session_state[key][selected_image_to_plot])
 
 
 # Run the main function if this script is executed.
