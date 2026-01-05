@@ -4,10 +4,12 @@ from fast_neighborhood_profiles import main as fnp_main
 import streamlit_dataframe_editor as sde
 import polars as pl
 import framework.utils as framework_utils
+import datetime
+import pytz
+
 
 # Define constants.
 ST_KEY_PREFIX = "phenotype.py__"
-ST_KEY_PREFIX_LOAD = "load_unified_input_file.py__"
 
 
 # GUI interface for marker phenotyping.
@@ -27,13 +29,17 @@ def marker_phenotyping(lf, marker_columns_with_prefix):
         }
 
         # Obtain information related to the phenotyped data.
-        metadata = fnp_main.get_phenotyped_metadata(lf_phenotyped)
+        metadata = fnp_main.get_phenotyped_metadata(lf_phenotyped, "marker")
 
         # Save some metadata about the phenotypes.
         st.session_state[ST_KEY_PREFIX + "num_phenotyped_rows"] = metadata["num_phenotyped_rows"]
         st.session_state[ST_KEY_PREFIX + "unique_labels"] = metadata["unique_labels"]
         st.session_state[ST_KEY_PREFIX + "unique_image_ids"] = metadata["unique_image_ids"]
         st.session_state[ST_KEY_PREFIX + "phenotype_color_map"] = metadata["phenotype_color_map"]
+        st.session_state[ST_KEY_PREFIX + "phenotyping_method"] = metadata["phenotyping_method"]
+
+        # Synchronize with the call below in species_phenotyping().
+        clear_data_in_memory(st_key_prefixes=["delete_cells.py__", "run_spatial_umap.py__", "assign_neighborhood_types.py__", "plot_neighborhood_types.py__"], individual_keys={ST_KEY_PREFIX: ["full_dataset_counts", "selected_image_counts"]})
 
 
 # GUI interface for species phenotyping.
@@ -80,13 +86,17 @@ def species_phenotyping(lf, marker_columns_with_prefix):
         }
 
         # Obtain information related to the phenotyped data.
-        metadata = fnp_main.get_phenotyped_metadata(lf_phenotyped)
+        metadata = fnp_main.get_phenotyped_metadata(lf_phenotyped, "species")
 
         # Save some metadata about the phenotypes.
         st.session_state[ST_KEY_PREFIX + "num_phenotyped_rows"] = metadata["num_phenotyped_rows"]
         st.session_state[ST_KEY_PREFIX + "unique_labels"] = metadata["unique_labels"]
         st.session_state[ST_KEY_PREFIX + "unique_image_ids"] = metadata["unique_image_ids"]
         st.session_state[ST_KEY_PREFIX + "phenotype_color_map"] = metadata["phenotype_color_map"]
+        st.session_state[ST_KEY_PREFIX + "phenotyping_method"] = metadata["phenotyping_method"]
+
+        # Synchronize with the call above in marker_phenotyping().
+        clear_data_in_memory(st_key_prefixes=["delete_cells.py__", "run_spatial_umap.py__", "assign_neighborhood_types.py__", "plot_neighborhood_types.py__"], individual_keys={ST_KEY_PREFIX: ["full_dataset_counts", "selected_image_counts"]})
 
 
 # Define the main function.
@@ -149,10 +159,13 @@ def main():
         num_phenotyped_rows = st.session_state[ST_KEY_PREFIX + "num_phenotyped_rows"]
         unique_labels = st.session_state[ST_KEY_PREFIX + "unique_labels"]
         unique_image_ids = st.session_state[ST_KEY_PREFIX + "unique_image_ids"]
+        phenotype_color_map = st.session_state[ST_KEY_PREFIX + "phenotype_color_map"]
+        phenotyping_method = st.session_state[ST_KEY_PREFIX + "phenotyping_method"]
         information = f'''
-        :small_orange_diamond: # of phenotyped rows: `{num_phenotyped_rows:_}`  
+        :small_orange_diamond: Phenotyping method: `{phenotyping_method}`  
+        :small_orange_diamond: Number of rows after phenotyping: `{num_phenotyped_rows:_}`  
         :small_orange_diamond: Unique labels: `{unique_labels}`  
-        :small_orange_diamond: # of unique images: `{len(unique_image_ids)}`  
+        :small_orange_diamond: Number of unique images: `{len(unique_image_ids)}`  
         '''
         st.markdown(information)
 
@@ -161,6 +174,7 @@ def main():
         st.header("Result")
         image_colname = "Image ID_(standardized)"
 
+        # Define columns for more options.
         more_options_columns = st.columns(2)
         with more_options_columns[0]:
 
@@ -168,6 +182,7 @@ def main():
             st.session_state.setdefault(ST_KEY_PREFIX + 'show_grid_lines', True)
             show_grid_lines = st.checkbox("Show grid lines", key=ST_KEY_PREFIX + 'show_grid_lines')
 
+            # Allow the user to choose whether to use coordinate mins and maxs for faithful plotting of object sizes.
             st.session_state.setdefault(ST_KEY_PREFIX + 'use_coordinate_mins_and_maxs', False)
             use_coordinate_mins_and_maxs = st.checkbox("Use coordinate mins and maxs for faithful plotting of object sizes, if possible", key=ST_KEY_PREFIX + 'use_coordinate_mins_and_maxs')
 
@@ -179,25 +194,27 @@ def main():
             else:
                 marker_size = None
 
-            # Allow the user to set export options.
+        # Allow the user to set print size and DPI.
+        with more_options_columns[1]:
             st.session_state.setdefault(ST_KEY_PREFIX + 'print_width_in', 7.0)
             st.session_state.setdefault(ST_KEY_PREFIX + 'print_height_in', 4.5)
             st.session_state.setdefault(ST_KEY_PREFIX + 'target_dpi', 600)
-            st.session_state.setdefault(ST_KEY_PREFIX + 'figure_name', "figure")
-            figure_name = st.text_input('Figure name:', key=ST_KEY_PREFIX + 'figure_name')
-
-        with more_options_columns[1]:
             print_width_in = st.number_input('Print width (inches):', min_value=1.0, max_value=20.0, step=0.1, key=ST_KEY_PREFIX + 'print_width_in')
             print_height_in = st.number_input('Print height (inches):', min_value=1.0, max_value=20.0, step=0.1, key=ST_KEY_PREFIX + 'print_height_in')
             target_dpi = st.number_input('Target DPI:', min_value=72, max_value=1200, step=1, key=ST_KEY_PREFIX + 'target_dpi')
-            final_figure_name = f"{figure_name}_{print_width_in}in_x_{print_height_in}in_{target_dpi}dpi"
 
+        # Allow the user to select which image to plot.
         with st.container(horizontal=True, vertical_alignment="bottom"):
             selected_image_to_plot = st.selectbox("Select image to plot:", options=unique_image_ids, key=ST_KEY_PREFIX + "selected_image_to_plot")
             st.button("Previous", on_click=lambda: st.session_state.update({ST_KEY_PREFIX + "selected_image_to_plot": unique_image_ids[max(0, unique_image_ids.index(st.session_state[ST_KEY_PREFIX + "selected_image_to_plot"]) - 1)]}), disabled=(st.session_state[ST_KEY_PREFIX + "selected_image_to_plot"] == unique_image_ids[0]))
             st.button("Next", on_click=lambda: st.session_state.update({ST_KEY_PREFIX + "selected_image_to_plot": unique_image_ids[min(len(unique_image_ids) - 1, unique_image_ids.index(st.session_state[ST_KEY_PREFIX + "selected_image_to_plot"]) + 1)]}), disabled=(st.session_state[ST_KEY_PREFIX + "selected_image_to_plot"] == unique_image_ids[-1]))
 
-        fig = fnp_main.plot_image_from_frame(lf_phenotyped, image_colname=image_colname, selected_images=[selected_image_to_plot], marker_size=marker_size, color_map=st.session_state[ST_KEY_PREFIX + "phenotype_color_map"], custom_columns=["input_index"], plot_faithful_object_sizes=use_coordinate_mins_and_maxs, frame_with_faithful_columns=st.session_state["LAZYFRAMES"]["unified_input_file"]["lf"], sort_index_col="input_index")
+        # Define the final figure name for export.
+        date = datetime.datetime.now(pytz.timezone('US/Eastern')).strftime("%Y%m%d")
+        final_figure_name = f"{phenotyping_method}_phenotyped_{selected_image_to_plot.replace('__', '_')}_{print_width_in}in_x_{print_height_in}in_{target_dpi}dpi_{date}"
+
+        # Create the plotly figure.
+        fig = fnp_main.plot_image_from_frame(lf_phenotyped, image_colname=image_colname, selected_images=[selected_image_to_plot], marker_size=marker_size, color_map=phenotype_color_map, custom_columns=["input_index"], plot_faithful_object_sizes=use_coordinate_mins_and_maxs, frame_with_faithful_columns=st.session_state["LAZYFRAMES"]["unified_input_file"]["lf"], sort_index_col="input_index")
 
         # Optionally show the grid lines.
         fig.update_xaxes(showgrid=show_grid_lines)
@@ -221,6 +238,7 @@ def main():
         # Plot the plotly chart in Streamlit
         st.plotly_chart(fig, config=config)
 
+        # Plot the phenotype value counts for the full dataset and the selected image.
         value_counts_columns = st.columns(2)
         with value_counts_columns[0]:
             st.subheader("Full dataset counts")

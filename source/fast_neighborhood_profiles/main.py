@@ -143,7 +143,7 @@ def get_marker_columns(lf, prefix="Phenotype_(standardized) "):
     return marker_columns_ordered_no_prefix, marker_columns_ordered
 
 
-def get_phenotyped_metadata(lf_phenotyped):
+def get_phenotyped_metadata(lf_phenotyped, phenotyping_method):
 
     # Obtain the resulting labels in decreasing frequency order.
     ordered_labels = (
@@ -164,6 +164,7 @@ def get_phenotyped_metadata(lf_phenotyped):
         "unique_labels": ordered_labels,
         "unique_image_ids": lf_phenotyped.select(pl.col("Image ID_(standardized)").unique().sort()).collect(engine="streaming").to_series().to_list(),
         "phenotype_color_map": {label: colors[i % len(colors)] for i, label in enumerate(ordered_labels)},
+        "phenotyping_method": phenotyping_method,
     }
 
 

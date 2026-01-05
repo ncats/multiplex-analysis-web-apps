@@ -5,7 +5,7 @@ import framework.utils as framework_utils
 from fast_neighborhood_profiles import main as fnp_main
 
 # Define constant.
-ST_KEY_PREFIX = "load_unified_input_file.py__"
+ST_KEY_PREFIX = "load_unified_input_file.py__"  # Not actually used as of 1/5/26 at 2:20pm, but defined for consistency.
 
 
 # Get the list of objects in the bucket.
@@ -48,7 +48,7 @@ def main():
                 selected_filenames = df[rows][column_heading].to_list()
 
                 # Load the lazyframe from the selected row.
-                if st.button(f":warning: Load unified input file", help="We recommend that you press the \"🧹 Reset app\" button on the left sidebar before loading a new file in order to start cleanly. If so, and if it's important, please back up the app session first at the \"Manage sessions\" page at left."):
+                if st.button(f":warning: Load unified input file", help="We recommend that you press the \"🧹 Reset app\" button on the left sidebar before loading a new file in order to start cleanly. If so, and if it's important, please back up the app session first at the \"Manage sessions\" page at left. The primary point of that is to free of memory from pages *outside* the high-performance workflow. Separately, pressing this button will delete downstream data *inside* the high-performance workflow as well, which makes sense because we are opening a new dataset here. So, please ensure any results in the high-performance workflow are sufficiently backed up before proceeding."):
                     object_filename = unified_datafile_mapping[selected_filenames[0]]
                     file_format = "parquet"
                     db_schema = get_location_settings()[upload_location]["db_schema"]
@@ -63,6 +63,7 @@ def main():
                         "input_dataset": None,
                         "params": params,
                     }
+                    clear_data_in_memory(st_key_prefixes=["phenotype.py__", "delete_cells.py__", "run_spatial_umap.py__", "assign_neighborhood_types.py__", "plot_neighborhood_types.py__"], function_caches=[sample_lf])
 
     # If there's lazyframe information in the session state...
     if not ("LAZYFRAMES" in st.session_state and "unified_input_file" in st.session_state["LAZYFRAMES"]):
@@ -92,8 +93,11 @@ def main():
     st.markdown(information)
 
     # Show a sample of 100 rows from the lazyframe.
-    st.write(lf.collect(engine="streaming").sample(100).sort(pl.col("Image ID_(standardized)")))
-    st.button("Resample dataset")
+    @st.cache_data(show_spinner="Sampling dataset...", show_time=True)
+    def sample_lf(_lf):
+        return _lf.collect(engine="streaming").sample(100).sort(pl.col("Image ID_(standardized)"))
+    st.write(sample_lf(lf))
+    st.button("Resample dataset", on_click=sample_lf.clear)
 
 
 # Run the main function if this script is executed.
