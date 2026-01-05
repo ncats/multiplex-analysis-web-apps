@@ -16,7 +16,7 @@ ST_KEY_PREFIX = "phenotype.py__"
 def marker_phenotyping(lf, marker_columns_with_prefix):
 
     # Allow the user to perform phenotyping.
-    if st.button("Perform marker phenotyping"):
+    if st.button(":warning: Perform marker phenotyping", help="This will delete downstream results in the high-performance workflow. Ensure your results are sufficiently backed up before proceeding."):
 
         # Generate and save generation metadata for the phenotyped lazyframe.
         params = {"marker_columns_with_prefix": marker_columns_with_prefix}
@@ -72,7 +72,7 @@ def species_phenotyping(lf, marker_columns_with_prefix):
     st.session_state[ST_KEY_PREFIX + "de_species_assignments"].dataframe_editor(reset_data_editor_button_text='Reset to default names', disabled=["Species", "Count in dataset"])
 
     # Allow the user to perform species phenotyping.
-    if st.button("Perform species phenotyping"):
+    if st.button(":warning: Perform species phenotyping", help="This will delete downstream results in the high-performance workflow. Ensure your results are sufficiently backed up before proceeding."):
 
         # Generate and save generation metadata for the phenotyped lazyframe.
         df_species_assignments = st.session_state[ST_KEY_PREFIX + "de_species_assignments"].reconstruct_edited_dataframe()

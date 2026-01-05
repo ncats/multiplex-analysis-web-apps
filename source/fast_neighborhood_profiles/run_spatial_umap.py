@@ -117,6 +117,8 @@ def main():
     lazyframes = {k: st.session_state["LAZYFRAMES"][k] for k in ["unified_input_file", "phenotyped"] if k in st.session_state["LAZYFRAMES"]}
     inputs = dict(LAZYFRAMES=lazyframes, unique_labels=unique_labels, dist_bin_um_list=dist_bin_um_list, area_downsample=area_downsample, um_per_px=1, cpu_pool_size=cpu_pool_size, subdir="spatial_umap", counts_method="andrew", area_threshold=area_threshold, custom_areas=custom_areas, seed_for_train_test_split=seed_for_train_test_split, n=n, keep_images_with_too_little_data=keep_images_with_too_little_data, train_sample_frac=train_sample_frac, test_sample_frac=test_sample_frac, de_min_coords=de_min_coords, mp_start_method='forkserver')
 
+    st.write(":warning: Upon pressing this button and subsequently loading the results, this will delete downstream results in the high-performance workflow. Ensure your results are sufficiently backed up before proceeding.")
+
     # Allow the user to run the spatial UMAP analysis asynchronously.
     analysis_framework.job_submission(
         job_name="spatial_umap",

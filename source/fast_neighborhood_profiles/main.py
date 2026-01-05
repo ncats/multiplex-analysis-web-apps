@@ -1177,8 +1177,6 @@ def add_new_label_column(lf, updates_pd, updates_index_column="sumap_cell_indice
 #### X. Streamlit-specific functions ########################################################
 
 
-# clear_data_in_memory(st_key_prefixes=["phenotype.py__", "delete_cells.py__", "run_spatial_umap.py__", "assign_neighborhood_types.py__", "plot_neighborhood_types.py__"], function_caches=[sample_lf])
-# clear_data_in_memory(st_key_prefixes=["delete_cells.py__", "run_spatial_umap.py__", "assign_neighborhood_types.py__", "plot_neighborhood_types.py__"], individual_keys={ST_KEY_PREFIX: ["full_dataset_counts", "selected_image_counts"]})
 def clear_data_in_memory(session_state, st_key_prefixes=[], function_caches=[], individual_keys={}):
 
     # Clear by key prefixes.

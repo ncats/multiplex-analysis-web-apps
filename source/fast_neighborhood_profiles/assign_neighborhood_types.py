@@ -192,7 +192,7 @@ def main():
     keep_strategy = st.radio("Select keep strategy for resolving multiple labels for a given cell when registering neighborhood types:", options=['first', 'last', 'any', 'none'], key=key, help='"none" drops duplicates; "any" is non-deterministic but fast.', horizontal=True)
     
     # Allow user to register the selected neighborhood types.
-    if st.button("Register selected neighborhood types"):
+    if st.button(":warning: Register selected neighborhood types", help="This will delete downstream results in the high-performance workflow. Ensure your results are sufficiently backed up before proceeding."):
         df = st.session_state[ST_KEY_PREFIX + "de_selections"].reconstruct_edited_dataframe()
         params = dict(updates_pd=df, keep=keep_strategy, missing_label_value=missing_label_value)
         lf_neighborhoods = fnp_main.add_new_label_column(lf=lf, **params)
