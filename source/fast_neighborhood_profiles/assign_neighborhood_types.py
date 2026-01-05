@@ -207,6 +207,8 @@ def main():
         st.session_state[ST_KEY_PREFIX + "neighborhood_type_color_map"] = color_map
         st.session_state[ST_KEY_PREFIX + "unique_neighborhood_types"] = list(set(df["label"].to_list() + [missing_label_value]))
         st.session_state[ST_KEY_PREFIX + "df_reconstructed_selections"] = df
+        st.success("Neighborhood types registered successfully.")
+        clear_data_in_memory(st_key_prefixes=["plot_neighborhood_types.py__"])
 
 
 # Run the main function if this script is executed.

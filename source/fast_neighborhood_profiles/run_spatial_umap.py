@@ -123,10 +123,6 @@ def main():
         inputs=inputs,
         analysis_purpose="spatial UMAP",
         st_key_prefix=ST_KEY_PREFIX,
-        # preprocess={
-        #     "function": fnp_main.format_lazyframe,
-        #     "args": dict(lf=st.session_state["LAZYFRAMES"]["phenotyped"]["lf"], sample_size=None, sample_seed=42),
-        # }
     )
 
     # Ensure the job results are available in the session state.
@@ -148,6 +144,7 @@ def main():
             "params": params,
             }
         del st.session_state["JOB_JUST_COMPLETED"]
+        clear_data_in_memory(st_key_prefixes=["assign_neighborhood_types.py__", "plot_neighborhood_types.py__"])
 
     # Get a shortcut to the cells lazyframe.
     lf = st.session_state["LAZYFRAMES"]["sumap_cells"]["lf"]
