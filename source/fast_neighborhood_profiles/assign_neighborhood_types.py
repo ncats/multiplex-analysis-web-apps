@@ -1,0 +1,216 @@
+# Import relevant libraries.
+import streamlit as st
+from fast_neighborhood_profiles import main as fnp_main
+import polars as pl
+from functools import partial
+import streamlit_dataframe_editor as sde
+import pandas as pd
+import framework.utils as framework_utils
+
+# Define session state key prefixes.
+ST_KEY_PREFIX = "assign_neighborhood_types.py__"
+ST_KEY_PREFIX_PHENOTYPE = "phenotype.py__"
+ST_KEY_PREFIX_SUMAP = "run_spatial_umap.py__"
+
+
+# Activate highlights on all three plots.
+def activate_selection_group():
+    selections_table = st.session_state[ST_KEY_PREFIX + "selections_table__do_not_persist"]
+    rows = selections_table["selection"]["rows"]
+    if rows:
+        if len(rows) > 1:
+            framework_utils.multiprint("Somehow multiple rows are selected, which is unexpected.", (print, st.warning))
+            return
+        df = st.session_state[ST_KEY_PREFIX + "de_selections"].reconstruct_edited_dataframe()
+        sumap_cell_indices = df.iloc[rows[0]]["sumap_cell_indices"]  # sumap_cell_indices for the selected selection group.
+        st.session_state[ST_KEY_PREFIX + "selected_indices_for_umap"] = sumap_cell_indices
+        st.session_state[ST_KEY_PREFIX + "selected_indices_for_real_space"] = sumap_cell_indices
+        st.session_state[ST_KEY_PREFIX + "selected_indices_for_neighborhood_profile"] = sumap_cell_indices
+
+
+# Obtain the main indices from a selection on one of the scatter plots. Activate just the "other" plot and the neighborhood profile plot.
+def get_selected_indices(selected_handle):
+    both_handles = {"umap", "real_space"}
+    other_handle = (both_handles - {selected_handle}).pop()
+    selection = st.session_state[ST_KEY_PREFIX + f"{selected_handle}_plot__do_not_persist"]
+    if "selection" in selection and "points" in selection["selection"] and selection["selection"]["points"]:
+        points_list = selection["selection"]["points"]
+        sumap_cell_indices = [point["customdata"][4] for point in points_list]  # Note this means that if the "sumap_cell_index" column is added to the plot data when calling main.plot_image_from_frame(), it must be the very first custom_column, i.e., at position 4 (0-based indexing).
+        st.session_state[ST_KEY_PREFIX + "selected_indices_for_" + other_handle] = sumap_cell_indices
+        st.session_state[ST_KEY_PREFIX + "selected_indices_for_neighborhood_profile"] = sumap_cell_indices
+    else:
+        st.session_state[ST_KEY_PREFIX + "selected_indices_for_" + other_handle] = []
+        st.session_state[ST_KEY_PREFIX + "selected_indices_for_neighborhood_profile"] = []
+
+
+# Main function.
+def main():
+
+    # Ensure the lazyframe is ready for usage.
+    if not ("LAZYFRAMES" in st.session_state and "sumap_cells" in st.session_state["LAZYFRAMES"]):
+        st.warning("Please run the spatial UMAP analysis (at left).")
+        return
+
+    # Get the main lazyframe from session state.
+    lf = st.session_state["LAZYFRAMES"]["sumap_cells"]["lf"]
+
+    # Grab values we'll need downstream.
+    image_colname = "TMA_core_id"
+    unique_image_ids = st.session_state[ST_KEY_PREFIX_PHENOTYPE + "unique_image_ids"]
+    phenotype_color_map = st.session_state[ST_KEY_PREFIX_PHENOTYPE + "phenotype_color_map"]
+    unique_labels = st.session_state[ST_KEY_PREFIX_PHENOTYPE + "unique_labels"]  # should be correct, i.e. spatial_umap.species, i.e. lf_phenotyped.select(pl.col("label").unique().sort()).collect().to_series().to_list()
+    dist_bin_um_list = st.session_state[ST_KEY_PREFIX_SUMAP + "dist_bin_um_list"]  # should be correct
+    spatial_umap = st.session_state[ST_KEY_PREFIX_SUMAP + "spatial_UMAP_results"]["spatial_umap"]
+    selected_indices_for_umap = []
+    if ST_KEY_PREFIX + "selected_indices_for_umap" in st.session_state and st.session_state[ST_KEY_PREFIX + "selected_indices_for_umap"]:
+        selected_indices_for_umap = st.session_state[ST_KEY_PREFIX + "selected_indices_for_umap"]
+    selected_indices_for_real_space = []
+    if ST_KEY_PREFIX + "selected_indices_for_real_space" in st.session_state and st.session_state[ST_KEY_PREFIX + "selected_indices_for_real_space"]:
+        selected_indices_for_real_space = st.session_state[ST_KEY_PREFIX + "selected_indices_for_real_space"]
+    selected_indices_for_neighborhood_profile = []
+    if ST_KEY_PREFIX + "selected_indices_for_neighborhood_profile" in st.session_state and st.session_state[ST_KEY_PREFIX + "selected_indices_for_neighborhood_profile"]:
+        selected_indices_for_neighborhood_profile = st.session_state[ST_KEY_PREFIX + "selected_indices_for_neighborhood_profile"]
+    key = ST_KEY_PREFIX + "de_selections"
+    if key not in st.session_state:
+        st.session_state[key] = sde.DataframeEditor(df_name=ST_KEY_PREFIX + "df_selections", default_df_contents=pd.DataFrame(columns=["label", "number_of_cells", "sumap_cell_indices", "color"]))
+    missing_label_value = "Other"
+
+    # In the first of two columns...
+    main_columns = st.columns(2)
+    with main_columns[0]:
+    
+        # Allow the user to select which images to plot.
+        st.session_state.setdefault(ST_KEY_PREFIX + "selected_images_to_plot", unique_image_ids)
+        selected_images_to_plot = st.multiselect("Select images whose UMAP to plot:", options=unique_image_ids, key=ST_KEY_PREFIX + "selected_images_to_plot")
+
+        # Allow the user to select marker size.
+        st.session_state.setdefault(ST_KEY_PREFIX + "marker_size_umap", 5)
+        marker_size_umap = st.slider("Marker size:", min_value=2, max_value=10, key=ST_KEY_PREFIX + "marker_size_umap")
+
+        # Write the number of selected points in the UMAP. Remember it says _for_real_space even though the selection is done on the UMAP because it's the selection of points on the UMAP that will be highlighted *for* the real space plot.
+        with st.container(horizontal=True):
+            st.write(f"Number of selected points in UMAP: {len(selected_indices_for_real_space):_}")
+            st.button("Clear selection", on_click=lambda: st.session_state.update({ST_KEY_PREFIX + "selected_indices_for_real_space": []}), key=ST_KEY_PREFIX + "clear_umap_selection_button__do_not_persist")
+
+        # Plot the UMAP with selectable points.
+        fig = fnp_main.plot_image_from_frame(lf, image_colname=image_colname, selected_images=selected_images_to_plot, marker_size=marker_size_umap, xcol="umap_1", ycol="umap_2", color_col="Lineage", custom_columns=["sumap_cell_index", "input_index"], color_map=phenotype_color_map, highlight_index_col="sumap_cell_index", highlight_indices=selected_indices_for_umap, sort_index_col="input_index")
+        fig.update_layout(uirevision="static")  # this doesn't seem to be honored; investigate in the future
+        st.plotly_chart(fig, on_select=partial(get_selected_indices, selected_handle="umap"), selection_mode=("points", "box", "lasso"), key=ST_KEY_PREFIX + "umap_plot__do_not_persist")
+
+    # In the second of two columns...
+    with main_columns[1]:
+        if selected_images_to_plot:
+            with st.container(horizontal=True, vertical_alignment="bottom"):
+                if ST_KEY_PREFIX + "selected_image_to_plot" in st.session_state and st.session_state[ST_KEY_PREFIX + "selected_image_to_plot"] not in selected_images_to_plot:
+                    del st.session_state[ST_KEY_PREFIX + "selected_image_to_plot"]
+                selected_image_to_plot = st.selectbox("Select image to plot:", options=selected_images_to_plot, key=ST_KEY_PREFIX + "selected_image_to_plot")
+                st.button("Previous", on_click=lambda: st.session_state.update({ST_KEY_PREFIX + "selected_image_to_plot": selected_images_to_plot[max(0, selected_images_to_plot.index(st.session_state[ST_KEY_PREFIX + "selected_image_to_plot"]) - 1)]}), disabled=(st.session_state[ST_KEY_PREFIX + "selected_image_to_plot"] == selected_images_to_plot[0]))
+                st.button("Next", on_click=lambda: st.session_state.update({ST_KEY_PREFIX + "selected_image_to_plot": selected_images_to_plot[min(len(selected_images_to_plot) - 1, selected_images_to_plot.index(st.session_state[ST_KEY_PREFIX + "selected_image_to_plot"]) + 1)]}), disabled=(st.session_state[ST_KEY_PREFIX + "selected_image_to_plot"] == selected_images_to_plot[-1]))
+
+            # Allow the user to select marker size.
+            st.session_state.setdefault(ST_KEY_PREFIX + "marker_size_real_space", 5)
+            marker_size_real_space = st.slider("Marker size:", min_value=2, max_value=10, key=ST_KEY_PREFIX + "marker_size_real_space")
+
+            # Write the number of selected points in real space. Remember it says _for_umap even though the selection is done on real space because it's the selection of points in real space that will be highlighted *for* the UMAP plot.
+            with st.container(horizontal=True):
+                st.write(f"Number of selected points in real space: {len(selected_indices_for_umap):_}")
+                st.button("Clear selection", on_click=lambda: st.session_state.update({ST_KEY_PREFIX + "selected_indices_for_umap": []}), key=ST_KEY_PREFIX + "clear_real_space_selection_button__do_not_persist")
+
+            # Give the user the option to only plot real space points that were used for UMAP inference.
+            st.session_state.setdefault(ST_KEY_PREFIX + "display_only_real_space_coords_with_umap_coords", False)
+            display_only_real_space_coords_with_umap_coords = st.checkbox("Display only real space coords with UMAP coords", key=ST_KEY_PREFIX + "display_only_real_space_coords_with_umap_coords")
+            if display_only_real_space_coords_with_umap_coords:
+                lf_to_plot = lf.filter(pl.col("umap_test"))
+            else:
+                lf_to_plot = lf
+
+            # Plot the real space with selectable points.
+            fig = fnp_main.plot_image_from_frame(lf_to_plot, image_colname="TMA_core_id", xcol="Xcor", ycol="Ycor", color_col="Lineage", selected_images=[selected_image_to_plot], marker_size=marker_size_real_space, highlight_index_col="sumap_cell_index", highlight_indices=selected_indices_for_real_space, custom_columns=["sumap_cell_index", "input_index"], color_map=phenotype_color_map, sort_index_col="input_index")
+            fig.update_layout(uirevision="static")  # this doesn't seem to be honored; investigate in the future
+            st.plotly_chart(fig, on_select=partial(get_selected_indices, selected_handle="real_space"), selection_mode=("points", "box", "lasso"), key=ST_KEY_PREFIX + "real_space_plot__do_not_persist")
+
+    # Display a note about selecting points.
+    if not display_only_real_space_coords_with_umap_coords:
+        with st.expander("Notes on point selection"):
+            st.write("Keep in mind that not every point in real space was used for UMAP inference. So while selecting points in UMAP space will render the same number of selections in real space (over all the images), selecting points in real space will often render fewer selections in UMAP space. However, selecting points in real space still allows you to faithfully see their neighborhood profiles below.")
+            st.write("Similarly, if you selected a cluster of points in UMAP space and zoom in on the corresponding points in real space, you will find that nearby points with a similar neighborhood may not be selected. This is again because not all points in real space were used for UMAP inference; the cluster you see in UMAP space does not include all points in real space with such neighborhood profiles.")
+
+    # If there are selected points...
+    if selected_indices_for_neighborhood_profile:
+
+        # Write the number of selected points for the neighborhood profile plot.
+        with st.container(horizontal=True):
+            st.write(f"Last number of selected points for neighborhood profile: {len(selected_indices_for_neighborhood_profile):_}")
+            st.button("Clear selection", on_click=lambda: st.session_state.update({ST_KEY_PREFIX + "selected_indices_for_neighborhood_profile": []}), key=ST_KEY_PREFIX + "clear_neighborhood_profile_selection_button__do_not_persist")
+
+        # Allow the user to select the neighborhood profile plot type.
+        st.session_state.setdefault(ST_KEY_PREFIX + "neighborhood_profile_plot_type", "line")
+        neighborhood_profile_plot_type = st.radio("Select plot type:", options=["line", "box", "violin"], key=ST_KEY_PREFIX + "neighborhood_profile_plot_type")
+
+        # Grab the density for the selected indices for all distance bins and all phenotypes.
+        density_counts_per_sq_mm = spatial_umap.density[selected_indices_for_neighborhood_profile, :, :] * 1e6
+
+        # Plot the neighborhood profiles.
+        fig, extra_return_info = fnp_main.plot_neighborhood_profile(density_counts_per_sq_mm, neighborhood_profile_plot_type, dist_bin_um_list, unique_labels, axis_1_name="Distance bin (µm)", axis_2_name="Phenotype", value_name="Density (count/mm²)", color_map=phenotype_color_map)
+        st.plotly_chart(fig)
+        if extra_return_info:
+            st.write(extra_return_info)
+
+        # Allow user to choose a label for the selected cells for downstream plotting.
+        key = ST_KEY_PREFIX + "selected_label"
+        st.session_state.setdefault(key, "")
+        selected_label = st.text_input("Enter label for downstream plotting of selected cells (can edit later)", key=key)
+
+        # Allow user to pick color of selected cells for downstream plotting.
+        key = ST_KEY_PREFIX + "selected_color"
+        st.session_state.setdefault(key, "#FF0000")  # FF0000 is red
+        selected_color = st.color_picker("Select color for downstream plotting of selected cells (can edit later)", key=key)
+
+        # Allow user to add the selected cells to a selections dataframe.
+        if st.button("Add selected cells to selections table"):
+            df = st.session_state[ST_KEY_PREFIX + "de_selections"].reconstruct_edited_dataframe()
+            new_row = {
+                "label": selected_label if selected_label else f"Selection {len(df) + 1}",
+                "number_of_cells": len(selected_indices_for_neighborhood_profile),
+                "sumap_cell_indices": selected_indices_for_neighborhood_profile,  # This is the most efficient way to get the input indices: set(lf.join(pl.LazyFrame({"sumap_cell_index": selected_indices_for_neighborhood_profile}), on="sumap_cell_index", how="inner").select(pl.col("input_index")).collect().to_series().to_list()),
+                "color": selected_color,
+            }
+            df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+            st.session_state[ST_KEY_PREFIX + "de_selections"].update_editor_contents(new_df_contents=df)
+
+    # Plot the editable and selectable tables side-by-side.
+    st.write("Select a row in the neighborhood types table below to highlight the corresponding cells in the UMAP, real space, and neighborhood profile plots above.")
+    selections_table_columns = st.columns(2)
+    with selections_table_columns[0]:
+        st.session_state[ST_KEY_PREFIX + "de_selections"].dataframe_editor(reset_data_editor_button_text='Reset selections', disabled=["number_of_cells", "sumap_cell_indices"])
+    with selections_table_columns[1]:
+        st.dataframe(st.session_state[ST_KEY_PREFIX + "de_selections"].reconstruct_edited_dataframe(), on_select=activate_selection_group, key=ST_KEY_PREFIX + "selections_table__do_not_persist", selection_mode="single-row")
+
+    # Add option for user to modify how to keep duplicate cell assignments when registering neighborhood types.
+    key = ST_KEY_PREFIX + "keep_strategy"
+    st.session_state.setdefault(key, "any")
+    keep_strategy = st.radio("Select keep strategy for resolving multiple labels for a given cell when registering neighborhood types:", options=['first', 'last', 'any', 'none'], key=key, help='"none" drops duplicates; "any" is non-deterministic but fast.', horizontal=True)
+    
+    # Allow user to register the selected neighborhood types.
+    if st.button(":warning: Register selected neighborhood types", help="This will delete downstream results in the high-performance workflow. Ensure your results are sufficiently backed up before proceeding."):
+        df = st.session_state[ST_KEY_PREFIX + "de_selections"].reconstruct_edited_dataframe()
+        params = dict(updates_pd=df, keep=keep_strategy, missing_label_value=missing_label_value)
+        lf_neighborhoods = fnp_main.add_new_label_column(lf=lf, **params)
+        st.session_state["LAZYFRAMES"]["neighborhood_types"] = {
+            "lf": lf_neighborhoods,
+            "function_metadata": {"module_name": "fast_neighborhood_profiles.main", "qualpath": "add_new_label_column"},
+            "input_dataset": {"type": "lf", "keys": ("sumap_cells",)},
+            "params": params,
+        }
+        color_map = dict(zip(df["label"], df["color"]))
+        color_map[missing_label_value] = "#808080"
+        st.session_state[ST_KEY_PREFIX + "neighborhood_type_color_map"] = color_map
+        st.session_state[ST_KEY_PREFIX + "unique_neighborhood_types"] = list(set(df["label"].to_list() + [missing_label_value]))
+        st.session_state[ST_KEY_PREFIX + "df_reconstructed_selections"] = df
+        st.success("Neighborhood types registered successfully.")
+        fnp_main.clear_data_in_memory(st_key_prefixes=["plot_neighborhood_types.py__"])
+
+
+# Run the main function if this script is executed.
+if __name__ == "__main__":
+    main()
