@@ -74,7 +74,7 @@ foundry-platform-sdk==1.10.0
 fqdn==1.5.1
 frozenlist==1.6.0
 fsspec==2025.5.1
-geopandas==1.0.1
+geopandas==1.1.2
 gitdb==4.0.12
 GitPython==3.1.44
 google-auth==2.40.2
