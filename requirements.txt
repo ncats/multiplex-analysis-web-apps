@@ -195,7 +195,7 @@ pre_commit_hooks==5.0.0
 prometheus_client==0.22.0
 prompt_toolkit==3.0.51
 propcache==0.3.1
-protobuf==5.29.5
+protobuf==5.29.6
 psutil==7.0.0
 pure_eval==0.2.3
 pyarrow==20.0.0
