@@ -1,0 +1,132 @@
+services:
+  frontend:
+    image: frontend:${DATE}-v${BUILD_VER}-${ENV_NAME}-env
+    container_name: streamlit
+    build:
+      context: .
+      dockerfile: streamlit/Dockerfile
+      args:
+        ENV_NAME: ${ENV_NAME}
+        ENV_PY_VER: ${ENV_PY_VER}
+    ports:
+      - "8501:8501"
+    restart: unless-stopped
+    depends_on:
+      - database
+      - object_storage
+    environment:
+      DB_URL_GROUP: postgresql://postgres:password@database:5432/group_alpha_group_db
+      DB_URL_APP: postgresql://postgres:password@database:5432/app_a_app_db
+      DB_URL_COMMON: postgresql://postgres:password@database:5432/common_db
+      DB_URL_DATA_MANAGER: postgresql://postgres:password@database:5432/data_manager_db
+      TZ: America/New_York
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin123
+      ARCHIVES_BUCKET_NAME: archives
+      OLD_ARCHIVES_BUCKET_NAME: oldarchives
+      JOB_INPUTS_BUCKET_NAME: inputs
+      JOB_OUTPUTS_BUCKET_NAME: outputs
+      DATA_OBJECTS_BUCKET_NAME: objects
+      APP_USER: ${USER}  # Delete this (and modify get_current_username()) in the future when we implement running the container as non-root.
+      APP_PLATFORM: local
+      APP_SHORTNAME: mawa
+      APP_TITLE: "Multiplex Analysis Web Apps"
+      MONITOR_JOBS_REFRESH_INTERVAL_SECONDS: 5
+    stop_grace_period: 1s
+
+  database:
+    image: postgres:15
+    container_name: postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      TZ: America/New_York
+      PGTZ: America/New_York
+    ports:
+      - "5432:5432"
+    volumes:
+      - database_data:/var/lib/postgresql/data
+      - ./deploy/docker/postgres-init:/docker-entrypoint-initdb.d
+    restart: unless-stopped
+
+  object_storage:
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z-cpuv1
+    container_name: minio
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
+      TZ: America/New_York
+    ports:
+      - "9000:9000"  # API for Python app.
+      - "9001:9001"  # Web console for humans (http://localhost:9001 using the credentials above).
+    volumes:
+      - object_data:/data
+    command: server /data --console-address ":9001"
+    restart: unless-stopped
+
+  docker_orchestrator:
+    image: orchestrator:${DATE}-v${BUILD_VER}-${ENV_NAME}-env
+    container_name: docker_orchestrator
+    build:
+      context: .
+      dockerfile: docker_orchestrator/Dockerfile
+    environment:
+      # Worker image to launch (reuses frontend image for parity)
+      WORKER_IMAGE: frontend:${DATE}-v${BUILD_VER}-${ENV_NAME}-env  ## ENSURE THIS MATCHES FRONTEND IMAGE NAME!!!!!!!
+      WORKER_CPUS: ""  # Note some machines may not have 8 CPUs available so we need to change this; ensure this is changed elsewhere in code!
+      WORKER_MEM: ""
+      # Pass-through envs required by the worker
+      DB_URL_GROUP: postgresql://postgres:password@database:5432/group_alpha_group_db
+      DB_URL_APP: postgresql://postgres:password@database:5432/app_a_app_db
+      DB_URL_COMMON: postgresql://postgres:password@database:5432/common_db
+      DB_URL_DATA_MANAGER: postgresql://postgres:password@database:5432/data_manager_db
+      TZ: America/New_York
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin123
+      ARCHIVES_BUCKET_NAME: archives
+      OLD_ARCHIVES_BUCKET_NAME: oldarchives
+      JOB_INPUTS_BUCKET_NAME: inputs
+      JOB_OUTPUTS_BUCKET_NAME: outputs
+      DATA_OBJECTS_BUCKET_NAME: objects
+      APP_SHORTNAME: mawa
+      APP_TITLE: "Multiplex Analysis Web Apps"
+      MONITOR_JOBS_REFRESH_INTERVAL_SECONDS: 5
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:rw
+
+  data_manager:
+    image: mawa-data-manager:${DATE}-v${BUILD_VER}-${ENV_NAME}-env
+    container_name: data_manager
+    build:
+      context: .
+      dockerfile: data_manager/Dockerfile
+    ports:
+      - "8502:8501"
+    restart: unless-stopped
+    depends_on:
+      - object_storage
+    environment:
+      DB_URL_GROUP: postgresql://postgres:password@database:5432/group_alpha_group_db
+      DB_URL_APP: postgresql://postgres:password@database:5432/app_a_app_db
+      DB_URL_COMMON: postgresql://postgres:password@database:5432/common_db
+      DB_URL_DATA_MANAGER: postgresql://postgres:password@database:5432/data_manager_db
+      TZ: America/New_York
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin123
+      ARCHIVES_BUCKET_NAME: archives
+      OLD_ARCHIVES_BUCKET_NAME: oldarchives
+      JOB_INPUTS_BUCKET_NAME: inputs
+      JOB_OUTPUTS_BUCKET_NAME: outputs
+      DATA_OBJECTS_BUCKET_NAME: objects
+      APP_USER: ${USER}  # Delete this (and modify get_current_username()) in the future when we implement running the container as non-root.
+      APP_PLATFORM: local
+      APP_SHORTNAME: dmgr
+      APP_TITLE: "Data Manager"
+    stop_grace_period: 1s
+
+volumes:
+  database_data:
+  object_data:

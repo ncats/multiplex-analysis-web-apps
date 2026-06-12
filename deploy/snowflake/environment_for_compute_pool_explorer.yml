@@ -1,0 +1,10 @@
+channels:
+  - conda-forge
+  - defaults
+channel_priority: strict
+dependencies:
+  - python
+  - streamlit
+  - plotly
+  - pandas
+  - openpyxl

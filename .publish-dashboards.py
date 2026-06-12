@@ -79,9 +79,12 @@ def publish_dashboard(dashboard_rid, dashboard_definition):
     publish_url = "{0}/containers/{1}/versions".format(FOUNDRY_CONTAINER_SERVICE_API, dashboard_rid)
     runtime = {
         key: dashboard_definition.get(key)
-        for key in ["idleTimeout", "resourceProfile", "resources", "inputs", "networkPolicies", "sources", "environmentVariables", "shared", "allowDownloads"]
+        for key in ["idleTimeout", "resourceProfile", "resources", "resourcesV2", "inputs", "networkPolicies", "sources", "environmentVariables", "shared", "allowDownloads"]
         if key in dashboard_definition
     }
+    # FCS will only apply resourcesV2 if useResourcesV2 is set to true
+    if "resourcesV2" in runtime:
+        runtime["resourcesV2"]["useResourcesV2"]=True
     payload = {
         "branch": BRANCH,
         "fallbackBranches": get_fallback_branches(),

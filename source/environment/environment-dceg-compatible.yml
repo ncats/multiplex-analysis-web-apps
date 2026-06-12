@@ -1,0 +1,55 @@
+channels:
+  - conda-forge
+  - defaults
+channel_priority: strict
+dependencies:
+  - compilers=1.11.0  #### not present
+  - python=3.12.8  #### 3.12.9
+  - streamlit=1.51.0  ##### conda: 1.43.2, pip: 1.44.0
+  - psycopg2=2.9.10  # can probably upgrade to psycopg, #### not present
+  - pyyaml=6.0.2  #### 6.0.2
+  - dill=0.3.9    #### 0.3.9
+  - git  # doesn't seem to work; 3.1.45 is brought in,   #### not present
+  - requests=2.32.3  #### 2.32.5  #### conda: 2.27.1, pip: 2.32.3
+  - minio=7.2.16  #### not present
+  - polars=1.21.0  #### 1.33.0  #### conda: 1.26.0, pip: not present
+  - snowflake-snowpark-python=1.39.1  # upgrade this for another reason (which didn't ultimately matter) and remove pyarrow spec below since the upgraded snowflake-snowpark-python seems to no longer require a specific pyarrow version, #### not present
+  - matplotlib=3.10.0  #### 3.10.1
+  - natsort=8.4.0
+  - numpy=2.1.3  #### 2.1.3
+  - palantir-sdk=0.12.0
+  - pandas=2.2.3  #### 2.2.3
+  - plotly=6.0.0  #### 6.0.1
+  - scipy=1.15.1  #### 1.15.2
+  - seaborn=0.13.2
+  - scikit-image=0.25.1  #### 0.25.2
+  - scikit-learn=1.6.1  #### 1.5.2
+  - anaconda::streamlit-extras=0.6.0  #### 0.4.6  #### 0.6.0
+  - tqdm=4.67.1  #### 4.67.1
+  - umap-learn=0.5.7  #### 0.5.7
+  - pympler=1.1
+  - objsize=0.7.1  #### 0.7.1
+  - bioconda::phenograph=1.5.7
+  - parmap=1.7.0
+  - setuptools-scm=8.1.0  #### 8.2.0
+  - pynndescent=0.5.13
+  - plotnine=0.13.6
+  - shapely=2.0.6  #### 2.0.7
+  - hnswlib=0.8.0  #### 0.8.0
+  - spatialdata=0.2.5  #### 0.2.5  # pinning, otherwise importing probably squidpy fails
+  - dask=2024.9.1  #### 2024.9.1  # removes a legacy dask warning when importing spatialdata, though other warnings remain during import and during environment setup
+  - pyopenssl=24.2.1  #### 25.1.0  # needed to be able to import snowflake.snowpark without SSL errors, #### not present
+  - numba=0.61.0  ####0.61.0  # needed to load in archives from NIDAP that were created using closer to this version of numba, seemingly needed to load neighborhood profiles results
+  - zarr=2.18.4  #### 2.18.4
+  - numcodecs=0.15.0  #### 0.15.1
+  - pip=25.0  #### 25.0.1
+  - pip:
+      - st-pages==1.0.1
+      - streamlit-javascript==0.1.5
+      - parc==0.40
+      - sklearn-ann==0.1.2
+      - anndata==0.10.9  #### 0.10.9  # didn't work with conda, #### conda: 0.11.4, pip: 0.10.9
+      - annoy==1.17.3  # didn't work with conda
+      - boto3==1.40.45  #### 1.31.17  #### 1.40.45  # required for squidpy pip install... even though conda installs recent boto3 (e.g., 1.40.45), that recent version doesn't seem to get recognized during squidpy pip install, #### boto3 not present, but botocore is 1.31.17 (pip)
+      - squidpy==1.6.2  #### 1.6.2  # didn't work with conda
+      - split-file-reader==0.1.4

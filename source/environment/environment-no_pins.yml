@@ -1,0 +1,55 @@
+channels:
+  - conda-forge
+  - defaults
+channel_priority: strict
+dependencies:
+  - compilers
+  - python
+  - streamlit
+  - psycopg
+  - pyyaml
+  - dill
+  - git
+  - requests
+  - minio
+  - polars
+  - snowflake-snowpark-python  # upgrade this for another reason (which didn't ultimately matter) and remove pyarrow spec below since the upgraded snowflake-snowpark-python seems to no longer require a specific pyarrow version
+  - matplotlib
+  - natsort
+  - numpy
+  - palantir-sdk
+  - pandas
+  - plotly
+  - scipy
+  - seaborn
+  - scikit-image
+  - scikit-learn
+  - anaconda::streamlit-extras  # micromamba works through here
+  - tqdm
+  - umap-learn
+  - pympler
+  - objsize
+  - bioconda::phenograph
+  - parmap
+  - setuptools-scm
+  - pynndescent
+  - plotnine
+  - shapely
+  - hnswlib
+  - spatialdata  # pinning, otherwise importing probably squidpy fails
+  - dask  # removes a legacy dask warning when importing spatialdata, though other warnings remain during import and during environment setup
+  - pyopenssl  # needed to be able to import snowflake.snowpark without SSL errors
+  - numba  # needed to load in archives from NIDAP that were created using closer to this version of numba, seemingly needed to load neighborhood profiles results
+  - zarr
+  - numcodecs
+  - pip
+  - pip:
+      - st-pages
+      - streamlit-javascript
+      - parc
+      - sklearn-ann
+      - anndata  # didn't work with conda
+      - annoy  # didn't work with conda
+      - boto3  # required for squidpy pip install... even though conda installs recent boto3 (e.g., 1.40.45), that recent version doesn't seem to get recognized during squidpy pip install
+      - squidpy  # didn't work with conda
+      - split-file-reader
