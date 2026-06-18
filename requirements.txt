@@ -67,7 +67,7 @@ fastapi==0.115.12
 fasteners==0.19
 fastjsonschema==2.21.1
 favicon==0.7.0
-filelock==3.18.0
+filelock==3.20.3
 Flask==3.1.1
 fonttools==4.58.4
 foundry-platform-sdk==1.10.0
