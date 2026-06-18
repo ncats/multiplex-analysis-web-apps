@@ -261,7 +261,7 @@ soupsieve==2.7
 spatial_image==1.2.1
 spatialdata==0.4.0
 SQLAlchemy==2.0.41
-sqlparse==0.5.3
+sqlparse==0.5.4
 squidpy==1.6.5
 st-annotated-text==4.0.2
 st-theme==1.2.3
